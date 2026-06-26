@@ -5,7 +5,6 @@ module.exports = async (req, res) => {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SOSmoto · Suscripción</title>
-<script src="/supabase.js"></script>
 <style>
   body { font-family: -apple-system, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; color: #1a1a1a; }
   .container { max-width: 480px; margin: 0 auto; }
@@ -21,9 +20,26 @@ module.exports = async (req, res) => {
   button { width: 100%; padding: 12px; background: #FF6B00; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
   button:disabled { opacity: 0.6; }
   #status { text-align: center; padding: 60px 0; color: #666; }
+  #debugBox { display: none; max-width: 480px; margin: 0 auto 12px; background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; border-radius: 8px; padding: 12px; font-size: 12px; font-family: monospace; word-break: break-word; white-space: pre-wrap; }
 </style>
+<script>
+  window.__showDebug = function (msg) {
+    var box = document.getElementById('debugBox');
+    if (!box) return;
+    box.style.display = 'block';
+    box.textContent += (box.textContent ? '\\n' : '') + msg;
+  };
+  window.onerror = function (msg, src, line, col) {
+    window.__showDebug('ERROR JS: ' + msg + ' (linea ' + line + ')');
+  };
+  window.addEventListener('unhandledrejection', function (ev) {
+    window.__showDebug('PROMISE ERROR: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason));
+  });
+</script>
+<script src="/supabase.js" onerror="window.__showDebug('No se pudo cargar /supabase.js (problema de red)')"></script>
 </head>
 <body>
+<div id="debugBox"></div>
 <div class="container">
   <div id="status">Cargando...</div>
   <div id="content" style="display:none">
@@ -35,6 +51,7 @@ module.exports = async (req, res) => {
 </div>
 <script>
   if (!window.supabase) {
+    window.__showDebug('window.supabase es undefined al ejecutar el script principal.');
     document.getElementById('status').textContent = 'No se pudo cargar la librería de Supabase. Revisa tu conexión e intenta de nuevo.';
     throw new Error('window.supabase not loaded');
   }
@@ -48,6 +65,15 @@ module.exports = async (req, res) => {
   function limitLabel(v) { return v === null ? 'Ilimitado' : v; }
 
   async function init() {
+    try {
+      await initInner();
+    } catch (err) {
+      window.__showDebug('EXCEPTION en init(): ' + (err && err.message ? err.message : err));
+      document.getElementById('status').textContent = 'Ocurrió un error al cargar.';
+    }
+  }
+
+  async function initInner() {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) {
       window.location.href = '/api/login';
