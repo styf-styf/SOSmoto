@@ -13,12 +13,12 @@ function extractField(raw, key) {
   return match ? match[1].trim() : null;
 }
 
-async function confirm(id, clientTransactionId) {
+async function confirm(id, clientTransactionId, transactionStatus) {
   try {
     const response = await fetch(CONFIRM_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ANON_KEY}` },
-      body: JSON.stringify({ id, clientTransactionId }),
+      body: JSON.stringify({ id, clientTransactionId, transactionStatus }),
     });
     return await response.json();
   } catch (err) {
@@ -32,17 +32,20 @@ module.exports = async (req, res) => {
     try {
       let id;
       let clientTransactionId;
+      let transactionStatus;
       const b = req.body;
       if (b && typeof b === 'object') {
         id = b.id || b.transactionId;
         clientTransactionId = b.clientTransactionId;
+        transactionStatus = b.transactionStatus;
       }
       const raw = typeof b === 'string' ? b : JSON.stringify(b || {});
       console.log('payphone webhook body:', raw, '| type:', typeof b);
       id = id || extractField(raw, 'id') || extractField(raw, 'transactionId') || req.query.id;
       clientTransactionId = clientTransactionId || extractField(raw, 'clientTransactionId') || req.query.clientTransactionId;
+      transactionStatus = transactionStatus || extractField(raw, 'transactionStatus') || req.query.transactionStatus;
       if (id && clientTransactionId) {
-        await confirm(id, clientTransactionId);
+        await confirm(id, clientTransactionId, transactionStatus);
       }
     } catch (err) {
       console.error('payphone webhook error', err);
@@ -51,11 +54,19 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // Capturamos TODO el query string del retorno del navegador: ademas de
+  // id/clientTransactionId, Payphone puede mandar transactionStatus u otros
+  // campos que antes ignorabamos -- importante para diagnosticar, y para
+  // poder confiar en el estado que Payphone ya afirma sin depender 100% de
+  // que V3/Confirm responda bien (tiene un bug confirmado: revienta con un
+  // error generico de IIS/ASP.NET para transacciones reales completadas via
+  // el handoff a la app nativa de Payphone, aunque el cobro si se hizo).
   const id = req.query.id;
   const clientTransactionId = req.query.clientTransactionId;
+  const transactionStatus = req.query.transactionStatus;
   let result = { success: false };
   if (id && clientTransactionId) {
-    result = await confirm(id, clientTransactionId);
+    result = await confirm(id, clientTransactionId, transactionStatus);
   } else {
     result = { success: false, error: 'Payphone no envió id/clientTransactionId en la URL de retorno', query: req.query };
   }
@@ -63,7 +74,7 @@ module.exports = async (req, res) => {
   const debugLine = result.success
     ? ''
     : `<pre style="text-align:left;max-width:400px;margin:16px auto;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:12px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;">${
-        JSON.stringify({ id, clientTransactionId, result }, null, 2)
+        JSON.stringify({ query: req.query, result }, null, 2)
       }</pre>`;
 
   const html = `<!DOCTYPE html>

@@ -3,9 +3,43 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const PAYPHONE_TOKEN = Deno.env.get('PAYPHONE_TOKEN')!;
 const PAYPHONE_BASE = 'https://pay.payphonetodoesposible.com/api';
 
+async function activatePlan(
+  supabase: ReturnType<typeof createClient>,
+  payment: { id: string; business_id: string; plan_id: string | null },
+  gatewayTransactionId: string
+) {
+  await supabase
+    .from('payments')
+    .update({ status: 'completed', gateway_transaction_id: gatewayTransactionId })
+    .eq('id', payment.id);
+
+  if (payment.plan_id) {
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    await supabase
+      .from('business_subscriptions')
+      .update({ status: 'expired' })
+      .eq('business_id', payment.business_id)
+      .eq('status', 'active');
+
+    await supabase.from('business_subscriptions').insert({
+      business_id: payment.business_id,
+      plan_id: payment.plan_id,
+      status: 'active',
+      started_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      payment_id: payment.id,
+    });
+
+    await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
+  }
+}
+
 Deno.serve(async (req) => {
   try {
-    const { id, clientTransactionId } = await req.json();
+    const { id, clientTransactionId, transactionStatus: hintedStatus } = await req.json();
     if (!id || !clientTransactionId) {
       return new Response(JSON.stringify({ error: 'Faltan datos' }), { status: 400 });
     }
@@ -41,9 +75,25 @@ Deno.serve(async (req) => {
     });
 
     if (!confirmResponse.ok) {
-      await supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id);
       const detail = await confirmResponse.text();
       console.error('payphone V3/Confirm not ok', confirmResponse.status, detail);
+
+      // Bug confirmado de Payphone: V3/Confirm devuelve un error generico de
+      // IIS/ASP.NET (no JSON) para transacciones reales completadas vía el
+      // handoff a la app nativa de Payphone -- el cobro SI se hizo, solo su
+      // endpoint de verificacion revienta. Si quien nos llama (el webhook de
+      // Payphone, no el navegador) ya nos dijo 'Approved', confiamos en eso
+      // en vez de bloquear al negocio por un bug del lado de Payphone.
+      if (hintedStatus === 'Approved') {
+        console.warn('V3/Confirm fallo pero transactionStatus=Approved fue confirmado por el webhook; activando plan de todas formas', { id, clientTransactionId });
+        await activatePlan(supabase, payment, id);
+        return new Response(
+          JSON.stringify({ success: true, status: 'Approved', note: 'V3/Confirm fallo, activado por transactionStatus del webhook' }),
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id);
       return new Response(
         JSON.stringify({ success: false, error: 'No se pudo confirmar el pago', httpStatus: confirmResponse.status, detail }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -61,33 +111,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    await supabase
-      .from('payments')
-      .update({ status: 'completed', gateway_transaction_id: String(confirmData.transactionId) })
-      .eq('id', payment.id);
-
-    if (payment.plan_id) {
-      const now = new Date();
-      const expiresAt = new Date(now);
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-      await supabase
-        .from('business_subscriptions')
-        .update({ status: 'expired' })
-        .eq('business_id', payment.business_id)
-        .eq('status', 'active');
-
-      await supabase.from('business_subscriptions').insert({
-        business_id: payment.business_id,
-        plan_id: payment.plan_id,
-        status: 'active',
-        started_at: now.toISOString(),
-        expires_at: expiresAt.toISOString(),
-        payment_id: payment.id,
-      });
-
-      await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
-    }
+    await activatePlan(supabase, payment, String(confirmData.transactionId));
 
     return new Response(JSON.stringify({ success: true, status: confirmData.transactionStatus }), {
       headers: { 'Content-Type': 'application/json' },
