@@ -56,6 +56,45 @@ async function waitForPaymentStatus(clientTransactionId, { attempts = 6, delayMs
   return { success: false, payment: null, timedOut: true };
 }
 
+// EcuaPred tampoco verifica nada con Payphone en su pagina de retorno: si el
+// navegador llega ahi con un `id` valido, confia en eso y acredita directo
+// (el webhook es secundario, no bloquea el camino feliz). Replicamos eso:
+// si el webhook no confirmo a tiempo, pero el pago que NOSOTROS creamos
+// (con un client_transaction_id que es un UUID propio, no adivinable) sigue
+// 'pending', confiamos en que Payphone solo redirige aqui tras un pago
+// exitoso y activamos el plan -- evita depender de V3/Confirm (con bug
+// confirmado) o del webhook (que no esta llegando).
+async function activateByTrust(clientTransactionId, gatewayId) {
+  const supabase = supabaseAdmin();
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('id, business_id, plan_id, status')
+    .eq('client_transaction_id', clientTransactionId)
+    .maybeSingle();
+  if (!payment || payment.status !== 'pending') return { success: false, payment };
+
+  await supabase.from('payments').update({ status: 'completed', gateway_transaction_id: gatewayId }).eq('id', payment.id);
+
+  if (payment.plan_id) {
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    await supabase.from('business_subscriptions').update({ status: 'expired' }).eq('business_id', payment.business_id).eq('status', 'active');
+    await supabase.from('business_subscriptions').insert({
+      business_id: payment.business_id,
+      plan_id: payment.plan_id,
+      status: 'active',
+      started_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      payment_id: payment.id,
+    });
+    await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
+  }
+
+  return { success: true, payment, trusted: true };
+}
+
 module.exports = async (req, res) => {
   if (req.method === 'POST') {
     let id;
@@ -102,7 +141,13 @@ module.exports = async (req, res) => {
   }
 
   const clientTransactionId = req.query.clientTransactionId;
-  const wait = clientTransactionId ? await waitForPaymentStatus(clientTransactionId) : { success: false, payment: null };
+  const id = req.query.id;
+  let wait = clientTransactionId ? await waitForPaymentStatus(clientTransactionId) : { success: false, payment: null };
+  if (wait.timedOut && clientTransactionId && id) {
+    // El webhook nunca llego (status sigue 'pending', no es un rechazo
+    // explicito) -- confiamos en el retorno del navegador, igual que EcuaPred.
+    wait = await activateByTrust(clientTransactionId, id);
+  }
 
   const debugLine = wait.success
     ? ''
