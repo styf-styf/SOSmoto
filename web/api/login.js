@@ -28,8 +28,8 @@ module.exports = async (req, res) => {
 </div>
 <script>
   const supabase = window.supabase.createClient(
-    '${process.env.SUPABASE_URL}',
-    '${process.env.SUPABASE_ANON_KEY}'
+    ${JSON.stringify((process.env.SUPABASE_URL || '').trim())},
+    ${JSON.stringify((process.env.SUPABASE_ANON_KEY || '').trim())}
   );
 
   supabase.auth.getSession().then(({ data }) => {
