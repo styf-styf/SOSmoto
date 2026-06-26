@@ -9,8 +9,10 @@ module.exports = {
     userInterfaceStyle: 'light',
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.sosmoto.app',
     },
     android: {
+      package: 'com.sosmoto.app',
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',
@@ -50,5 +52,10 @@ module.exports = {
       ],
       '@react-native-community/datetimepicker',
     ],
+    extra: {
+      eas: {
+        projectId: 'ec5d68aa-d944-4fa3-80dc-0af8f3cddb9d',
+      },
+    },
   },
 };

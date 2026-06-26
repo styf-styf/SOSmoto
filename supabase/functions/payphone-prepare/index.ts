@@ -63,7 +63,9 @@ Deno.serve(async (req) => {
 
     // El widget de Payphone (Cajita de Pagos) corre en el navegador, no aquí;
     // esta función solo prepara el registro y devuelve la página que lo embebe.
-    const checkoutUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/payphone-checkout-page?paymentId=${paymentId}`;
+    // La página vive en Vercel (no en Supabase Edge Functions, que fuerza
+    // Content-Type: text/plain + CSP sandbox en respuestas HTML).
+    const checkoutUrl = `https://so-smoto.vercel.app/api/payphone-checkout?paymentId=${paymentId}`;
 
     return new Response(JSON.stringify({ paymentId, checkoutUrl }), {
       headers: { 'Content-Type': 'application/json' },

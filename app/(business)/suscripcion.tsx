@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness, getSubscriptionPlans, updateBusinessPlan } from '../../services/businesses';
 import { getAllProducts, getAllServices } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
-import { confirmSubscriptionPayment, getActiveSubscription, startSubscriptionCheckout } from '../../services/payments';
+import { getActiveSubscription } from '../../services/payments';
 import type { Business, SubscriptionPlan } from '../../types/database';
 
-const PAYPHONE_RETURN_URL = 'sosmoto://payphone-return';
+const SUBSCRIPTION_PORTAL_URL = 'https://so-smoto.vercel.app/api/suscripcion';
 
 const planLabel: Record<string, string> = {
   free: 'Free',
@@ -30,7 +29,6 @@ export default function SuscripcionScreen() {
   const [usage, setUsage] = useState({ services: 0, products: 0, employees: 0 });
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState<string | null>(null);
-  const [paying, setPaying] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -63,8 +61,15 @@ export default function SuscripcionScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  async function handleSwitch(plan: SubscriptionPlan) {
+  function handleSwitch(plan: SubscriptionPlan) {
     if (!business) return;
+
+    if (plan.price_monthly > 0) {
+      Linking.openURL(SUBSCRIPTION_PORTAL_URL).catch(() =>
+        Alert.alert('Error', 'No se pudo abrir el portal de pagos.')
+      );
+      return;
+    }
 
     const warnings: string[] = [];
     if (plan.max_services !== null && usage.services > plan.max_services) {
@@ -77,7 +82,7 @@ export default function SuscripcionScreen() {
       warnings.push(`tienes ${usage.employees} personas en el equipo (el plan permite ${plan.max_employees})`);
     }
 
-    const proceed = () => (plan.price_monthly > 0 ? handlePay(plan) : doSwitch(plan.id));
+    const proceed = () => doSwitch(plan.id);
 
     if (warnings.length > 0) {
       Alert.alert(
@@ -90,41 +95,6 @@ export default function SuscripcionScreen() {
       );
     } else {
       proceed();
-    }
-  }
-
-  async function handlePay(plan: SubscriptionPlan) {
-    if (!business) return;
-    setPaying(plan.id);
-    try {
-      const checkout = await startSubscriptionCheckout(business.id, plan.id);
-      const result = await WebBrowser.openAuthSessionAsync(checkout.checkoutUrl, PAYPHONE_RETURN_URL);
-
-      if (result.type !== 'success' || !result.url) {
-        Alert.alert('Pago cancelado', 'No se completó el pago con Payphone.');
-        return;
-      }
-
-      const params = new URL(result.url).searchParams;
-      const id = params.get('id');
-      const clientTransactionId = params.get('clientTransactionId');
-      if (!id || !clientTransactionId) {
-        Alert.alert('Error', 'No se pudo leer la respuesta de Payphone.');
-        return;
-      }
-
-      const confirmResult = await confirmSubscriptionPayment(id, clientTransactionId);
-      if (confirmResult.success) {
-        Alert.alert('Pago aprobado', 'Tu plan se actualizó.');
-        await load();
-      } else {
-        Alert.alert('Pago no aprobado', `Estado: ${confirmResult.status ?? 'desconocido'}`);
-      }
-    } catch (err) {
-      console.error('payphone checkout error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo procesar el pago.');
-    } finally {
-      setPaying(null);
     }
   }
 
@@ -163,7 +133,8 @@ export default function SuscripcionScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Plan y suscripción</Text>
       <Text style={styles.helperText}>
-        Los planes pagos se cobran vía Payphone. Te avisaremos antes de que venza tu suscripción para que renueves.
+        Los planes pagos se cobran y se gestionan desde el portal web de SOSmoto (Payphone). Te avisaremos antes de
+        que venza tu suscripción para que renueves.
       </Text>
       {expiresAt && (
         <Text style={styles.helperText}>
@@ -198,10 +169,10 @@ export default function SuscripcionScreen() {
 
             {isOwner && !isCurrent && (
               <Button
-                title={plan.price_monthly > 0 ? `Pagar y cambiar a ${planLabel[plan.name] ?? plan.name}` : 'Cambiar a este plan'}
+                title={plan.price_monthly > 0 ? 'Pagar desde el portal web' : 'Cambiar a este plan'}
                 variant="secondary"
                 onPress={() => handleSwitch(plan)}
-                loading={switching === plan.id || paying === plan.id}
+                loading={switching === plan.id}
                 style={styles.switchButton}
               />
             )}
