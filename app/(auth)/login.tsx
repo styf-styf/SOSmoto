@@ -22,6 +22,7 @@ export default function LoginScreen() {
       await signIn(email.trim(), password);
       router.replace('/');
     } catch (err) {
+      console.error('login error', err);
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión.';
       Alert.alert('Error', message);
     } finally {
@@ -31,7 +32,7 @@ export default function LoginScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>SOST</Text>
+      <Text style={styles.title}>SOSmoto</Text>
       <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
 
       <TextField

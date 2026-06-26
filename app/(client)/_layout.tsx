@@ -1,14 +1,35 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
+import { ActiveHelpRequestProvider, useActiveHelpRequestContext } from '../../hooks/ActiveHelpRequestContext';
+import { useAuth } from '../../hooks/useAuth';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 
 export default function ClientLayout() {
+  const { profile } = useAuth();
+  usePushNotifications(profile?.id);
+
+  return (
+    <ActiveHelpRequestProvider clientId={profile?.id}>
+      <ClientTabs />
+    </ActiveHelpRequestProvider>
+  );
+}
+
+function ClientTabs() {
+  const { profile } = useAuth();
+  const { activeRequest } = useActiveHelpRequestContext();
+  const hasUnreadMessages = useUnreadMessages(profile);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
@@ -28,9 +49,26 @@ export default function ClientLayout() {
       <Tabs.Screen
         name="auxilio"
         options={{
-          title: 'Auxilio',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-circle" size={size + 6} color={colors.sos} />
+          title: 'SOS',
+          tabBarIcon: ({ size }) => (
+            <View>
+              <Ionicons name="alert-circle" size={size + 6} color={colors.sos} />
+              {activeRequest && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: colors.sos,
+                    borderWidth: 1.5,
+                    borderColor: '#fff',
+                  }}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -39,7 +77,24 @@ export default function ClientLayout() {
         options={{
           title: 'Mensajes',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses" size={size} color={color} />
+            <View>
+              <Ionicons name="chatbubble-ellipses" size={size} color={color} />
+              {hasUnreadMessages && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: colors.sos,
+                    borderWidth: 1.5,
+                    borderColor: '#fff',
+                  }}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -50,6 +105,18 @@ export default function ClientLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
       />
+
+      {/* Pantallas alcanzables por navegación pero sin botón propio en la tab bar,
+          para que la tab bar siga visible al entrar a ellas. */}
+      <Tabs.Screen name="business/[id]" options={{ href: null, headerShown: true, title: 'Negocio' }} />
+      <Tabs.Screen name="chat/[id]" options={{ href: null, headerShown: true, title: 'Chat' }} />
+      <Tabs.Screen name="vehiculos" options={{ href: null, headerShown: true, title: 'Mis motos' }} />
+      <Tabs.Screen name="historial" options={{ href: null, headerShown: true, title: 'Historial de servicios' }} />
+      <Tabs.Screen name="servicio/[id]" options={{ href: null, headerShown: true, title: 'Servicio' }} />
+      <Tabs.Screen name="producto/[id]" options={{ href: null, headerShown: true, title: 'Producto' }} />
+      <Tabs.Screen name="configuracion" options={{ href: null, headerShown: true, title: 'Configuración' }} />
+      <Tabs.Screen name="agendar" options={{ href: null, headerShown: true, title: 'Agendar cita' }} />
+      <Tabs.Screen name="citas" options={{ href: null, headerShown: true, title: 'Mis citas' }} />
     </Tabs>
   );
 }

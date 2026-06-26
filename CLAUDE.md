@@ -1,7 +1,7 @@
 # Contexto del Proyecto: App de Servicio Técnico para Motos
 
 ## Descripción general
-App móvil (Android/iOS) que conecta motociclistas con talleres mecánicos y tiendas de accesorios/repuestos. Funciona como marketplace + servicio de auxilio en carretera (lógica tipo Uber).
+App móvil (Android/iOS), nombre comercial **SOSmoto**, que conecta motociclistas con talleres mecánicos y tiendas de accesorios/repuestos. Funciona como marketplace + servicio de auxilio en carretera (lógica tipo Uber).
 
 ## Modelo de negocio
 - **NO hay pasarela de pago entre cliente y negocio/taller.** El cliente paga el servicio/producto al negocio por fuera de la app (efectivo, transferencia directa, etc.)
@@ -67,9 +67,8 @@ App móvil (Android/iOS) que conecta motociclistas con talleres mecánicos y tie
 moto-app/
 ├── app/                    # Pantallas (Expo Router)
 │   ├── (auth)/             # Login, registro
-│   ├── (client)/           # Flujo cliente
-│   ├── (business)/         # Flujo negocio
-│   └── (shared)/           # Pantallas compartidas (chat, perfil)
+│   ├── (client)/           # Flujo cliente (tabs + pantallas sin tab propio vía href:null)
+│   └── (business)/         # Flujo negocio (tabs + pantallas sin tab propio vía href:null)
 ├── components/             # Componentes reutilizables UI
 ├── services/                # Llamadas a Supabase/API
 ├── hooks/                   # Custom hooks (useLocation, useAuth, etc.)
@@ -490,6 +489,8 @@ Se accede desde un ícono/botón (⚙️) dentro de la pantalla de Perfil de cad
 Ya inicializado: Expo + TypeScript + Expo Router, estructura de carpetas (`app/(auth)`, `app/(client)`, `app/(business)`, `app/(shared)`, `components/`, `services/`, `hooks/`, `types/`, `constants/`, `utils/`, `supabase/migrations/`), cliente de Supabase (`services/supabase.ts`), tipos generados a mano del esquema (`types/database.ts`, `types/supabase.ts`), migraciones SQL iniciales con RLS (`supabase/migrations/0001_initial_schema.sql`, `0002_rls_policies.sql`), y flujo de auth básico (login/registro con selección de rol cliente/negocio) + tabs por rol con pantallas placeholder. Verificado que compila (`tsc --noEmit`) y que el bundle de Metro exporta sin errores.
 
 Nota técnica: el proyecto usa `.npmrc` con `legacy-peer-deps=true` porque `expo-router@56` trae dependencias web (`@radix-ui/*`, `vaul`) con conflictos de peer deps con React 19 que de otra forma rompen `npm install`.
+
+Nota técnica: ya no existe el grupo `app/(shared)/`. Las pantallas que antes vivían ahí (chat, perfil de negocio, vehículos, historial, catálogo detalle, configuración, citas, agenda, empleados, suscripción) se movieron dentro de `app/(client)/` y/o `app/(business)/` como `<Tabs.Screen ... options={{ href: null }}>` — así siguen siendo navegables (con su propio header) pero sin botón en la tab bar, y la tab bar nunca se desmonta al entrar a ellas. `chat/[id]` está duplicado en ambos grupos porque lo usan los dos roles.
 
 ## Próximo paso
 1. Crear el proyecto real en Supabase, correr las migraciones de `supabase/migrations/`, y poner las credenciales reales en `.env` (ver `.env.example`).

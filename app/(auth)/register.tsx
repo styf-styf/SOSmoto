@@ -38,6 +38,7 @@ export default function RegisterScreen() {
       });
       router.replace('/');
     } catch (err) {
+      console.error('register error', err);
       const message = err instanceof Error ? err.message : 'No se pudo crear la cuenta.';
       Alert.alert('Error', message);
     } finally {

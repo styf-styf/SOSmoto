@@ -10,21 +10,18 @@ export interface SignUpParams {
 }
 
 export async function signUp({ email, password, fullName, phone, role }: SignUpParams) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) throw error;
-
-  const userId = data.user?.id;
-  if (!userId) throw new Error('No se pudo crear el usuario.');
-
-  const { error: profileError } = await supabase.from('users').insert({
-    id: userId,
+  const { data, error } = await supabase.auth.signUp({
     email,
-    phone: phone ?? null,
-    full_name: fullName,
-    role,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        phone: phone ?? null,
+        role,
+      },
+    },
   });
-  if (profileError) throw profileError;
-
+  if (error) throw error;
   return data;
 }
 

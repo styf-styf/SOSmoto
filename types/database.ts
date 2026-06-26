@@ -7,6 +7,7 @@ export interface User {
   full_name: string;
   role: UserRole;
   avatar_url: string | null;
+  push_token: string | null;
   created_at: string;
 }
 
@@ -18,6 +19,9 @@ export interface Vehicle {
   year: number;
   current_mileage: number;
   last_mileage_update: string;
+  moto_type: MotoType | null;
+  avg_monthly_km: number | null;
+  last_mileage_reminder_at: string | null;
   created_at: string;
 }
 
@@ -46,6 +50,7 @@ export interface Business {
   followers_count: number;
   plan_id: string;
   aid_radius_km: number | null;
+  is_24h: boolean;
   created_at: string;
 }
 
@@ -85,6 +90,7 @@ export interface BusinessSubscription {
   started_at: string;
   expires_at: string | null;
   payment_id: string | null;
+  reminder_sent_at: string | null;
 }
 
 export interface Service {
@@ -128,6 +134,9 @@ export interface HelpRequest {
   status: HelpRequestStatus;
   accepted_business_id: string | null;
   estimated_arrival_minutes: number | null;
+  business_latitude: number | null;
+  business_longitude: number | null;
+  business_location_updated_at: string | null;
   created_at: string;
   accepted_at: string | null;
   completed_at: string | null;
@@ -147,6 +156,7 @@ export interface Review {
   reviewed_business_id: string | null;
   reviewed_client_id: string | null;
   help_request_id: string | null;
+  appointment_id: string | null;
   rating: number;
   comment: string | null;
   is_public: boolean;
@@ -184,6 +194,8 @@ export interface Payment {
   type: PaymentType;
   gateway: string;
   gateway_transaction_id: string | null;
+  client_transaction_id: string | null;
+  plan_id: string | null;
   status: PaymentStatus;
   created_at: string;
 }
@@ -206,6 +218,31 @@ export interface MaintenanceSuggestion {
   rule_id: string;
   due_at_km: number | null;
   status: MaintenanceSuggestionStatus;
+  overdue_notified_at: string | null;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  client_id: string;
+  business_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export type AppointmentStatus = 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+
+export interface Appointment {
+  id: string;
+  client_id: string;
+  business_id: string;
+  vehicle_id: string | null;
+  service_id: string | null;
+  requested_at: string | null;
+  notes: string | null;
+  status: AppointmentStatus;
   created_at: string;
 }
 

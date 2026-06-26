@@ -11,6 +11,7 @@ export interface Database {
           full_name: string;
           role: 'client' | 'business' | 'admin';
           avatar_url: string | null;
+          push_token: string | null;
           created_at: string;
         };
         Insert: {
@@ -20,6 +21,7 @@ export interface Database {
           full_name: string;
           role: 'client' | 'business' | 'admin';
           avatar_url?: string | null;
+          push_token?: string | null;
           created_at?: string;
         };
         Update: {
@@ -29,6 +31,7 @@ export interface Database {
           full_name?: string;
           role?: 'client' | 'business' | 'admin';
           avatar_url?: string | null;
+          push_token?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -42,6 +45,9 @@ export interface Database {
           year: number;
           current_mileage: number;
           last_mileage_update: string;
+          moto_type: 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser' | null;
+          avg_monthly_km: number | null;
+          last_mileage_reminder_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -52,6 +58,9 @@ export interface Database {
           year: number;
           current_mileage?: number;
           last_mileage_update?: string;
+          moto_type?: 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser' | null;
+          avg_monthly_km?: number | null;
+          last_mileage_reminder_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -62,6 +71,9 @@ export interface Database {
           year?: number;
           current_mileage?: number;
           last_mileage_update?: string;
+          moto_type?: 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser' | null;
+          avg_monthly_km?: number | null;
+          last_mileage_reminder_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -86,6 +98,7 @@ export interface Database {
           followers_count: number;
           plan_id: string;
           aid_radius_km: number | null;
+          is_24h: boolean;
           created_at: string;
         };
         Insert: {
@@ -107,6 +120,7 @@ export interface Database {
           followers_count?: number;
           plan_id: string;
           aid_radius_km?: number | null;
+          is_24h?: boolean;
           created_at?: string;
         };
         Update: {
@@ -128,6 +142,7 @@ export interface Database {
           followers_count?: number;
           plan_id?: string;
           aid_radius_km?: number | null;
+          is_24h?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -207,6 +222,7 @@ export interface Database {
           started_at: string;
           expires_at: string | null;
           payment_id: string | null;
+          reminder_sent_at: string | null;
         };
         Insert: {
           id?: string;
@@ -216,6 +232,7 @@ export interface Database {
           started_at?: string;
           expires_at?: string | null;
           payment_id?: string | null;
+          reminder_sent_at?: string | null;
         };
         Update: {
           id?: string;
@@ -225,6 +242,7 @@ export interface Database {
           started_at?: string;
           expires_at?: string | null;
           payment_id?: string | null;
+          reminder_sent_at?: string | null;
         };
         Relationships: [];
       };
@@ -311,6 +329,9 @@ export interface Database {
           status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
           accepted_business_id: string | null;
           estimated_arrival_minutes: number | null;
+          business_latitude: number | null;
+          business_longitude: number | null;
+          business_location_updated_at: string | null;
           created_at: string;
           accepted_at: string | null;
           completed_at: string | null;
@@ -325,6 +346,9 @@ export interface Database {
           status?: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
           accepted_business_id?: string | null;
           estimated_arrival_minutes?: number | null;
+          business_latitude?: number | null;
+          business_longitude?: number | null;
+          business_location_updated_at?: string | null;
           created_at?: string;
           accepted_at?: string | null;
           completed_at?: string | null;
@@ -339,6 +363,9 @@ export interface Database {
           status?: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
           accepted_business_id?: string | null;
           estimated_arrival_minutes?: number | null;
+          business_latitude?: number | null;
+          business_longitude?: number | null;
+          business_location_updated_at?: string | null;
           created_at?: string;
           accepted_at?: string | null;
           completed_at?: string | null;
@@ -376,6 +403,7 @@ export interface Database {
           reviewed_business_id: string | null;
           reviewed_client_id: string | null;
           help_request_id: string | null;
+          appointment_id: string | null;
           rating: number;
           comment: string | null;
           is_public: boolean;
@@ -387,6 +415,7 @@ export interface Database {
           reviewed_business_id?: string | null;
           reviewed_client_id?: string | null;
           help_request_id?: string | null;
+          appointment_id?: string | null;
           rating: number;
           comment?: string | null;
           is_public?: boolean;
@@ -398,6 +427,7 @@ export interface Database {
           reviewed_business_id?: string | null;
           reviewed_client_id?: string | null;
           help_request_id?: string | null;
+          appointment_id?: string | null;
           rating?: number;
           comment?: string | null;
           is_public?: boolean;
@@ -465,6 +495,8 @@ export interface Database {
           type: 'subscription' | 'advertising';
           gateway: string;
           gateway_transaction_id: string | null;
+          client_transaction_id: string | null;
+          plan_id: string | null;
           status: 'pending' | 'completed' | 'failed' | 'refunded';
           created_at: string;
         };
@@ -476,6 +508,8 @@ export interface Database {
           type: 'subscription' | 'advertising';
           gateway: string;
           gateway_transaction_id?: string | null;
+          client_transaction_id?: string | null;
+          plan_id?: string | null;
           status?: 'pending' | 'completed' | 'failed' | 'refunded';
           created_at?: string;
         };
@@ -487,6 +521,8 @@ export interface Database {
           type?: 'subscription' | 'advertising';
           gateway?: string;
           gateway_transaction_id?: string | null;
+          client_transaction_id?: string | null;
+          plan_id?: string | null;
           status?: 'pending' | 'completed' | 'failed' | 'refunded';
           created_at?: string;
         };
@@ -523,6 +559,7 @@ export interface Database {
           rule_id: string;
           due_at_km: number | null;
           status: 'pending' | 'notified' | 'dismissed' | 'completed';
+          overdue_notified_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -531,6 +568,7 @@ export interface Database {
           rule_id: string;
           due_at_km?: number | null;
           status?: 'pending' | 'notified' | 'dismissed' | 'completed';
+          overdue_notified_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -539,6 +577,73 @@ export interface Database {
           rule_id?: string;
           due_at_km?: number | null;
           status?: 'pending' | 'notified' | 'dismissed' | 'completed';
+          overdue_notified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      messages: {
+        Row: {
+          id: string;
+          client_id: string;
+          business_id: string;
+          sender_id: string;
+          body: string;
+          created_at: string;
+          read_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          business_id: string;
+          sender_id: string;
+          body: string;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          business_id?: string;
+          sender_id?: string;
+          body?: string;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Relationships: [];
+      };
+      appointments: {
+        Row: {
+          id: string;
+          client_id: string;
+          business_id: string;
+          vehicle_id: string | null;
+          service_id: string | null;
+          requested_at: string | null;
+          notes: string | null;
+          status: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          business_id: string;
+          vehicle_id?: string | null;
+          service_id?: string | null;
+          requested_at?: string | null;
+          notes?: string | null;
+          status?: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          business_id?: string;
+          vehicle_id?: string | null;
+          service_id?: string | null;
+          requested_at?: string | null;
+          notes?: string | null;
+          status?: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
           created_at?: string;
         };
         Relationships: [];
@@ -566,6 +671,29 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      find_user_id_by_email: {
+        Args: { target_email: string };
+        Returns: string | null;
+      };
+      get_business_employees: {
+        Args: { target_business_id: string };
+        Returns: {
+          id: string;
+          business_id: string;
+          user_id: string;
+          role: 'owner' | 'mechanic';
+          can_accept_aid_requests: boolean;
+          created_at: string;
+          full_name: string;
+          email: string;
+          phone: string | null;
+        }[];
+      };
+      increment_ad_metric: {
+        Args: { ad_id: string; metric: string };
+        Returns: undefined;
+      };
+    };
   };
 }
