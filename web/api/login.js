@@ -49,12 +49,12 @@ module.exports = async (req, res) => {
     throw new Error('window.supabase not loaded');
   }
 
-  const supabase = window.supabase.createClient(
+  const sb = window.supabase.createClient(
     ${JSON.stringify((process.env.SUPABASE_URL || '').trim())},
     ${JSON.stringify((process.env.SUPABASE_ANON_KEY || '').trim())}
   );
 
-  supabase.auth.getSession().then(({ data }) => {
+  sb.auth.getSession().then(({ data }) => {
     if (data.session) window.location.href = '/api/suscripcion';
   });
 
@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
     btn.disabled = true;
     let result;
     try {
-      result = await supabase.auth.signInWithPassword({ email, password });
+      result = await sb.auth.signInWithPassword({ email, password });
     } catch (err) {
       btn.disabled = false;
       window.__showDebug('EXCEPTION en signInWithPassword: ' + (err && err.message ? err.message : err));

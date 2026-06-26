@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
     throw new Error('window.supabase not loaded');
   }
 
-  const supabase = window.supabase.createClient(
+  const sb = window.supabase.createClient(
     ${JSON.stringify((process.env.SUPABASE_URL || '').trim())},
     ${JSON.stringify((process.env.SUPABASE_ANON_KEY || '').trim())}
   );
@@ -74,16 +74,16 @@ module.exports = async (req, res) => {
   }
 
   async function initInner() {
-    const { data: sessionData } = await supabase.auth.getSession();
+    const { data: sessionData } = await sb.auth.getSession();
     if (!sessionData.session) {
       window.location.href = '/api/login';
       return;
     }
     const userId = sessionData.session.user.id;
 
-    let { data: business } = await supabase.from('businesses').select('*').eq('owner_id', userId).maybeSingle();
+    let { data: business } = await sb.from('businesses').select('*').eq('owner_id', userId).maybeSingle();
     if (!business) {
-      const { data: employee } = await supabase
+      const { data: employee } = await sb
         .from('business_employees')
         .select('businesses(*)')
         .eq('user_id', userId)
@@ -95,8 +95,8 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const { data: plans } = await supabase.from('subscription_plans').select('*').order('price_monthly', { ascending: true });
-    const { data: activeSub } = await supabase
+    const { data: plans } = await sb.from('subscription_plans').select('*').order('price_monthly', { ascending: true });
+    const { data: activeSub } = await sb
       .from('business_subscriptions')
       .select('expires_at')
       .eq('business_id', business.id)
@@ -137,13 +137,13 @@ module.exports = async (req, res) => {
         btn.textContent = 'Procesando...';
 
         if (price <= 0) {
-          const { error } = await supabase.from('businesses').update({ plan_id: planId }).eq('id', business.id);
+          const { error } = await sb.from('businesses').update({ plan_id: planId }).eq('id', business.id);
           if (error) { alert('No se pudo cambiar de plan.'); btn.disabled = false; return; }
           window.location.reload();
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke('payphone-prepare', {
+        const { data, error } = await sb.functions.invoke('payphone-prepare', {
           body: { businessId: business.id, planId },
         });
         if (error || (data && data.error)) {
