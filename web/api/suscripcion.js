@@ -5,7 +5,7 @@ module.exports = async (req, res) => {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SOSmoto · Suscripción</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/supabase.js"></script>
 <style>
   body { font-family: -apple-system, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; color: #1a1a1a; }
   .container { max-width: 480px; margin: 0 auto; }
@@ -34,6 +34,11 @@ module.exports = async (req, res) => {
   </div>
 </div>
 <script>
+  if (!window.supabase) {
+    document.getElementById('status').textContent = 'No se pudo cargar la librería de Supabase. Revisa tu conexión e intenta de nuevo.';
+    throw new Error('window.supabase not loaded');
+  }
+
   const supabase = window.supabase.createClient(
     ${JSON.stringify((process.env.SUPABASE_URL || '').trim())},
     ${JSON.stringify((process.env.SUPABASE_ANON_KEY || '').trim())}
