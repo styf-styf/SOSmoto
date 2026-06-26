@@ -53,12 +53,12 @@ module.exports = async (req, res) => {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pago SOSmoto</title>
-<link rel="stylesheet" href="https://cdn.payphonetodoesposible.com/box/v2.0/payphone-payment-box.css" />
+<link rel="stylesheet" href="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.css" />
 <style>body { font-family: sans-serif; background: #fff; padding: 16px; margin: 0; }</style>
 </head>
 <body>
 <div id="pp-button"></div>
-<script type="module" src="https://cdn.payphonetodoesposible.com/box/v2.0/payphone-payment-box.js"></script>
+<script type="module" src="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.js"></script>
 <script type="module">
   window.addEventListener('DOMContentLoaded', () => {
     new window.PPaymentButtonBox(${JSON.stringify(options)}).render('pp-button');
