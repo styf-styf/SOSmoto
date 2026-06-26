@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness, getSubscriptionPlans, updateBusinessPlan } from '../../services/businesses';
 import { getAllProducts, getAllServices } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
-import { getActiveSubscription } from '../../services/payments';
+import { getActiveSubscription, getWebLoginCode } from '../../services/payments';
 import type { Business, SubscriptionPlan } from '../../types/database';
 
 const SUBSCRIPTION_PORTAL_URL = 'https://so-smoto.vercel.app/api/suscripcion';
@@ -61,13 +61,25 @@ export default function SuscripcionScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
+  async function openPortal() {
+    try {
+      const code = await getWebLoginCode();
+      await Linking.openURL(`${SUBSCRIPTION_PORTAL_URL}?code=${code}`);
+    } catch (err) {
+      console.error('open portal error', err);
+      // Si no se pudo generar el código de auto-login, igual lo dejamos
+      // entrar y que se loguee a mano en el portal.
+      Linking.openURL(SUBSCRIPTION_PORTAL_URL).catch(() =>
+        Alert.alert('Error', 'No se pudo abrir el portal de pagos.')
+      );
+    }
+  }
+
   function handleSwitch(plan: SubscriptionPlan) {
     if (!business) return;
 
     if (plan.price_monthly > 0) {
-      Linking.openURL(SUBSCRIPTION_PORTAL_URL).catch(() =>
-        Alert.alert('Error', 'No se pudo abrir el portal de pagos.')
-      );
+      openPortal();
       return;
     }
 

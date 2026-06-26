@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 
+export async function getWebLoginCode(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('web-login-ticket', { body: {} });
+  if (error) throw error;
+  return data.code;
+}
+
 export async function getActiveSubscription(businessId: string) {
   const { data, error } = await supabase
     .from('business_subscriptions')

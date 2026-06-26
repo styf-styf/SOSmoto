@@ -19,6 +19,8 @@ module.exports = async (req, res) => {
   .feature { font-size: 13px; color: #555; margin-bottom: 2px; }
   button { width: 100%; padding: 12px; background: #FF6B00; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
   button:disabled { opacity: 0.6; }
+  .top-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  #logoutBtn { width: auto; background: none; color: #c0392b; font-weight: 600; font-size: 13px; padding: 6px 8px; margin-top: 0; }
   #status { text-align: center; padding: 60px 0; color: #666; }
   #debugBox { display: none; max-width: 480px; margin: 0 auto 12px; background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; border-radius: 8px; padding: 12px; font-size: 12px; font-family: monospace; word-break: break-word; white-space: pre-wrap; }
 </style>
@@ -43,6 +45,7 @@ module.exports = async (req, res) => {
 <div class="container">
   <div id="status">Cargando...</div>
   <div id="content" style="display:none">
+    <div class="top-bar"><button id="logoutBtn">Cerrar sesión</button></div>
     <h1>Plan y suscripción</h1>
     <p class="helper">Los planes pagos se cobran vía Payphone. Te avisaremos antes de que venza tu suscripción.</p>
     <div id="expiry"></div>
@@ -74,6 +77,23 @@ module.exports = async (req, res) => {
   }
 
   async function initInner() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+      // Codigo de un solo uso emitido por la app (servicio web-login-ticket)
+      // para auto-loguear sin pedir email/contraseña de nuevo en el portal.
+      const { data: exchangeData, error: exchangeError } = await sb.functions.invoke('web-login-exchange', {
+        body: { code },
+      });
+      history.replaceState(null, '', window.location.pathname);
+      if (!exchangeError && exchangeData && exchangeData.access_token) {
+        await sb.auth.setSession({
+          access_token: exchangeData.access_token,
+          refresh_token: exchangeData.refresh_token,
+        });
+      }
+    }
+
     const { data: sessionData } = await sb.auth.getSession();
     if (!sessionData.session) {
       window.location.href = '/api/login';
@@ -107,6 +127,11 @@ module.exports = async (req, res) => {
 
     document.getElementById('status').style.display = 'none';
     document.getElementById('content').style.display = 'block';
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      window.location.href = '/api/login';
+    });
 
     if (activeSub && activeSub.expires_at) {
       document.getElementById('expiry').innerHTML =
