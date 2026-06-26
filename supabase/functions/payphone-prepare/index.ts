@@ -1,6 +1,28 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// El portal web (so-smoto.vercel.app) llama a esta función desde un
+// navegador real, que sí aplica CORS (a diferencia de la app nativa o
+// curl). Sin estos headers el navegador bloquea la petición antes de
+// que llegue y supabase-js solo reporta "Failed to send a request to
+// the Edge Function" sin mas detalle.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     const authHeader = req.headers.get('Authorization') ?? '';
     const supabaseUser = createClient(
@@ -10,12 +32,12 @@ Deno.serve(async (req) => {
     );
     const { data: userData, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !userData.user) {
-      return new Response(JSON.stringify({ error: 'No autenticado' }), { status: 401 });
+      return json({ error: 'No autenticado' }, 401);
     }
 
     const { businessId, planId } = await req.json();
     if (!businessId || !planId) {
-      return new Response(JSON.stringify({ error: 'Faltan datos' }), { status: 400 });
+      return json({ error: 'Faltan datos' }, 400);
     }
 
     const supabase = createClient(
@@ -29,7 +51,7 @@ Deno.serve(async (req) => {
       .eq('id', businessId)
       .single();
     if (businessError || !business || business.owner_id !== userData.user.id) {
-      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 403 });
+      return json({ error: 'No autorizado' }, 403);
     }
 
     const { data: plan, error: planError } = await supabase
@@ -38,10 +60,10 @@ Deno.serve(async (req) => {
       .eq('id', planId)
       .single();
     if (planError || !plan) {
-      return new Response(JSON.stringify({ error: 'Plan no encontrado' }), { status: 404 });
+      return json({ error: 'Plan no encontrado' }, 404);
     }
     if (plan.price_monthly <= 0) {
-      return new Response(JSON.stringify({ error: 'Este plan no requiere pago' }), { status: 400 });
+      return json({ error: 'Este plan no requiere pago' }, 400);
     }
 
     const paymentId = crypto.randomUUID();
@@ -58,7 +80,7 @@ Deno.serve(async (req) => {
       client_transaction_id: paymentId,
     });
     if (paymentError) {
-      return new Response(JSON.stringify({ error: 'No se pudo crear el pago' }), { status: 500 });
+      return json({ error: 'No se pudo crear el pago' }, 500);
     }
 
     // El widget de Payphone (Cajita de Pagos) corre en el navegador, no aquí;
@@ -67,10 +89,8 @@ Deno.serve(async (req) => {
     // Content-Type: text/plain + CSP sandbox en respuestas HTML).
     const checkoutUrl = `https://so-smoto.vercel.app/api/payphone-checkout?paymentId=${paymentId}`;
 
-    return new Response(JSON.stringify({ paymentId, checkoutUrl }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ paymentId, checkoutUrl });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500 });
+    return json({ error: String(err) }, 500);
   }
 });
