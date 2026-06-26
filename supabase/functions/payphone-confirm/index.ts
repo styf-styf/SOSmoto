@@ -43,15 +43,20 @@ Deno.serve(async (req) => {
     if (!confirmResponse.ok) {
       await supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id);
       const detail = await confirmResponse.text();
-      return new Response(JSON.stringify({ error: 'No se pudo confirmar el pago', detail }), { status: 502 });
+      console.error('payphone V3/Confirm not ok', confirmResponse.status, detail);
+      return new Response(
+        JSON.stringify({ success: false, error: 'No se pudo confirmar el pago', httpStatus: confirmResponse.status, detail }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const confirmData = await confirmResponse.json();
 
     if (confirmData.transactionStatus !== 'Approved') {
       await supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+      console.error('payphone transaction not approved', confirmData);
       return new Response(
-        JSON.stringify({ success: false, status: confirmData.transactionStatus }),
+        JSON.stringify({ success: false, status: confirmData.transactionStatus, confirmData }),
         { headers: { 'Content-Type': 'application/json' } }
       );
     }

@@ -56,7 +56,15 @@ module.exports = async (req, res) => {
   let result = { success: false };
   if (id && clientTransactionId) {
     result = await confirm(id, clientTransactionId);
+  } else {
+    result = { success: false, error: 'Payphone no envió id/clientTransactionId en la URL de retorno', query: req.query };
   }
+
+  const debugLine = result.success
+    ? ''
+    : `<pre style="text-align:left;max-width:400px;margin:16px auto;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:12px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;">${
+        JSON.stringify({ id, clientTransactionId, result }, null, 2)
+      }</pre>`;
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -68,6 +76,7 @@ h1{font-size:20px;} a{color:#FF6B00;font-weight:600;text-decoration:none;}</styl
 <body>
 <h1>${result.success ? 'Pago aprobado ✅' : 'No pudimos confirmar el pago'}</h1>
 <p>${result.success ? 'Tu plan se actualizó.' : 'Si ya pagaste, espera un momento y vuelve a tu suscripción — si el cargo se aprobó, se reflejará solo.'}</p>
+${debugLine}
 <a href="/api/suscripcion">Volver a mi suscripción</a>
 </body>
 </html>`;
