@@ -110,6 +110,8 @@ function ClientTabs() {
           para que la tab bar siga visible al entrar a ellas. */}
       <Tabs.Screen name="business/[id]" options={{ href: null, headerShown: true, title: 'Negocio' }} />
       <Tabs.Screen name="historia/[businessId]" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="historias" options={{ href: null, headerShown: true, title: 'Mis historias' }} />
+      <Tabs.Screen name="historia-cliente/[clientId]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="chat/[id]" options={{ href: null, headerShown: true, title: 'Chat' }} />
       <Tabs.Screen name="vehiculos" options={{ href: null, headerShown: true, title: 'Mis motos' }} />
       <Tabs.Screen name="historial" options={{ href: null, headerShown: true, title: 'Historial de servicios' }} />

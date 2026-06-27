@@ -9,6 +9,7 @@ import { useLocation } from '../../hooks/useLocation';
 import { createBusiness, getMyWorkBusiness } from '../../services/businesses';
 import { getAllProducts, getAllServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getPendingRequests } from '../../services/helpRequests';
+import { getBusinessStories, isStoryVisible } from '../../services/stories';
 import type { Business, BusinessType } from '../../types/database';
 
 export default function BusinessHomeScreen() {
@@ -18,6 +19,7 @@ export default function BusinessHomeScreen() {
   const [pendingCount, setPendingCount] = useState(0);
   const [activeServices, setActiveServices] = useState(0);
   const [activeProducts, setActiveProducts] = useState(0);
+  const [activeStories, setActiveStories] = useState(0);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
 
   const load = useCallback(async () => {
@@ -28,15 +30,17 @@ export default function BusinessHomeScreen() {
       setBusiness(result);
       if (!result) return;
 
-      const [pending, services, products, planLimits] = await Promise.all([
+      const [pending, services, products, planLimits, stories] = await Promise.all([
         getPendingRequests(result.id),
         getAllServices(result.id),
         getAllProducts(result.id),
         getPlanLimits(result.id),
+        getBusinessStories(result.id),
       ]);
       setPendingCount(pending.length);
       setActiveServices(services.filter((s) => s.is_active).length);
       setActiveProducts(products.filter((p) => p.is_active).length);
+      setActiveStories(stories.filter(isStoryVisible).length);
       setLimits(planLimits);
     } catch (err) {
       console.error('load business error', err);
@@ -93,6 +97,13 @@ export default function BusinessHomeScreen() {
           <Text style={styles.cardValue}>{business.followers_count}</Text>
         </View>
       </View>
+
+      <Pressable style={styles.card} onPress={() => router.push('/(business)/historias')}>
+        <Text style={styles.cardLabel}>Historias activas</Text>
+        <Text style={styles.cardValueSmall}>
+          {activeStories} historia{activeStories === 1 ? '' : 's'} visible{activeStories === 1 ? '' : 's'} para tus clientes ahora.
+        </Text>
+      </Pressable>
 
       <Pressable style={styles.card} onPress={() => router.push('/(business)/catalogo')}>
         <Text style={styles.cardLabel}>Catálogo (plan {limits?.planName ?? '...'})</Text>

@@ -489,10 +489,11 @@ export interface Database {
       stories: {
         Row: {
           id: string;
-          business_id: string;
+          business_id: string | null;
+          client_id: string | null;
           image_url: string;
           caption: string | null;
-          action_type: 'service' | 'product' | 'contact' | 'none';
+          action_type: 'service' | 'product' | 'contact' | 'business_tag' | 'none';
           action_target_id: string | null;
           is_pinned: boolean;
           views: number;
@@ -501,10 +502,11 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          business_id: string;
+          business_id?: string | null;
+          client_id?: string | null;
           image_url: string;
           caption?: string | null;
-          action_type?: 'service' | 'product' | 'contact' | 'none';
+          action_type?: 'service' | 'product' | 'contact' | 'business_tag' | 'none';
           action_target_id?: string | null;
           is_pinned?: boolean;
           views?: number;
@@ -513,10 +515,11 @@ export interface Database {
         };
         Update: {
           id?: string;
-          business_id?: string;
+          business_id?: string | null;
+          client_id?: string | null;
           image_url?: string;
           caption?: string | null;
-          action_type?: 'service' | 'product' | 'contact' | 'none';
+          action_type?: 'service' | 'product' | 'contact' | 'business_tag' | 'none';
           action_target_id?: string | null;
           is_pinned?: boolean;
           views?: number;

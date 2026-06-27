@@ -182,11 +182,12 @@ export interface Ad {
   created_at: string;
 }
 
-export type StoryActionType = 'service' | 'product' | 'contact' | 'none';
+export type StoryActionType = 'service' | 'product' | 'contact' | 'business_tag' | 'none';
 
 export interface Story {
   id: string;
-  business_id: string;
+  business_id: string | null;
+  client_id: string | null;
   image_url: string;
   caption: string | null;
   action_type: StoryActionType;

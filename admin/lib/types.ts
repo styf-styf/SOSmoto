@@ -33,7 +33,8 @@ export interface AdminBusinessRow {
 
 export interface AdminStoryRow {
   id: string;
-  business_id: string;
+  business_id: string | null;
+  client_id: string | null;
   image_url: string;
   caption: string | null;
   is_pinned: boolean;
@@ -41,4 +42,5 @@ export interface AdminStoryRow {
   clicks: number;
   created_at: string;
   businesses: { name: string } | null;
+  users: { full_name: string } | null;
 }

@@ -3,19 +3,13 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../hooks/useAuth';
-import { getVisibleStoriesForBusinesses, registerStoryClick, registerStoryView } from '../../../services/stories';
+import { getVisibleStoriesForClient, registerStoryClick, registerStoryView } from '../../../services/stories';
 import type { Story } from '../../../types/database';
 
 const DURATION_MS = 5000;
 
-const actionLabel: Record<string, string> = {
-  service: 'Ver servicio',
-  product: 'Ver producto',
-  contact: 'Contactar',
-};
-
-export default function StoryViewerScreen() {
-  const { businessId } = useLocalSearchParams<{ businessId: string }>();
+export default function ClientStoryViewerScreen() {
+  const { clientId } = useLocalSearchParams<{ clientId: string }>();
   const { profile } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [index, setIndex] = useState(0);
@@ -23,12 +17,12 @@ export default function StoryViewerScreen() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!businessId) return;
-    getVisibleStoriesForBusinesses([businessId])
+    if (!clientId) return;
+    getVisibleStoriesForClient(clientId)
       .then(setStories)
-      .catch((err) => console.error('load story viewer error', err))
+      .catch((err) => console.error('load client story viewer error', err))
       .finally(() => setLoading(false));
-  }, [businessId]);
+  }, [clientId]);
 
   const current = stories[index];
 
@@ -62,11 +56,9 @@ export default function StoryViewerScreen() {
   }, [current, profile, goNext]);
 
   function handleAction() {
-    if (!current || current.action_type === 'none') return;
+    if (!current || current.action_type !== 'business_tag') return;
     registerStoryClick(current.id).catch((err) => console.error('register story click error', err));
-    if (current.action_type === 'service') router.push(`/(client)/servicio/${current.action_target_id}`);
-    else if (current.action_type === 'product') router.push(`/(client)/producto/${current.action_target_id}`);
-    else if (current.action_type === 'contact') router.push(`/(client)/chat/${businessId}`);
+    router.push(`/(client)/business/${current.action_target_id}`);
   }
 
   if (loading) {
@@ -115,9 +107,9 @@ export default function StoryViewerScreen() {
         </View>
       )}
 
-      {current.action_type !== 'none' && (
+      {current.action_type === 'business_tag' && (
         <Pressable style={styles.actionButton} onPress={handleAction}>
-          <Text style={styles.actionText}>{actionLabel[current.action_type]}</Text>
+          <Text style={styles.actionText}>Ver negocio</Text>
         </Pressable>
       )}
     </View>

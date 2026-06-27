@@ -116,6 +116,12 @@ export default function ClientPerfilScreen() {
 
       <Button title="Mis motos" onPress={() => router.push('/(client)/vehiculos')} />
       <Button
+        title="Mis historias"
+        variant="secondary"
+        onPress={() => router.push('/(client)/historias')}
+        style={styles.spacedButton}
+      />
+      <Button
         title="Mis citas"
         variant="secondary"
         onPress={() => router.push('/(client)/citas')}

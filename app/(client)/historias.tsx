@@ -4,26 +4,23 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
-import { getActiveProducts, getActiveServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
-import { getMyWorkBusiness } from '../../services/businesses';
-import { createStory, deleteStory, getBusinessStories, isStoryVisible } from '../../services/stories';
-import { pickAndUploadBusinessImage } from '../../services/storage';
-import type { Business, Product, Service, Story, StoryActionType } from '../../types/database';
+import { searchBusinesses } from '../../services/businesses';
+import { createStory, deleteStory, getClientStories, isStoryVisible } from '../../services/stories';
+import { pickAndUploadClientStoryImage } from '../../services/storage';
+import type { BusinessWithDistance } from '../../services/businesses';
+import type { Story, StoryActionType } from '../../types/database';
 
-const templates = ['Promo del día', 'Antes/Después', 'Nuevo producto', 'Cupo disponible hoy'];
+const CLIENT_DAILY_LIMIT = 3;
+
+const templates = ['Mi moto', 'En ruta', 'Antes/Después', 'Recomiendo este taller'];
 
 const actionOptions: { label: string; value: StoryActionType }[] = [
   { label: 'Ninguno', value: 'none' },
-  { label: 'Ver servicio', value: 'service' },
-  { label: 'Ver producto', value: 'product' },
-  { label: 'Contactar', value: 'contact' },
+  { label: 'Etiquetar negocio', value: 'business_tag' },
 ];
 
-export default function HistoriasScreen() {
+export default function ClientHistoriasScreen() {
   const { profile } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [plan, setPlan] = useState<PlanLimits | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -31,62 +28,43 @@ export default function HistoriasScreen() {
   const [imageUrl, setImageUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [actionType, setActionType] = useState<StoryActionType>('none');
-  const [services, setServices] = useState<Service[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [businessQuery, setBusinessQuery] = useState('');
+  const [businessResults, setBusinessResults] = useState<BusinessWithDistance[]>([]);
   const [targetId, setTargetId] = useState<string | null>(null);
-  const [isPinned, setIsPinned] = useState(false);
+  const [targetName, setTargetName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusiness(work.business);
-    setIsOwner(work.isOwner);
-    const [planLimits, businessStories] = await Promise.all([
-      getPlanLimits(work.business.id),
-      getBusinessStories(work.business.id),
-    ]);
-    setPlan(planLimits);
-    setStories(businessStories);
+    const clientStories = await getClientStories(profile.id);
+    setStories(clientStories);
   }, [profile]);
 
   useEffect(() => {
     setLoading(true);
     load()
-      .catch((err) => console.error('load historias error', err))
+      .catch((err) => console.error('load client historias error', err))
       .finally(() => setLoading(false));
   }, [load]);
 
-  useEffect(() => {
-    if (!business) return;
-    if (actionType === 'service' && services.length === 0) {
-      getActiveServices(business.id).then(setServices).catch((err) => console.error('load services error', err));
-    }
-    if (actionType === 'product' && products.length === 0) {
-      getActiveProducts(business.id).then(setProducts).catch((err) => console.error('load products error', err));
-    }
-  }, [actionType, business, services.length, products.length]);
-
   const activeCount = stories.filter(isStoryVisible).length;
-  const atLimit = plan?.maxActiveStories !== null && activeCount >= (plan?.maxActiveStories ?? Infinity);
-  const canPin = plan?.planName === 'pro';
+  const atLimit = activeCount >= CLIENT_DAILY_LIMIT;
 
   function resetForm() {
     setImageUrl('');
     setCaption('');
     setActionType('none');
+    setBusinessQuery('');
+    setBusinessResults([]);
     setTargetId(null);
-    setIsPinned(false);
+    setTargetName(null);
   }
 
   function handleAddPress() {
     if (atLimit) {
-      Alert.alert(
-        'Límite de plan alcanzado',
-        `Tu plan ${plan?.planName} permite hasta ${plan?.maxActiveStories} historia(s) activa(s). Sube de plan para subir más.`
-      );
+      Alert.alert('Límite diario alcanzado', `Puedes subir hasta ${CLIENT_DAILY_LIMIT} historias por día.`);
       return;
     }
     resetForm();
@@ -94,43 +72,55 @@ export default function HistoriasScreen() {
   }
 
   async function handlePickImage() {
-    if (!business) return;
+    if (!profile) return;
     setUploadingImage(true);
     try {
-      const url = await pickAndUploadBusinessImage(business.id);
+      const url = await pickAndUploadClientStoryImage(profile.id);
       if (url) setImageUrl(url);
     } catch (err) {
-      console.error('upload story image error', err);
+      console.error('upload client story image error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la imagen.');
     } finally {
       setUploadingImage(false);
     }
   }
 
+  async function handleSearchBusiness() {
+    if (!businessQuery.trim()) return;
+    setSearching(true);
+    try {
+      const results = await searchBusinesses({ query: businessQuery.trim() });
+      setBusinessResults(results);
+    } catch (err) {
+      console.error('search business for story tag error', err);
+    } finally {
+      setSearching(false);
+    }
+  }
+
   async function handleCreate() {
-    if (!business) return;
+    if (!profile) return;
     if (!imageUrl.trim()) {
       Alert.alert('Falta la imagen', 'Selecciona una foto para la historia.');
       return;
     }
-    if ((actionType === 'service' || actionType === 'product') && !targetId) {
-      Alert.alert('Falta elegir', actionType === 'service' ? 'Elige un servicio.' : 'Elige un producto.');
+    if (actionType === 'business_tag' && !targetId) {
+      Alert.alert('Falta elegir', 'Busca y elige el negocio que quieres etiquetar.');
       return;
     }
     setSaving(true);
     try {
       const created = await createStory({
-        businessId: business.id,
+        clientId: profile.id,
         imageUrl: imageUrl.trim(),
         caption: caption.trim() || undefined,
         actionType,
-        actionTargetId: actionType === 'service' || actionType === 'product' ? targetId ?? undefined : undefined,
-        isPinned: canPin ? isPinned : false,
+        actionTargetId: actionType === 'business_tag' ? targetId ?? undefined : undefined,
       });
       setStories((prev) => [created, ...prev]);
       setShowForm(false);
     } catch (err) {
-      console.error('create story error', err);
+      console.error('create client story error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo crear la historia.');
     } finally {
       setSaving(false);
@@ -142,7 +132,7 @@ export default function HistoriasScreen() {
       await deleteStory(story.id);
       setStories((prev) => prev.filter((s) => s.id !== story.id));
     } catch (err) {
-      console.error('delete story error', err);
+      console.error('delete client story error', err);
       Alert.alert('Error', 'No se pudo eliminar la historia.');
     }
   }
@@ -155,26 +145,16 @@ export default function HistoriasScreen() {
     );
   }
 
-  if (!business) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.placeholder}>Primero crea o únete a un negocio.</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Historias</Text>
+      <Text style={styles.title}>Mis historias</Text>
       <Text style={styles.helperText}>
-        Foto visible 24h para tus clientes. {plan?.maxActiveStories === null ? 'Tu plan permite historias ilimitadas.' : `${activeCount}/${plan?.maxActiveStories ?? 0} historias activas según tu plan ${plan?.planName}.`}
+        Foto visible 24h para toda la comunidad. {activeCount}/{CLIENT_DAILY_LIMIT} historias activas hoy.
       </Text>
 
-      {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede subir historias.</Text>}
+      {!showForm && <Button title="+ Nueva historia" onPress={handleAddPress} style={styles.createButton} />}
 
-      {isOwner && !showForm && <Button title="+ Nueva historia" onPress={handleAddPress} style={styles.createButton} />}
-
-      {isOwner && showForm && (
+      {showForm && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Imagen</Text>
           {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}
@@ -194,7 +174,7 @@ export default function HistoriasScreen() {
               </Pressable>
             ))}
           </View>
-          <TextField label="Texto" placeholder="20% de descuento hoy" value={caption} onChangeText={setCaption} />
+          <TextField label="Texto" placeholder="Listo para rodar" value={caption} onChangeText={setCaption} />
 
           <Text style={styles.fieldLabel}>Botón de acción</Text>
           <View style={styles.chipRow}>
@@ -204,6 +184,7 @@ export default function HistoriasScreen() {
                 onPress={() => {
                   setActionType(opt.value);
                   setTargetId(null);
+                  setTargetName(null);
                 }}
                 style={[styles.chip, actionType === opt.value && styles.chipSelected]}
               >
@@ -212,48 +193,40 @@ export default function HistoriasScreen() {
             ))}
           </View>
 
-          {actionType === 'service' && (
-            <View style={styles.chipRow}>
-              {services.length === 0 ? (
-                <Text style={styles.placeholder}>No tienes servicios activos.</Text>
+          {actionType === 'business_tag' && (
+            <View>
+              {targetName ? (
+                <Text style={styles.selectedTarget}>Etiquetado: {targetName}</Text>
               ) : (
-                services.map((s) => (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => setTargetId(s.id)}
-                    style={[styles.chip, targetId === s.id && styles.chipSelected]}
-                  >
-                    <Text style={[styles.chipText, targetId === s.id && styles.chipTextSelected]}>{s.name}</Text>
-                  </Pressable>
-                ))
+                <>
+                  <View style={styles.searchRow}>
+                    <View style={styles.searchField}>
+                      <TextField
+                        label="Buscar negocio"
+                        placeholder="Nombre del taller o tienda"
+                        value={businessQuery}
+                        onChangeText={setBusinessQuery}
+                      />
+                    </View>
+                    <Button title="Buscar" onPress={handleSearchBusiness} loading={searching} style={styles.searchButton} />
+                  </View>
+                  <View style={styles.chipRow}>
+                    {businessResults.map((b) => (
+                      <Pressable
+                        key={b.id}
+                        onPress={() => {
+                          setTargetId(b.id);
+                          setTargetName(b.name);
+                        }}
+                        style={styles.chip}
+                      >
+                        <Text style={styles.chipText}>{b.name}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
               )}
             </View>
-          )}
-
-          {actionType === 'product' && (
-            <View style={styles.chipRow}>
-              {products.length === 0 ? (
-                <Text style={styles.placeholder}>No tienes productos activos.</Text>
-              ) : (
-                products.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => setTargetId(p.id)}
-                    style={[styles.chip, targetId === p.id && styles.chipSelected]}
-                  >
-                    <Text style={[styles.chipText, targetId === p.id && styles.chipTextSelected]}>{p.name}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
-          )}
-
-          {canPin && (
-            <Pressable onPress={() => setIsPinned((v) => !v)} style={[styles.chip, isPinned && styles.chipSelected, styles.pinChip]}>
-              <Text style={[styles.chipText, isPinned && styles.chipTextSelected]}>
-                {isPinned ? '✓ Fijada como destacado permanente' : 'Fijar como destacado permanente'}
-              </Text>
-            </Pressable>
           )}
 
           <View style={styles.editActions}>
@@ -275,13 +248,11 @@ export default function HistoriasScreen() {
                 {story.caption || '(sin texto)'}
               </Text>
               <Text style={styles.cardMeta}>
-                {isStoryVisible(story) ? (story.is_pinned ? 'Destacada' : 'Activa') : 'Expirada'}
+                {isStoryVisible(story) ? 'Activa' : 'Expirada'}
                 {' · '}
                 {story.views} vistas · {story.clicks} clics
               </Text>
-              {isOwner && (
-                <Button title="Eliminar" variant="secondary" onPress={() => handleDelete(story)} style={styles.deleteButton} />
-              )}
+              <Button title="Eliminar" variant="secondary" onPress={() => handleDelete(story)} style={styles.deleteButton} />
             </View>
           </View>
         ))
@@ -351,10 +322,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.primary,
   },
-  pinChip: {
-    marginBottom: 16,
-    alignSelf: 'flex-start',
-  },
   preview: {
     width: '100%',
     height: 220,
@@ -363,6 +330,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   imageButton: {
+    marginBottom: 16,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  searchField: {
+    flex: 1,
+  },
+  searchButton: {
+    marginBottom: 16,
+  },
+  selectedTarget: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
     marginBottom: 16,
   },
   sectionTitle: {

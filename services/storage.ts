@@ -52,3 +52,24 @@ export async function pickAndUploadBusinessImage(businessId: string): Promise<st
   if (!asset) return null;
   return uploadBusinessImage(asset, businessId);
 }
+
+export async function uploadClientStoryImage(asset: ImagePicker.ImagePickerAsset, clientId: string): Promise<string> {
+  const optimizedUri = await optimizeImage(asset);
+  const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
+  const path = `client-stories/${clientId}/${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage.from(BUCKET).upload(path, arrayBuffer, {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function pickAndUploadClientStoryImage(clientId: string): Promise<string | null> {
+  const asset = await pickImageFromLibrary();
+  if (!asset) return null;
+  return uploadClientStoryImage(asset, clientId);
+}

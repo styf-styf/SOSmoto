@@ -8,7 +8,9 @@ export default async function ModeracionPage() {
 
   const { data, error } = await supabase
     .from('stories')
-    .select('id, business_id, image_url, caption, is_pinned, views, clicks, created_at, businesses(name)')
+    .select(
+      'id, business_id, client_id, image_url, caption, is_pinned, views, clicks, created_at, businesses(name), users!stories_client_id_fkey(full_name)'
+    )
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: false });
 
@@ -29,7 +31,10 @@ export default async function ModeracionPage() {
           <div key={story.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
             <img src={story.image_url} alt="" className="h-48 w-full object-cover" />
             <div className="p-3">
-              <p className="text-sm font-semibold">{story.businesses?.name ?? 'Negocio'}</p>
+              <p className="text-sm font-semibold">
+                {story.businesses?.name ?? story.users?.full_name ?? 'Usuario'}
+                {story.client_id ? ' (cliente)' : ''}
+              </p>
               {story.caption && <p className="mt-1 text-sm text-gray-600">{story.caption}</p>}
               <p className="mt-1 text-xs text-gray-400">
                 {story.is_pinned ? 'Destacada · ' : ''}

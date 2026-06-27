@@ -12,10 +12,11 @@ import {
   type ProductWithBusiness,
   type ServiceWithBusiness,
 } from '../../services/catalog';
-import { getSeenStoryIds, getVisibleStoriesForBusinesses } from '../../services/stories';
+import { getSeenStoryIds, getVisibleClientStories, getVisibleStoriesForBusinesses } from '../../services/stories';
 import { AdBanner } from '../../components/AdBanner';
 import { BusinessListItem } from '../../components/BusinessListItem';
 import { CatalogCard } from '../../components/CatalogCard';
+import { ClientStoriesBar, type ClientStoryAuthorItem } from '../../components/ClientStoriesBar';
 import { StoriesBar, type StoryBusinessItem } from '../../components/StoriesBar';
 import type { Ad, Business } from '../../types/database';
 
@@ -29,6 +30,7 @@ export default function ClientHomeScreen() {
   const [products, setProducts] = useState<ProductWithBusiness[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
   const [storyItems, setStoryItems] = useState<StoryBusinessItem[]>([]);
+  const [clientStoryItems, setClientStoryItems] = useState<ClientStoryAuthorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -72,6 +74,24 @@ export default function ClientHomeScreen() {
           hasUnseen: visibleStories.some((s) => s.business_id === id && !seenIds.has(s.id)),
         }));
       setStoryItems(items);
+
+      const visibleClientStories = await getVisibleClientStories();
+      const otherClientStories = visibleClientStories.filter((s) => s.client_id !== profile?.id);
+      const seenClientStoryIds = profile
+        ? await getSeenStoryIds(profile.id, otherClientStories.map((s) => s.id))
+        : new Set<string>();
+      const clientStoryAuthorIds = Array.from(new Set(otherClientStories.map((s) => s.client_id as string)));
+      const clientStoryItemsResult: ClientStoryAuthorItem[] = clientStoryAuthorIds
+        .map((id) => {
+          const story = otherClientStories.find((s) => s.client_id === id);
+          if (!story?.users) return null;
+          return {
+            client: story.users,
+            hasUnseen: otherClientStories.some((s) => s.client_id === id && !seenClientStoryIds.has(s.id)),
+          };
+        })
+        .filter((item): item is ClientStoryAuthorItem => item !== null);
+      setClientStoryItems(clientStoryItemsResult);
     } catch (err) {
       console.error('home load error', err);
     }
@@ -104,6 +124,12 @@ export default function ClientHomeScreen() {
       <Text style={styles.title}>Inicio</Text>
 
       <StoriesBar items={storyItems} />
+
+      {clientStoryItems.length > 0 && (
+        <Section title="Comunidad">
+          <ClientStoriesBar items={clientStoryItems} />
+        </Section>
+      )}
 
       {ads.map((ad) => (
         <AdBanner key={ad.id} ad={ad} />
