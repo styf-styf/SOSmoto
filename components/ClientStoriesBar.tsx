@@ -6,6 +6,7 @@ import { colors } from '../constants/colors';
 export interface ClientStoryAuthorItem {
   client: { id: string; full_name: string; avatar_url: string | null };
   hasUnseen: boolean;
+  isOwn?: boolean;
 }
 
 export function ClientStoriesBar({ items }: { items: ClientStoryAuthorItem[] }) {
@@ -33,7 +34,7 @@ export function ClientStoriesBar({ items }: { items: ClientStoryAuthorItem[] }) 
             </View>
           </View>
           <Text style={styles.name} numberOfLines={1}>
-            {item.client.full_name}
+            {item.isOwn ? 'Tú' : item.client.full_name}
           </Text>
         </Pressable>
       )}

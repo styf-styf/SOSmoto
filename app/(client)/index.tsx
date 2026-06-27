@@ -77,6 +77,7 @@ export default function ClientHomeScreen() {
 
       const visibleClientStories = await getVisibleClientStories();
       const otherClientStories = visibleClientStories.filter((s) => s.client_id !== profile?.id);
+      const ownClientStory = visibleClientStories.find((s) => s.client_id === profile?.id);
       const seenClientStoryIds = profile
         ? await getSeenStoryIds(profile.id, otherClientStories.map((s) => s.id))
         : new Set<string>();
@@ -91,6 +92,9 @@ export default function ClientHomeScreen() {
           };
         })
         .filter((item): item is ClientStoryAuthorItem => item !== null);
+      if (ownClientStory?.users) {
+        clientStoryItemsResult.unshift({ client: ownClientStory.users, hasUnseen: false, isOwn: true });
+      }
       setClientStoryItems(clientStoryItemsResult);
     } catch (err) {
       console.error('home load error', err);
