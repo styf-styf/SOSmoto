@@ -110,7 +110,8 @@ export default function BusinessHomeScreen() {
           hasStory: activeStories > 0,
           avatarUrl: business.logo_url,
           previewImageUrl: ownPreviewImageUrl,
-          onPress: () => router.push('/(business)/historias'),
+          onPress: () =>
+            router.push(activeStories > 0 ? `/(business)/historia/${business.id}` : '/(business)/historias'),
         }}
         items={feedItems.map((item) => ({
           ...item,

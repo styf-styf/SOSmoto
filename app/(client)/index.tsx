@@ -115,7 +115,8 @@ export default function ClientHomeScreen() {
           hasStory: ownHasStory,
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
-          onPress: () => router.push('/(client)/historias'),
+          onPress: () =>
+            router.push(ownHasStory && profile ? `/(client)/historia-cliente/${profile.id}` : '/(client)/historias'),
         }}
         items={feedItems.map((item) => ({
           ...item,
