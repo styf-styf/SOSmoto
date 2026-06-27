@@ -113,6 +113,81 @@ export async function getVisibleClientStories(): Promise<ClientStoryWithAuthor[]
   return (data ?? []) as unknown as ClientStoryWithAuthor[];
 }
 
+export interface BusinessStoryWithAuthor extends Story {
+  businesses: { id: string; name: string; logo_url: string | null } | null;
+}
+
+// Historias activas de TODOS los negocios (no solo seguidos/cercanos) -- junto
+// con getVisibleClientStories(), alimenta la fila combinada de "Estados" que
+// se muestra igual en el home del cliente y en el del negocio.
+export async function getVisibleBusinessStoriesGlobal(): Promise<BusinessStoryWithAuthor[]> {
+  const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('stories')
+    .select('*, businesses(id, name, logo_url)')
+    .not('business_id', 'is', null)
+    .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as BusinessStoryWithAuthor[];
+}
+
+export interface StoryFeedItem {
+  id: string;
+  kind: 'business' | 'client';
+  name: string;
+  avatarUrl: string | null;
+  hasUnseen: boolean;
+}
+
+// Agrupa las historias de negocios y de clientes por autor (un ítem por
+// negocio/cliente, no por historia individual) para la fila combinada de
+// "Estados". `excludeBusinessId`/`excludeClientId` quitan al propio
+// viewer -- ese se muestra aparte, como el primer espacio de la fila.
+export function groupStoriesByAuthor(params: {
+  businessStories: BusinessStoryWithAuthor[];
+  clientStories: ClientStoryWithAuthor[];
+  seenStoryIds: Set<string>;
+  excludeBusinessId?: string;
+  excludeClientId?: string;
+}): StoryFeedItem[] {
+  const items = new Map<string, StoryFeedItem>();
+
+  for (const story of params.businessStories) {
+    if (!story.businesses || story.business_id === params.excludeBusinessId) continue;
+    const unseen = !params.seenStoryIds.has(story.id);
+    const key = `business:${story.business_id}`;
+    const existing = items.get(key);
+    if (existing) existing.hasUnseen = existing.hasUnseen || unseen;
+    else
+      items.set(key, {
+        id: story.business_id as string,
+        kind: 'business',
+        name: story.businesses.name,
+        avatarUrl: story.businesses.logo_url,
+        hasUnseen: unseen,
+      });
+  }
+
+  for (const story of params.clientStories) {
+    if (!story.users || story.client_id === params.excludeClientId) continue;
+    const unseen = !params.seenStoryIds.has(story.id);
+    const key = `client:${story.client_id}`;
+    const existing = items.get(key);
+    if (existing) existing.hasUnseen = existing.hasUnseen || unseen;
+    else
+      items.set(key, {
+        id: story.client_id as string,
+        kind: 'client',
+        name: story.users.full_name,
+        avatarUrl: story.users.avatar_url,
+        hasUnseen: unseen,
+      });
+  }
+
+  return Array.from(items.values()).sort((a, b) => Number(b.hasUnseen) - Number(a.hasUnseen));
+}
+
 // IDs de las historias (dentro de `storyIds`) que este cliente ya vio.
 export async function getSeenStoryIds(clientId: string, storyIds: string[]): Promise<Set<string>> {
   if (storyIds.length === 0) return new Set();

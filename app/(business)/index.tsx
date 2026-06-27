@@ -9,7 +9,16 @@ import { useLocation } from '../../hooks/useLocation';
 import { createBusiness, getMyWorkBusiness } from '../../services/businesses';
 import { getAllProducts, getAllServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getPendingRequests } from '../../services/helpRequests';
-import { getBusinessStories, isStoryVisible } from '../../services/stories';
+import {
+  getBusinessStories,
+  getSeenStoryIds,
+  getVisibleBusinessStoriesGlobal,
+  getVisibleClientStories,
+  groupStoriesByAuthor,
+  isStoryVisible,
+  type StoryFeedItem,
+} from '../../services/stories';
+import { StoriesRow } from '../../components/StoriesRow';
 import type { Business, BusinessType } from '../../types/database';
 
 export default function BusinessHomeScreen() {
@@ -21,6 +30,7 @@ export default function BusinessHomeScreen() {
   const [activeProducts, setActiveProducts] = useState(0);
   const [activeStories, setActiveStories] = useState(0);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
+  const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -30,18 +40,32 @@ export default function BusinessHomeScreen() {
       setBusiness(result);
       if (!result) return;
 
-      const [pending, services, products, planLimits, stories] = await Promise.all([
-        getPendingRequests(result.id),
-        getAllServices(result.id),
-        getAllProducts(result.id),
-        getPlanLimits(result.id),
-        getBusinessStories(result.id),
-      ]);
+      const [pending, services, products, planLimits, stories, businessStoriesGlobal, clientStoriesGlobal] =
+        await Promise.all([
+          getPendingRequests(result.id),
+          getAllServices(result.id),
+          getAllProducts(result.id),
+          getPlanLimits(result.id),
+          getBusinessStories(result.id),
+          getVisibleBusinessStoriesGlobal(),
+          getVisibleClientStories(),
+        ]);
       setPendingCount(pending.length);
       setActiveServices(services.filter((s) => s.is_active).length);
       setActiveProducts(products.filter((p) => p.is_active).length);
       setActiveStories(stories.filter(isStoryVisible).length);
       setLimits(planLimits);
+
+      const allStoryIds = [...businessStoriesGlobal.map((s) => s.id), ...clientStoriesGlobal.map((s) => s.id)];
+      const seenIds = await getSeenStoryIds(profile.id, allStoryIds);
+      setFeedItems(
+        groupStoriesByAuthor({
+          businessStories: businessStoriesGlobal,
+          clientStories: clientStoriesGlobal,
+          seenStoryIds: seenIds,
+          excludeBusinessId: result.id,
+        })
+      );
     } catch (err) {
       console.error('load business error', err);
     }
@@ -76,6 +100,22 @@ export default function BusinessHomeScreen() {
       <Text style={styles.subtitle}>
         {business.address}, {business.city}
       </Text>
+
+      <Text style={styles.sectionTitle}>Historias</Text>
+      <StoriesRow
+        own={{
+          hasStory: activeStories > 0,
+          avatarUrl: business.logo_url,
+          onPress: () => router.push('/(business)/historias'),
+        }}
+        items={feedItems.map((item) => ({
+          ...item,
+          onPress: () =>
+            router.push(
+              item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
+            ),
+        }))}
+      />
 
       <Pressable
         style={styles.card}
@@ -240,6 +280,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
   card: {
     backgroundColor: colors.surface,

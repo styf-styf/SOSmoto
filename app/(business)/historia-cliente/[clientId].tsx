@@ -3,8 +3,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { StoryViewer } from '../../../components/StoryViewer';
 import { getVisibleStoriesForClient } from '../../../services/stories';
 
-export default function ClientClientStoryViewerScreen() {
+export default function BusinessSideClientStoryViewerScreen() {
   const { clientId } = useLocalSearchParams<{ clientId: string }>();
   const loadStories = useCallback(() => getVisibleStoriesForClient(clientId), [clientId]);
-  return <StoryViewer loadStories={loadStories} homeHref="/(client)" />;
+  return <StoryViewer loadStories={loadStories} homeHref="/(business)" />;
 }

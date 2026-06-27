@@ -80,6 +80,8 @@ export default function BusinessLayout() {
       {/* Pantallas alcanzables por navegación pero sin botón propio en la tab bar,
           para que la tab bar siga visible al entrar a ellas. */}
       <Tabs.Screen name="chat/[id]" options={{ href: null, headerShown: true, title: 'Chat' }} />
+      <Tabs.Screen name="historia/[businessId]" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="historia-cliente/[clientId]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="empleados" options={{ href: null, headerShown: true, title: 'Equipo' }} />
       <Tabs.Screen name="suscripcion" options={{ href: null, headerShown: true, title: 'Plan y suscripción' }} />
       <Tabs.Screen name="agenda-negocio" options={{ href: null, headerShown: true, title: 'Agenda' }} />
