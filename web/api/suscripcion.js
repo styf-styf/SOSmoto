@@ -86,16 +86,33 @@ module.exports = async (req, res) => {
         body: { code },
       });
       history.replaceState(null, '', window.location.pathname);
-      if (!exchangeError && exchangeData && exchangeData.access_token) {
-        await sb.auth.setSession({
+      if (exchangeError) {
+        window.__showDebug('exchange error: ' + (exchangeError.message || JSON.stringify(exchangeError)));
+      } else if (exchangeData && exchangeData.error) {
+        window.__showDebug('exchange data error: ' + exchangeData.error);
+      } else if (exchangeData && exchangeData.access_token) {
+        const { error: setSessionError } = await sb.auth.setSession({
           access_token: exchangeData.access_token,
           refresh_token: exchangeData.refresh_token,
         });
+        if (setSessionError) {
+          window.__showDebug('setSession error: ' + setSessionError.message);
+        }
+      } else {
+        window.__showDebug('exchange devolvio algo inesperado: ' + JSON.stringify(exchangeData));
       }
     }
 
     const { data: sessionData } = await sb.auth.getSession();
     if (!sessionData.session) {
+      const debugBox = document.getElementById('debugBox');
+      if (debugBox && debugBox.style.display === 'block') {
+        // Hubo un error en el auto-login por codigo -- no redirigir todavia,
+        // que se vea el detalle antes de mandar al login manual.
+        document.getElementById('status').innerHTML =
+          'No se pudo iniciar sesión automáticamente. <a href="/api/login">Entrar manualmente</a>';
+        return;
+      }
       window.location.href = '/api/login';
       return;
     }
