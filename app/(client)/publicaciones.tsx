@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -86,15 +87,15 @@ export default function ClientPublicacionesScreen() {
 
   async function handleCreate() {
     if (!profile) return;
-    if (!imageUrl.trim()) {
-      Alert.alert('Falta la imagen', 'Selecciona una foto para tu publicación.');
+    if (!imageUrl.trim() && !caption.trim()) {
+      Alert.alert('Falta contenido', 'Agrega una foto, un texto, o ambos.');
       return;
     }
     setSaving(true);
     try {
       const created = await createPost({
         clientId: profile.id,
-        imageUrl: imageUrl.trim(),
+        imageUrl: imageUrl.trim() || undefined,
         caption: caption.trim() || undefined,
         tagBusinessId: taggedBusiness?.id,
       });
@@ -154,7 +155,7 @@ export default function ClientPublicacionesScreen() {
             </Pressable>
           ) : (
             <>
-              <TextField placeholder="Buscar taller o tienda…" value={tagQuery} onChangeText={handleSearchBusiness} />
+              <TextField label="Buscar negocio" placeholder="Buscar taller o tienda…" value={tagQuery} onChangeText={handleSearchBusiness} />
               {searching && <ActivityIndicator color={colors.primary} style={styles.searchSpinner} />}
               {tagResults.length > 0 && (
                 <View style={styles.chipRow}>
@@ -181,7 +182,13 @@ export default function ClientPublicacionesScreen() {
       ) : (
         posts.map((post) => (
           <Pressable key={post.id} style={styles.postCard} onPress={() => router.push(`/(client)/publicacion/${post.id}`)}>
-            <Image source={{ uri: post.image_url }} style={styles.thumb} resizeMode="cover" />
+            {post.image_url ? (
+              <Image source={{ uri: post.image_url }} style={styles.thumb} resizeMode="cover" />
+            ) : (
+              <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                <Ionicons name="document-text-outline" size={22} color={colors.textMuted} />
+              </View>
+            )}
             <View style={styles.postInfo}>
               <Text style={styles.cardTitle} numberOfLines={1}>
                 {post.caption || '(sin texto)'}
@@ -311,6 +318,10 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 8,
     backgroundColor: colors.background,
+  },
+  thumbPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   postInfo: {
     flex: 1,

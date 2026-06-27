@@ -202,7 +202,7 @@ export interface Post {
   id: string;
   business_id: string | null;
   client_id: string | null;
-  image_url: string;
+  image_url: string | null;
   caption: string | null;
   tag_business_id: string | null;
   tag_service_id: string | null;

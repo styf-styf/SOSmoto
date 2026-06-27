@@ -68,7 +68,13 @@ export default async function ModeracionPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {posts.map((post) => (
           <div key={post.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <img src={post.image_url} alt="" className="h-48 w-full object-cover" />
+            {post.image_url ? (
+              <img src={post.image_url} alt="" className="h-48 w-full object-cover" />
+            ) : (
+              <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
+                Sin imagen
+              </div>
+            )}
             <div className="p-3">
               <p className="text-sm font-semibold">
                 {post.businesses?.name ?? post.users?.full_name ?? 'Usuario'}

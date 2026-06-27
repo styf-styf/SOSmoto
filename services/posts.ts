@@ -4,7 +4,7 @@ import type { Post, PostComment } from '../types/database';
 export interface CreatePostParams {
   businessId?: string;
   clientId?: string;
-  imageUrl: string;
+  imageUrl?: string;
   caption?: string;
   tagBusinessId?: string;
   tagServiceId?: string;
@@ -17,7 +17,7 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
     .insert({
       business_id: params.businessId ?? null,
       client_id: params.clientId ?? null,
-      image_url: params.imageUrl,
+      image_url: params.imageUrl ?? null,
       caption: params.caption?.trim() || null,
       tag_business_id: params.tagBusinessId ?? null,
       tag_service_id: params.tagServiceId ?? null,

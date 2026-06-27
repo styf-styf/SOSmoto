@@ -25,7 +25,7 @@ export function PostCard({ post, detailHref }: { post: PostWithAuthor; detailHre
         </Text>
       </View>
 
-      <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />
+      {post.image_url && <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />}
 
       {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 

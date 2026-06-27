@@ -99,7 +99,7 @@ export function PostDetail({ postId }: { postId: string }) {
           <Text style={styles.authorName}>{authorName}</Text>
         </View>
 
-        <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />
+        {post.image_url && <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />}
 
         {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 

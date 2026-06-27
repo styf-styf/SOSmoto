@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -85,8 +86,8 @@ export default function BusinessPublicacionesScreen() {
 
   async function handleCreate() {
     if (!business) return;
-    if (!imageUrl.trim()) {
-      Alert.alert('Falta la imagen', 'Selecciona una foto para tu publicación.');
+    if (!imageUrl.trim() && !caption.trim()) {
+      Alert.alert('Falta contenido', 'Agrega una foto, un texto, o ambos.');
       return;
     }
     if ((tagKind === 'service' || tagKind === 'product') && !targetId) {
@@ -97,7 +98,7 @@ export default function BusinessPublicacionesScreen() {
     try {
       const created = await createPost({
         businessId: business.id,
-        imageUrl: imageUrl.trim(),
+        imageUrl: imageUrl.trim() || undefined,
         caption: caption.trim() || undefined,
         tagServiceId: tagKind === 'service' ? targetId ?? undefined : undefined,
         tagProductId: tagKind === 'product' ? targetId ?? undefined : undefined,
@@ -232,7 +233,13 @@ export default function BusinessPublicacionesScreen() {
       ) : (
         posts.map((post) => (
           <Pressable key={post.id} style={styles.postCard} onPress={() => router.push(`/(business)/publicacion/${post.id}`)}>
-            <Image source={{ uri: post.image_url }} style={styles.thumb} resizeMode="cover" />
+            {post.image_url ? (
+              <Image source={{ uri: post.image_url }} style={styles.thumb} resizeMode="cover" />
+            ) : (
+              <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                <Ionicons name="document-text-outline" size={22} color={colors.textMuted} />
+              </View>
+            )}
             <View style={styles.postInfo}>
               <Text style={styles.cardTitle} numberOfLines={1}>
                 {post.caption || '(sin texto)'}
@@ -355,6 +362,10 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 8,
     backgroundColor: colors.background,
+  },
+  thumbPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   postInfo: {
     flex: 1,
