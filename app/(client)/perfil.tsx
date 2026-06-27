@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BusinessListItem } from '../../components/BusinessListItem';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { signOut } from '../../services/auth';
+import { getFollowedBusinesses } from '../../services/businesses';
 import { changePassword, updateUserProfile } from '../../services/users';
+import type { Business } from '../../types/database';
 
 export default function ClientPerfilScreen() {
   const { profile } = useAuth();
@@ -20,12 +23,23 @@ export default function ClientPerfilScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
+  const [following, setFollowing] = useState<Business[]>([]);
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name);
       setPhone(profile.phone ?? '');
     }
   }, [profile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!profile) return;
+      getFollowedBusinesses(profile.id)
+        .then(setFollowing)
+        .catch((err) => console.error('load followed businesses error', err));
+    }, [profile])
+  );
 
   async function handleSignOut() {
     await signOut();
@@ -84,6 +98,17 @@ export default function ClientPerfilScreen() {
           <Ionicons name="settings-outline" size={24} color={colors.textMuted} />
         </Pressable>
       </View>
+
+      <Text style={styles.sectionTitle}>Siguiendo</Text>
+      {following.length === 0 ? (
+        <Text style={styles.placeholder}>
+          Aún no sigues a ningún negocio. Explora "Buscar" y sigue talleres para ver sus novedades aquí.
+        </Text>
+      ) : (
+        following.map((business) => <BusinessListItem key={business.id} business={business} />)
+      )}
+
+      <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>Datos personales</Text>
       <TextField label="Nombre completo" value={fullName} onChangeText={setFullName} />

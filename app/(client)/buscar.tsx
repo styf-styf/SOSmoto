@@ -64,6 +64,8 @@ export default function BuscarScreen() {
     search().finally(() => setLoading(false));
   }, [search]);
 
+  const hasActiveFilters = !!query || !!businessType || !!serviceFilter || !!minRating || only24h;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Buscar talleres</Text>
@@ -127,6 +129,7 @@ export default function BuscarScreen() {
           {featuredAds.map((ad) => (
             <AdBanner key={ad.id} ad={ad} />
           ))}
+          <Text style={styles.sectionTitle}>{hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}</Text>
           {results.length === 0 ? (
             <Text style={styles.placeholder}>No encontramos talleres con esos filtros.</Text>
           ) : (
@@ -151,6 +154,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
   filterRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
@@ -8,7 +8,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
 import { signOut } from '../../services/auth';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
-import { getPlanLimits, type PlanLimits } from '../../services/catalog';
+import { getAllProducts, getAllServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
+import { getPendingRequests } from '../../services/helpRequests';
 import type { Business, BusinessSchedule } from '../../types/database';
 
 const days: { key: string; label: string }[] = [
@@ -33,6 +34,9 @@ export default function BusinessPerfilScreen() {
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [plan, setPlan] = useState<PlanLimits | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [activeServices, setActiveServices] = useState(0);
+  const [activeProducts, setActiveProducts] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState('');
@@ -65,8 +69,16 @@ export default function BusinessPerfilScreen() {
     setIs24h(myBusiness.is_24h);
     setSchedule(myBusiness.schedule ?? {});
 
-    const planLimits = await getPlanLimits(myBusiness.id);
+    const [planLimits, pending, services, products] = await Promise.all([
+      getPlanLimits(myBusiness.id),
+      getPendingRequests(myBusiness.id),
+      getAllServices(myBusiness.id),
+      getAllProducts(myBusiness.id),
+    ]);
     setPlan(planLimits);
+    setPendingCount(pending.length);
+    setActiveServices(services.filter((s) => s.is_active).length);
+    setActiveProducts(products.filter((p) => p.is_active).length);
   }, [profile]);
 
   useEffect(() => {
@@ -76,12 +88,20 @@ export default function BusinessPerfilScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  const refreshPlanBadge = useCallback(async () => {
+  const refreshStats = useCallback(async () => {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
-    const planLimits = await getPlanLimits(work.business.id);
+    const [planLimits, pending, services, products] = await Promise.all([
+      getPlanLimits(work.business.id),
+      getPendingRequests(work.business.id),
+      getAllServices(work.business.id),
+      getAllProducts(work.business.id),
+    ]);
     setPlan(planLimits);
+    setPendingCount(pending.length);
+    setActiveServices(services.filter((s) => s.is_active).length);
+    setActiveProducts(products.filter((p) => p.is_active).length);
     setBusiness((prev) =>
       prev ? { ...prev, plan_id: work.business.plan_id, is_verified: work.business.is_verified } : prev
     );
@@ -89,8 +109,8 @@ export default function BusinessPerfilScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshPlanBadge().catch((err) => console.error('refresh plan badge error', err));
-    }, [refreshPlanBadge])
+      refreshStats().catch((err) => console.error('refresh business stats error', err));
+    }, [refreshStats])
   );
 
   async function handleSignOut() {
@@ -199,6 +219,32 @@ export default function BusinessPerfilScreen() {
           {business.is_verified ? ' · Verificado' : ''}
         </Text>
       </View>
+
+      <Pressable style={styles.statCard} onPress={() => router.push('/(business)/solicitudes')}>
+        <Text style={styles.statLabel}>Solicitudes de auxilio pendientes</Text>
+        <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
+      </Pressable>
+
+      <View style={styles.statRow}>
+        <View style={[styles.statCard, styles.flexStatCard]}>
+          <Text style={styles.statLabel}>Calificación</Text>
+          <Text style={styles.statValue}>{business.rating_avg > 0 ? business.rating_avg.toFixed(1) : '—'}</Text>
+        </View>
+        <View style={[styles.statCard, styles.flexStatCard]}>
+          <Text style={styles.statLabel}>Seguidores</Text>
+          <Text style={styles.statValue}>{business.followers_count}</Text>
+        </View>
+      </View>
+
+      <Pressable style={styles.statCard} onPress={() => router.push('/(business)/catalogo')}>
+        <Text style={styles.statLabel}>Catálogo (plan {plan?.planName ?? '...'})</Text>
+        <Text style={styles.statValueSmall}>
+          {activeServices}
+          {plan?.maxServices !== null && plan?.maxServices !== undefined ? `/${plan.maxServices}` : ''} servicios ·{' '}
+          {activeProducts}
+          {plan?.maxProducts !== null && plan?.maxProducts !== undefined ? `/${plan.maxProducts}` : ''} productos
+        </Text>
+      </Pressable>
 
       <Text style={styles.sectionTitle}>Datos del negocio</Text>
       <TextField label="Nombre" value={name} onChangeText={setName} />
@@ -346,6 +392,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
+  },
+  statCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  flexStatCard: {
+    flex: 1,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  statValue: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  statValueAlert: {
+    color: colors.danger,
+  },
+  statValueSmall: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 16,

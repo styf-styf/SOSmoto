@@ -71,14 +71,18 @@ export interface PostWithAuthor extends Post {
   tag_product: { id: string; name: string } | null;
 }
 
+export interface PublicFeedPageParams {
+  limit?: number;
+  before?: string;
+}
+
 // Feed público de publicaciones (de cualquier negocio o cliente) -- se usa
-// igual en el home del cliente y el del negocio.
-export async function getPublicFeed(limit = 20): Promise<PostWithAuthor[]> {
-  const { data, error } = await supabase
-    .from('posts')
-    .select(FEED_SELECT)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+// igual en el home del cliente y el del negocio, paginado por cursor
+// (created_at de la última publicación cargada) para scroll infinito.
+export async function getPublicFeedPage(params: PublicFeedPageParams = {}): Promise<PostWithAuthor[]> {
+  let query = supabase.from('posts').select(FEED_SELECT).order('created_at', { ascending: false });
+  if (params.before) query = query.lt('created_at', params.before);
+  const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
   return (data ?? []) as unknown as PostWithAuthor[];
 }

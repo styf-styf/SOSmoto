@@ -86,13 +86,15 @@ function pickRandom(ads: Ad[], count: number): Ad[] {
   return copy.slice(0, count);
 }
 
-// Las 3 superficies (inicio, búsqueda, perfil de negocio) usan la misma
+// Las superficies (inicio, búsqueda, perfil de negocio) usan la misma
 // elegibilidad por ciudad -- la única diferencia es de dónde sale la
 // "ciudad relevante" para cada pantalla: en el perfil es la ciudad del
 // negocio que se está viendo; en inicio/búsqueda es la ciudad del negocio
 // más cercano al cliente (ver getNearestCity en services/businesses.ts).
-export async function getHomeAds(city: string | null): Promise<Ad[]> {
-  return pickRandom(await getEligibleAds(city), 1);
+// getFeedAds devuelve varios (no solo 1) para intercalar dentro del feed
+// de Inicio sin repetir siempre el mismo anuncio en cada inserción periódica.
+export async function getFeedAds(city: string | null, count = 5): Promise<Ad[]> {
+  return pickRandom(await getEligibleAds(city), count);
 }
 
 export async function getSearchAds(city: string | null): Promise<Ad[]> {

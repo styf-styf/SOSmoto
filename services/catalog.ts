@@ -107,6 +107,66 @@ export async function getProductsForBusinesses(businessIds: string[], limit = 20
   })) as ProductWithBusiness[];
 }
 
+export interface FeedCatalogItem {
+  kind: 'service' | 'product';
+  id: string;
+  businessId: string;
+  businessName: string;
+  name: string;
+  referencePrice: number | null;
+  meta?: string;
+  photoUrl?: string;
+}
+
+// Muestra global de catálogo (no filtrada por seguidos/cercanía) para
+// intercalar tarjetas de servicios/productos dentro del feed de Inicio,
+// igual para cliente y negocio.
+export async function getFeedCatalogItems(limit = 20): Promise<FeedCatalogItem[]> {
+  const [servicesResult, productsResult] = await Promise.all([
+    supabase
+      .from('services')
+      .select('*, businesses(name)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('products')
+      .select('*, businesses(name)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ]);
+  if (servicesResult.error) throw servicesResult.error;
+  if (productsResult.error) throw productsResult.error;
+
+  const services: FeedCatalogItem[] = (servicesResult.data ?? []).map((row: any) => ({
+    kind: 'service',
+    id: row.id,
+    businessId: row.business_id,
+    businessName: row.businesses?.name ?? '',
+    name: row.name,
+    referencePrice: row.reference_price,
+    photoUrl: row.photos?.[0],
+  }));
+  const products: FeedCatalogItem[] = (productsResult.data ?? []).map((row: any) => ({
+    kind: 'product',
+    id: row.id,
+    businessId: row.business_id,
+    businessName: row.businesses?.name ?? '',
+    name: row.name,
+    referencePrice: row.reference_price,
+    meta: `Stock: ${row.stock}`,
+    photoUrl: row.photos?.[0],
+  }));
+
+  const merged = [...services, ...products];
+  for (let i = merged.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [merged[i], merged[j]] = [merged[j], merged[i]];
+  }
+  return merged;
+}
+
 export interface PlanLimits {
   planName: string;
   maxServices: number | null;
