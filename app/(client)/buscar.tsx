@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { AdBanner } from '../../components/AdBanner';
 import { BusinessListItem } from '../../components/BusinessListItem';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useLocation } from '../../hooks/useLocation';
+import { getActiveSearchFeatured } from '../../services/ads';
 import { searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
-import type { BusinessType } from '../../types/database';
+import type { Ad, BusinessType } from '../../types/database';
 
 const typeFilters: { label: string; value: BusinessType | undefined }[] = [
   { label: 'Todos', value: undefined },
@@ -31,7 +33,14 @@ export default function BuscarScreen() {
   const [minRating, setMinRating] = useState<number | undefined>(undefined);
   const [only24h, setOnly24h] = useState(false);
   const [results, setResults] = useState<BusinessWithDistance[]>([]);
+  const [featuredAds, setFeaturedAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getActiveSearchFeatured()
+      .then(setFeaturedAds)
+      .catch((err) => console.error('load search featured ads error', err));
+  }, []);
 
   const search = useCallback(async () => {
     try {
@@ -114,6 +123,9 @@ export default function BuscarScreen() {
         <ActivityIndicator color={colors.primary} style={styles.loading} />
       ) : (
         <ScrollView contentContainerStyle={styles.results}>
+          {featuredAds.map((ad) => (
+            <AdBanner key={ad.id} ad={ad} />
+          ))}
           {results.length === 0 ? (
             <Text style={styles.placeholder}>No encontramos talleres con esos filtros.</Text>
           ) : (

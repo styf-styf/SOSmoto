@@ -1,36 +1,56 @@
 import { supabase } from './supabase';
-import type { Ad } from '../types/database';
+import type { Ad, AdPricing, AdType } from '../types/database';
 
-export interface CreateAdParams {
-  businessId: string;
-  title: string;
-  imageUrl: string;
-  linkUrl?: string;
+export interface QuoteAdParams {
+  type: AdType;
+  targetCity?: string;
   durationDays: number;
 }
 
-// Sin pasarela de pago todavía (igual que el cambio de plan de suscripción):
-// la campaña queda activa de inmediato, sin cola de revisión de admin.
-export async function createAd(params: CreateAdParams): Promise<Ad> {
-  const startsAt = new Date();
-  const endsAt = new Date(startsAt.getTime() + params.durationDays * 24 * 60 * 60 * 1000);
-
-  const { data, error } = await supabase
-    .from('ads')
-    .insert({
-      business_id: params.businessId,
-      type: 'home_banner',
-      title: params.title,
-      image_url: params.imageUrl,
-      link_url: params.linkUrl ?? null,
-      status: 'active',
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
-    })
-    .select()
-    .single();
+export async function getAdPricing(): Promise<AdPricing[]> {
+  const { data, error } = await supabase.from('ad_pricing').select('*');
   if (error) throw error;
-  return data as Ad;
+  return (data ?? []) as AdPricing[];
+}
+
+export function quoteAdPrice(pricing: AdPricing[], params: QuoteAdParams): number {
+  const row = pricing.find((p) => p.ad_type === params.type);
+  if (!row) return 0;
+  const pricePerDay = params.targetCity ? row.price_per_day_city : row.price_per_day_national;
+  return Math.round(pricePerDay * params.durationDays * 100) / 100;
+}
+
+export interface CreateAdCampaignParams {
+  businessId: string;
+  type: AdType;
+  title: string;
+  imageUrl: string;
+  linkUrl?: string;
+  targetCity?: string;
+  durationDays: number;
+}
+
+// El anuncio NO se crea aquí -- solo se crea el pago. La fila en `ads` la
+// crea payphone-confirm (o el fallback en payphone-return.js) recién cuando
+// Payphone aprueba el pago, con status 'pending_review' para que el admin
+// la apruebe antes de mostrarse a clientes.
+export async function createAdCampaign(
+  params: CreateAdCampaignParams
+): Promise<{ paymentId: string; amount: number; checkoutUrl: string }> {
+  const { data, error } = await supabase.functions.invoke('ad-prepare', {
+    body: {
+      businessId: params.businessId,
+      type: params.type,
+      title: params.title,
+      imageUrl: params.imageUrl,
+      linkUrl: params.linkUrl,
+      targetCity: params.targetCity,
+      durationDays: params.durationDays,
+    },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }
 
 export async function getBusinessAds(businessId: string): Promise<Ad[]> {
@@ -46,11 +66,38 @@ export async function getBusinessAds(businessId: string): Promise<Ad[]> {
 // Por ahora solo se muestran campañas nacionales (target_city null): no hay
 // todavía un concepto de "ciudad del cliente" para filtrar por target_city.
 export async function getActiveHomeBanners(): Promise<Ad[]> {
+  return getActiveAdsByType('home_banner');
+}
+
+export async function getActiveSearchFeatured(): Promise<Ad[]> {
+  return getActiveAdsByType('search_featured');
+}
+
+// profile_ad sí se filtra por la ciudad del negocio que se está viendo
+// (o nacional) -- a diferencia de home_banner/search_featured, que no tienen
+// todavía un concepto de "ciudad del cliente" para comparar.
+export async function getActiveProfileAds(city: string | null): Promise<Ad[]> {
+  const nowIso = new Date().toISOString();
+  let query = supabase
+    .from('ads')
+    .select('*')
+    .eq('type', 'profile_ad')
+    .eq('status', 'active')
+    .lte('starts_at', nowIso)
+    .gte('ends_at', nowIso)
+    .order('created_at', { ascending: false });
+  query = city ? query.or(`target_city.is.null,target_city.eq.${city}`) : query.is('target_city', null);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as Ad[];
+}
+
+async function getActiveAdsByType(type: AdType): Promise<Ad[]> {
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from('ads')
     .select('*')
-    .eq('type', 'home_banner')
+    .eq('type', type)
     .eq('status', 'active')
     .is('target_city', null)
     .lte('starts_at', nowIso)

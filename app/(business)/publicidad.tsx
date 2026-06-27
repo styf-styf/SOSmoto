@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
-import { createAd, getBusinessAds, pauseAd } from '../../services/ads';
+import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice } from '../../services/ads';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { pickAndUploadBusinessImage } from '../../services/storage';
-import type { Ad } from '../../types/database';
+import type { Ad, AdPricing, AdType, Business } from '../../types/database';
 
 const statusLabel: Record<Ad['status'], string> = {
   pending_review: 'Pendiente de revisión',
@@ -25,14 +25,29 @@ const statusColor: Record<Ad['status'], string> = {
   expired: colors.textMuted,
 };
 
+const typeOptions: { label: string; value: AdType }[] = [
+  { label: 'Banner en inicio', value: 'home_banner' },
+  { label: 'Destacado en búsqueda', value: 'search_featured' },
+  { label: 'Anuncio en perfiles', value: 'profile_ad' },
+];
+
+const typeLabel: Record<AdType, string> = {
+  home_banner: 'Banner en inicio',
+  search_featured: 'Destacado en búsqueda',
+  profile_ad: 'Anuncio en perfiles',
+};
+
 export default function PublicidadScreen() {
   const { profile } = useAuth();
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [ads, setAds] = useState<Ad[]>([]);
+  const [pricing, setPricing] = useState<AdPricing[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
+  const [type, setType] = useState<AdType>('home_banner');
+  const [national, setNational] = useState(true);
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
@@ -44,9 +59,11 @@ export default function PublicidadScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
-    setBusinessId(work.business.id);
+    setBusiness(work.business);
     setIsOwner(work.isOwner);
-    setAds(await getBusinessAds(work.business.id));
+    const [businessAds, adPricing] = await Promise.all([getBusinessAds(work.business.id), getAdPricing()]);
+    setAds(businessAds);
+    setPricing(adPricing);
   }, [profile]);
 
   useEffect(() => {
@@ -57,10 +74,10 @@ export default function PublicidadScreen() {
   }, [load]);
 
   async function handlePickImage() {
-    if (!businessId) return;
+    if (!business) return;
     setUploadingImage(true);
     try {
-      const url = await pickAndUploadBusinessImage(businessId);
+      const url = await pickAndUploadBusinessImage(business.id);
       if (url) setImageUrl(url);
     } catch (err) {
       console.error('upload ad image error', err);
@@ -70,10 +87,16 @@ export default function PublicidadScreen() {
     }
   }
 
+  const parsedDays = Number(durationDays);
+  const validDays = Number.isFinite(parsedDays) && parsedDays > 0;
+  const price = validDays
+    ? quoteAdPrice(pricing, { type, targetCity: national ? undefined : business?.city, durationDays: parsedDays })
+    : 0;
+
   async function handleCreate() {
-    if (!businessId) return;
+    if (!business) return;
     if (!title.trim() || !imageUrl.trim()) {
-      Alert.alert('Faltan datos', 'Completa el título y selecciona una imagen para el banner.');
+      Alert.alert('Faltan datos', 'Completa el título y selecciona una imagen para el anuncio.');
       return;
     }
     if (linkUrl.trim() && !/^(https?:\/\/|tel:|mailto:)/i.test(linkUrl.trim())) {
@@ -83,30 +106,26 @@ export default function PublicidadScreen() {
       );
       return;
     }
-    const parsedDays = Number(durationDays);
-    if (Number.isNaN(parsedDays) || parsedDays <= 0) {
+    if (!validDays) {
       Alert.alert('Duración inválida', 'Ingresa un número de días válido.');
       return;
     }
     setSaving(true);
     try {
-      const ad = await createAd({
-        businessId,
+      const { checkoutUrl } = await createAdCampaign({
+        businessId: business.id,
+        type,
         title: title.trim(),
         imageUrl: imageUrl.trim(),
         linkUrl: linkUrl.trim() || undefined,
+        targetCity: national ? undefined : business.city,
         durationDays: parsedDays,
       });
-      setAds((prev) => [ad, ...prev]);
-      setTitle('');
-      setImageUrl('');
-      setLinkUrl('');
-      setDurationDays('7');
       setShowForm(false);
-      Alert.alert('Campaña creada', 'Tu banner ya está activo en el inicio de los clientes.');
+      await Linking.openURL(checkoutUrl);
     } catch (err) {
-      console.error('create ad error', err);
-      Alert.alert('Error', 'No se pudo crear la campaña.');
+      console.error('create ad campaign error', err);
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo iniciar el pago de la campaña.');
     } finally {
       setSaving(false);
     }
@@ -129,7 +148,7 @@ export default function PublicidadScreen() {
     );
   }
 
-  if (!businessId) {
+  if (!business) {
     return (
       <View style={styles.center}>
         <Text style={styles.placeholder}>Primero crea o únete a un negocio.</Text>
@@ -141,8 +160,7 @@ export default function PublicidadScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Publicidad</Text>
       <Text style={styles.helperText}>
-        Banner en el inicio de los clientes. Sin pasarela de pago todavía: la campaña queda activa de inmediato, sin
-        costo.
+        Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las aprueba.
       </Text>
 
       {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede crear campañas.</Text>}
@@ -153,12 +171,33 @@ export default function PublicidadScreen() {
 
       {isOwner && showForm && (
         <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Tipo de anuncio</Text>
+          <View style={styles.chipRow}>
+            {typeOptions.map((opt) => (
+              <Pressable
+                key={opt.value}
+                onPress={() => setType(opt.value)}
+                style={[styles.chip, type === opt.value && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, type === opt.value && styles.chipTextSelected]}>{opt.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.fieldLabel}>Alcance</Text>
+          <View style={styles.chipRow}>
+            <Pressable onPress={() => setNational(true)} style={[styles.chip, national && styles.chipSelected]}>
+              <Text style={[styles.chipText, national && styles.chipTextSelected]}>Nacional</Text>
+            </Pressable>
+            <Pressable onPress={() => setNational(false)} style={[styles.chip, !national && styles.chipSelected]}>
+              <Text style={[styles.chipText, !national && styles.chipTextSelected]}>Solo {business.city}</Text>
+            </Pressable>
+          </View>
+
           <TextField label="Título" placeholder="20% de descuento en cambio de aceite" value={title} onChangeText={setTitle} />
 
-          <Text style={styles.fieldLabel}>Imagen del banner</Text>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" />
-          ) : null}
+          <Text style={styles.fieldLabel}>Imagen</Text>
+          {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}
           <Button
             title={imageUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
             variant="secondary"
@@ -168,20 +207,23 @@ export default function PublicidadScreen() {
           />
 
           <TextField
-            label="Link al tocar el banner (opcional)"
+            label="Link al tocar el anuncio (opcional)"
             placeholder="https://wa.me/..."
             value={linkUrl}
             onChangeText={setLinkUrl}
             autoCapitalize="none"
           />
-          <TextField
-            label="Duración (días)"
-            keyboardType="numeric"
-            value={durationDays}
-            onChangeText={setDurationDays}
-          />
+          <TextField label="Duración (días)" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
+
+          <Text style={styles.priceText}>{validDays ? `Total: $${price.toFixed(2)}` : 'Ingresa una duración válida'}</Text>
+
           <View style={styles.editActions}>
-            <Button title="Crear" onPress={handleCreate} loading={saving} style={styles.flexButton} />
+            <Button
+              title={validDays ? `Pagar $${price.toFixed(2)}` : 'Pagar'}
+              onPress={handleCreate}
+              loading={saving}
+              style={styles.flexButton}
+            />
             <Button title="Cancelar" variant="secondary" onPress={() => setShowForm(false)} style={styles.flexButton} />
           </View>
         </View>
@@ -197,6 +239,7 @@ export default function PublicidadScreen() {
               <Text style={styles.cardTitle}>{ad.title}</Text>
               <Text style={[styles.statusBadge, { color: statusColor[ad.status] }]}>{statusLabel[ad.status]}</Text>
             </View>
+            <Text style={styles.cardMeta}>{typeLabel[ad.type]} · {ad.target_city ?? 'Nacional'}</Text>
             <Text style={styles.cardMeta}>
               {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
             </Text>
@@ -254,6 +297,31 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 6,
   },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF1E6',
+  },
+  chipText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  chipTextSelected: {
+    color: colors.primary,
+  },
   preview: {
     width: '100%',
     height: 140,
@@ -263,6 +331,12 @@ const styles = StyleSheet.create({
   },
   imageButton: {
     marginBottom: 16,
+  },
+  priceText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,

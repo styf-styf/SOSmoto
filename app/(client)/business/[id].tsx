@@ -3,14 +3,16 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { AdBanner } from '../../../components/AdBanner';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
+import { getActiveProfileAds } from '../../../services/ads';
 import { getBusinessById } from '../../../services/businesses';
 import { getActiveProducts, getActiveServices } from '../../../services/catalog';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../../../services/follows';
 import { getBusinessReviews } from '../../../services/reviews';
-import type { Business, Product, Review, Service } from '../../../types/database';
+import type { Ad, Business, Product, Review, Service } from '../../../types/database';
 
 const businessTypeLabel: Record<Business['business_type'], string> = {
   workshop: 'Taller mecánico',
@@ -26,6 +28,7 @@ export default function BusinessProfileScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [profileAds, setProfileAds] = useState<Ad[]>([]);
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
@@ -42,6 +45,7 @@ export default function BusinessProfileScreen() {
     setServices(servicesResult);
     setProducts(productsResult);
     setReviews(reviewsResult);
+    setProfileAds(await getActiveProfileAds(businessResult?.city ?? null));
 
     if (profile?.role === 'client') {
       setFollowing(await fetchIsFollowing(profile.id, id));
@@ -146,6 +150,10 @@ export default function BusinessProfileScreen() {
           />
         )}
       </View>
+
+      {profileAds.map((ad) => (
+        <AdBanner key={ad.id} ad={ad} />
+      ))}
 
       {business.description && (
         <Section title="Sobre el negocio">

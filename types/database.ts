@@ -196,8 +196,15 @@ export interface Payment {
   gateway_transaction_id: string | null;
   client_transaction_id: string | null;
   plan_id: string | null;
+  metadata: Record<string, unknown> | null;
   status: PaymentStatus;
   created_at: string;
+}
+
+export interface AdPricing {
+  ad_type: AdType;
+  price_per_day_city: number;
+  price_per_day_national: number;
 }
 
 export type MotoType = 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser';
