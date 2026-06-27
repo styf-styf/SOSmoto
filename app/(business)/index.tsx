@@ -31,6 +31,7 @@ export default function BusinessHomeScreen() {
   const [activeStories, setActiveStories] = useState(0);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
+  const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -53,7 +54,9 @@ export default function BusinessHomeScreen() {
       setPendingCount(pending.length);
       setActiveServices(services.filter((s) => s.is_active).length);
       setActiveProducts(products.filter((p) => p.is_active).length);
-      setActiveStories(stories.filter(isStoryVisible).length);
+      const visibleOwnStories = stories.filter(isStoryVisible);
+      setActiveStories(visibleOwnStories.length);
+      setOwnPreviewImageUrl(visibleOwnStories[0]?.image_url ?? null);
       setLimits(planLimits);
 
       const allStoryIds = [...businessStoriesGlobal.map((s) => s.id), ...clientStoriesGlobal.map((s) => s.id)];
@@ -106,6 +109,7 @@ export default function BusinessHomeScreen() {
         own={{
           hasStory: activeStories > 0,
           avatarUrl: business.logo_url,
+          previewImageUrl: ownPreviewImageUrl,
           onPress: () => router.push('/(business)/historias'),
         }}
         items={feedItems.map((item) => ({

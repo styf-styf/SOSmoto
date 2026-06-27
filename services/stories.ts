@@ -137,6 +137,7 @@ export interface StoryFeedItem {
   kind: 'business' | 'client';
   name: string;
   avatarUrl: string | null;
+  previewImageUrl: string;
   hasUnseen: boolean;
 }
 
@@ -144,6 +145,9 @@ export interface StoryFeedItem {
 // negocio/cliente, no por historia individual) para la fila combinada de
 // "Estados". `excludeBusinessId`/`excludeClientId` quitan al propio
 // viewer -- ese se muestra aparte, como el primer espacio de la fila.
+// Las listas vienen ordenadas por created_at ascendente, así que la última
+// historia recorrida por autor es siempre la más reciente -- esa es la que
+// se usa como miniatura de la tarjeta.
 export function groupStoriesByAuthor(params: {
   businessStories: BusinessStoryWithAuthor[];
   clientStories: ClientStoryWithAuthor[];
@@ -158,15 +162,19 @@ export function groupStoriesByAuthor(params: {
     const unseen = !params.seenStoryIds.has(story.id);
     const key = `business:${story.business_id}`;
     const existing = items.get(key);
-    if (existing) existing.hasUnseen = existing.hasUnseen || unseen;
-    else
+    if (existing) {
+      existing.hasUnseen = existing.hasUnseen || unseen;
+      existing.previewImageUrl = story.image_url;
+    } else {
       items.set(key, {
         id: story.business_id as string,
         kind: 'business',
         name: story.businesses.name,
         avatarUrl: story.businesses.logo_url,
+        previewImageUrl: story.image_url,
         hasUnseen: unseen,
       });
+    }
   }
 
   for (const story of params.clientStories) {
@@ -174,15 +182,19 @@ export function groupStoriesByAuthor(params: {
     const unseen = !params.seenStoryIds.has(story.id);
     const key = `client:${story.client_id}`;
     const existing = items.get(key);
-    if (existing) existing.hasUnseen = existing.hasUnseen || unseen;
-    else
+    if (existing) {
+      existing.hasUnseen = existing.hasUnseen || unseen;
+      existing.previewImageUrl = story.image_url;
+    } else {
       items.set(key, {
         id: story.client_id as string,
         kind: 'client',
         name: story.users.full_name,
         avatarUrl: story.users.avatar_url,
+        previewImageUrl: story.image_url,
         hasUnseen: unseen,
       });
+    }
   }
 
   return Array.from(items.values()).sort((a, b) => Number(b.hasUnseen) - Number(a.hasUnseen));

@@ -6,6 +6,7 @@ import type { StoryFeedItem } from '../services/stories';
 export interface StoriesRowOwnSlot {
   hasStory: boolean;
   avatarUrl: string | null;
+  previewImageUrl: string | null;
   onPress: () => void;
 }
 
@@ -13,14 +14,12 @@ export interface StoriesRowItem extends StoryFeedItem {
   onPress: () => void;
 }
 
-type RowEntry =
-  | { type: 'own'; own: StoriesRowOwnSlot }
-  | { type: 'other'; item: StoriesRowItem };
+type RowEntry = { type: 'own'; own: StoriesRowOwnSlot } | { type: 'other'; item: StoriesRowItem };
 
-// Fila única de "Estados" (al estilo WhatsApp): el primer espacio es siempre
-// el propio (con un "+" si todavía no tiene historia activa), seguido de las
-// historias de los demás -- se usa igual en el home del cliente y el del
-// negocio, cada uno arma `own`/`items` con su propia data.
+// Fila única de "Estados" (al estilo WhatsApp): tarjetas verticales con la
+// miniatura de la historia de fondo, el primer espacio es siempre el propio
+// (con un "+" si todavía no tiene historia activa) -- se usa igual en el
+// home del cliente y el del negocio, cada uno arma `own`/`items` con su data.
 export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: StoriesRowItem[] }) {
   const data: RowEntry[] = [{ type: 'own', own }, ...items.map((item) => ({ type: 'other' as const, item }))];
 
@@ -29,28 +28,33 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
       horizontal
       showsHorizontalScrollIndicator={false}
       data={data}
-      keyExtractor={(entry, index) => (entry.type === 'own' ? 'own' : entry.item.id)}
+      keyExtractor={(entry) => (entry.type === 'own' ? 'own' : entry.item.id)}
       contentContainerStyle={styles.list}
       renderItem={({ item: entry }) => {
         if (entry.type === 'own') {
+          const { own: slot } = entry;
           return (
-            <Pressable style={styles.item} onPress={entry.own.onPress}>
-              <View style={[styles.ring, styles.ringSeen]}>
-                <View style={styles.avatar}>
-                  {entry.own.avatarUrl ? (
-                    <Image source={{ uri: entry.own.avatarUrl }} style={styles.avatarImage} />
-                  ) : (
-                    <Ionicons name="person" size={22} color={colors.primary} />
-                  )}
-                </View>
-                {!entry.own.hasStory && (
-                  <View style={styles.addBadge}>
-                    <Ionicons name="add" size={14} color="#fff" />
-                  </View>
+            <Pressable style={styles.card} onPress={slot.onPress}>
+              {slot.previewImageUrl ? (
+                <Image source={{ uri: slot.previewImageUrl }} style={styles.cardImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
+              )}
+              <View style={styles.cardShade} />
+              <View style={[styles.avatarBadge, styles.avatarBadgeSeen]}>
+                {slot.avatarUrl ? (
+                  <Image source={{ uri: slot.avatarUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name="person" size={14} color={colors.primary} />
                 )}
               </View>
-              <Text style={styles.name} numberOfLines={1}>
-                {entry.own.hasStory ? 'Tu historia' : 'Añadir'}
+              {!slot.hasStory && (
+                <View style={styles.addBadge}>
+                  <Ionicons name="add" size={14} color="#fff" />
+                </View>
+              )}
+              <Text style={styles.cardName} numberOfLines={1}>
+                {slot.hasStory ? 'Tu historia' : 'Añadir'}
               </Text>
             </Pressable>
           );
@@ -58,17 +62,17 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
 
         const { item } = entry;
         return (
-          <Pressable style={styles.item} onPress={item.onPress}>
-            <View style={[styles.ring, item.hasUnseen ? styles.ringUnseen : styles.ringSeen]}>
-              <View style={styles.avatar}>
-                {item.avatarUrl ? (
-                  <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                ) : (
-                  <Ionicons name={item.kind === 'business' ? 'storefront' : 'person'} size={22} color={colors.primary} />
-                )}
-              </View>
+          <Pressable style={styles.card} onPress={item.onPress}>
+            <Image source={{ uri: item.previewImageUrl }} style={styles.cardImage} resizeMode="cover" />
+            <View style={styles.cardShade} />
+            <View style={[styles.avatarBadge, item.hasUnseen ? styles.avatarBadgeUnseen : styles.avatarBadgeSeen]}>
+              {item.avatarUrl ? (
+                <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name={item.kind === 'business' ? 'storefront' : 'person'} size={14} color={colors.primary} />
+              )}
             </View>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text style={styles.cardName} numberOfLines={1}>
               {item.name}
             </Text>
           </Pressable>
@@ -78,59 +82,82 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
   );
 }
 
+const CARD_WIDTH = 80;
+const CARD_HEIGHT = 132;
+
 const styles = StyleSheet.create({
   list: {
-    gap: 14,
-    paddingBottom: 16,
+    gap: 10,
+    paddingBottom: 8,
   },
-  item: {
-    width: 68,
-    alignItems: 'center',
-  },
-  ring: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  ringUnseen: {
-    borderColor: colors.primary,
-  },
-  ringSeen: {
-    borderColor: colors.border,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  card: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 14,
+    overflow: 'hidden',
     backgroundColor: colors.surface,
+  },
+  cardImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  cardImagePlaceholder: {
+    backgroundColor: colors.border,
+  },
+  cardShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 44,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  avatarBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
+  avatarBadgeUnseen: {
+    borderColor: colors.primary,
+  },
+  avatarBadgeSeen: {
+    borderColor: '#fff',
+  },
   avatarImage: {
-    width: 50,
-    height: 50,
+    width: 28,
+    height: 28,
   },
   addBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: 28,
+    left: 28,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.background,
+    borderColor: '#fff',
   },
-  name: {
+  cardName: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 6,
     fontSize: 11,
-    color: colors.text,
-    marginTop: 4,
-    textAlign: 'center',
+    fontWeight: '600',
+    color: '#fff',
   },
 });

@@ -37,6 +37,7 @@ export default function ClientHomeScreen() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownHasStory, setOwnHasStory] = useState(false);
+  const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -76,6 +77,7 @@ export default function ClientHomeScreen() {
         })
       );
       setOwnHasStory(!!ownClientStory);
+      setOwnPreviewImageUrl(ownClientStory?.image_url ?? null);
     } catch (err) {
       console.error('home load error', err);
     }
@@ -112,6 +114,7 @@ export default function ClientHomeScreen() {
         own={{
           hasStory: ownHasStory,
           avatarUrl: profile?.avatar_url ?? null,
+          previewImageUrl: ownPreviewImageUrl,
           onPress: () => router.push('/(client)/historias'),
         }}
         items={feedItems.map((item) => ({
