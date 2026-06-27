@@ -51,3 +51,5 @@ supabase/.temp/
 # Vercel
 web/.vercel/
 web/node_modules/
+admin/.vercel/
+admin/.next/
