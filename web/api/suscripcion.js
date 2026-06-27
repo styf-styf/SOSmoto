@@ -146,7 +146,10 @@ module.exports = async (req, res) => {
     document.getElementById('content').style.display = 'block';
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await sb.auth.signOut();
+      // scope:'local' -- por defecto signOut() es 'global' y revoca TODAS
+      // las sesiones del usuario, incluida la de la app movil. Cerrar
+      // sesion aqui no deberia desloguear la app.
+      await sb.auth.signOut({ scope: 'local' });
       window.location.href = '/api/login';
     });
 
