@@ -100,18 +100,20 @@ module.exports = async (req, res) => {
   }
 
   async function loadPending() {
-    const { data: ads, error } = await sb
-      .from('ads')
-      .select('id, type, title, image_url, link_url, target_city, starts_at, ends_at, business_id, businesses(name)')
-      .eq('status', 'pending_review')
-      .order('created_at', { ascending: true });
+    const { data, error } = await sb.functions.invoke('admin-campaigns', { body: { action: 'list' } });
 
     const listEl = document.getElementById('list');
     if (error) {
-      window.__showDebug('error cargando ads: ' + error.message);
+      window.__showDebug('error cargando campañas: ' + error.message);
       listEl.innerHTML = '<p class="helper">No se pudo cargar la cola.</p>';
       return;
     }
+    if (data && data.error) {
+      window.__showDebug('error cargando campañas: ' + data.error);
+      listEl.innerHTML = '<p class="helper">No se pudo cargar la cola.</p>';
+      return;
+    }
+    const ads = data ? data.campaigns : [];
     if (!ads || ads.length === 0) {
       listEl.innerHTML = '<p class="helper">No hay campañas pendientes de revisión.</p>';
       return;
@@ -138,9 +140,11 @@ module.exports = async (req, res) => {
         const id = btn.getAttribute('data-id');
         const action = btn.getAttribute('data-action');
         document.querySelectorAll('#ad-' + id + ' button').forEach((b) => (b.disabled = true));
-        const { error } = await sb.from('ads').update({ status: action }).eq('id', id);
-        if (error) {
-          window.__showDebug('error actualizando ad ' + id + ': ' + error.message);
+        const { data, error } = await sb.functions.invoke('admin-campaigns', {
+          body: { action: 'review', id, decision: action },
+        });
+        if (error || (data && data.error)) {
+          window.__showDebug('error actualizando campaña ' + id + ': ' + (error ? error.message : data.error));
           document.querySelectorAll('#ad-' + id + ' button').forEach((b) => (b.disabled = false));
           return;
         }
