@@ -30,3 +30,15 @@ export interface AdminBusinessRow {
   subscription_plans: { name: string } | null;
   users: { full_name: string; email: string } | null;
 }
+
+export interface AdminStoryRow {
+  id: string;
+  business_id: string;
+  image_url: string;
+  caption: string | null;
+  is_pinned: boolean;
+  views: number;
+  clicks: number;
+  created_at: string;
+  businesses: { name: string } | null;
+}

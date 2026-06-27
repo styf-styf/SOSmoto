@@ -112,12 +112,13 @@ export interface PlanLimits {
   maxServices: number | null;
   maxProducts: number | null;
   maxEmployees: number | null;
+  maxActiveStories: number | null;
 }
 
 export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   const { data, error } = await supabase
     .from('businesses')
-    .select('subscription_plans(name, max_services, max_products, max_employees)')
+    .select('subscription_plans(name, max_services, max_products, max_employees, max_active_stories)')
     .eq('id', businessId)
     .single();
   if (error) throw error;
@@ -128,6 +129,7 @@ export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
     maxServices: plan?.max_services ?? null,
     maxProducts: plan?.max_products ?? null,
     maxEmployees: plan?.max_employees ?? null,
+    maxActiveStories: plan?.max_active_stories ?? null,
   };
 }
 

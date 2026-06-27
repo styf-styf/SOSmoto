@@ -12,9 +12,11 @@ import {
   type ProductWithBusiness,
   type ServiceWithBusiness,
 } from '../../services/catalog';
+import { getSeenStoryIds, getVisibleStoriesForBusinesses } from '../../services/stories';
 import { AdBanner } from '../../components/AdBanner';
 import { BusinessListItem } from '../../components/BusinessListItem';
 import { CatalogCard } from '../../components/CatalogCard';
+import { StoriesBar, type StoryBusinessItem } from '../../components/StoriesBar';
 import type { Ad, Business } from '../../types/database';
 
 export default function ClientHomeScreen() {
@@ -26,6 +28,7 @@ export default function ClientHomeScreen() {
   const [services, setServices] = useState<ServiceWithBusiness[]>([]);
   const [products, setProducts] = useState<ProductWithBusiness[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
+  const [storyItems, setStoryItems] = useState<StoryBusinessItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -48,6 +51,27 @@ export default function ClientHomeScreen() {
       ]);
       setServices(servicesResult);
       setProducts(productsResult);
+
+      const visibleStories = await getVisibleStoriesForBusinesses(businessIds);
+      const businessIdsWithStory = new Set(visibleStories.map((s) => s.business_id));
+      const seenIds = profile
+        ? await getSeenStoryIds(profile.id, visibleStories.map((s) => s.id))
+        : new Set<string>();
+
+      const businessesById = new Map<string, Business>(
+        [...followingResult, ...nearbyResult].map((b) => [b.id, b])
+      );
+      const orderedIds = [
+        ...followingResult.map((b) => b.id),
+        ...nearbyResult.map((b) => b.id).filter((id) => !followingResult.some((b) => b.id === id)),
+      ];
+      const items: StoryBusinessItem[] = orderedIds
+        .filter((id) => businessIdsWithStory.has(id))
+        .map((id) => ({
+          business: businessesById.get(id)!,
+          hasUnseen: visibleStories.some((s) => s.business_id === id && !seenIds.has(s.id)),
+        }));
+      setStoryItems(items);
     } catch (err) {
       console.error('home load error', err);
     }
@@ -78,6 +102,8 @@ export default function ClientHomeScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Text style={styles.title}>Inicio</Text>
+
+      <StoriesBar items={storyItems} />
 
       {ads.map((ad) => (
         <AdBanner key={ad.id} ad={ad} />

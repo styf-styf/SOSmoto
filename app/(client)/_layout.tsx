@@ -109,6 +109,7 @@ function ClientTabs() {
       {/* Pantallas alcanzables por navegación pero sin botón propio en la tab bar,
           para que la tab bar siga visible al entrar a ellas. */}
       <Tabs.Screen name="business/[id]" options={{ href: null, headerShown: true, title: 'Negocio' }} />
+      <Tabs.Screen name="historia/[businessId]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="chat/[id]" options={{ href: null, headerShown: true, title: 'Chat' }} />
       <Tabs.Screen name="vehiculos" options={{ href: null, headerShown: true, title: 'Mis motos' }} />
       <Tabs.Screen name="historial" options={{ href: null, headerShown: true, title: 'Historial de servicios' }} />

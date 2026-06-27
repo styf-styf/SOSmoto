@@ -486,6 +486,63 @@ export interface Database {
         };
         Relationships: [];
       };
+      stories: {
+        Row: {
+          id: string;
+          business_id: string;
+          image_url: string;
+          caption: string | null;
+          action_type: 'service' | 'product' | 'contact' | 'none';
+          action_target_id: string | null;
+          is_pinned: boolean;
+          views: number;
+          clicks: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          image_url: string;
+          caption?: string | null;
+          action_type?: 'service' | 'product' | 'contact' | 'none';
+          action_target_id?: string | null;
+          is_pinned?: boolean;
+          views?: number;
+          clicks?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          image_url?: string;
+          caption?: string | null;
+          action_type?: 'service' | 'product' | 'contact' | 'none';
+          action_target_id?: string | null;
+          is_pinned?: boolean;
+          views?: number;
+          clicks?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      story_views: {
+        Row: {
+          story_id: string;
+          client_id: string;
+          viewed_at: string;
+        };
+        Insert: {
+          story_id: string;
+          client_id: string;
+          viewed_at?: string;
+        };
+        Update: {
+          story_id?: string;
+          client_id?: string;
+          viewed_at?: string;
+        };
+        Relationships: [];
+      };
       payments: {
         Row: {
           id: string;
@@ -692,6 +749,10 @@ export interface Database {
       };
       increment_ad_metric: {
         Args: { ad_id: string; metric: string };
+        Returns: undefined;
+      };
+      increment_story_metric: {
+        Args: { story_id: string; metric: string };
         Returns: undefined;
       };
     };

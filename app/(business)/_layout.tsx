@@ -84,6 +84,7 @@ export default function BusinessLayout() {
       <Tabs.Screen name="suscripcion" options={{ href: null, headerShown: true, title: 'Plan y suscripción' }} />
       <Tabs.Screen name="agenda-negocio" options={{ href: null, headerShown: true, title: 'Agenda' }} />
       <Tabs.Screen name="publicidad" options={{ href: null, headerShown: true, title: 'Publicidad' }} />
+      <Tabs.Screen name="historias" options={{ href: null, headerShown: true, title: 'Historias' }} />
     </Tabs>
   );
 }

@@ -77,6 +77,7 @@ export interface SubscriptionPlan {
   has_priority_matching: boolean;
   has_featured_listing: boolean;
   has_stories: boolean;
+  max_active_stories: number | null;
   price_monthly: number;
 }
 
@@ -177,6 +178,21 @@ export interface Ad {
   ends_at: string;
   payment_id: string | null;
   impressions: number;
+  clicks: number;
+  created_at: string;
+}
+
+export type StoryActionType = 'service' | 'product' | 'contact' | 'none';
+
+export interface Story {
+  id: string;
+  business_id: string;
+  image_url: string;
+  caption: string | null;
+  action_type: StoryActionType;
+  action_target_id: string | null;
+  is_pinned: boolean;
+  views: number;
   clicks: number;
   created_at: string;
 }
