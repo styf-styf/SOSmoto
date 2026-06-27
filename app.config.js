@@ -13,6 +13,7 @@ module.exports = {
     },
     android: {
       package: 'com.sosmoto.app',
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "362151790688",
+    "project_id": "sosmoto-84ef8",
+    "storage_bucket": "sosmoto-84ef8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:362151790688:android:0275de7bfae2d84f6e1b05",
+        "android_client_info": {
+          "package_name": "com.sosmoto.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJLgOUy_wCoiLwrWvbSaI2RyLaRanZShU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
