@@ -107,7 +107,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
         {messages.length === 0 ? (
