@@ -54,8 +54,14 @@ module.exports = async (req, res) => {
     ${JSON.stringify((process.env.SUPABASE_ANON_KEY || '').trim())}
   );
 
+  function nextUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next');
+    return next && next.startsWith('/api/') ? next : '/api/suscripcion';
+  }
+
   sb.auth.getSession().then(({ data }) => {
-    if (data.session) window.location.href = '/api/suscripcion';
+    if (data.session) window.location.href = nextUrl();
   });
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -81,7 +87,7 @@ module.exports = async (req, res) => {
       errorEl.textContent = 'No se pudo iniciar sesión: ' + error.message;
       return;
     }
-    window.location.href = '/api/suscripcion';
+    window.location.href = nextUrl();
   });
 </script>
 </body>
