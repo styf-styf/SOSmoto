@@ -68,14 +68,33 @@ async function activateByTrust(clientTransactionId, gatewayId) {
   const supabase = supabaseAdmin();
   const { data: payment } = await supabase
     .from('payments')
-    .select('id, business_id, plan_id, status')
+    .select('id, business_id, plan_id, status, type, metadata')
     .eq('client_transaction_id', clientTransactionId)
     .maybeSingle();
   if (!payment || payment.status !== 'pending') return { success: false, payment };
 
   await supabase.from('payments').update({ status: 'completed', gateway_transaction_id: gatewayId }).eq('id', payment.id);
 
-  if (payment.plan_id) {
+  if (payment.type === 'advertising') {
+    const m = payment.metadata;
+    if (m) {
+      const startsAt = new Date();
+      const endsAt = new Date(startsAt);
+      endsAt.setDate(endsAt.getDate() + Number(m.durationDays));
+      await supabase.from('ads').insert({
+        business_id: payment.business_id,
+        type: m.adType,
+        title: m.title,
+        image_url: m.imageUrl,
+        link_url: m.linkUrl || null,
+        target_city: m.targetCity || null,
+        status: 'pending_review',
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        payment_id: payment.id,
+      });
+    }
+  } else if (payment.plan_id) {
     const now = new Date();
     const expiresAt = new Date(now);
     expiresAt.setMonth(expiresAt.getMonth() + 1);
@@ -164,7 +183,13 @@ h1{font-size:20px;} a{color:#FF6B00;font-weight:600;text-decoration:none;}</styl
 </head>
 <body>
 <h1>${wait.success ? 'Pago aprobado ✅' : 'No pudimos confirmar el pago todavía'}</h1>
-<p>${wait.success ? 'Tu plan se actualizó.' : 'Si ya pagaste, espera un momento y vuelve a tu suscripción — la confirmación llega por separado y puede tardar unos segundos más.'}</p>
+<p>${
+    wait.success
+      ? wait.payment && wait.payment.type === 'advertising'
+        ? 'Tu campaña quedó registrada y en revisión. Te avisaremos cuando esté aprobada.'
+        : 'Tu plan se actualizó.'
+      : 'Si ya pagaste, espera un momento y vuelve a la app — la confirmación llega por separado y puede tardar unos segundos más.'
+  }</p>
 ${debugLine}
 <a href="/api/suscripcion">Volver a mi suscripción</a>
 </body>

@@ -3,9 +3,66 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const PAYPHONE_TOKEN = Deno.env.get('PAYPHONE_TOKEN')!;
 const PAYPHONE_BASE = 'https://pay.payphonetodoesposible.com/api';
 
-async function activatePlan(
+type PaymentRow = {
+  id: string;
+  business_id: string;
+  plan_id: string | null;
+  type: string;
+  metadata: Record<string, unknown> | null;
+};
+
+async function activateSubscription(supabase: ReturnType<typeof createClient>, payment: PaymentRow) {
+  if (!payment.plan_id) return;
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+  await supabase
+    .from('business_subscriptions')
+    .update({ status: 'expired' })
+    .eq('business_id', payment.business_id)
+    .eq('status', 'active');
+
+  await supabase.from('business_subscriptions').insert({
+    business_id: payment.business_id,
+    plan_id: payment.plan_id,
+    status: 'active',
+    started_at: now.toISOString(),
+    expires_at: expiresAt.toISOString(),
+    payment_id: payment.id,
+  });
+
+  await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
+}
+
+// La campaña recién se crea aquí, no antes -- el borrador vive en
+// payments.metadata hasta que el pago se confirma. Queda en
+// 'pending_review' para que el admin la apruebe antes de mostrarse a
+// clientes (ver supabase/migrations/0025_ad_payments.sql).
+async function createAdFromPayment(supabase: ReturnType<typeof createClient>, payment: PaymentRow) {
+  const m = payment.metadata;
+  if (!m) return;
+  const startsAt = new Date();
+  const endsAt = new Date(startsAt);
+  endsAt.setDate(endsAt.getDate() + Number(m.durationDays));
+
+  await supabase.from('ads').insert({
+    business_id: payment.business_id,
+    type: m.adType,
+    title: m.title,
+    image_url: m.imageUrl,
+    link_url: m.linkUrl ?? null,
+    target_city: m.targetCity ?? null,
+    status: 'pending_review',
+    starts_at: startsAt.toISOString(),
+    ends_at: endsAt.toISOString(),
+    payment_id: payment.id,
+  });
+}
+
+async function fulfillPayment(
   supabase: ReturnType<typeof createClient>,
-  payment: { id: string; business_id: string; plan_id: string | null },
+  payment: PaymentRow,
   gatewayTransactionId: string
 ) {
   await supabase
@@ -13,27 +70,10 @@ async function activatePlan(
     .update({ status: 'completed', gateway_transaction_id: gatewayTransactionId })
     .eq('id', payment.id);
 
-  if (payment.plan_id) {
-    const now = new Date();
-    const expiresAt = new Date(now);
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-    await supabase
-      .from('business_subscriptions')
-      .update({ status: 'expired' })
-      .eq('business_id', payment.business_id)
-      .eq('status', 'active');
-
-    await supabase.from('business_subscriptions').insert({
-      business_id: payment.business_id,
-      plan_id: payment.plan_id,
-      status: 'active',
-      started_at: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      payment_id: payment.id,
-    });
-
-    await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
+  if (payment.type === 'advertising') {
+    await createAdFromPayment(supabase, payment);
+  } else {
+    await activateSubscription(supabase, payment);
   }
 }
 
@@ -51,7 +91,7 @@ Deno.serve(async (req) => {
 
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .select('id, business_id, plan_id, status')
+      .select('id, business_id, plan_id, status, type, metadata')
       .eq('client_transaction_id', clientTransactionId)
       .single();
     if (paymentError || !payment) {
@@ -85,8 +125,8 @@ Deno.serve(async (req) => {
       // Payphone, no el navegador) ya nos dijo 'Approved', confiamos en eso
       // en vez de bloquear al negocio por un bug del lado de Payphone.
       if (hintedStatus === 'Approved') {
-        console.warn('V3/Confirm fallo pero transactionStatus=Approved fue confirmado por el webhook; activando plan de todas formas', { id, clientTransactionId });
-        await activatePlan(supabase, payment, id);
+        console.warn('V3/Confirm fallo pero transactionStatus=Approved fue confirmado por el webhook; activando de todas formas', { id, clientTransactionId });
+        await fulfillPayment(supabase, payment as PaymentRow, id);
         return new Response(
           JSON.stringify({ success: true, status: 'Approved', note: 'V3/Confirm fallo, activado por transactionStatus del webhook' }),
           { headers: { 'Content-Type': 'application/json' } }
@@ -111,7 +151,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    await activatePlan(supabase, payment, String(confirmData.transactionId));
+    await fulfillPayment(supabase, payment as PaymentRow, String(confirmData.transactionId));
 
     return new Response(JSON.stringify({ success: true, status: confirmData.transactionStatus }), {
       headers: { 'Content-Type': 'application/json' },
