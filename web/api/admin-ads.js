@@ -13,7 +13,6 @@ module.exports = async (req, res) => {
   .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid #e0e0e0; }
   .card-header { display: flex; justify-content: space-between; align-items: center; }
   .card-title { font-size: 16px; font-weight: 700; }
-  .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #FF6B00; }
   .meta { font-size: 13px; color: #555; margin: 2px 0; }
   img.preview { width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; margin: 8px 0; }
   .actions { display: flex; gap: 10px; margin-top: 10px; }
@@ -62,8 +61,6 @@ module.exports = async (req, res) => {
     ${JSON.stringify((process.env.SUPABASE_URL || '').trim())},
     ${JSON.stringify((process.env.SUPABASE_ANON_KEY || '').trim())}
   );
-
-  const typeLabel = { home_banner: 'Banner en inicio', search_featured: 'Destacado en búsqueda', profile_ad: 'Anuncio en perfiles' };
 
   async function init() {
     try {
@@ -121,8 +118,7 @@ module.exports = async (req, res) => {
 
     listEl.innerHTML = ads.map((ad) => (
       '<div class="card" id="ad-' + ad.id + '">' +
-        '<div class="card-header"><span class="card-title">' + (ad.businesses ? ad.businesses.name : 'Negocio') + '</span>' +
-        '<span class="badge">' + (typeLabel[ad.type] || ad.type) + '</span></div>' +
+        '<div class="card-header"><span class="card-title">' + (ad.businesses ? ad.businesses.name : 'Negocio') + '</span></div>' +
         '<p class="meta">' + ad.title + '</p>' +
         '<p class="meta">Alcance: ' + (ad.target_city || 'Nacional') + '</p>' +
         '<p class="meta">' + new Date(ad.starts_at).toLocaleDateString('es-EC') + ' – ' + new Date(ad.ends_at).toLocaleDateString('es-EC') + '</p>' +

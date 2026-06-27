@@ -48,7 +48,6 @@ async function createAdFromPayment(supabase: ReturnType<typeof createClient>, pa
 
   await supabase.from('ads').insert({
     business_id: payment.business_id,
-    type: m.adType,
     title: m.title,
     image_url: m.imageUrl,
     link_url: m.linkUrl ?? null,

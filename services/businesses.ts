@@ -30,6 +30,16 @@ export async function getNearbyBusinesses(
   return withDistance.slice(0, limit);
 }
 
+// Proxy de "ciudad del cliente": no hay GPS->ciudad ni preferencia guardada
+// todavía, así que se usa la ciudad del negocio más cercano por coordenadas.
+export async function getNearestCity(
+  coords: { latitude: number; longitude: number } | null
+): Promise<string | null> {
+  if (!coords) return null;
+  const nearby = await getNearbyBusinesses(coords, 1);
+  return nearby[0]?.city ?? null;
+}
+
 export async function getFollowedBusinesses(clientId: string): Promise<Business[]> {
   const { data: follows, error: followsError } = await supabase
     .from('follows')

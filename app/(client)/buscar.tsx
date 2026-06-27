@@ -7,8 +7,8 @@ import { BusinessListItem } from '../../components/BusinessListItem';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useLocation } from '../../hooks/useLocation';
-import { getActiveSearchFeatured } from '../../services/ads';
-import { searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
+import { getSearchAds } from '../../services/ads';
+import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
 import type { Ad, BusinessType } from '../../types/database';
 
 const typeFilters: { label: string; value: BusinessType | undefined }[] = [
@@ -37,10 +37,11 @@ export default function BuscarScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getActiveSearchFeatured()
+    getNearestCity(coords)
+      .then(getSearchAds)
       .then(setFeaturedAds)
-      .catch((err) => console.error('load search featured ads error', err));
-  }, []);
+      .catch((err) => console.error('load search ads error', err));
+  }, [coords]);
 
   const search = useCallback(async () => {
     try {

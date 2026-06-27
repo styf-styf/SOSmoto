@@ -3,7 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // Crea el pago pendiente para una campaña de publicidad y devuelve la URL
 // del widget de Payphone (en el portal web de Vercel). El registro en `ads`
 // solo se crea dentro de payphone-confirm una vez el pago se aprueba -- ver
-// la nota en supabase/migrations/0025_ad_payments.sql.
+// la nota en supabase/migrations/0025_ad_payments.sql. La campaña ya no
+// tiene un "tipo"/superficie elegida por el negocio (ver
+// supabase/migrations/0026_dynamic_ads.sql): se muestra donde sea relevante
+// según ciudad, no según una elección manual.
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -16,8 +19,6 @@ function json(body: unknown, status = 200) {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 }
-
-const VALID_TYPES = ['home_banner', 'search_featured', 'profile_ad'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -36,12 +37,9 @@ Deno.serve(async (req) => {
       return json({ error: 'No autenticado' }, 401);
     }
 
-    const { businessId, type, title, imageUrl, linkUrl, targetCity, durationDays } = await req.json();
-    if (!businessId || !type || !title || !imageUrl || !durationDays) {
+    const { businessId, title, imageUrl, linkUrl, targetCity, durationDays } = await req.json();
+    if (!businessId || !title || !imageUrl || !durationDays) {
       return json({ error: 'Faltan datos' }, 400);
-    }
-    if (!VALID_TYPES.includes(type)) {
-      return json({ error: 'Tipo de anuncio inválido' }, 400);
     }
     const days = Number(durationDays);
     if (!Number.isFinite(days) || days <= 0 || days > 365) {
@@ -65,7 +63,6 @@ Deno.serve(async (req) => {
     const { data: pricing, error: pricingError } = await supabase
       .from('ad_pricing')
       .select('price_per_day_city, price_per_day_national')
-      .eq('ad_type', type)
       .single();
     if (pricingError || !pricing) {
       return json({ error: 'No se pudo calcular el precio' }, 500);
@@ -86,7 +83,6 @@ Deno.serve(async (req) => {
       status: 'pending',
       client_transaction_id: paymentId,
       metadata: {
-        adType: type,
         title,
         imageUrl,
         linkUrl: linkUrl || null,

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
-import { getActiveHomeBanners } from '../../services/ads';
+import { getHomeAds } from '../../services/ads';
 import { getFollowedBusinesses, getNearbyBusinesses, type BusinessWithDistance } from '../../services/businesses';
 import {
   getProductsForBusinesses,
@@ -31,14 +31,13 @@ export default function ClientHomeScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [followingResult, nearbyResult, adsResult] = await Promise.all([
+      const [followingResult, nearbyResult] = await Promise.all([
         profile ? getFollowedBusinesses(profile.id) : Promise.resolve([]),
         getNearbyBusinesses(coords),
-        getActiveHomeBanners(),
       ]);
       setFollowing(followingResult);
       setNearby(nearbyResult);
-      setAds(adsResult);
+      setAds(await getHomeAds(nearbyResult[0]?.city ?? null));
 
       const businessIds = Array.from(
         new Set([...followingResult.map((b) => b.id), ...nearbyResult.map((b) => b.id)])

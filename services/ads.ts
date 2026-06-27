@@ -1,28 +1,24 @@
 import { supabase } from './supabase';
-import type { Ad, AdPricing, AdType } from '../types/database';
+import type { Ad, AdPricing } from '../types/database';
 
 export interface QuoteAdParams {
-  type: AdType;
   targetCity?: string;
   durationDays: number;
 }
 
-export async function getAdPricing(): Promise<AdPricing[]> {
-  const { data, error } = await supabase.from('ad_pricing').select('*');
+export async function getAdPricing(): Promise<AdPricing> {
+  const { data, error } = await supabase.from('ad_pricing').select('price_per_day_city, price_per_day_national').single();
   if (error) throw error;
-  return (data ?? []) as AdPricing[];
+  return data as AdPricing;
 }
 
-export function quoteAdPrice(pricing: AdPricing[], params: QuoteAdParams): number {
-  const row = pricing.find((p) => p.ad_type === params.type);
-  if (!row) return 0;
-  const pricePerDay = params.targetCity ? row.price_per_day_city : row.price_per_day_national;
+export function quoteAdPrice(pricing: AdPricing, params: QuoteAdParams): number {
+  const pricePerDay = params.targetCity ? pricing.price_per_day_city : pricing.price_per_day_national;
   return Math.round(pricePerDay * params.durationDays * 100) / 100;
 }
 
 export interface CreateAdCampaignParams {
   businessId: string;
-  type: AdType;
   title: string;
   imageUrl: string;
   linkUrl?: string;
@@ -40,7 +36,6 @@ export async function createAdCampaign(
   const { data, error } = await supabase.functions.invoke('ad-prepare', {
     body: {
       businessId: params.businessId,
-      type: params.type,
       title: params.title,
       imageUrl: params.imageUrl,
       linkUrl: params.linkUrl,
@@ -63,48 +58,49 @@ export async function getBusinessAds(businessId: string): Promise<Ad[]> {
   return (data ?? []) as Ad[];
 }
 
-// Por ahora solo se muestran campañas nacionales (target_city null): no hay
-// todavía un concepto de "ciudad del cliente" para filtrar por target_city.
-export async function getActiveHomeBanners(): Promise<Ad[]> {
-  return getActiveAdsByType('home_banner');
-}
-
-export async function getActiveSearchFeatured(): Promise<Ad[]> {
-  return getActiveAdsByType('search_featured');
-}
-
-// profile_ad sí se filtra por la ciudad del negocio que se está viendo
-// (o nacional) -- a diferencia de home_banner/search_featured, que no tienen
-// todavía un concepto de "ciudad del cliente" para comparar.
-export async function getActiveProfileAds(city: string | null): Promise<Ad[]> {
+// Toda campaña activa (nacional, o de la ciudad dada) es elegible -- el
+// negocio ya no elige "dónde" se muestra. Cada pantalla pide la cantidad de
+// anuncios que necesita y se elige al azar entre los elegibles, para
+// repartir el espacio entre quienes pagaron publicidad en vez de apilarlos
+// todos.
+async function getEligibleAds(city: string | null): Promise<Ad[]> {
   const nowIso = new Date().toISOString();
   let query = supabase
     .from('ads')
     .select('*')
-    .eq('type', 'profile_ad')
     .eq('status', 'active')
     .lte('starts_at', nowIso)
-    .gte('ends_at', nowIso)
-    .order('created_at', { ascending: false });
+    .gte('ends_at', nowIso);
   query = city ? query.or(`target_city.is.null,target_city.eq.${city}`) : query.is('target_city', null);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Ad[];
 }
 
-async function getActiveAdsByType(type: AdType): Promise<Ad[]> {
-  const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from('ads')
-    .select('*')
-    .eq('type', type)
-    .eq('status', 'active')
-    .is('target_city', null)
-    .lte('starts_at', nowIso)
-    .gte('ends_at', nowIso)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Ad[];
+function pickRandom(ads: Ad[], count: number): Ad[] {
+  const copy = [...ads];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
+}
+
+// Las 3 superficies (inicio, búsqueda, perfil de negocio) usan la misma
+// elegibilidad por ciudad -- la única diferencia es de dónde sale la
+// "ciudad relevante" para cada pantalla: en el perfil es la ciudad del
+// negocio que se está viendo; en inicio/búsqueda es la ciudad del negocio
+// más cercano al cliente (ver getNearestCity en services/businesses.ts).
+export async function getHomeAds(city: string | null): Promise<Ad[]> {
+  return pickRandom(await getEligibleAds(city), 1);
+}
+
+export async function getSearchAds(city: string | null): Promise<Ad[]> {
+  return pickRandom(await getEligibleAds(city), 1);
+}
+
+export async function getActiveProfileAds(city: string | null): Promise<Ad[]> {
+  return pickRandom(await getEligibleAds(city), 3);
 }
 
 export async function registerAdImpression(adId: string): Promise<void> {

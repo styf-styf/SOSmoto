@@ -163,13 +163,11 @@ export interface Review {
   created_at: string;
 }
 
-export type AdType = 'home_banner' | 'search_featured' | 'profile_ad';
 export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
 
 export interface Ad {
   id: string;
   business_id: string;
-  type: AdType;
   title: string;
   image_url: string;
   link_url: string | null;
@@ -202,7 +200,6 @@ export interface Payment {
 }
 
 export interface AdPricing {
-  ad_type: AdType;
   price_per_day_city: number;
   price_per_day_national: number;
 }

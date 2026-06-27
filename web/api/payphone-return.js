@@ -83,7 +83,6 @@ async function activateByTrust(clientTransactionId, gatewayId) {
       endsAt.setDate(endsAt.getDate() + Number(m.durationDays));
       await supabase.from('ads').insert({
         business_id: payment.business_id,
-        type: m.adType,
         title: m.title,
         image_url: m.imageUrl,
         link_url: m.linkUrl || null,

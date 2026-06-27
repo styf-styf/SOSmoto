@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice } from '../../services/ads';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { pickAndUploadBusinessImage } from '../../services/storage';
-import type { Ad, AdPricing, AdType, Business } from '../../types/database';
+import type { Ad, AdPricing, Business } from '../../types/database';
 
 const statusLabel: Record<Ad['status'], string> = {
   pending_review: 'Pendiente de revisión',
@@ -25,28 +25,15 @@ const statusColor: Record<Ad['status'], string> = {
   expired: colors.textMuted,
 };
 
-const typeOptions: { label: string; value: AdType }[] = [
-  { label: 'Banner en inicio', value: 'home_banner' },
-  { label: 'Destacado en búsqueda', value: 'search_featured' },
-  { label: 'Anuncio en perfiles', value: 'profile_ad' },
-];
-
-const typeLabel: Record<AdType, string> = {
-  home_banner: 'Banner en inicio',
-  search_featured: 'Destacado en búsqueda',
-  profile_ad: 'Anuncio en perfiles',
-};
-
 export default function PublicidadScreen() {
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [ads, setAds] = useState<Ad[]>([]);
-  const [pricing, setPricing] = useState<AdPricing[]>([]);
+  const [pricing, setPricing] = useState<AdPricing | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  const [type, setType] = useState<AdType>('home_banner');
   const [national, setNational] = useState(true);
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -89,8 +76,8 @@ export default function PublicidadScreen() {
 
   const parsedDays = Number(durationDays);
   const validDays = Number.isFinite(parsedDays) && parsedDays > 0;
-  const price = validDays
-    ? quoteAdPrice(pricing, { type, targetCity: national ? undefined : business?.city, durationDays: parsedDays })
+  const price = validDays && pricing
+    ? quoteAdPrice(pricing, { targetCity: national ? undefined : business?.city, durationDays: parsedDays })
     : 0;
 
   async function handleCreate() {
@@ -114,7 +101,6 @@ export default function PublicidadScreen() {
     try {
       const { checkoutUrl } = await createAdCampaign({
         businessId: business.id,
-        type,
         title: title.trim(),
         imageUrl: imageUrl.trim(),
         linkUrl: linkUrl.trim() || undefined,
@@ -160,7 +146,9 @@ export default function PublicidadScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Publicidad</Text>
       <Text style={styles.helperText}>
-        Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las aprueba.
+        Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las
+        aprueba. Una vez activa, se muestra automáticamente en inicio, búsqueda y perfiles relevantes — no eliges
+        dónde aparece.
       </Text>
 
       {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede crear campañas.</Text>}
@@ -171,19 +159,6 @@ export default function PublicidadScreen() {
 
       {isOwner && showForm && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Tipo de anuncio</Text>
-          <View style={styles.chipRow}>
-            {typeOptions.map((opt) => (
-              <Pressable
-                key={opt.value}
-                onPress={() => setType(opt.value)}
-                style={[styles.chip, type === opt.value && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, type === opt.value && styles.chipTextSelected]}>{opt.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-
           <Text style={styles.fieldLabel}>Alcance</Text>
           <View style={styles.chipRow}>
             <Pressable onPress={() => setNational(true)} style={[styles.chip, national && styles.chipSelected]}>
@@ -239,7 +214,7 @@ export default function PublicidadScreen() {
               <Text style={styles.cardTitle}>{ad.title}</Text>
               <Text style={[styles.statusBadge, { color: statusColor[ad.status] }]}>{statusLabel[ad.status]}</Text>
             </View>
-            <Text style={styles.cardMeta}>{typeLabel[ad.type]} · {ad.target_city ?? 'Nacional'}</Text>
+            <Text style={styles.cardMeta}>{ad.target_city ?? 'Nacional'}</Text>
             <Text style={styles.cardMeta}>
               {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
             </Text>
