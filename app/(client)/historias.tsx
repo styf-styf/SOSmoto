@@ -4,20 +4,13 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
-import { searchBusinesses } from '../../services/businesses';
 import { createStory, deleteStory, getClientStories, isStoryVisible } from '../../services/stories';
 import { pickAndUploadClientStoryImage } from '../../services/storage';
-import type { BusinessWithDistance } from '../../services/businesses';
-import type { Story, StoryActionType } from '../../types/database';
+import type { Story } from '../../types/database';
 
 const CLIENT_DAILY_LIMIT = 3;
 
 const templates = ['Mi moto', 'En ruta', 'Antes/Después', 'Recomiendo este taller'];
-
-const actionOptions: { label: string; value: StoryActionType }[] = [
-  { label: 'Ninguno', value: 'none' },
-  { label: 'Etiquetar negocio', value: 'business_tag' },
-];
 
 export default function ClientHistoriasScreen() {
   const { profile } = useAuth();
@@ -27,14 +20,8 @@ export default function ClientHistoriasScreen() {
 
   const [imageUrl, setImageUrl] = useState('');
   const [caption, setCaption] = useState('');
-  const [actionType, setActionType] = useState<StoryActionType>('none');
-  const [businessQuery, setBusinessQuery] = useState('');
-  const [businessResults, setBusinessResults] = useState<BusinessWithDistance[]>([]);
-  const [targetId, setTargetId] = useState<string | null>(null);
-  const [targetName, setTargetName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [searching, setSearching] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -55,11 +42,6 @@ export default function ClientHistoriasScreen() {
   function resetForm() {
     setImageUrl('');
     setCaption('');
-    setActionType('none');
-    setBusinessQuery('');
-    setBusinessResults([]);
-    setTargetId(null);
-    setTargetName(null);
   }
 
   function handleAddPress() {
@@ -85,27 +67,10 @@ export default function ClientHistoriasScreen() {
     }
   }
 
-  async function handleSearchBusiness() {
-    if (!businessQuery.trim()) return;
-    setSearching(true);
-    try {
-      const results = await searchBusinesses({ query: businessQuery.trim() });
-      setBusinessResults(results);
-    } catch (err) {
-      console.error('search business for story tag error', err);
-    } finally {
-      setSearching(false);
-    }
-  }
-
   async function handleCreate() {
     if (!profile) return;
     if (!imageUrl.trim()) {
       Alert.alert('Falta la imagen', 'Selecciona una foto para la historia.');
-      return;
-    }
-    if (actionType === 'business_tag' && !targetId) {
-      Alert.alert('Falta elegir', 'Busca y elige el negocio que quieres etiquetar.');
       return;
     }
     setSaving(true);
@@ -114,8 +79,7 @@ export default function ClientHistoriasScreen() {
         clientId: profile.id,
         imageUrl: imageUrl.trim(),
         caption: caption.trim() || undefined,
-        actionType,
-        actionTargetId: actionType === 'business_tag' ? targetId ?? undefined : undefined,
+        actionType: 'none',
       });
       setStories((prev) => [created, ...prev]);
       setShowForm(false);
@@ -175,59 +139,6 @@ export default function ClientHistoriasScreen() {
             ))}
           </View>
           <TextField label="Texto" placeholder="Listo para rodar" value={caption} onChangeText={setCaption} />
-
-          <Text style={styles.fieldLabel}>Botón de acción</Text>
-          <View style={styles.chipRow}>
-            {actionOptions.map((opt) => (
-              <Pressable
-                key={opt.value}
-                onPress={() => {
-                  setActionType(opt.value);
-                  setTargetId(null);
-                  setTargetName(null);
-                }}
-                style={[styles.chip, actionType === opt.value && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, actionType === opt.value && styles.chipTextSelected]}>{opt.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {actionType === 'business_tag' && (
-            <View>
-              {targetName ? (
-                <Text style={styles.selectedTarget}>Etiquetado: {targetName}</Text>
-              ) : (
-                <>
-                  <View style={styles.searchRow}>
-                    <View style={styles.searchField}>
-                      <TextField
-                        label="Buscar negocio"
-                        placeholder="Nombre del taller o tienda"
-                        value={businessQuery}
-                        onChangeText={setBusinessQuery}
-                      />
-                    </View>
-                    <Button title="Buscar" onPress={handleSearchBusiness} loading={searching} style={styles.searchButton} />
-                  </View>
-                  <View style={styles.chipRow}>
-                    {businessResults.map((b) => (
-                      <Pressable
-                        key={b.id}
-                        onPress={() => {
-                          setTargetId(b.id);
-                          setTargetName(b.name);
-                        }}
-                        style={styles.chip}
-                      >
-                        <Text style={styles.chipText}>{b.name}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </>
-              )}
-            </View>
-          )}
 
           <View style={styles.editActions}>
             <Button title="Publicar" onPress={handleCreate} loading={saving} style={styles.flexButton} />
@@ -330,23 +241,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   imageButton: {
-    marginBottom: 16,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-  },
-  searchField: {
-    flex: 1,
-  },
-  searchButton: {
-    marginBottom: 16,
-  },
-  selectedTarget: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '600',
     marginBottom: 16,
   },
   sectionTitle: {

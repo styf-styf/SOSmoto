@@ -16,6 +16,9 @@ const actionLabel: Record<string, string> = {
 };
 
 function getActionHref(story: Story, contactBusinessId?: string): string | null {
+  // Las historias de cliente nunca tienen botón de acción (no tienen
+  // catálogo ni perfil de negocio que mostrar).
+  if (story.client_id) return null;
   switch (story.action_type) {
     case 'service':
       return `/(client)/servicio/${story.action_target_id}`;
