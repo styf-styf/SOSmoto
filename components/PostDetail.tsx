@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -76,7 +76,7 @@ export function PostDetail({ postId }: { postId: string }) {
   const tag = getPostTag(post);
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="translate-with-padding">
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.authorRow}>
           <View style={styles.avatar}>
@@ -122,19 +122,21 @@ export function PostDetail({ postId }: { postId: string }) {
         )}
       </ScrollView>
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Escribe un comentario…"
-          placeholderTextColor={colors.textMuted}
-          value={text}
-          onChangeText={setText}
-        />
-        <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
-          <Ionicons name="send" size={18} color="#fff" />
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+      <KeyboardStickyView>
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribe un comentario…"
+            placeholderTextColor={colors.textMuted}
+            value={text}
+            onChangeText={setText}
+          />
+          <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
+            <Ionicons name="send" size={18} color="#fff" />
+          </Pressable>
+        </View>
+      </KeyboardStickyView>
+    </View>
   );
 }
 
