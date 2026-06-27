@@ -198,6 +198,27 @@ export interface Story {
   created_at: string;
 }
 
+export interface Post {
+  id: string;
+  business_id: string | null;
+  client_id: string | null;
+  image_url: string;
+  caption: string | null;
+  tag_business_id: string | null;
+  tag_service_id: string | null;
+  tag_product_id: string | null;
+  comments_count: number;
+  created_at: string;
+}
+
+export interface PostComment {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+}
+
 export type PaymentType = 'subscription' | 'advertising';
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 

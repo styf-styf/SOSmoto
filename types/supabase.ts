@@ -546,6 +546,69 @@ export interface Database {
         };
         Relationships: [];
       };
+      posts: {
+        Row: {
+          id: string;
+          business_id: string | null;
+          client_id: string | null;
+          image_url: string;
+          caption: string | null;
+          tag_business_id: string | null;
+          tag_service_id: string | null;
+          tag_product_id: string | null;
+          comments_count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id?: string | null;
+          client_id?: string | null;
+          image_url: string;
+          caption?: string | null;
+          tag_business_id?: string | null;
+          tag_service_id?: string | null;
+          tag_product_id?: string | null;
+          comments_count?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string | null;
+          client_id?: string | null;
+          image_url?: string;
+          caption?: string | null;
+          tag_business_id?: string | null;
+          tag_service_id?: string | null;
+          tag_product_id?: string | null;
+          comments_count?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      post_comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          author_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          author_id: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       payments: {
         Row: {
           id: string;

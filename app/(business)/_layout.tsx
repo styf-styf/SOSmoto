@@ -82,6 +82,8 @@ export default function BusinessLayout() {
       <Tabs.Screen name="chat/[id]" options={{ href: null, headerShown: true, title: 'Chat' }} />
       <Tabs.Screen name="historia/[businessId]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="historia-cliente/[clientId]" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="publicaciones" options={{ href: null, headerShown: true, title: 'Publicaciones' }} />
+      <Tabs.Screen name="publicacion/[id]" options={{ href: null, headerShown: true, title: 'Publicación' }} />
       <Tabs.Screen name="empleados" options={{ href: null, headerShown: true, title: 'Equipo' }} />
       <Tabs.Screen name="suscripcion" options={{ href: null, headerShown: true, title: 'Plan y suscripción' }} />
       <Tabs.Screen name="agenda-negocio" options={{ href: null, headerShown: true, title: 'Agenda' }} />

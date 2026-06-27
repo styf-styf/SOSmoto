@@ -300,6 +300,12 @@ export default function BusinessPerfilScreen() {
         onPress={() => router.push('/(business)/historias')}
         style={styles.spacedButton}
       />
+      <Button
+        title="Publicaciones"
+        variant="secondary"
+        onPress={() => router.push('/(business)/publicaciones')}
+        style={styles.spacedButton}
+      />
       <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} style={styles.button} />
     </ScrollView>
   );

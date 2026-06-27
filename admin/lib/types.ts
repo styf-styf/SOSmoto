@@ -44,3 +44,15 @@ export interface AdminStoryRow {
   businesses: { name: string } | null;
   users: { full_name: string } | null;
 }
+
+export interface AdminPostRow {
+  id: string;
+  business_id: string | null;
+  client_id: string | null;
+  image_url: string;
+  caption: string | null;
+  comments_count: number;
+  created_at: string;
+  businesses: { name: string } | null;
+  users: { full_name: string } | null;
+}

@@ -122,6 +122,12 @@ export default function ClientPerfilScreen() {
         style={styles.spacedButton}
       />
       <Button
+        title="Mis publicaciones"
+        variant="secondary"
+        onPress={() => router.push('/(client)/publicaciones')}
+        style={styles.spacedButton}
+      />
+      <Button
         title="Mis citas"
         variant="secondary"
         onPress={() => router.push('/(client)/citas')}

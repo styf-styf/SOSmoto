@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -9,6 +10,7 @@ import { useLocation } from '../../hooks/useLocation';
 import { createBusiness, getMyWorkBusiness } from '../../services/businesses';
 import { getAllProducts, getAllServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getPendingRequests } from '../../services/helpRequests';
+import { getPublicFeed, type PostWithAuthor } from '../../services/posts';
 import {
   getBusinessStories,
   getSeenStoryIds,
@@ -18,6 +20,7 @@ import {
   isStoryVisible,
   type StoryFeedItem,
 } from '../../services/stories';
+import { PostCard } from '../../components/PostCard';
 import { StoriesRow } from '../../components/StoriesRow';
 import type { Business, BusinessType } from '../../types/database';
 
@@ -32,6 +35,7 @@ export default function BusinessHomeScreen() {
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
+  const [posts, setPosts] = useState<PostWithAuthor[]>([]);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -69,6 +73,8 @@ export default function BusinessHomeScreen() {
           excludeBusinessId: result.id,
         })
       );
+
+      setPosts(await getPublicFeed());
     } catch (err) {
       console.error('load business error', err);
     }
@@ -121,6 +127,20 @@ export default function BusinessHomeScreen() {
             ),
         }))}
       />
+
+      <View style={styles.postsHeader}>
+        <Text style={styles.sectionTitle}>Publicaciones</Text>
+        <Pressable onPress={() => router.push('/(business)/publicaciones')}>
+          <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+        </Pressable>
+      </View>
+      {posts.length === 0 ? (
+        <Text style={styles.placeholder}>Todavía no hay publicaciones.</Text>
+      ) : (
+        posts.map((post) => (
+          <PostCard key={post.id} post={post} detailHref={`/(business)/publicacion/${post.id}`} />
+        ))
+      )}
 
       <Pressable
         style={styles.card}
@@ -291,6 +311,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
+  },
+  postsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  placeholder: {
+    color: colors.textMuted,
+    fontSize: 14,
+    marginBottom: 12,
   },
   card: {
     backgroundColor: colors.surface,

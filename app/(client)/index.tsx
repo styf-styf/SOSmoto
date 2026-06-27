@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { ReactNode } from 'react';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
@@ -13,6 +14,7 @@ import {
   type ProductWithBusiness,
   type ServiceWithBusiness,
 } from '../../services/catalog';
+import { getPublicFeed, type PostWithAuthor } from '../../services/posts';
 import {
   getSeenStoryIds,
   getVisibleBusinessStoriesGlobal,
@@ -23,6 +25,7 @@ import {
 import { AdBanner } from '../../components/AdBanner';
 import { BusinessListItem } from '../../components/BusinessListItem';
 import { CatalogCard } from '../../components/CatalogCard';
+import { PostCard } from '../../components/PostCard';
 import { StoriesRow } from '../../components/StoriesRow';
 import type { Ad, Business } from '../../types/database';
 
@@ -35,6 +38,7 @@ export default function ClientHomeScreen() {
   const [services, setServices] = useState<ServiceWithBusiness[]>([]);
   const [products, setProducts] = useState<ProductWithBusiness[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
+  const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownHasStory, setOwnHasStory] = useState(false);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
@@ -78,6 +82,8 @@ export default function ClientHomeScreen() {
       );
       setOwnHasStory(!!ownClientStory);
       setOwnPreviewImageUrl(ownClientStory?.image_url ?? null);
+
+      setPosts(await getPublicFeed());
     } catch (err) {
       console.error('home load error', err);
     }
@@ -130,6 +136,24 @@ export default function ClientHomeScreen() {
       {ads.map((ad) => (
         <AdBanner key={ad.id} ad={ad} />
       ))}
+
+      <View style={styles.postsHeader}>
+        <Text style={styles.sectionTitle}>Publicaciones</Text>
+        <Pressable onPress={() => router.push('/(client)/publicaciones')}>
+          <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+        </Pressable>
+      </View>
+      {posts.length === 0 ? (
+        <Text style={styles.placeholder}>Todavía no hay publicaciones.</Text>
+      ) : (
+        posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            detailHref={`/(client)/publicacion/${post.id}`}
+          />
+        ))
+      )}
 
       <Section title="Servicios destacados">
         {services.length === 0 ? (
@@ -237,5 +261,11 @@ const styles = StyleSheet.create({
   placeholder: {
     color: colors.textMuted,
     fontSize: 14,
+  },
+  postsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
 });

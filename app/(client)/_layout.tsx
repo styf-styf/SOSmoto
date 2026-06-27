@@ -112,6 +112,8 @@ function ClientTabs() {
       <Tabs.Screen name="historia/[businessId]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="historias" options={{ href: null, headerShown: true, title: 'Mis historias' }} />
       <Tabs.Screen name="historia-cliente/[clientId]" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="publicaciones" options={{ href: null, headerShown: true, title: 'Mis publicaciones' }} />
+      <Tabs.Screen name="publicacion/[id]" options={{ href: null, headerShown: true, title: 'Publicación' }} />
       <Tabs.Screen name="chat/[id]" options={{ href: null, headerShown: true, title: 'Chat' }} />
       <Tabs.Screen name="vehiculos" options={{ href: null, headerShown: true, title: 'Mis motos' }} />
       <Tabs.Screen name="historial" options={{ href: null, headerShown: true, title: 'Historial de servicios' }} />
