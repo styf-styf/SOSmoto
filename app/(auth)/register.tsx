@@ -1,13 +1,36 @@
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Link, router } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { signUp } from '../../services/auth';
 import type { UserRole } from '../../types/database';
+import { translateAuthError } from '../../utils/authErrors';
+import { getPasswordStrength, isValidEcuadorPhone, isValidEmail } from '../../utils/validators';
 
 type SelectableRole = Exclude<UserRole, 'admin'>;
+
+interface FormErrors {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
+const strengthLabel: Record<string, string> = {
+  weak: 'Débil',
+  medium: 'Media',
+  strong: 'Fuerte',
+};
+
+const strengthColor: Record<string, string> = {
+  weak: colors.danger,
+  medium: colors.warning,
+  strong: colors.success,
+};
 
 export default function RegisterScreen() {
   const [role, setRole] = useState<SelectableRole>('client');
@@ -15,17 +38,35 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
+
+  function clearError(field: keyof FormErrors) {
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
+  }
+
+  function validate(): boolean {
+    const next: FormErrors = {};
+    if (!fullName.trim()) next.fullName = 'Ingresa tu nombre completo.';
+    if (!email.trim()) next.email = 'Ingresa tu correo.';
+    else if (!isValidEmail(email)) next.email = 'Ese correo no tiene un formato válido.';
+    if (phone.trim() && !isValidEcuadorPhone(phone)) {
+      next.phone = 'Usa un celular ecuatoriano válido (ej. 09xxxxxxxx).';
+    }
+    if (!password) next.password = 'Ingresa una contraseña.';
+    else if (password.length < 6) next.password = 'Usa al menos 6 caracteres.';
+    if (confirmPassword !== password) next.confirmPassword = 'Las contraseñas no coinciden.';
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
 
   async function handleRegister() {
-    if (!fullName || !email || !password) {
-      Alert.alert('Faltan datos', 'Completa nombre, correo y contraseña.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Contraseña débil', 'Usa al menos 6 caracteres.');
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
     try {
@@ -39,7 +80,7 @@ export default function RegisterScreen() {
       router.replace('/');
     } catch (err) {
       console.error('register error', err);
-      const message = err instanceof Error ? err.message : 'No se pudo crear la cuenta.';
+      const message = err instanceof Error ? translateAuthError(err.message) : 'No se pudo crear la cuenta.';
       Alert.alert('Error', message);
     } finally {
       setLoading(false);
@@ -47,7 +88,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32}>
       <Text style={styles.title}>Crear cuenta</Text>
 
       <View style={styles.roleSelector}>
@@ -55,39 +96,88 @@ export default function RegisterScreen() {
           label="Soy cliente"
           selected={role === 'client'}
           onPress={() => setRole('client')}
+          disabled={loading}
         />
         <RoleOption
           label="Soy negocio"
           selected={role === 'business'}
           onPress={() => setRole('business')}
+          disabled={loading}
         />
       </View>
 
-      <TextField label="Nombre completo" placeholder="Tu nombre" value={fullName} onChangeText={setFullName} />
+      <TextField
+        label="Nombre completo"
+        placeholder="Tu nombre"
+        value={fullName}
+        onChangeText={(t) => {
+          setFullName(t);
+          clearError('fullName');
+        }}
+        editable={!loading}
+        error={errors.fullName}
+      />
       <TextField
         label="Correo electrónico"
         placeholder="tucorreo@email.com"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(t) => {
+          setEmail(t);
+          clearError('email');
+        }}
+        editable={!loading}
+        error={errors.email}
       />
       <TextField
         label="Teléfono (opcional)"
         placeholder="09xxxxxxxx"
         keyboardType="phone-pad"
         value={phone}
-        onChangeText={setPhone}
+        onChangeText={(t) => {
+          setPhone(t);
+          clearError('phone');
+        }}
+        editable={!loading}
+        error={errors.phone}
       />
       <TextField
         label="Contraseña"
         placeholder="********"
-        secureTextEntry
+        secureTextEntry={!showPassword}
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(t) => {
+          setPassword(t);
+          clearError('password');
+          clearError('confirmPassword');
+        }}
+        editable={!loading}
+        error={errors.password}
+        rightIcon={{
+          name: showPassword ? 'eye-off-outline' : 'eye-outline',
+          onPress: () => setShowPassword((v) => !v),
+        }}
+      />
+      {password.length > 0 && !errors.password && (
+        <Text style={[styles.strengthText, { color: strengthColor[passwordStrength] }]}>
+          Fuerza de la contraseña: {strengthLabel[passwordStrength]}
+        </Text>
+      )}
+      <TextField
+        label="Confirmar contraseña"
+        placeholder="********"
+        secureTextEntry={!showPassword}
+        value={confirmPassword}
+        onChangeText={(t) => {
+          setConfirmPassword(t);
+          clearError('confirmPassword');
+        }}
+        editable={!loading}
+        error={errors.confirmPassword}
       />
 
-      <Button title="Crear cuenta" onPress={handleRegister} loading={loading} />
+      <Button title="Crear cuenta" onPress={handleRegister} loading={loading} style={styles.submitButton} />
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
@@ -95,7 +185,7 @@ export default function RegisterScreen() {
           Inicia sesión
         </Link>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -103,14 +193,17 @@ function RoleOption({
   label,
   selected,
   onPress,
+  disabled,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={[styles.roleOption, selected && styles.roleOptionSelected]}
     >
       <Text style={[styles.roleOptionText, selected && styles.roleOptionTextSelected]}>
@@ -157,6 +250,15 @@ const styles = StyleSheet.create({
   },
   roleOptionTextSelected: {
     color: colors.primary,
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -10,
+    marginBottom: 16,
+  },
+  submitButton: {
+    marginTop: 4,
   },
   footer: {
     flexDirection: 'row',
