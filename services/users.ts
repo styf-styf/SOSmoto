@@ -1,6 +1,12 @@
 import { supabase } from './supabase';
 import type { User } from '../types/database';
 
+export async function getUserById(userId: string): Promise<User | null> {
+  const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+  if (error) throw error;
+  return data as User | null;
+}
+
 export interface UpdateUserProfileParams {
   fullName?: string;
   phone?: string | null;

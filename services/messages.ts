@@ -132,39 +132,63 @@ export interface ConversationSummary {
   otherId: string;
   lastMessage: string;
   lastMessageAt: string;
+  lastSenderId: string;
+  lastReadAt: string | null;
 }
 
 export async function getClientConversations(clientId: string): Promise<ConversationSummary[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('business_id, body, created_at')
+    .select('business_id, body, created_at, sender_id, read_at')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  return dedupeByOtherId((data ?? []).map((row) => ({ otherId: row.business_id, body: row.body, created_at: row.created_at })));
+  return dedupeByOtherId(
+    (data ?? []).map((row) => ({
+      otherId: row.business_id,
+      body: row.body,
+      created_at: row.created_at,
+      sender_id: row.sender_id,
+      read_at: row.read_at,
+    }))
+  );
 }
 
 export async function getBusinessConversations(businessId: string): Promise<ConversationSummary[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('client_id, body, created_at')
+    .select('client_id, body, created_at, sender_id, read_at')
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  return dedupeByOtherId((data ?? []).map((row) => ({ otherId: row.client_id, body: row.body, created_at: row.created_at })));
+  return dedupeByOtherId(
+    (data ?? []).map((row) => ({
+      otherId: row.client_id,
+      body: row.body,
+      created_at: row.created_at,
+      sender_id: row.sender_id,
+      read_at: row.read_at,
+    }))
+  );
 }
 
 function dedupeByOtherId(
-  rows: { otherId: string; body: string; created_at: string }[]
+  rows: { otherId: string; body: string; created_at: string; sender_id: string; read_at: string | null }[]
 ): ConversationSummary[] {
   const seen = new Set<string>();
   const summaries: ConversationSummary[] = [];
   for (const row of rows) {
     if (seen.has(row.otherId)) continue;
     seen.add(row.otherId);
-    summaries.push({ otherId: row.otherId, lastMessage: row.body, lastMessageAt: row.created_at });
+    summaries.push({
+      otherId: row.otherId,
+      lastMessage: row.body,
+      lastMessageAt: row.created_at,
+      lastSenderId: row.sender_id,
+      lastReadAt: row.read_at,
+    });
   }
   return summaries;
 }

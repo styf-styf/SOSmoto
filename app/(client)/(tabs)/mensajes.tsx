@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessById } from '../../../services/businesses';
-import { getClientConversations } from '../../../services/messages';
+import { getClientConversations, subscribeToThreadChanges } from '../../../services/messages';
 import type { Business } from '../../../types/database';
+import { formatConversationTimestamp } from '../../../utils/chatFormat';
 
 interface ConversationRow {
   business: Business;
   lastMessage: string;
   lastMessageAt: string;
+  unread: boolean;
 }
 
 export default function MensajesScreen() {
@@ -25,7 +28,13 @@ export default function MensajesScreen() {
     const rows: ConversationRow[] = summaries
       .map((s, i) => {
         const business = businesses[i];
-        return business ? { business, lastMessage: s.lastMessage, lastMessageAt: s.lastMessageAt } : null;
+        if (!business) return null;
+        return {
+          business,
+          lastMessage: s.lastMessage,
+          lastMessageAt: s.lastMessageAt,
+          unread: s.lastSenderId !== profile.id && s.lastReadAt === null,
+        };
       })
       .filter((r): r is ConversationRow => r !== null);
     setConversations(rows);
@@ -37,6 +46,14 @@ export default function MensajesScreen() {
       .catch((err) => console.error('load conversations error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const unsubscribe = subscribeToThreadChanges('client_id', profile.id, () => {
+      load().catch((err) => console.error('reload conversations error', err));
+    });
+    return unsubscribe;
+  }, [profile, load]);
 
   if (loading) {
     return (
@@ -58,8 +75,32 @@ export default function MensajesScreen() {
             style={styles.row}
             onPress={() => router.push(`/(client)/chat/${row.business.id}`)}
           >
-            <Text style={styles.rowName}>{row.business.name}</Text>
-            <Text style={styles.rowMessage}>{row.lastMessage}</Text>
+            <View style={styles.avatar}>
+              {row.business.logo_url ? (
+                <Image source={{ uri: row.business.logo_url }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="storefront" size={20} color={colors.primary} />
+              )}
+            </View>
+            <View style={styles.rowContent}>
+              <View style={styles.rowTopLine}>
+                <Text style={[styles.rowName, row.unread && styles.rowNameUnread]} numberOfLines={1}>
+                  {row.business.name}
+                </Text>
+                <Text style={[styles.rowTime, row.unread && styles.rowTimeUnread]}>
+                  {formatConversationTimestamp(row.lastMessageAt)}
+                </Text>
+              </View>
+              <View style={styles.rowBottomLine}>
+                <Text
+                  style={[styles.rowMessage, row.unread && styles.rowMessageUnread]}
+                  numberOfLines={1}
+                >
+                  {row.lastMessage}
+                </Text>
+                {row.unread && <View style={styles.unreadDot} />}
+              </View>
+            </View>
           </Pressable>
         ))
       )}
@@ -89,18 +130,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+  },
+  rowContent: {
+    flex: 1,
+  },
+  rowTopLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rowBottomLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
   },
   rowName: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
+    flexShrink: 1,
+  },
+  rowNameUnread: {
+    color: colors.text,
+    fontWeight: '700',
+  },
+  rowTime: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  rowTimeUnread: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   rowMessage: {
     fontSize: 13,
     color: colors.textMuted,
-    marginTop: 2,
+    flex: 1,
+  },
+  rowMessageUnread: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
 });

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ChatHeader } from '../../../components/ChatHeader';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
-import { getMyBusiness } from '../../../services/businesses';
+import { getBusinessById, getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
-import type { Message } from '../../../types/database';
+import type { Business, Message } from '../../../types/database';
+import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
   const { id, prefill } = useLocalSearchParams<{ id: string; prefill?: string }>();
@@ -16,6 +18,7 @@ export default function ChatScreen() {
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
@@ -26,9 +29,9 @@ export default function ChatScreen() {
     if (profile.role === 'client') {
       return { clientId: profile.id, businessId: id };
     }
-    const business = await getMyBusiness(profile.id);
-    if (!business) return null;
-    return { clientId: id, businessId: business.id };
+    const myBusiness = await getMyBusiness(profile.id);
+    if (!myBusiness) return null;
+    return { clientId: id, businessId: myBusiness.id };
   }, [profile, id]);
 
   useEffect(() => {
@@ -38,7 +41,10 @@ export default function ChatScreen() {
         if (!thread) return;
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
-        const history = await getMessages(thread.clientId, thread.businessId);
+        const [history] = await Promise.all([
+          getMessages(thread.clientId, thread.businessId),
+          getBusinessById(thread.businessId).then(setBusiness),
+        ]);
         setMessages(history);
         if (profile) {
           await markThreadRead(thread.clientId, thread.businessId, profile.id);
@@ -97,17 +103,38 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
+      <ChatHeader
+        name={business?.name ?? 'Negocio'}
+        avatarUrl={business?.logo_url}
+        fallbackIcon="storefront"
+        onPressName={businessId ? () => router.push(`/(client)/business/${businessId}`) : undefined}
+      />
+
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
         {messages.length === 0 ? (
           <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
         ) : (
-          messages.map((message) => (
-            <View
-              key={message.id}
-              style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
-            >
-              <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
-                {message.body}
+          messages.map((message, index) => (
+            <View key={message.id}>
+              {shouldShowDateSeparator(messages, index) && (
+                <View style={styles.dateSeparator}>
+                  <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                </View>
+              )}
+              <View
+                style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
+              >
+                <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
+                  {message.body}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.messageTime,
+                  message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
+                ]}
+              >
+                {formatMessageTime(message.created_at)}
               </Text>
             </View>
           ))
@@ -153,12 +180,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  dateSeparator: {
+    alignSelf: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginVertical: 8,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
   bubble: {
     maxWidth: '80%',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 4,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -175,6 +214,18 @@ const styles = StyleSheet.create({
   bubbleTextMine: {
     color: '#fff',
     fontSize: 14,
+  },
+  messageTime: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  messageTimeMine: {
+    alignSelf: 'flex-end',
+  },
+  messageTimeTheirs: {
+    alignSelf: 'flex-start',
   },
   inputRow: {
     flexDirection: 'row',

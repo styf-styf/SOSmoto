@@ -3,11 +3,14 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ChatHeader } from '../../../components/ChatHeader';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
-import type { Message } from '../../../types/database';
+import { getUserById } from '../../../services/users';
+import type { Message, User } from '../../../types/database';
+import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,6 +20,7 @@ export default function ChatScreen() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isLimited, setIsLimited] = useState(false);
+  const [client, setClient] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,7 +44,10 @@ export default function ChatScreen() {
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
         setIsLimited(thread.isLimited);
-        const history = await getMessages(thread.clientId, thread.businessId);
+        const [history] = await Promise.all([
+          getMessages(thread.clientId, thread.businessId),
+          getUserById(thread.clientId).then(setClient),
+        ]);
         setMessages(history);
         if (profile) {
           await markThreadRead(thread.clientId, thread.businessId, profile.id);
@@ -99,17 +106,33 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
+      <ChatHeader name={client?.full_name ?? 'Cliente'} avatarUrl={client?.avatar_url} fallbackIcon="person" />
+
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
         {messages.length === 0 ? (
           <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
         ) : (
-          messages.map((message) => (
-            <View
-              key={message.id}
-              style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
-            >
-              <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
-                {message.body}
+          messages.map((message, index) => (
+            <View key={message.id}>
+              {shouldShowDateSeparator(messages, index) && (
+                <View style={styles.dateSeparator}>
+                  <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                </View>
+              )}
+              <View
+                style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
+              >
+                <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
+                  {message.body}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.messageTime,
+                  message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
+                ]}
+              >
+                {formatMessageTime(message.created_at)}
               </Text>
             </View>
           ))
@@ -161,12 +184,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  dateSeparator: {
+    alignSelf: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginVertical: 8,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
   bubble: {
     maxWidth: '80%',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 4,
   },
   bubbleMine: {
     backgroundColor: colors.primary,
@@ -183,6 +218,18 @@ const styles = StyleSheet.create({
   bubbleTextMine: {
     color: '#fff',
     fontSize: 14,
+  },
+  messageTime: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  messageTimeMine: {
+    alignSelf: 'flex-end',
+  },
+  messageTimeTheirs: {
+    alignSelf: 'flex-start',
   },
   inputRow: {
     flexDirection: 'row',
