@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './supabase';
 
 const BUCKET = 'public-images';
+const KYC_BUCKET = 'kyc-documents';
 const MAX_WIDTH = 1280;
 const COMPRESSION_QUALITY = 0.7;
 
@@ -114,4 +115,25 @@ export async function pickAndUploadUserAvatar(userId: string): Promise<string | 
   const asset = await pickImageFromLibrary();
   if (!asset) return null;
   return uploadUserAvatar(asset, userId);
+}
+
+// Bucket privado (kyc-documents, no kyc-images): documentos de identidad, no
+// se devuelve una URL pública -- se guarda solo la ruta, y el admin panel
+// genera URLs firmadas de corta duración con el service role para mostrarlos.
+export async function uploadKycDocument(
+  asset: ImagePicker.ImagePickerAsset,
+  businessId: string,
+  kind: 'id-document' | 'ruc-document' | 'storefront-photo'
+): Promise<string> {
+  const optimizedUri = await optimizeImage(asset);
+  const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
+  const path = `${businessId}/${kind}-${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage.from(KYC_BUCKET).upload(path, arrayBuffer, {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
+  if (error) throw error;
+
+  return path;
 }

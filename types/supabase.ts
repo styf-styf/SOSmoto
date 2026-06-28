@@ -816,6 +816,48 @@ export interface Database {
         };
         Relationships: [];
       };
+      business_verification_requests: {
+        Row: {
+          id: string;
+          business_id: string;
+          id_document_path: string;
+          ruc_document_path: string | null;
+          storefront_photo_path: string;
+          notes: string | null;
+          status: 'pending_review' | 'approved' | 'rejected';
+          admin_notes: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          id_document_path: string;
+          ruc_document_path?: string | null;
+          storefront_photo_path: string;
+          notes?: string | null;
+          status?: 'pending_review' | 'approved' | 'rejected';
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          id_document_path?: string;
+          ruc_document_path?: string | null;
+          storefront_photo_path?: string;
+          notes?: string | null;
+          status?: 'pending_review' | 'approved' | 'rejected';
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

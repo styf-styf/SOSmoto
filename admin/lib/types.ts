@@ -56,3 +56,106 @@ export interface AdminPostRow {
   businesses: { name: string } | null;
   users: { full_name: string } | null;
 }
+
+export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
+
+export interface AdminAdRow {
+  id: string;
+  business_id: string;
+  title: string;
+  image_url: string;
+  link_url: string | null;
+  target_city: string | null;
+  status: AdStatus;
+  starts_at: string;
+  ends_at: string;
+  impressions: number;
+  clicks: number;
+  created_at: string;
+  businesses: { name: string } | null;
+}
+
+export type PlanName = 'free' | 'standard' | 'pro';
+
+export interface AdminSubscriptionPlanRow {
+  id: string;
+  name: PlanName;
+  max_products: number | null;
+  max_services: number | null;
+  max_photos_per_item: number;
+  max_employees: number | null;
+  has_priority_matching: boolean;
+  has_featured_listing: boolean;
+  has_stories: boolean;
+  max_active_stories: number | null;
+  price_monthly: number;
+}
+
+export type PaymentType = 'subscription' | 'advertising';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+
+export interface AdminPaymentRow {
+  id: string;
+  business_id: string;
+  amount: number;
+  currency: string;
+  type: PaymentType;
+  gateway: string;
+  status: PaymentStatus;
+  created_at: string;
+  businesses: { name: string } | null;
+}
+
+export interface AdminBusinessSubscriptionRow {
+  id: string;
+  business_id: string;
+  status: 'active' | 'expired' | 'cancelled';
+  started_at: string;
+  expires_at: string | null;
+  businesses: { name: string; subscription_plans: { name: PlanName } | null } | null;
+}
+
+export type HelpRequestStatus = 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface AdminHelpRequestRow {
+  id: string;
+  client_id: string;
+  status: HelpRequestStatus;
+  accepted_business_id: string | null;
+  estimated_arrival_minutes: number | null;
+  created_at: string;
+  accepted_at: string | null;
+  completed_at: string | null;
+  users: { full_name: string } | null;
+  businesses: { name: string; city: string } | null;
+}
+
+export type MotoType = 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser';
+
+export interface AdminMaintenanceRuleRow {
+  id: string;
+  moto_type: MotoType;
+  service_name: string;
+  interval_km: number | null;
+  interval_months: number | null;
+}
+
+export interface AdminAdPricingRow {
+  price_per_day_city: number;
+  price_per_day_national: number;
+}
+
+export type KycStatus = 'pending_review' | 'approved' | 'rejected';
+
+export interface AdminVerificationRequestRow {
+  id: string;
+  business_id: string;
+  id_document_path: string;
+  ruc_document_path: string | null;
+  storefront_photo_path: string;
+  notes: string | null;
+  status: KycStatus;
+  admin_notes: string | null;
+  created_at: string;
+  businesses: { name: string; city: string; is_verified: boolean } | null;
+}

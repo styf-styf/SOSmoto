@@ -297,6 +297,22 @@ export interface Appointment {
   created_at: string;
 }
 
+export type KycStatus = 'pending_review' | 'approved' | 'rejected';
+
+export interface BusinessVerificationRequest {
+  id: string;
+  business_id: string;
+  id_document_path: string;
+  ruc_document_path: string | null;
+  storefront_photo_path: string;
+  notes: string | null;
+  status: KycStatus;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
 export interface Follow {
   id: string;
   client_id: string;

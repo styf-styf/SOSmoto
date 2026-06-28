@@ -304,6 +304,12 @@ export default function BusinessConfiguracionScreen() {
         onPress={() => router.push('/(business)/publicaciones')}
         style={styles.spacedButton}
       />
+      <Button
+        title={business.is_verified ? 'Verificación ✓' : 'Verificación (KYC)'}
+        variant="secondary"
+        onPress={() => router.push('/(business)/verificacion')}
+        style={styles.spacedButton}
+      />
 
       <View style={styles.divider} />
 
