@@ -25,7 +25,7 @@ export default async function NegociosPage({
   let query = supabase
     .from('businesses')
     .select(
-      'id, owner_id, business_type, name, city, is_verified, is_suspended, followers_count, rating_avg, created_at, subscription_plans(name), users(full_name, email)',
+      'id, owner_id, business_type, name, city, is_verified, is_limited, limitation_reason, followers_count, rating_avg, created_at, subscription_plans(name), users(full_name, email)',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -93,12 +93,15 @@ export default async function NegociosPage({
               <td className="px-4 py-3 capitalize">{business.subscription_plans?.name ?? '—'}</td>
               <td className="px-4 py-3">{business.is_verified ? 'Sí' : 'No'}</td>
               <td className="px-4 py-3">
-                <span className={business.is_suspended ? 'text-red-600' : 'text-green-700'}>
-                  {business.is_suspended ? 'Suspendido' : 'Activo'}
+                <span className={business.is_limited ? 'text-amber-600' : 'text-green-700'}>
+                  {business.is_limited ? 'Limitado' : 'Activo'}
                 </span>
+                {business.is_limited && business.limitation_reason && (
+                  <p className="mt-1 max-w-[220px] text-xs text-gray-500">{business.limitation_reason}</p>
+                )}
               </td>
               <td className="px-4 py-3">
-                <BusinessActions businessId={business.id} isSuspended={business.is_suspended} />
+                <BusinessActions businessId={business.id} isLimited={business.is_limited} />
               </td>
             </tr>
           ))}

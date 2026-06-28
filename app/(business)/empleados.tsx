@@ -19,6 +19,7 @@ export default function EmpleadosScreen() {
   const { profile } = useAuth();
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isLimited, setIsLimited] = useState(false);
   const [employees, setEmployees] = useState<EmployeeWithUser[]>([]);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,7 @@ export default function EmpleadosScreen() {
     if (!work) return;
     setBusinessId(work.business.id);
     setIsOwner(work.isOwner);
+    setIsLimited(work.business.is_limited);
 
     const [employeeList, planLimits] = await Promise.all([
       getEmployees(work.business.id),
@@ -85,6 +87,12 @@ export default function EmpleadosScreen() {
           : `${employees.length} mecánicos en el equipo (plan ${limits?.planName}, sin límite)`}
       </Text>
 
+      {isOwner && isLimited && (
+        <Text style={styles.limitedNotice}>
+          Tu negocio está limitado: no puedes agregar, quitar ni editar permisos del equipo.
+        </Text>
+      )}
+
       {employees.length === 0 ? (
         <Text style={styles.placeholder}>Todavía no agregas mecánicos.</Text>
       ) : (
@@ -92,7 +100,7 @@ export default function EmpleadosScreen() {
           <EmployeeRow
             key={employee.id}
             employee={employee}
-            isOwner={isOwner}
+            isOwner={isOwner && !isLimited}
             onUpdated={(updated) =>
               setEmployees((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
             }
@@ -102,6 +110,7 @@ export default function EmpleadosScreen() {
       )}
 
       {isOwner &&
+        !isLimited &&
         (showForm ? (
           <AddEmployeeForm
             businessId={businessId}
@@ -266,6 +275,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginBottom: 8,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
   },
   card: {
     backgroundColor: colors.surface,

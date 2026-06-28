@@ -5,7 +5,7 @@ export default async function MetricasPage() {
 
   const [usersResult, businessesResult, helpRequestsResult, paymentsResult] = await Promise.all([
     supabase.from('users').select('role'),
-    supabase.from('businesses').select('business_type, city, is_verified, is_suspended'),
+    supabase.from('businesses').select('business_type, city, is_verified'),
     supabase.from('help_requests').select('status, accepted_business_id, businesses(city)'),
     supabase.from('payments').select('amount, type, status'),
   ]);
@@ -18,7 +18,6 @@ export default async function MetricasPage() {
   };
 
   const businesses = businessesResult.data ?? [];
-  const activeBusinesses = businesses.filter((b) => !b.is_suspended);
   const verifiedBusinesses = businesses.filter((b) => b.is_verified).length;
 
   const helpRequests = (helpRequestsResult.data ?? []) as unknown as {
@@ -40,7 +39,7 @@ export default async function MetricasPage() {
     );
 
   const cityMap = new Map<string, { businesses: number; helpRequests: number }>();
-  for (const b of activeBusinesses) {
+  for (const b of businesses) {
     const entry = cityMap.get(b.city) ?? { businesses: 0, helpRequests: 0 };
     entry.businesses++;
     cityMap.set(b.city, entry);
@@ -66,8 +65,8 @@ export default async function MetricasPage() {
           <p className="text-2xl font-bold">{usersByRole.client}</p>
         </div>
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <p className="text-xs text-gray-500">Negocios activos</p>
-          <p className="text-2xl font-bold">{activeBusinesses.length}</p>
+          <p className="text-xs text-gray-500">Negocios registrados</p>
+          <p className="text-2xl font-bold">{businesses.length}</p>
         </div>
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <p className="text-xs text-gray-500">Negocios verificados</p>
@@ -96,14 +95,14 @@ export default async function MetricasPage() {
 
       <h2 className="mb-3 text-lg font-semibold">Demanda vs. cobertura por ciudad</h2>
       <p className="mb-4 text-sm text-gray-500">
-        Negocios activos y solicitudes de auxilio aceptadas por ciudad — útil para detectar zonas con demanda pero
-        pocos talleres registrados.
+        Negocios registrados y solicitudes de auxilio aceptadas por ciudad — útil para detectar zonas con demanda
+        pero pocos talleres registrados.
       </p>
       <table className="w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-gray-500">
             <th className="px-4 py-3">Ciudad</th>
-            <th className="px-4 py-3">Negocios activos</th>
+            <th className="px-4 py-3">Negocios</th>
             <th className="px-4 py-3">Solicitudes de auxilio</th>
           </tr>
         </thead>

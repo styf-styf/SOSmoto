@@ -12,6 +12,8 @@ export interface Database {
           role: 'client' | 'business' | 'admin';
           avatar_url: string | null;
           push_token: string | null;
+          is_limited: boolean;
+          limitation_reason: string | null;
           created_at: string;
         };
         Insert: {
@@ -22,6 +24,8 @@ export interface Database {
           role: 'client' | 'business' | 'admin';
           avatar_url?: string | null;
           push_token?: string | null;
+          is_limited?: boolean;
+          limitation_reason?: string | null;
           created_at?: string;
         };
         Update: {
@@ -32,6 +36,8 @@ export interface Database {
           role?: 'client' | 'business' | 'admin';
           avatar_url?: string | null;
           push_token?: string | null;
+          is_limited?: boolean;
+          limitation_reason?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -99,6 +105,8 @@ export interface Database {
           plan_id: string;
           aid_radius_km: number | null;
           is_24h: boolean;
+          is_limited: boolean;
+          limitation_reason: string | null;
           created_at: string;
         };
         Insert: {
@@ -121,6 +129,8 @@ export interface Database {
           plan_id: string;
           aid_radius_km?: number | null;
           is_24h?: boolean;
+          is_limited?: boolean;
+          limitation_reason?: string | null;
           created_at?: string;
         };
         Update: {
@@ -143,6 +153,8 @@ export interface Database {
           plan_id?: string;
           aid_radius_km?: number | null;
           is_24h?: boolean;
+          is_limited?: boolean;
+          limitation_reason?: string | null;
           created_at?: string;
         };
         Relationships: [];

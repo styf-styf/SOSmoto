@@ -53,11 +53,14 @@ Deno.serve(async (req) => {
 
     const { data: business, error: businessError } = await supabase
       .from('businesses')
-      .select('id, owner_id')
+      .select('id, owner_id, is_limited')
       .eq('id', businessId)
       .single();
     if (businessError || !business || business.owner_id !== userData.user.id) {
       return json({ error: 'No autorizado' }, 403);
+    }
+    if (business.is_limited) {
+      return json({ error: 'Tu negocio está limitado y no puede crear nuevas campañas de publicidad.' }, 403);
     }
 
     const { data: pricing, error: pricingError } = await supabase

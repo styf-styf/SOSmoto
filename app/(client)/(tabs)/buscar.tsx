@@ -6,6 +6,7 @@ import { AdGridCard } from '../../../components/AdGridCard';
 import { BusinessListItem } from '../../../components/BusinessListItem';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import { getSearchAds, type AdWithBusiness } from '../../../services/ads';
 import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../../services/businesses';
@@ -26,6 +27,7 @@ const ratingFilters = [
 
 export default function BuscarScreen() {
   const params = useLocalSearchParams<{ service?: string }>();
+  const { profile } = useAuth();
   const { coords } = useLocation();
 
   const [query, setQuery] = useState('');
@@ -91,6 +93,18 @@ export default function BuscarScreen() {
     } finally {
       setRefreshing(false);
     }
+  }
+
+  if (profile?.is_limited) {
+    return (
+      <View style={[styles.container, styles.limitedContainer]}>
+        <Ionicons name="alert-circle" size={40} color={colors.danger} />
+        <Text style={styles.limitedText}>
+          Tu cuenta está limitada y no puedes buscar talleres por ahora. Si necesitas ayuda en carretera, usa el botón
+          SOS.
+        </Text>
+      </View>
+    );
   }
 
   return (
@@ -188,6 +202,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+  },
+  limitedContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  limitedText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
   sectionTitle: {
     fontSize: 16,

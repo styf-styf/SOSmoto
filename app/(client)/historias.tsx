@@ -116,7 +116,12 @@ export default function ClientHistoriasScreen() {
         Foto visible 24h para toda la comunidad. {activeCount}/{CLIENT_DAILY_LIMIT} historias activas hoy.
       </Text>
 
-      {!showForm && <Button title="+ Nueva historia" onPress={handleAddPress} style={styles.createButton} />}
+      {profile?.is_limited && (
+        <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes subir nuevas historias.</Text>
+      )}
+      {!showForm && !profile?.is_limited && (
+        <Button title="+ Nueva historia" onPress={handleAddPress} style={styles.createButton} />
+      )}
 
       {showForm && (
         <View style={styles.card}>
@@ -200,6 +205,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   createButton: {
+    marginBottom: 16,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 16,
   },
   fieldLabel: {

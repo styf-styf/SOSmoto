@@ -191,22 +191,30 @@ export default function CatalogoScreen() {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Catálogo</Text>
+        {business.is_limited && (
+          <Text style={styles.limitedNotice}>
+            Tu negocio está limitado: no puedes crear, editar ni eliminar servicios o productos.
+          </Text>
+        )}
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>
             Servicios ({activeServicesCount}
             {limits?.maxServices !== null ? `/${limits?.maxServices}` : ''})
           </Text>
-          <Pressable onPress={handleAddService} style={styles.addButton}>
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={styles.addButtonText}>Agregar</Text>
-          </Pressable>
+          {!business.is_limited && (
+            <Pressable onPress={handleAddService} style={styles.addButton}>
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={styles.addButtonText}>Agregar</Text>
+            </Pressable>
+          )}
         </View>
         {services.length === 0 ? (
           <Text style={styles.placeholder}>Aún no agregas servicios.</Text>
         ) : (
           <CatalogGrid
             items={services}
+            readOnly={business.is_limited}
             onEdit={(service) => setForm({ kind: 'service', service })}
             onDelete={confirmDeleteService}
           />
@@ -217,16 +225,19 @@ export default function CatalogoScreen() {
             Productos ({activeProductsCount}
             {limits?.maxProducts !== null ? `/${limits?.maxProducts}` : ''})
           </Text>
-          <Pressable onPress={handleAddProduct} style={styles.addButton}>
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={styles.addButtonText}>Agregar</Text>
-          </Pressable>
+          {!business.is_limited && (
+            <Pressable onPress={handleAddProduct} style={styles.addButton}>
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={styles.addButtonText}>Agregar</Text>
+            </Pressable>
+          )}
         </View>
         {products.length === 0 ? (
           <Text style={styles.placeholder}>Aún no agregas productos.</Text>
         ) : (
           <CatalogGrid
             items={products}
+            readOnly={business.is_limited}
             onEdit={(product) => setForm({ kind: 'product', product })}
             onDelete={confirmDeleteProduct}
           />
@@ -261,10 +272,12 @@ function CatalogGrid<T extends CatalogDisplayItem>({
   items,
   onEdit,
   onDelete,
+  readOnly,
 }: {
   items: T[];
   onEdit: (item: T) => void;
   onDelete: (item: T) => void;
+  readOnly?: boolean;
 }) {
   const withPhoto = items.filter((item) => item.photos.length > 0);
   const withoutPhoto = items.filter((item) => item.photos.length === 0);
@@ -273,7 +286,7 @@ function CatalogGrid<T extends CatalogDisplayItem>({
       {withPhoto.length > 0 && (
         <View style={styles.grid}>
           {withPhoto.map((item) => (
-            <Pressable key={item.id} style={styles.gridCard} onPress={() => onEdit(item)}>
+            <Pressable key={item.id} style={styles.gridCard} onPress={() => !readOnly && onEdit(item)}>
               <Image source={{ uri: item.photos[0] }} style={styles.gridImage} resizeMode="cover" />
               <GradientShade height={Math.round(CARD_HEIGHT * 0.55)} />
               <Text numberOfLines={1} style={styles.gridName}>
@@ -285,9 +298,11 @@ function CatalogGrid<T extends CatalogDisplayItem>({
                   <Text style={styles.hiddenBadgeText}>Oculto</Text>
                 </View>
               )}
-              <Pressable style={styles.deleteIcon} onPress={() => onDelete(item)}>
-                <Ionicons name="trash-outline" size={15} color="#fff" />
-              </Pressable>
+              {!readOnly && (
+                <Pressable style={styles.deleteIcon} onPress={() => onDelete(item)}>
+                  <Ionicons name="trash-outline" size={15} color="#fff" />
+                </Pressable>
+              )}
             </Pressable>
           ))}
         </View>
@@ -295,16 +310,18 @@ function CatalogGrid<T extends CatalogDisplayItem>({
       {withoutPhoto.length > 0 && (
         <View style={[withPhoto.length > 0 && styles.listWrapWithGrid]}>
           {withoutPhoto.map((item) => (
-            <Pressable key={item.id} style={styles.itemRow} onPress={() => onEdit(item)}>
+            <Pressable key={item.id} style={styles.itemRow} onPress={() => !readOnly && onEdit(item)}>
               <Text style={styles.itemName} numberOfLines={1}>
                 {item.name}
                 {!item.is_active ? ' · Oculto' : ''}
               </Text>
               <View style={styles.itemRowRight}>
                 <Text style={styles.itemPrice}>{formatItemPrice(item.reference_price)}</Text>
-                <Pressable onPress={() => onDelete(item)}>
-                  <Ionicons name="trash-outline" size={17} color={colors.danger} />
-                </Pressable>
+                {!readOnly && (
+                  <Pressable onPress={() => onDelete(item)}>
+                    <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                  </Pressable>
+                )}
               </View>
             </Pressable>
           ))}
@@ -600,6 +617,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginBottom: 8,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

@@ -145,10 +145,15 @@ export default function BusinessPublicacionesScreen() {
       <Text style={styles.helperText}>Foto y texto permanentes, visibles para toda la comunidad.</Text>
 
       {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede publicar.</Text>}
+      {isOwner && business.is_limited && (
+        <Text style={styles.limitedNotice}>Tu negocio está limitado: no puedes crear nuevas publicaciones.</Text>
+      )}
 
-      {isOwner && !showForm && <Button title="+ Nueva publicación" onPress={handleAddPress} style={styles.createButton} />}
+      {isOwner && !business.is_limited && !showForm && (
+        <Button title="+ Nueva publicación" onPress={handleAddPress} style={styles.createButton} />
+      )}
 
-      {isOwner && showForm && (
+      {isOwner && !business.is_limited && showForm && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Imagen</Text>
           {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}
@@ -284,6 +289,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   createButton: {
+    marginBottom: 16,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 16,
   },
   fieldLabel: {

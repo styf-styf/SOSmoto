@@ -159,12 +159,18 @@ export default function PublicidadScreen() {
       </Text>
 
       {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede crear campañas.</Text>}
+      {isOwner && business.is_limited && (
+        <Text style={styles.limitedNotice}>
+          Tu negocio está limitado: no puedes crear nuevas campañas. Las campañas activas siguen circulando con
+          normalidad.
+        </Text>
+      )}
 
-      {isOwner && !showForm && (
+      {isOwner && !business.is_limited && !showForm && (
         <Button title="+ Crear campaña" onPress={() => setShowForm(true)} style={styles.createButton} />
       )}
 
-      {isOwner && showForm && (
+      {isOwner && !business.is_limited && showForm && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Alcance</Text>
           <View style={styles.chipRow}>
@@ -278,6 +284,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   createButton: {
+    marginBottom: 16,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 16,
   },
   fieldLabel: {

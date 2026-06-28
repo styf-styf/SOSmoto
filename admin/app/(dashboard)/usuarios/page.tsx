@@ -24,7 +24,7 @@ export default async function UsuariosPage({
   const supabase = createAdminClient();
   let query = supabase
     .from('users')
-    .select('id, email, phone, full_name, role, is_suspended, created_at', { count: 'exact' })
+    .select('id, email, phone, full_name, role, is_limited, limitation_reason, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -87,13 +87,16 @@ export default async function UsuariosPage({
               <td className="px-4 py-3">{user.phone ?? '—'}</td>
               <td className="px-4 py-3">{roleLabel[user.role]}</td>
               <td className="px-4 py-3">
-                <span className={user.is_suspended ? 'text-red-600' : 'text-green-700'}>
-                  {user.is_suspended ? 'Suspendido' : 'Activo'}
+                <span className={user.is_limited ? 'text-amber-600' : 'text-green-700'}>
+                  {user.is_limited ? 'Limitado' : 'Activo'}
                 </span>
+                {user.is_limited && user.limitation_reason && (
+                  <p className="mt-1 max-w-[220px] text-xs text-gray-500">{user.limitation_reason}</p>
+                )}
               </td>
               <td className="px-4 py-3">{new Date(user.created_at).toLocaleDateString('es-EC')}</td>
               <td className="px-4 py-3">
-                <UserActions userId={user.id} isSuspended={user.is_suspended} isAdmin={user.role === 'admin'} />
+                <UserActions userId={user.id} isLimited={user.is_limited} isAdmin={user.role === 'admin'} />
               </td>
             </tr>
           ))}

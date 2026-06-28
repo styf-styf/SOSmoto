@@ -8,6 +8,8 @@ export interface User {
   role: UserRole;
   avatar_url: string | null;
   push_token: string | null;
+  is_limited: boolean;
+  limitation_reason: string | null;
   created_at: string;
 }
 
@@ -51,6 +53,8 @@ export interface Business {
   plan_id: string;
   aid_radius_km: number | null;
   is_24h: boolean;
+  is_limited: boolean;
+  limitation_reason: string | null;
   created_at: string;
 }
 

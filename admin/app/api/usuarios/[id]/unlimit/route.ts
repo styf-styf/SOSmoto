@@ -7,7 +7,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from('businesses').update({ is_suspended: false }).eq('id', params.id);
+  const { error } = await supabase.from('users').update({ is_limited: false }).eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ success: true });

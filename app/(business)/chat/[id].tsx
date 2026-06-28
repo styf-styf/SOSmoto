@@ -16,6 +16,7 @@ export default function ChatScreen() {
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [isLimited, setIsLimited] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,11 +25,11 @@ export default function ChatScreen() {
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
     if (profile.role === 'client') {
-      return { clientId: profile.id, businessId: id };
+      return { clientId: profile.id, businessId: id, isLimited: false };
     }
     const business = await getMyBusiness(profile.id);
     if (!business) return null;
-    return { clientId: id, businessId: business.id };
+    return { clientId: id, businessId: business.id, isLimited: business.is_limited };
   }, [profile, id]);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function ChatScreen() {
         if (!thread) return;
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
+        setIsLimited(thread.isLimited);
         const history = await getMessages(thread.clientId, thread.businessId);
         setMessages(history);
         if (profile) {
@@ -114,20 +116,26 @@ export default function ChatScreen() {
         )}
       </ScrollView>
 
-      <KeyboardStickyView>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe un mensaje…"
-            placeholderTextColor={colors.textMuted}
-            value={text}
-            onChangeText={setText}
-          />
-          <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
-            <Ionicons name="send" size={18} color="#fff" />
-          </Pressable>
+      {isLimited ? (
+        <View style={styles.limitedNotice}>
+          <Text style={styles.limitedNoticeText}>Tu negocio está limitado: no puedes enviar mensajes.</Text>
         </View>
-      </KeyboardStickyView>
+      ) : (
+        <KeyboardStickyView>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe un mensaje…"
+              placeholderTextColor={colors.textMuted}
+              value={text}
+              onChangeText={setText}
+            />
+            <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
+              <Ionicons name="send" size={18} color="#fff" />
+            </Pressable>
+          </View>
+        </KeyboardStickyView>
+      )}
     </View>
   );
 }
@@ -203,5 +211,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  limitedNotice: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: '#FBE8E8',
+  },
+  limitedNoticeText: {
+    fontSize: 13,
+    color: colors.danger,
+    textAlign: 'center',
   },
 });

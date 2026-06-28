@@ -160,6 +160,16 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {mode === 'self' && business.is_limited && (
+        <View style={styles.suspendedBanner}>
+          <Ionicons name="alert-circle" size={18} color={colors.danger} />
+          <Text style={styles.suspendedBannerText}>
+            Tu negocio está limitado{business.limitation_reason ? `: ${business.limitation_reason}` : '.'} No puedes
+            crear anuncios, historias, publicaciones, gestionar empleados, editar catálogo ni usar el chat hasta que se
+            quite el límite. Sigues recibiendo solicitudes de auxilio con normalidad.
+          </Text>
+        </View>
+      )}
       <View style={styles.headerRow}>
         {mode === 'self' ? (
           <Pressable style={styles.avatarWrap} onPress={handleChangeLogo} disabled={!isOwner || uploadingLogo}>
@@ -417,6 +427,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
     padding: 20,
+    gap: 8,
+  },
+  suspendedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+  },
+  suspendedBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
   },
   container: {
     paddingHorizontal: SIDE_PADDING,

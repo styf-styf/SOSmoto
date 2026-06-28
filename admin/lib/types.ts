@@ -10,7 +10,8 @@ export interface AdminUserRow {
   phone: string | null;
   full_name: string;
   role: UserRole;
-  is_suspended: boolean;
+  is_limited: boolean;
+  limitation_reason: string | null;
   created_at: string;
 }
 
@@ -23,7 +24,8 @@ export interface AdminBusinessRow {
   name: string;
   city: string;
   is_verified: boolean;
-  is_suspended: boolean;
+  is_limited: boolean;
+  limitation_reason: string | null;
   followers_count: number;
   rating_avg: number;
   created_at: string;
