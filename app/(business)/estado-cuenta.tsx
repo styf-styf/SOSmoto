@@ -103,7 +103,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 20,
     backgroundColor: colors.background,
   },
   badge: {

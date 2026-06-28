@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   headerWrap: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 36,
   },
   storiesWrap: {
     paddingBottom: 16,

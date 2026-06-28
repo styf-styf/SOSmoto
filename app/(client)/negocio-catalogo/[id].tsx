@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: SIDE_PADDING,
-    paddingTop: 20,
+    paddingTop: 36,
     paddingBottom: 32,
     backgroundColor: colors.background,
   },

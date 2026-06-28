@@ -219,7 +219,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   container: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 20,
     backgroundColor: colors.background,
   },
   placeholder: {
