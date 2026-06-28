@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AdBanner } from '../../components/AdBanner';
-import { BusinessListItem } from '../../components/BusinessListItem';
-import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
-import { useLocation } from '../../hooks/useLocation';
-import { getSearchAds } from '../../services/ads';
-import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
-import type { Ad, BusinessType } from '../../types/database';
+import { AdGridCard } from '../../../components/AdGridCard';
+import { BusinessListItem } from '../../../components/BusinessListItem';
+import { TextField } from '../../../components/TextField';
+import { colors } from '../../../constants/colors';
+import { useLocation } from '../../../hooks/useLocation';
+import { getSearchAds, type AdWithBusiness } from '../../../services/ads';
+import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../../services/businesses';
+import type { BusinessType } from '../../../types/database';
+import { applyFreshnessOrder } from '../../../utils/feedOrdering';
 
 const typeFilters: { label: string; value: BusinessType | undefined }[] = [
   { label: 'Todos', value: undefined },
@@ -33,15 +34,30 @@ export default function BuscarScreen() {
   const [minRating, setMinRating] = useState<number | undefined>(undefined);
   const [only24h, setOnly24h] = useState(false);
   const [results, setResults] = useState<BusinessWithDistance[]>([]);
-  const [featuredAds, setFeaturedAds] = useState<Ad[]>([]);
+  const [featuredAds, setFeaturedAds] = useState<AdWithBusiness[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const lastSeenAdAt = useRef<string | null>(null);
+
+  const loadAds = useCallback(async () => {
+    try {
+      const city = await getNearestCity(coords);
+      const ads = await getSearchAds(city);
+      setFeaturedAds(applyFreshnessOrder(ads, (ad) => ad.created_at, lastSeenAdAt));
+    } catch (err) {
+      console.error('load search ads error', err);
+    }
+  }, [coords]);
 
   useEffect(() => {
-    getNearestCity(coords)
-      .then(getSearchAds)
-      .then(setFeaturedAds)
-      .catch((err) => console.error('load search ads error', err));
-  }, [coords]);
+    loadAds();
+  }, [loadAds]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAds().catch((err) => console.error('refresh search ads error', err));
+    }, [loadAds])
+  );
 
   const search = useCallback(async () => {
     try {
@@ -65,6 +81,17 @@ export default function BuscarScreen() {
   }, [search]);
 
   const hasActiveFilters = !!query || !!businessType || !!serviceFilter || !!minRating || only24h;
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadAds(), search()]);
+    } catch (err) {
+      console.error('refresh search screen error', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -125,10 +152,17 @@ export default function BuscarScreen() {
       {loading ? (
         <ActivityIndicator color={colors.primary} style={styles.loading} />
       ) : (
-        <ScrollView contentContainerStyle={styles.results}>
-          {featuredAds.map((ad) => (
-            <AdBanner key={ad.id} ad={ad} />
-          ))}
+        <ScrollView
+          contentContainerStyle={styles.results}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        >
+          {featuredAds.length > 0 && (
+            <View style={styles.adsGrid}>
+              {featuredAds.map((ad) => (
+                <AdGridCard key={ad.id} ad={ad} detailHref={`/(client)/anuncio/${ad.id}`} />
+              ))}
+            </View>
+          )}
           <Text style={styles.sectionTitle}>{hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}</Text>
           {results.length === 0 ? (
             <Text style={styles.placeholder}>No encontramos talleres con esos filtros.</Text>
@@ -206,6 +240,12 @@ const styles = StyleSheet.create({
   },
   results: {
     paddingTop: 4,
+  },
+  adsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
   },
   placeholder: {
     color: colors.textMuted,

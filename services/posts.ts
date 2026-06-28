@@ -73,15 +73,27 @@ export interface PostWithAuthor extends Post {
 
 export interface PublicFeedPageParams {
   limit?: number;
-  before?: string;
+  before?: { createdAt: string; id: string };
 }
 
 // Feed público de publicaciones (de cualquier negocio o cliente) -- se usa
 // igual en el home del cliente y el del negocio, paginado por cursor
-// (created_at de la última publicación cargada) para scroll infinito.
+// (created_at + id de la última publicación cargada) para scroll infinito.
+// El desempate por `id` es necesario: varios posts pueden compartir el mismo
+// created_at exacto (ej. datos de seed insertados en lote) -- con un cursor
+// que solo comparara created_at (`lt`), cualquier post empatado justo en el
+// borde de una página quedaba excluido para siempre (ni en esa página por el
+// límite, ni en la siguiente por el `lt` estricto).
 export async function getPublicFeedPage(params: PublicFeedPageParams = {}): Promise<PostWithAuthor[]> {
-  let query = supabase.from('posts').select(FEED_SELECT).order('created_at', { ascending: false });
-  if (params.before) query = query.lt('created_at', params.before);
+  let query = supabase
+    .from('posts')
+    .select(FEED_SELECT)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+  if (params.before) {
+    const { createdAt, id } = params.before;
+    query = query.or(`created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`);
+  }
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
   return (data ?? []) as unknown as PostWithAuthor[];

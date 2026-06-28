@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -8,6 +8,13 @@ import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice }
 import { getMyWorkBusiness } from '../../services/businesses';
 import { pickAndUploadBusinessImage } from '../../services/storage';
 import type { Ad, AdPricing, Business } from '../../types/database';
+
+const SIDE_PADDING = 20;
+const GRID_GAP = 12;
+const GRID_COLUMNS = 2;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
+const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.1);
 
 const statusLabel: Record<Ad['status'], string> = {
   pending_review: 'Pendiente de revisión',
@@ -208,29 +215,36 @@ export default function PublicidadScreen() {
       {ads.length === 0 ? (
         <Text style={styles.placeholder}>Todavía no has creado ninguna campaña.</Text>
       ) : (
-        ads.map((ad) => (
-          <View key={ad.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{ad.title}</Text>
-              <Text style={[styles.statusBadge, { color: statusColor[ad.status] }]}>{statusLabel[ad.status]}</Text>
+        <View style={styles.grid}>
+          {ads.map((ad) => (
+            <View key={ad.id} style={styles.gridItem}>
+              <View style={styles.gridImageWrap}>
+                <Image source={{ uri: ad.image_url }} style={styles.gridImage} resizeMode="cover" />
+                <View style={[styles.statusBadgeOverlay, { backgroundColor: statusColor[ad.status] }]}>
+                  <Text style={styles.statusBadgeOverlayText}>{statusLabel[ad.status]}</Text>
+                </View>
+              </View>
+              <Text style={styles.gridTitle} numberOfLines={1}>
+                {ad.title}
+              </Text>
+              <Text style={styles.gridMeta}>{ad.target_city ?? 'Nacional'}</Text>
+              <Text style={styles.gridMeta}>
+                {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
+              </Text>
+              <Text style={styles.gridMeta}>
+                {ad.impressions} impresiones · {ad.clicks} clics
+              </Text>
+              {(ad.status === 'active' || ad.status === 'approved') && isOwner && (
+                <Button
+                  title="Pausar"
+                  variant="secondary"
+                  onPress={() => handlePause(ad)}
+                  style={styles.gridPauseButton}
+                />
+              )}
             </View>
-            <Text style={styles.cardMeta}>{ad.target_city ?? 'Nacional'}</Text>
-            <Text style={styles.cardMeta}>
-              {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
-            </Text>
-            <Text style={styles.cardMeta}>
-              {ad.impressions} impresiones · {ad.clicks} clics
-            </Text>
-            {(ad.status === 'active' || ad.status === 'approved') && isOwner && (
-              <Button
-                title="Pausar campaña"
-                variant="secondary"
-                onPress={() => handlePause(ad)}
-                style={styles.pauseButton}
-              />
-            )}
-          </View>
-        ))
+          ))}
+        </View>
       )}
     </ScrollView>
   );
@@ -326,25 +340,54 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  cardHeader: {
+  grid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
   },
-  cardTitle: {
-    fontSize: 15,
+  gridItem: {
+    width: CARD_WIDTH,
+  },
+  gridImageWrap: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  gridImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  statusBadgeOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusBadgeOverlayText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  gridTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    flex: 1,
+    marginTop: 8,
   },
-  statusBadge: {
+  gridMeta: {
     fontSize: 12,
-    fontWeight: '700',
-  },
-  cardMeta: {
-    fontSize: 13,
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  gridPauseButton: {
+    marginTop: 8,
   },
   editActions: {
     flexDirection: 'row',
@@ -353,8 +396,5 @@ const styles = StyleSheet.create({
   },
   flexButton: {
     flex: 1,
-  },
-  pauseButton: {
-    marginTop: 12,
   },
 });

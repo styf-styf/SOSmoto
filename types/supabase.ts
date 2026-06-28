@@ -439,7 +439,6 @@ export interface Database {
         Row: {
           id: string;
           business_id: string;
-          type: 'home_banner' | 'search_featured' | 'profile_ad';
           title: string;
           image_url: string;
           link_url: string | null;
@@ -450,12 +449,12 @@ export interface Database {
           payment_id: string | null;
           impressions: number;
           clicks: number;
+          comments_count: number;
           created_at: string;
         };
         Insert: {
           id?: string;
           business_id: string;
-          type: 'home_banner' | 'search_featured' | 'profile_ad';
           title: string;
           image_url: string;
           link_url?: string | null;
@@ -466,12 +465,12 @@ export interface Database {
           payment_id?: string | null;
           impressions?: number;
           clicks?: number;
+          comments_count?: number;
           created_at?: string;
         };
         Update: {
           id?: string;
           business_id?: string;
-          type?: 'home_banner' | 'search_featured' | 'profile_ad';
           title?: string;
           image_url?: string;
           link_url?: string | null;
@@ -482,6 +481,31 @@ export interface Database {
           payment_id?: string | null;
           impressions?: number;
           clicks?: number;
+          comments_count?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ad_comments: {
+        Row: {
+          id: string;
+          ad_id: string;
+          author_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          ad_id: string;
+          author_id: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          ad_id?: string;
+          author_id?: string;
+          body?: string;
           created_at?: string;
         };
         Relationships: [];

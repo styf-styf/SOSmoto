@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { colors } from '../../constants/colors';
-import { useAuth } from '../../hooks/useAuth';
-import { getMyBusiness } from '../../services/businesses';
-import { getBusinessConversations } from '../../services/messages';
-import { supabase } from '../../services/supabase';
+import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../hooks/useAuth';
+import { getMyBusiness } from '../../../services/businesses';
+import { getBusinessConversations } from '../../../services/messages';
+import { supabase } from '../../../services/supabase';
 
 interface ConversationRow {
   clientId: string;

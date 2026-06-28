@@ -1,6 +1,7 @@
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { GradientShade } from './GradientShade';
 import type { StoryFeedItem } from '../services/stories';
 
 export interface StoriesRowOwnSlot {
@@ -40,7 +41,7 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
               ) : (
                 <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
               )}
-              <View style={styles.cardShade} />
+              <GradientShade height={60} />
               <View style={[styles.avatarBadge, styles.avatarBadgeSeen]}>
                 {slot.avatarUrl ? (
                   <Image source={{ uri: slot.avatarUrl }} style={styles.avatarImage} />
@@ -64,7 +65,7 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
         return (
           <Pressable style={styles.card} onPress={item.onPress}>
             <Image source={{ uri: item.previewImageUrl }} style={styles.cardImage} resizeMode="cover" />
-            <View style={styles.cardShade} />
+            <GradientShade height={60} />
             <View style={[styles.avatarBadge, item.hasUnseen ? styles.avatarBadgeUnseen : styles.avatarBadgeSeen]}>
               {item.avatarUrl ? (
                 <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
@@ -88,6 +89,7 @@ const CARD_HEIGHT = 132;
 const styles = StyleSheet.create({
   list: {
     gap: 10,
+    paddingLeft: 10,
     paddingBottom: 8,
   },
   card: {
@@ -106,14 +108,6 @@ const styles = StyleSheet.create({
   },
   cardImagePlaceholder: {
     backgroundColor: colors.border,
-  },
-  cardShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 44,
-    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   avatarBadge: {
     position: 'absolute',

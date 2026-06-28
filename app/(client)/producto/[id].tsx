@@ -63,11 +63,30 @@ export default function ProductDetailScreen() {
         </View>
       )}
 
-      <Button
-        title="Ver negocio"
-        onPress={() => router.push(`/(client)/business/${product.business_id}`)}
-        style={styles.button}
-      />
+      <View style={styles.buttonGroup}>
+        <Button
+          title="Ver negocio"
+          onPress={() => router.push(`/(client)/business/${product.business_id}`)}
+          style={styles.button}
+        />
+        <Button
+          title="Ver catálogo"
+          variant="secondary"
+          onPress={() => router.push(`/(client)/negocio-catalogo/${product.business_id}`)}
+          style={styles.button}
+        />
+        <Button
+          title="Chatear"
+          variant="secondary"
+          onPress={() =>
+            router.push({
+              pathname: '/(client)/chat/[id]',
+              params: { id: product.business_id, prefill: `Hola, quería preguntar sobre: ${product.name}` },
+            })
+          }
+          style={styles.button}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -130,9 +149,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 20,
   },
-  button: {
+  buttonGroup: {
     marginTop: 32,
+    gap: 10,
   },
+  button: {},
   photo: {
     width: '100%',
     height: 200,

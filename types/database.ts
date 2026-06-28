@@ -179,6 +179,15 @@ export interface Ad {
   payment_id: string | null;
   impressions: number;
   clicks: number;
+  comments_count: number;
+  created_at: string;
+}
+
+export interface AdComment {
+  id: string;
+  ad_id: string;
+  author_id: string;
+  body: string;
   created_at: string;
 }
 

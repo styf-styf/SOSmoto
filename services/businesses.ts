@@ -202,6 +202,7 @@ export interface UpdateBusinessParams {
   schedule?: BusinessSchedule | null;
   aid_radius_km?: number | null;
   is_24h?: boolean;
+  logo_url?: string;
 }
 
 export async function updateBusiness(id: string, updates: UpdateBusinessParams): Promise<Business> {

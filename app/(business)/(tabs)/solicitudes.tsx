@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker } from 'react-native-maps';
-import { Button } from '../../components/Button';
-import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
-import { useAuth } from '../../hooks/useAuth';
-import { useLiveLocationSharing } from '../../hooks/useLiveLocationSharing';
-import { getMyWorkBusiness } from '../../services/businesses';
-import { getMyEmployeeRecord } from '../../services/employees';
+import { Button } from '../../../components/Button';
+import { TextField } from '../../../components/TextField';
+import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../hooks/useAuth';
+import { useLiveLocationSharing } from '../../../hooks/useLiveLocationSharing';
+import { getMyWorkBusiness } from '../../../services/businesses';
+import { getMyEmployeeRecord } from '../../../services/employees';
 import {
   acceptHelpRequest,
   completeHelpRequest,
@@ -18,9 +18,9 @@ import {
   subscribeToBusinessRequests,
   updateHelpRequestBusinessLocation,
   type PendingHelpRequest,
-} from '../../services/helpRequests';
-import { createClientReview } from '../../services/reviews';
-import type { HelpRequest } from '../../types/database';
+} from '../../../services/helpRequests';
+import { createClientReview } from '../../../services/reviews';
+import type { HelpRequest } from '../../../types/database';
 
 export default function SolicitudesScreen() {
   const { profile } = useAuth();

@@ -1,5 +1,46 @@
 import { supabase } from './supabase';
-import type { Ad, AdPricing } from '../types/database';
+import type { Ad, AdComment, AdPricing } from '../types/database';
+
+export interface AdWithBusiness extends Ad {
+  business: { name: string; logo_url: string | null } | null;
+}
+
+// El anuncio se ve y se comporta como una publicación del feed (con
+// comentarios) -- mismo patrón que getPostById/getComments/createComment en
+// services/posts.ts.
+export async function getAdById(adId: string): Promise<AdWithBusiness | null> {
+  const { data, error } = await supabase
+    .from('ads')
+    .select('*, business:businesses(name, logo_url)')
+    .eq('id', adId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as unknown as AdWithBusiness | null;
+}
+
+export interface AdCommentWithAuthor extends AdComment {
+  users: { id: string; full_name: string; avatar_url: string | null } | null;
+}
+
+export async function getAdComments(adId: string): Promise<AdCommentWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('ad_comments')
+    .select('*, users(id, full_name, avatar_url)')
+    .eq('ad_id', adId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as AdCommentWithAuthor[];
+}
+
+export async function createAdComment(adId: string, authorId: string, body: string): Promise<AdComment> {
+  const { data, error } = await supabase
+    .from('ad_comments')
+    .insert({ ad_id: adId, author_id: authorId, body: body.trim() })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as AdComment;
+}
 
 export interface QuoteAdParams {
   targetCity?: string;
@@ -63,21 +104,22 @@ export async function getBusinessAds(businessId: string): Promise<Ad[]> {
 // anuncios que necesita y se elige al azar entre los elegibles, para
 // repartir el espacio entre quienes pagaron publicidad en vez de apilarlos
 // todos.
-async function getEligibleAds(city: string | null): Promise<Ad[]> {
+async function getEligibleAds(city: string | null): Promise<AdWithBusiness[]> {
   const nowIso = new Date().toISOString();
   let query = supabase
     .from('ads')
-    .select('*')
+    .select('*, business:businesses(name, logo_url)')
     .eq('status', 'active')
     .lte('starts_at', nowIso)
-    .gte('ends_at', nowIso);
+    .gte('ends_at', nowIso)
+    .order('created_at', { ascending: false });
   query = city ? query.or(`target_city.is.null,target_city.eq.${city}`) : query.is('target_city', null);
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Ad[];
+  return (data ?? []) as unknown as AdWithBusiness[];
 }
 
-function pickRandom(ads: Ad[], count: number): Ad[] {
+function pickRandom<T>(ads: T[], count: number): T[] {
   const copy = [...ads];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -91,17 +133,19 @@ function pickRandom(ads: Ad[], count: number): Ad[] {
 // "ciudad relevante" para cada pantalla: en el perfil es la ciudad del
 // negocio que se está viendo; en inicio/búsqueda es la ciudad del negocio
 // más cercano al cliente (ver getNearestCity en services/businesses.ts).
-// getFeedAds devuelve varios (no solo 1) para intercalar dentro del feed
-// de Inicio sin repetir siempre el mismo anuncio en cada inserción periódica.
-export async function getFeedAds(city: string | null, count = 5): Promise<Ad[]> {
-  return pickRandom(await getEligibleAds(city), count);
+// getFeedAds devuelve varios (no solo 1) ordenados por más reciente primero
+// -- el propio HomeFeed decide si los muestra en ese orden (primera carga) o
+// mezclados (recargas), para darle prioridad a contenido nuevo sin perder
+// variedad cuando no hay nada nuevo.
+export async function getFeedAds(city: string | null, count = 15): Promise<AdWithBusiness[]> {
+  return (await getEligibleAds(city)).slice(0, count);
 }
 
-export async function getSearchAds(city: string | null): Promise<Ad[]> {
-  return pickRandom(await getEligibleAds(city), 1);
+export async function getSearchAds(city: string | null): Promise<AdWithBusiness[]> {
+  return getEligibleAds(city);
 }
 
-export async function getActiveProfileAds(city: string | null): Promise<Ad[]> {
+export async function getActiveProfileAds(city: string | null): Promise<AdWithBusiness[]> {
   return pickRandom(await getEligibleAds(city), 3);
 }
 

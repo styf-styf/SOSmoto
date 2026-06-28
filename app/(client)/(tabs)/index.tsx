@@ -1,19 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
-import { colors } from '../../constants/colors';
-import { useAuth } from '../../hooks/useAuth';
-import { useLocation } from '../../hooks/useLocation';
-import { getNearestCity } from '../../services/businesses';
+import { router, useFocusEffect } from 'expo-router';
+import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../hooks/useAuth';
+import { useLocation } from '../../../hooks/useLocation';
+import { getNearestCity } from '../../../services/businesses';
 import {
   getSeenStoryIds,
   getVisibleBusinessStoriesGlobal,
   getVisibleClientStories,
   groupStoriesByAuthor,
   type StoryFeedItem,
-} from '../../services/stories';
-import { HomeFeed } from '../../components/HomeFeed';
-import { StoriesRow } from '../../components/StoriesRow';
+} from '../../../services/stories';
+import { CreatePostBox } from '../../../components/CreatePostBox';
+import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
+import { StoriesRow } from '../../../components/StoriesRow';
 
 export default function ClientHomeScreen() {
   const { profile } = useAuth();
@@ -24,6 +25,7 @@ export default function ClientHomeScreen() {
   const [ownHasStory, setOwnHasStory] = useState(false);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const homeFeedRef = useRef<HomeFeedHandle>(null);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +58,12 @@ export default function ClientHomeScreen() {
     load().finally(() => setLoading(false));
   }, [load]);
 
+  useFocusEffect(
+    useCallback(() => {
+      load().catch((err) => console.error('refresh client home error', err));
+    }, [load])
+  );
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -66,29 +74,37 @@ export default function ClientHomeScreen() {
 
   return (
     <HomeFeed
+      ref={homeFeedRef}
       role="client"
       city={city}
+      onRefresh={load}
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>Inicio</Text>
-
-          <Text style={styles.sectionTitle}>Historias</Text>
-          <StoriesRow
-            own={{
-              hasStory: ownHasStory,
-              avatarUrl: profile?.avatar_url ?? null,
-              previewImageUrl: ownPreviewImageUrl,
-              onPress: () =>
-                router.push(ownHasStory && profile ? `/(client)/historia-cliente/${profile.id}` : '/(client)/historias'),
-            }}
-            items={feedItems.map((item) => ({
-              ...item,
-              onPress: () =>
-                router.push(
-                  item.kind === 'business' ? `/(client)/historia/${item.id}` : `/(client)/historia-cliente/${item.id}`
-                ),
-            }))}
-          />
+          <View style={styles.headerWrap}>
+            <Text style={styles.title}>Inicio</Text>
+            <Text style={styles.sectionTitle}>Historias</Text>
+          </View>
+          <View style={styles.storiesWrap}>
+            <StoriesRow
+              own={{
+                hasStory: ownHasStory,
+                avatarUrl: profile?.avatar_url ?? null,
+                previewImageUrl: ownPreviewImageUrl,
+                onPress: () =>
+                  router.push(ownHasStory && profile ? `/(client)/historia-cliente/${profile.id}` : '/(client)/historias'),
+              }}
+              items={feedItems.map((item) => ({
+                ...item,
+                onPress: () =>
+                  router.push(
+                    item.kind === 'business' ? `/(client)/historia/${item.id}` : `/(client)/historia-cliente/${item.id}`
+                  ),
+              }))}
+            />
+          </View>
+          <View style={styles.createPostWrap}>
+            <CreatePostBox onCreated={() => homeFeedRef.current?.refresh()} />
+          </View>
         </View>
       }
     />
@@ -101,6 +117,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  headerWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  storiesWrap: {
+    paddingBottom: 16,
+  },
+  createPostWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 24,

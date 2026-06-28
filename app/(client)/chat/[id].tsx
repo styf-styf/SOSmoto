@@ -10,14 +10,14 @@ import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '.
 import type { Message } from '../../../types/database';
 
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, prefill } = useLocalSearchParams<{ id: string; prefill?: string }>();
   const { profile } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 

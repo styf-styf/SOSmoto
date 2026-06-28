@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
 import { signOut } from '../../services/auth';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
-import { getAllProducts, getAllServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
+import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getPendingRequests } from '../../services/helpRequests';
 import type { Business, BusinessSchedule } from '../../types/database';
 
@@ -28,15 +28,13 @@ const planLabel: Record<string, string> = {
   pro: 'Pro',
 };
 
-export default function BusinessPerfilScreen() {
+export default function BusinessConfiguracionScreen() {
   const { profile } = useAuth();
   const { getCoords } = useLocation();
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [plan, setPlan] = useState<PlanLimits | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
-  const [activeServices, setActiveServices] = useState(0);
-  const [activeProducts, setActiveProducts] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState('');
@@ -69,48 +67,25 @@ export default function BusinessPerfilScreen() {
     setIs24h(myBusiness.is_24h);
     setSchedule(myBusiness.schedule ?? {});
 
-    const [planLimits, pending, services, products] = await Promise.all([
+    const [planLimits, pending] = await Promise.all([
       getPlanLimits(myBusiness.id),
       getPendingRequests(myBusiness.id),
-      getAllServices(myBusiness.id),
-      getAllProducts(myBusiness.id),
     ]);
     setPlan(planLimits);
     setPendingCount(pending.length);
-    setActiveServices(services.filter((s) => s.is_active).length);
-    setActiveProducts(products.filter((p) => p.is_active).length);
   }, [profile]);
 
   useEffect(() => {
     setLoading(true);
     load()
-      .catch((err) => console.error('load business profile error', err))
+      .catch((err) => console.error('load business config error', err))
       .finally(() => setLoading(false));
   }, [load]);
 
-  const refreshStats = useCallback(async () => {
-    if (!profile) return;
-    const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    const [planLimits, pending, services, products] = await Promise.all([
-      getPlanLimits(work.business.id),
-      getPendingRequests(work.business.id),
-      getAllServices(work.business.id),
-      getAllProducts(work.business.id),
-    ]);
-    setPlan(planLimits);
-    setPendingCount(pending.length);
-    setActiveServices(services.filter((s) => s.is_active).length);
-    setActiveProducts(products.filter((p) => p.is_active).length);
-    setBusiness((prev) =>
-      prev ? { ...prev, plan_id: work.business.plan_id, is_verified: work.business.is_verified } : prev
-    );
-  }, [profile]);
-
   useFocusEffect(
     useCallback(() => {
-      refreshStats().catch((err) => console.error('refresh business stats error', err));
-    }, [refreshStats])
+      load().catch((err) => console.error('refresh business config error', err));
+    }, [load])
   );
 
   async function handleSignOut() {
@@ -203,7 +178,7 @@ export default function BusinessPerfilScreen() {
   if (!business) {
     return (
       <View style={styles.center}>
-        <Text style={styles.placeholder}>{profile?.full_name ?? 'Perfil'}</Text>
+        <Text style={styles.placeholder}>No tienes un negocio registrado.</Text>
         <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} />
       </View>
     );
@@ -211,8 +186,6 @@ export default function BusinessPerfilScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Mi negocio</Text>
-
       <View style={styles.planBadge}>
         <Text style={styles.planBadgeText}>
           Plan {plan ? planLabel[plan.planName] ?? plan.planName : '...'}
@@ -223,27 +196,6 @@ export default function BusinessPerfilScreen() {
       <Pressable style={styles.statCard} onPress={() => router.push('/(business)/solicitudes')}>
         <Text style={styles.statLabel}>Solicitudes de auxilio pendientes</Text>
         <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
-      </Pressable>
-
-      <View style={styles.statRow}>
-        <View style={[styles.statCard, styles.flexStatCard]}>
-          <Text style={styles.statLabel}>Calificación</Text>
-          <Text style={styles.statValue}>{business.rating_avg > 0 ? business.rating_avg.toFixed(1) : '—'}</Text>
-        </View>
-        <View style={[styles.statCard, styles.flexStatCard]}>
-          <Text style={styles.statLabel}>Seguidores</Text>
-          <Text style={styles.statValue}>{business.followers_count}</Text>
-        </View>
-      </View>
-
-      <Pressable style={styles.statCard} onPress={() => router.push('/(business)/catalogo')}>
-        <Text style={styles.statLabel}>Catálogo (plan {plan?.planName ?? '...'})</Text>
-        <Text style={styles.statValueSmall}>
-          {activeServices}
-          {plan?.maxServices !== null && plan?.maxServices !== undefined ? `/${plan.maxServices}` : ''} servicios ·{' '}
-          {activeProducts}
-          {plan?.maxProducts !== null && plan?.maxProducts !== undefined ? `/${plan.maxProducts}` : ''} productos
-        </Text>
       </Pressable>
 
       <Text style={styles.sectionTitle}>Datos del negocio</Text>
@@ -317,11 +269,11 @@ export default function BusinessPerfilScreen() {
       })}
 
       <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />
-      <Button
-        title="Agenda"
-        variant="secondary"
-        onPress={() => router.push('/(business)/agenda-negocio')}
-      />
+
+      <View style={styles.divider} />
+
+      <Text style={styles.sectionTitle}>Gestión</Text>
+      <Button title="Agenda" variant="secondary" onPress={() => router.push('/(business)/agenda-negocio')} />
       <Button
         title="Plan y suscripción"
         variant="secondary"
@@ -347,12 +299,16 @@ export default function BusinessPerfilScreen() {
         style={styles.spacedButton}
       />
       <Button
-        title="Publicaciones"
+        title="Gestionar publicaciones"
         variant="secondary"
         onPress={() => router.push('/(business)/publicaciones')}
         style={styles.spacedButton}
       />
-      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} style={styles.button} />
+
+      <View style={styles.divider} />
+
+      <Text style={styles.sectionTitle}>General</Text>
+      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} />
     </ScrollView>
   );
 }
@@ -368,12 +324,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
   },
   placeholder: {
     color: colors.textMuted,
@@ -399,13 +349,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  statRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  flexStatCard: {
-    flex: 1,
-  },
   statLabel: {
     color: colors.textMuted,
     fontSize: 13,
@@ -418,11 +361,6 @@ const styles = StyleSheet.create({
   },
   statValueAlert: {
     color: colors.danger,
-  },
-  statValueSmall: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 16,
@@ -478,11 +416,12 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 12,
   },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 20,
+  },
   spacedButton: {
     marginTop: 12,
-  },
-  button: {
-    marginTop: 12,
-    marginBottom: 24,
   },
 });

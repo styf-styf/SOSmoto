@@ -1,18 +1,74 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import type { GestureResponderEvent, NativeSyntheticEvent, TextLayoutEventData } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { GradientShade } from './GradientShade';
 import { getPostAuthorAvatar, getPostAuthorName, getPostTag, type PostWithAuthor } from '../services/posts';
 
-export function PostCard({ post, detailHref }: { post: PostWithAuthor; detailHref: string }) {
+export function PostCard({
+  post,
+  detailHref,
+  showTopShadow = true,
+  showBottomShadow = true,
+}: {
+  post: PostWithAuthor;
+  detailHref: string;
+  // Cuando este post (sin imagen) queda pegado a otro bloque "de fondo"
+  // (catálogo u otro post sin imagen), HomeFeed apaga la sombra del lado
+  // compartido para que ambos se vean como un solo fondo gris continuo en
+  // vez de dos tarjetas hundidas por separado.
+  showTopShadow?: boolean;
+  showBottomShadow?: boolean;
+}) {
   const authorName = getPostAuthorName(post);
   const avatarUrl = getPostAuthorAvatar(post);
   const tag = getPostTag(post);
   const isBusiness = !!post.author_business;
+  const hasImage = !!post.image_url;
+  const [expanded, setExpanded] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  const caption = post.caption ?? '';
+  const collapsed = hasImage && !expanded;
+
+  // Mide el texto completo (nombre + caption + etiqueta) sin límite de líneas,
+  // de forma invisible y superpuesta, para saber si realmente no entra en una
+  // sola línea -- así "más" solo aparece cuando hace falta, sin importar el
+  // largo del nombre o el ancho de pantalla (en vez de un umbral fijo de
+  // caracteres, que no reflejaba el overflow real).
+  function handleMeasure(e: NativeSyntheticEvent<TextLayoutEventData>) {
+    if (e.nativeEvent.lines.length > 1) setIsTruncated(true);
+  }
+
+  function handleExpand(e: GestureResponderEvent) {
+    e.stopPropagation();
+    setExpanded(true);
+  }
+
+  function handleCollapse(e: GestureResponderEvent) {
+    e.stopPropagation();
+    setExpanded(false);
+  }
+
+  function handleTagPress(e: GestureResponderEvent) {
+    e.stopPropagation();
+    if (tag) router.push(tag.href);
+  }
+
+  function handleShare() {
+    const message = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
+    Share.share({ message }).catch(() => {});
+  }
 
   return (
-    <Pressable style={styles.card} onPress={() => router.push(detailHref)}>
-      <View style={styles.authorRow}>
+    <Pressable
+      style={[styles.card, !hasImage && styles.cardNoImage, !hasImage && !showBottomShadow && styles.cardNoBorder]}
+      onPress={() => router.push(detailHref)}
+    >
+      {!hasImage && showTopShadow && <GradientShade position="top" height={8} maxOpacity={0.12} />}
+      <View style={[styles.authorRow, hasImage && expanded && styles.authorRowExpanded]}>
         <View style={styles.avatar}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
@@ -20,41 +76,106 @@ export function PostCard({ post, detailHref }: { post: PostWithAuthor; detailHre
             <Ionicons name={isBusiness ? 'storefront' : 'person'} size={18} color={colors.primary} />
           )}
         </View>
-        <Text style={styles.authorName} numberOfLines={1}>
-          {authorName}
-        </Text>
+        <View style={styles.authorTextRow}>
+          {collapsed && (
+            <Text style={[styles.authorLine, styles.measure]} onTextLayout={handleMeasure}>
+              <Text style={styles.authorName}>{authorName}</Text>
+              {hasImage && caption && <Text style={styles.inlineCaption}>  {caption}</Text>}
+            </Text>
+          )}
+          <Text
+            style={styles.authorLine}
+            numberOfLines={collapsed ? 1 : undefined}
+            ellipsizeMode={collapsed && isTruncated ? 'clip' : 'tail'}
+          >
+            <Text style={styles.authorName}>{authorName}</Text>
+            {hasImage && caption && <Text style={styles.inlineCaption}>  {caption}</Text>}
+            {hasImage && expanded && isTruncated && (
+              <Text style={styles.moreLink} onPress={handleCollapse}>
+                {'  menos'}
+              </Text>
+            )}
+          </Text>
+          {collapsed && isTruncated && (
+            <Pressable onPress={handleExpand}>
+              <Text style={styles.moreLink}>... más</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
-      {post.image_url && <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />}
-
-      {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
-
-      {tag && (
-        <Pressable style={styles.tagChip} onPress={() => router.push(tag.href)}>
-          <Ionicons name="pricetag" size={12} color={colors.primary} />
-          <Text style={styles.tagText}>{tag.label}</Text>
-        </Pressable>
+      {hasImage && (
+        <View style={styles.imageWrap}>
+          <Image source={{ uri: post.image_url! }} style={styles.image} resizeMode="cover" />
+          <GradientShade height={100} />
+          {tag && (
+            <Pressable style={styles.tagChip} onPress={handleTagPress}>
+              <Ionicons name="pricetag" size={12} color="#fff" />
+              <Text style={styles.tagChipText}>{tag.label}</Text>
+            </Pressable>
+          )}
+          <View style={styles.imageEngagementRow}>
+            <Pressable style={styles.engagementButtonOverlay} onPress={() => router.push(detailHref)}>
+              <Ionicons name="chatbubble-outline" size={22} color="#fff" />
+              <Text style={styles.engagementCountOverlay}>{post.comments_count}</Text>
+            </Pressable>
+            <Pressable style={styles.engagementButtonOverlay} onPress={handleShare}>
+              <Ionicons name="share-social-outline" size={22} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
       )}
 
-      <Text style={styles.commentsLink}>
-        {post.comments_count === 0 ? 'Sé el primero en comentar' : `Ver ${post.comments_count} comentario(s)`}
-      </Text>
+      {!hasImage && caption && <Text style={styles.caption}>{caption}</Text>}
+
+      {!hasImage && (
+        <View style={styles.engagementRow}>
+          {tag ? (
+            <Pressable style={styles.tagChipFlat} onPress={handleTagPress}>
+              <Ionicons name="pricetag" size={12} color={colors.primary} />
+              <Text style={styles.tagChipFlatText}>{tag.label}</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          <View style={styles.engagementButtonsGroup}>
+            <Pressable style={styles.engagementButton} onPress={() => router.push(detailHref)}>
+              <Ionicons name="chatbubble-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.engagementCount}>{post.comments_count}</Text>
+            </Pressable>
+            <Pressable style={styles.engagementButton} onPress={handleShare}>
+              <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {!hasImage && showBottomShadow && <GradientShade position="bottom" height={8} maxOpacity={0.12} />}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  cardNoImage: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
+  },
+  cardNoBorder: {
+    borderBottomWidth: 0,
   },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  authorRowExpanded: {
+    alignItems: 'flex-start',
   },
   avatar: {
     width: 32,
@@ -69,42 +190,121 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
   },
+  authorTextRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authorLine: {
+    flexShrink: 1,
+  },
+  measure: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    opacity: 0,
+  },
   authorName: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    flex: 1,
+  },
+  inlineCaption: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  moreLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginLeft: 4,
+  },
+  imageWrap: {
+    width: '100%',
+    height: 280,
   },
   image: {
     width: '100%',
-    height: 220,
-    borderRadius: 10,
+    height: '100%',
     backgroundColor: colors.background,
+  },
+  tagChip: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  tagChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  imageEngagementRow: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  engagementButtonOverlay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  engagementCountOverlay: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
   },
   caption: {
     fontSize: 14,
     color: colors.text,
+    paddingHorizontal: 12,
     marginTop: 10,
   },
-  tagChip: {
+  engagementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  tagChipFlat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF1E6',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  tagChipFlatText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  engagementButtonsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  engagementButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF1E6',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginTop: 10,
   },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  commentsLink: {
+  engagementCount: {
     fontSize: 13,
+    fontWeight: '600',
     color: colors.textMuted,
-    marginTop: 10,
   },
 });

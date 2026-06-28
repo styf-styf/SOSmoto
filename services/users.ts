@@ -4,6 +4,7 @@ import type { User } from '../types/database';
 export interface UpdateUserProfileParams {
   fullName?: string;
   phone?: string | null;
+  avatarUrl?: string | null;
 }
 
 export async function updateUserProfile(userId: string, params: UpdateUserProfileParams): Promise<User> {
@@ -12,6 +13,7 @@ export async function updateUserProfile(userId: string, params: UpdateUserProfil
     .update({
       ...(params.fullName !== undefined ? { full_name: params.fullName } : {}),
       ...(params.phone !== undefined ? { phone: params.phone } : {}),
+      ...(params.avatarUrl !== undefined ? { avatar_url: params.avatarUrl } : {}),
     })
     .eq('id', userId)
     .select()

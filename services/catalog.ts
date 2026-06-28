@@ -112,29 +112,32 @@ export interface FeedCatalogItem {
   id: string;
   businessId: string;
   businessName: string;
+  businessLogoUrl?: string;
   name: string;
   referencePrice: number | null;
   meta?: string;
   photoUrl?: string;
+  createdAt: string;
 }
 
 // Muestra global de catálogo (no filtrada por seguidos/cercanía) para
-// intercalar tarjetas de servicios/productos dentro del feed de Inicio,
-// igual para cliente y negocio.
-export async function getFeedCatalogItems(limit = 20): Promise<FeedCatalogItem[]> {
+// intercalar tiras de servicios/productos sueltos dentro del feed de
+// Inicio -- no es un feed propio (sin comentarios/compartir), es más bien un
+// banner de descubrimiento mezclado entre negocios. Devuelve ordenado por más
+// reciente primero -- el propio HomeFeed decide si lo muestra en ese orden
+// (primera carga) o mezclado (recargas sin nada nuevo).
+export async function getFeedCatalogPool(limit = 30): Promise<FeedCatalogItem[]> {
   const [servicesResult, productsResult] = await Promise.all([
     supabase
       .from('services')
-      .select('*, businesses(name)')
+      .select('*, businesses(name, logo_url)')
       .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(limit),
+      .order('created_at', { ascending: false }),
     supabase
       .from('products')
-      .select('*, businesses(name)')
+      .select('*, businesses(name, logo_url)')
       .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(limit),
+      .order('created_at', { ascending: false }),
   ]);
   if (servicesResult.error) throw servicesResult.error;
   if (productsResult.error) throw productsResult.error;
@@ -144,27 +147,27 @@ export async function getFeedCatalogItems(limit = 20): Promise<FeedCatalogItem[]
     id: row.id,
     businessId: row.business_id,
     businessName: row.businesses?.name ?? '',
+    businessLogoUrl: row.businesses?.logo_url ?? undefined,
     name: row.name,
     referencePrice: row.reference_price,
     photoUrl: row.photos?.[0],
+    createdAt: row.created_at,
   }));
   const products: FeedCatalogItem[] = (productsResult.data ?? []).map((row: any) => ({
     kind: 'product',
     id: row.id,
     businessId: row.business_id,
     businessName: row.businesses?.name ?? '',
+    businessLogoUrl: row.businesses?.logo_url ?? undefined,
     name: row.name,
     referencePrice: row.reference_price,
     meta: `Stock: ${row.stock}`,
     photoUrl: row.photos?.[0],
+    createdAt: row.created_at,
   }));
 
-  const merged = [...services, ...products];
-  for (let i = merged.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [merged[i], merged[j]] = [merged[j], merged[i]];
-  }
-  return merged;
+  const merged = [...services, ...products].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return merged.slice(0, limit);
 }
 
 export interface PlanLimits {

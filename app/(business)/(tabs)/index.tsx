@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Button } from '../../components/Button';
-import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
-import { useAuth } from '../../hooks/useAuth';
-import { useLocation } from '../../hooks/useLocation';
-import { createBusiness, getMyWorkBusiness } from '../../services/businesses';
+import { Button } from '../../../components/Button';
+import { TextField } from '../../../components/TextField';
+import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../hooks/useAuth';
+import { useLocation } from '../../../hooks/useLocation';
+import { createBusiness, getMyWorkBusiness } from '../../../services/businesses';
 import {
   getBusinessStories,
   getSeenStoryIds,
@@ -15,18 +15,21 @@ import {
   groupStoriesByAuthor,
   isStoryVisible,
   type StoryFeedItem,
-} from '../../services/stories';
-import { HomeFeed } from '../../components/HomeFeed';
-import { StoriesRow } from '../../components/StoriesRow';
-import type { Business, BusinessType } from '../../types/database';
+} from '../../../services/stories';
+import { CreateBusinessPostBox } from '../../../components/CreateBusinessPostBox';
+import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
+import { StoriesRow } from '../../../components/StoriesRow';
+import type { Business, BusinessType } from '../../../types/database';
 
 export default function BusinessHomeScreen() {
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeStories, setActiveStories] = useState(0);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
+  const homeFeedRef = useRef<HomeFeedHandle>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -34,6 +37,7 @@ export default function BusinessHomeScreen() {
       const work = await getMyWorkBusiness(profile.id);
       const result = work?.business ?? null;
       setBusiness(result);
+      setIsOwner(work?.isOwner ?? false);
       if (!result) return;
 
       const [stories, businessStoriesGlobal, clientStoriesGlobal] = await Promise.all([
@@ -85,32 +89,42 @@ export default function BusinessHomeScreen() {
 
   return (
     <HomeFeed
+      ref={homeFeedRef}
       role="business"
       city={business.city}
+      onRefresh={load}
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>{business.name}</Text>
-          <Text style={styles.subtitle}>
-            {business.address}, {business.city}
-          </Text>
-
-          <Text style={styles.sectionTitle}>Historias</Text>
-          <StoriesRow
-            own={{
-              hasStory: activeStories > 0,
-              avatarUrl: business.logo_url,
-              previewImageUrl: ownPreviewImageUrl,
-              onPress: () =>
-                router.push(activeStories > 0 ? `/(business)/historia/${business.id}` : '/(business)/historias'),
-            }}
-            items={feedItems.map((item) => ({
-              ...item,
-              onPress: () =>
-                router.push(
-                  item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
-                ),
-            }))}
-          />
+          <View style={styles.headerWrap}>
+            <Text style={styles.title}>{business.name}</Text>
+            <Text style={styles.subtitle}>
+              {business.address}, {business.city}
+            </Text>
+            <Text style={styles.sectionTitle}>Historias</Text>
+          </View>
+          <View style={styles.storiesWrap}>
+            <StoriesRow
+              own={{
+                hasStory: activeStories > 0,
+                avatarUrl: business.logo_url,
+                previewImageUrl: ownPreviewImageUrl,
+                onPress: () =>
+                  router.push(activeStories > 0 ? `/(business)/historia/${business.id}` : '/(business)/historias'),
+              }}
+              items={feedItems.map((item) => ({
+                ...item,
+                onPress: () =>
+                  router.push(
+                    item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
+                  ),
+              }))}
+            />
+          </View>
+          {isOwner && (
+            <View style={styles.createPostWrap}>
+              <CreateBusinessPostBox businessId={business.id} onCreated={() => homeFeedRef.current?.refresh()} />
+            </View>
+          )}
         </View>
       }
     />
@@ -225,6 +239,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  headerWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  storiesWrap: {
+    paddingBottom: 16,
+  },
+  createPostWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   onboardingContainer: {
     padding: 20,
