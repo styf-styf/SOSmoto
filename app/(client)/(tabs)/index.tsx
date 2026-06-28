@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -15,6 +15,7 @@ import {
 import { CreatePostBox } from '../../../components/CreatePostBox';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
+import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
 
 export default function ClientHomeScreen() {
   const { profile } = useAuth();
@@ -26,6 +27,32 @@ export default function ClientHomeScreen() {
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
+  const limitCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (!profile?.id || limitCheckedRef.current) return;
+    limitCheckedRef.current = true;
+    const key = `account_limited:${profile.id}`;
+    (async () => {
+      try {
+        const wasLimited = await wasPreviouslyLimited(key);
+        if (profile.is_limited) {
+          await markLimited(key);
+          Alert.alert(
+            'Cuenta limitada',
+            profile.limitation_reason
+              ? `Tu cuenta está limitada: ${profile.limitation_reason}`
+              : 'Tu cuenta está limitada. No puedes crear publicaciones, subir historias ni buscar talleres.'
+          );
+        } else if (wasLimited) {
+          await clearLimitedMark(key);
+          Alert.alert('Cuenta restablecida', 'Se quitó el límite de tu cuenta. Ya puedes usar la app con normalidad.');
+        }
+      } catch (err) {
+        console.error('check account limit error', err);
+      }
+    })();
+  }, [profile?.id, profile?.is_limited, profile?.limitation_reason]);
 
   const load = useCallback(async () => {
     try {
@@ -103,7 +130,11 @@ export default function ClientHomeScreen() {
             />
           </View>
           <View style={styles.createPostWrap}>
-            <CreatePostBox onCreated={() => homeFeedRef.current?.refresh()} />
+            {profile?.is_limited ? (
+              <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
+            ) : (
+              <CreatePostBox onCreated={() => homeFeedRef.current?.refresh()} />
+            )}
           </View>
         </View>
       }
@@ -128,6 +159,13 @@ const styles = StyleSheet.create({
   createPostWrap: {
     paddingHorizontal: 20,
     paddingBottom: 16,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
   },
   title: {
     fontSize: 24,

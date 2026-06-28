@@ -25,6 +25,7 @@ export default function BusinessLayout() {
       <Stack.Screen name="historias" />
       <Stack.Screen name="configuracion" />
       <Stack.Screen name="verificacion" />
+      <Stack.Screen name="estado-cuenta" />
     </Stack>
   );
 }

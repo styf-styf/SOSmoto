@@ -4,6 +4,7 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { useAccountLimited } from '../hooks/useAccountLimited';
 import { useAuth } from '../hooks/useAuth';
 import {
   createComment,
@@ -18,6 +19,7 @@ import {
 
 export function PostDetail({ postId }: { postId: string }) {
   const { profile } = useAuth();
+  const { isLimited } = useAccountLimited();
   const [post, setPost] = useState<PostWithAuthor | null>(null);
   const [comments, setComments] = useState<PostCommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ export function PostDetail({ postId }: { postId: string }) {
   }, [load]);
 
   async function handleSend() {
-    if (!profile || !text.trim()) return;
+    if (!profile || !text.trim() || isLimited) return;
     const body = text.trim();
     setText('');
     setSending(true);
@@ -122,20 +124,26 @@ export function PostDetail({ postId }: { postId: string }) {
         )}
       </ScrollView>
 
-      <KeyboardStickyView>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe un comentario…"
-            placeholderTextColor={colors.textMuted}
-            value={text}
-            onChangeText={setText}
-          />
-          <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
-            <Ionicons name="send" size={18} color="#fff" />
-          </Pressable>
+      {isLimited ? (
+        <View style={styles.limitedNotice}>
+          <Text style={styles.limitedNoticeText}>Tu cuenta está limitada: no puedes comentar.</Text>
         </View>
-      </KeyboardStickyView>
+      ) : (
+        <KeyboardStickyView>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe un comentario…"
+              placeholderTextColor={colors.textMuted}
+              value={text}
+              onChangeText={setText}
+            />
+            <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
+              <Ionicons name="send" size={18} color="#fff" />
+            </Pressable>
+          </View>
+        </KeyboardStickyView>
+      )}
     </View>
   );
 }
@@ -278,5 +286,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  limitedNotice: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: '#FBE8E8',
+  },
+  limitedNoticeText: {
+    fontSize: 13,
+    color: colors.danger,
+    textAlign: 'center',
   },
 });

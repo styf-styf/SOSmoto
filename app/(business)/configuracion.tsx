@@ -310,6 +310,12 @@ export default function BusinessConfiguracionScreen() {
         onPress={() => router.push('/(business)/verificacion')}
         style={styles.spacedButton}
       />
+      <Button
+        title={business.is_limited ? 'Estado de cuenta · Limitado' : 'Estado de cuenta'}
+        variant="secondary"
+        onPress={() => router.push('/(business)/estado-cuenta')}
+        style={styles.spacedButton}
+      />
 
       <View style={styles.divider} />
 

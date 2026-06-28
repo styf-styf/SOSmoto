@@ -31,6 +31,7 @@ export default function ClientLayout() {
         <Stack.Screen name="servicio/[id]" />
         <Stack.Screen name="producto/[id]" />
         <Stack.Screen name="configuracion" />
+        <Stack.Screen name="estado-cuenta" />
         <Stack.Screen name="agendar" />
         <Stack.Screen name="citas" />
       </Stack>

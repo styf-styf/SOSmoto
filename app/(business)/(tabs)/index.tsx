@@ -20,6 +20,7 @@ import { CreateBusinessPostBox } from '../../../components/CreateBusinessPostBox
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
 import type { Business, BusinessType } from '../../../types/database';
+import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
 
 export default function BusinessHomeScreen() {
   const { profile } = useAuth();
@@ -30,6 +31,7 @@ export default function BusinessHomeScreen() {
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
+  const limitCheckedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -39,6 +41,24 @@ export default function BusinessHomeScreen() {
       setBusiness(result);
       setIsOwner(work?.isOwner ?? false);
       if (!result) return;
+
+      if (!limitCheckedRef.current) {
+        limitCheckedRef.current = true;
+        const key = `business_limited:${result.id}`;
+        const wasLimited = await wasPreviouslyLimited(key);
+        if (result.is_limited) {
+          await markLimited(key);
+          Alert.alert(
+            'Negocio limitado',
+            result.limitation_reason
+              ? `Tu negocio está limitado: ${result.limitation_reason}`
+              : 'Tu negocio está limitado. No puedes crear anuncios nuevos, historias, publicaciones, editar catálogo, gestionar empleados ni usar el chat.'
+          );
+        } else if (wasLimited) {
+          await clearLimitedMark(key);
+          Alert.alert('Negocio restablecido', 'Se quitó el límite de tu negocio. Ya puedes usar la app con normalidad.');
+        }
+      }
 
       const [stories, businessStoriesGlobal, clientStoriesGlobal] = await Promise.all([
         getBusinessStories(result.id),
@@ -122,7 +142,11 @@ export default function BusinessHomeScreen() {
           </View>
           {isOwner && (
             <View style={styles.createPostWrap}>
-              <CreateBusinessPostBox businessId={business.id} onCreated={() => homeFeedRef.current?.refresh()} />
+              {business.is_limited ? (
+                <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
+              ) : (
+                <CreateBusinessPostBox businessId={business.id} onCreated={() => homeFeedRef.current?.refresh()} />
+              )}
             </View>
           )}
         </View>
@@ -250,6 +274,13 @@ const styles = StyleSheet.create({
   createPostWrap: {
     paddingHorizontal: 20,
     paddingBottom: 16,
+  },
+  limitedNotice: {
+    fontSize: 13,
+    color: colors.danger,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 8,
+    padding: 10,
   },
   onboardingContainer: {
     padding: 20,

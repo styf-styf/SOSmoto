@@ -105,6 +105,12 @@ export default function ConfiguracionScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.sectionTitle}>Cuenta</Text>
+      <Button
+        title={profile?.is_limited ? 'Estado de cuenta · Limitado' : 'Estado de cuenta'}
+        variant="secondary"
+        onPress={() => router.push('/(client)/estado-cuenta')}
+        style={styles.saveButton}
+      />
       <TextField label="Nombre completo" value={fullName} onChangeText={setFullName} />
       <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
       <Button title="Guardar cambios" onPress={handleSaveProfile} loading={savingProfile} style={styles.saveButton} />
