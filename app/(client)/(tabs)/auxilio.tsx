@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Button } from '../../../components/Button';
+import { MapNamedMarker } from '../../../components/MapNamedMarker';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import { getBusinessById } from '../../../services/businesses';
-import { cancelHelpRequest, createHelpRequest, getNearbyWorkshops } from '../../../services/helpRequests';
+import {
+  cancelHelpRequest,
+  createHelpRequest,
+  getNearbyWorkshops,
+  getNotifiedWorkshopsCount,
+} from '../../../services/helpRequests';
 import { getVehicles } from '../../../services/vehicles';
 import type { Business, HelpRequest, Vehicle } from '../../../types/database';
 
@@ -130,13 +138,12 @@ export default function AuxilioScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Auxilio en carretera</Text>
-      <Text style={styles.placeholder}>Solicita ayuda y los talleres cercanos podrán verla y aceptarla.</Text>
+    <View style={styles.screen}>
+      <Text style={styles.compactTitle}>Auxilio en carretera</Text>
 
-      {coords && (
+      {coords ? (
         <MapView
-          style={styles.map}
+          style={styles.bigMap}
           initialRegion={{
             latitude: coords.latitude,
             longitude: coords.longitude,
@@ -144,57 +151,73 @@ export default function AuxilioScreen() {
             longitudeDelta: 0.05,
           }}
         >
-          <Marker coordinate={coords} title="Tu ubicación" pinColor={colors.sos} />
+          <MapNamedMarker coordinate={coords} label="Tú" color={colors.sos} />
           {nearbyWorkshops.map((workshop) => (
-            <Marker
+            <MapNamedMarker
               key={workshop.id}
               coordinate={{ latitude: workshop.latitude, longitude: workshop.longitude }}
-              title={workshop.name}
-              pinColor={colors.primary}
+              label={workshop.name}
+              color={colors.primary}
             />
           ))}
         </MapView>
+      ) : (
+        <View style={[styles.bigMap, styles.center]}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.placeholder}>Obteniendo tu ubicación…</Text>
+        </View>
       )}
 
-      <Text style={styles.fieldLabel}>Tu moto</Text>
-      <View style={styles.vehicleSelector}>
-        {vehicles.map((vehicle) => (
-          <Pressable
-            key={vehicle.id}
-            onPress={() => setSelectedVehicleId(vehicle.id)}
-            style={[styles.vehicleOption, selectedVehicleId === vehicle.id && styles.vehicleOptionSelected]}
-          >
-            <Text
-              style={[
-                styles.vehicleOptionText,
-                selectedVehicleId === vehicle.id && styles.vehicleOptionTextSelected,
-              ]}
-            >
-              {vehicle.brand} {vehicle.model}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <KeyboardStickyView style={styles.keyboardStickyWrap}>
+        <ScrollView
+          style={styles.formScroll}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.fieldLabel}>Tu moto</Text>
+          <View style={styles.vehicleSelector}>
+            {vehicles.map((vehicle) => (
+              <Pressable
+                key={vehicle.id}
+                onPress={() => setSelectedVehicleId(vehicle.id)}
+                style={[styles.vehicleOption, selectedVehicleId === vehicle.id && styles.vehicleOptionSelected]}
+              >
+                <Text
+                  style={[
+                    styles.vehicleOptionText,
+                    selectedVehicleId === vehicle.id && styles.vehicleOptionTextSelected,
+                  ]}
+                >
+                  {vehicle.brand} {vehicle.model}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-      <TextField
-        label="¿Qué pasó? (opcional)"
-        placeholder="Ej: se quedó sin batería"
-        value={description}
-        onChangeText={setDescription}
-      />
+          <TextField
+            label="¿Qué pasó? (opcional)"
+            placeholder="Ej: se quedó sin batería"
+            value={description}
+            onChangeText={setDescription}
+          />
+        </ScrollView>
 
-      <Button
-        title={locating ? 'Obteniendo tu ubicación…' : 'Pedir auxilio'}
-        onPress={handleRequest}
-        loading={submitting}
-        style={styles.sosButton}
-      />
-    </ScrollView>
+        <View style={styles.bottomBar}>
+          <Button
+            title={locating ? 'Obteniendo tu ubicación…' : 'Pedir auxilio'}
+            onPress={handleRequest}
+            loading={submitting}
+            style={styles.sosButton}
+          />
+        </View>
+      </KeyboardStickyView>
+    </View>
   );
 }
 
 function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCancel: () => void }) {
   const [business, setBusiness] = useState<Business | null>(null);
+  const [notifiedCount, setNotifiedCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (request.accepted_business_id) {
@@ -203,6 +226,29 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
         .catch((err) => console.error('load business error', err));
     }
   }, [request.accepted_business_id]);
+
+  useEffect(() => {
+    if (request.status !== 'pending') return;
+    let cancelled = false;
+    getNotifiedWorkshopsCount(request.id)
+      .then((count) => {
+        if (!cancelled) setNotifiedCount(count);
+      })
+      .catch((err) => console.error('load notified count error', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [request.id, request.status]);
+
+  function handleCall() {
+    if (!business?.phone) return;
+    Linking.openURL(`tel:${business.phone}`);
+  }
+
+  function handleChat() {
+    if (!business) return;
+    router.push(`/(client)/chat/${business.id}`);
+  }
 
   const businessCoords =
     request.business_latitude !== null && request.business_longitude !== null
@@ -217,7 +263,16 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
       <Text style={styles.statusTitle}>{statusLabel[request.status]}</Text>
 
       {request.status === 'pending' && (
-        <ActivityIndicator color={colors.primary} style={styles.statusSpinner} />
+        <>
+          <ActivityIndicator color={colors.primary} style={styles.statusSpinner} />
+          <Text style={styles.statusDetail}>
+            {notifiedCount === null
+              ? 'Buscando talleres cercanos…'
+              : notifiedCount > 0
+                ? `Notificamos a ${notifiedCount} taller${notifiedCount === 1 ? '' : 'es'} cercano${notifiedCount === 1 ? '' : 's'}.`
+                : 'No encontramos talleres cercanos disponibles por ahora. Tu solicitud sigue activa.'}
+          </Text>
+        </>
       )}
 
       {(request.status === 'accepted' || request.status === 'in_progress') && (
@@ -230,12 +285,16 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
             longitudeDelta: 0.05,
           }}
         >
-          <Marker coordinate={{ latitude: request.latitude, longitude: request.longitude }} title="Tú" pinColor={colors.sos} />
+          <MapNamedMarker
+            coordinate={{ latitude: request.latitude, longitude: request.longitude }}
+            label="Tú"
+            color={colors.sos}
+          />
           {businessCoords && (
-            <Marker
+            <MapNamedMarker
               coordinate={businessCoords}
-              title={businessIsLive ? 'Taller en camino' : business?.name ?? 'Taller'}
-              pinColor={colors.primary}
+              label={businessIsLive ? `${business?.name ?? 'Taller'} (en camino)` : business?.name ?? 'Taller'}
+              color={colors.primary}
             />
           )}
         </MapView>
@@ -247,7 +306,18 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
           {request.estimated_arrival_minutes !== null && (
             <Text style={styles.businessMeta}>Llega en ~{request.estimated_arrival_minutes} min</Text>
           )}
-          {business.phone && <Text style={styles.businessMeta}>{business.phone}</Text>}
+          <View style={styles.businessActions}>
+            {business.phone && (
+              <Pressable style={styles.businessActionButton} onPress={handleCall}>
+                <Ionicons name="call-outline" size={18} color={colors.primary} />
+                <Text style={styles.businessActionText}>Llamar</Text>
+              </Pressable>
+            )}
+            <Pressable style={styles.businessActionButton} onPress={handleChat}>
+              <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
+              <Text style={styles.businessActionText}>Chat</Text>
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -266,16 +336,39 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: 20,
   },
-  container: {
-    padding: 20,
+  screen: {
+    flex: 1,
     backgroundColor: colors.background,
   },
-  title: {
-    fontSize: 24,
+  compactTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
     textAlign: 'center',
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  bigMap: {
+    flex: 1,
+    width: '100%',
+  },
+  keyboardStickyWrap: {
+    backgroundColor: colors.background,
+  },
+  formScroll: {
+    maxHeight: 220,
+    flexGrow: 0,
+  },
+  formContent: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  bottomBar: {
+    padding: 16,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
   placeholder: {
     color: colors.textMuted,
@@ -336,6 +429,12 @@ const styles = StyleSheet.create({
   statusSpinner: {
     marginTop: 16,
   },
+  statusDetail: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: 12,
+    textAlign: 'center',
+  },
   businessCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -352,6 +451,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     marginTop: 4,
+  },
+  businessActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  businessActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  businessActionText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 13,
   },
   cancelButton: {
     marginTop: 24,

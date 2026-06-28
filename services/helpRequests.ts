@@ -78,6 +78,15 @@ export async function createHelpRequest(params: CreateHelpRequestParams): Promis
   return helpRequest as HelpRequest;
 }
 
+export async function getNotifiedWorkshopsCount(helpRequestId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('help_request_notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('help_request_id', helpRequestId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function getActiveHelpRequest(clientId: string): Promise<HelpRequest | null> {
   const { data, error } = await supabase
     .from('help_requests')

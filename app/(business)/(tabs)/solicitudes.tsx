@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import { Button } from '../../../components/Button';
+import { MapNamedMarker } from '../../../components/MapNamedMarker';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -155,16 +156,16 @@ export default function SolicitudesScreen() {
               longitudeDelta: 0.03,
             }}
           >
-            <Marker
+            <MapNamedMarker
               coordinate={{ latitude: active.latitude, longitude: active.longitude }}
-              title="Cliente"
-              pinColor={colors.sos}
+              label="Cliente"
+              color={colors.sos}
             />
             {active.business_latitude !== null && active.business_longitude !== null && (
-              <Marker
+              <MapNamedMarker
                 coordinate={{ latitude: active.business_latitude, longitude: active.business_longitude }}
-                title="Tu ubicación"
-                pinColor={colors.primary}
+                label="Tu ubicación"
+                color={colors.primary}
               />
             )}
           </MapView>
