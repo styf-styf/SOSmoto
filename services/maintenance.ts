@@ -71,3 +71,55 @@ export async function markCompleted(suggestionId: string): Promise<void> {
     .eq('id', suggestionId);
   if (error) throw error;
 }
+
+export interface MaintenanceAlert {
+  suggestionId: string;
+  vehicleId: string;
+  vehicleLabel: string;
+  serviceName: string;
+  overdue: boolean;
+}
+
+// Alertas ya calculadas por la Edge Function check-maintenance (status 'notified'),
+// para mostrarlas en el home sin tener que entrar a Vehiculos.
+export async function getHomeMaintenanceAlerts(clientId: string): Promise<MaintenanceAlert[]> {
+  const { data: vehicles, error: vehiclesError } = await supabase
+    .from('vehicles')
+    .select('id, brand, model')
+    .eq('user_id', clientId);
+  if (vehiclesError) throw vehiclesError;
+  if (!vehicles || vehicles.length === 0) return [];
+
+  const { data: suggestions, error: suggestionsError } = await supabase
+    .from('maintenance_suggestions')
+    .select('id, vehicle_id, rule_id, overdue_notified_at')
+    .in('vehicle_id', vehicles.map((v) => v.id))
+    .eq('status', 'notified');
+  if (suggestionsError) throw suggestionsError;
+  if (!suggestions || suggestions.length === 0) return [];
+
+  const ruleIds = Array.from(new Set(suggestions.map((s) => s.rule_id)));
+  const { data: rules, error: rulesError } = await supabase
+    .from('maintenance_rules')
+    .select('id, service_name')
+    .in('id', ruleIds);
+  if (rulesError) throw rulesError;
+
+  const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
+  const ruleById = new Map((rules ?? []).map((r) => [r.id, r]));
+
+  return suggestions
+    .map((s) => {
+      const vehicle = vehicleById.get(s.vehicle_id);
+      const rule = ruleById.get(s.rule_id);
+      if (!vehicle || !rule) return null;
+      return {
+        suggestionId: s.id,
+        vehicleId: s.vehicle_id,
+        vehicleLabel: `${vehicle.brand} ${vehicle.model}`,
+        serviceName: rule.service_name,
+        overdue: s.overdue_notified_at !== null,
+      };
+    })
+    .filter((a): a is MaintenanceAlert => a !== null);
+}
