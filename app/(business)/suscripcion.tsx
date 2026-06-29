@@ -75,11 +75,16 @@ export default function SuscripcionScreen() {
     }
   }
 
-  function handleSwitch(plan: SubscriptionPlan) {
+  async function handleSwitch(plan: SubscriptionPlan) {
     if (!business) return;
 
     if (plan.price_monthly > 0) {
-      openPortal();
+      setSwitching(plan.id);
+      try {
+        await openPortal();
+      } finally {
+        setSwitching(null);
+      }
       return;
     }
 

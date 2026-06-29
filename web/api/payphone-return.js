@@ -11,6 +11,34 @@ function supabaseAdmin() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+const PLAN_LABEL = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
+
+async function sendPush(token, title, body, data) {
+  await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: token, title, body, data }),
+  });
+}
+
+async function notifyPlanChanged(supabase, businessId, planId) {
+  const [{ data: business }, { data: plan }] = await Promise.all([
+    supabase.from('businesses').select('owner_id').eq('id', businessId).maybeSingle(),
+    supabase.from('subscription_plans').select('name').eq('id', planId).maybeSingle(),
+  ]);
+  if (!business || !business.owner_id || !plan || !plan.name) return;
+
+  const { data: owner } = await supabase.from('users').select('push_token').eq('id', business.owner_id).maybeSingle();
+  if (!owner || !owner.push_token) return;
+
+  await sendPush(
+    owner.push_token,
+    'Plan actualizado',
+    `Tu negocio ahora tiene el plan ${PLAN_LABEL[plan.name] || plan.name}.`,
+    { type: 'plan_changed', businessId }
+  );
+}
+
 // Payphone no siempre manda JSON estricto en el webhook; extraemos los
 // campos con regex en vez de depender de un parser estricto.
 function extractField(raw, key) {
@@ -108,6 +136,7 @@ async function activateByTrust(clientTransactionId, gatewayId) {
       payment_id: payment.id,
     });
     await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
+    await notifyPlanChanged(supabase, payment.business_id, payment.plan_id);
   }
 
   return { success: true, payment, trusted: true };

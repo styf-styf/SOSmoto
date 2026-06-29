@@ -11,6 +11,34 @@ type PaymentRow = {
   metadata: Record<string, unknown> | null;
 };
 
+const PLAN_LABEL: Record<string, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
+
+async function sendPush(token: string, title: string, body: string, data: Record<string, unknown>) {
+  await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: token, title, body, data }),
+  });
+}
+
+async function notifyPlanChanged(supabase: ReturnType<typeof createClient>, businessId: string, planId: string) {
+  const [{ data: business }, { data: plan }] = await Promise.all([
+    supabase.from('businesses').select('owner_id').eq('id', businessId).maybeSingle(),
+    supabase.from('subscription_plans').select('name').eq('id', planId).maybeSingle(),
+  ]);
+  if (!business?.owner_id || !plan?.name) return;
+
+  const { data: owner } = await supabase.from('users').select('push_token').eq('id', business.owner_id).maybeSingle();
+  if (!owner?.push_token) return;
+
+  await sendPush(
+    owner.push_token,
+    'Plan actualizado',
+    `Tu negocio ahora tiene el plan ${PLAN_LABEL[plan.name as string] ?? plan.name}.`,
+    { type: 'plan_changed', businessId }
+  );
+}
+
 async function activateSubscription(supabase: ReturnType<typeof createClient>, payment: PaymentRow) {
   if (!payment.plan_id) return;
   const now = new Date();
@@ -33,6 +61,8 @@ async function activateSubscription(supabase: ReturnType<typeof createClient>, p
   });
 
   await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
+
+  await notifyPlanChanged(supabase, payment.business_id, payment.plan_id);
 }
 
 // La campaña recién se crea aquí, no antes -- el borrador vive en
