@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
 
   const { data: payment, error } = await supabase
     .from('payments')
-    .select('id, amount, client_transaction_id, status')
+    .select('id, amount, client_transaction_id, status, checkout_opened_at')
     .eq('id', paymentId)
     .single();
 
@@ -27,6 +27,19 @@ module.exports = async (req, res) => {
     res.status(409).send('Este pago ya fue procesado.');
     return;
   }
+
+  if (payment.checkout_opened_at) {
+    // Esta pagina ya se sirvio antes para este pago -- es una recarga (ej. el
+    // navegador del celular recargo la pestana al volver de la app de la
+    // wallet), no la primera vez. Re-inicializar el widget de Payphone con el
+    // mismo client_transaction_id fallaria con "transaccion ya existe", asi
+    // que en vez de eso mandamos a la pagina de retorno: ella ya sabe esperar
+    // al webhook y mostrar el estado real (aprobado o "todavia procesando").
+    res.writeHead(302, { Location: `/api/payphone-return?clientTransactionId=${payment.client_transaction_id}` });
+    res.end();
+    return;
+  }
+  await supabase.from('payments').update({ checkout_opened_at: new Date().toISOString() }).eq('id', paymentId);
 
   const amountCents = Math.round(Number(payment.amount) * 100);
 
