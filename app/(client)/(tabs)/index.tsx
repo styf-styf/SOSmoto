@@ -101,7 +101,7 @@ export default function ClientHomeScreen() {
 
   async function handleCompleteAlert(alert: MaintenanceAlert) {
     try {
-      await markCompleted(alert.suggestionId);
+      await markCompleted(alert.suggestionId, alert.vehicleMileage);
       setMaintenanceAlerts((prev) => prev.filter((a) => a.suggestionId !== alert.suggestionId));
     } catch (err) {
       console.error('complete maintenance alert error', err);
@@ -126,38 +126,6 @@ export default function ClientHomeScreen() {
         <View>
           <View style={styles.headerWrap}>
             <Text style={styles.title}>SOSmoto</Text>
-            {maintenanceAlerts.length > 0 && (
-              <View style={styles.maintenanceWrap}>
-                {maintenanceAlerts.map((alert) => (
-                  <View key={alert.suggestionId} style={styles.maintenanceCard}>
-                    <Ionicons
-                      name={alert.overdue ? 'warning' : 'time-outline'}
-                      size={20}
-                      color={alert.overdue ? colors.danger : colors.warning}
-                    />
-                    <View style={styles.maintenanceCardText}>
-                      <Text style={styles.maintenanceCardTitle}>
-                        {alert.serviceName} · {alert.vehicleLabel}
-                      </Text>
-                      <Text style={styles.maintenanceCardMeta}>
-                        {alert.overdue ? 'Mantenimiento vencido' : 'Mantenimiento próximo'}
-                      </Text>
-                    </View>
-                    <Pressable
-                      style={styles.maintenanceCardAction}
-                      onPress={() =>
-                        router.push({ pathname: '/(client)/buscar', params: { service: alert.serviceName } })
-                      }
-                    >
-                      <Ionicons name="search" size={16} color={colors.primary} />
-                    </Pressable>
-                    <Pressable style={styles.maintenanceCardAction} onPress={() => handleCompleteAlert(alert)}>
-                      <Ionicons name="checkmark-done" size={16} color={colors.success} />
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
             <Text style={styles.sectionTitle}>Historias</Text>
           </View>
           <View style={styles.storiesWrap}>
@@ -178,6 +146,40 @@ export default function ClientHomeScreen() {
               }))}
             />
           </View>
+          {maintenanceAlerts.length > 0 && (
+            <View style={styles.maintenanceWrap}>
+              {maintenanceAlerts.map((alert) => (
+                <View key={alert.suggestionId} style={styles.maintenanceCard}>
+                  <Ionicons
+                    name={alert.overdue ? 'warning' : 'time-outline'}
+                    size={20}
+                    color={alert.overdue ? colors.danger : colors.warning}
+                  />
+                  <View style={styles.maintenanceCardText}>
+                    <Text style={styles.maintenanceCardTitle}>
+                      {alert.serviceName} · {alert.vehicleLabel}
+                    </Text>
+                    <Text style={styles.maintenanceCardMeta}>
+                      {alert.overdue
+                        ? `Mantenimiento vencido · hace ${Math.abs(alert.kmRemaining).toLocaleString()} km`
+                        : `Mantenimiento próximo · faltan ${alert.kmRemaining.toLocaleString()} km`}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.maintenanceCardAction}
+                    onPress={() =>
+                      router.push({ pathname: '/(client)/buscar', params: { service: alert.serviceName } })
+                    }
+                  >
+                    <Ionicons name="search" size={16} color={colors.primary} />
+                  </Pressable>
+                  <Pressable style={styles.maintenanceCardAction} onPress={() => handleCompleteAlert(alert)}>
+                    <Ionicons name="checkmark-done" size={16} color={colors.success} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
           <View style={styles.createPostWrap}>
             {profile?.is_limited ? (
               <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
@@ -205,6 +207,11 @@ const styles = StyleSheet.create({
   storiesWrap: {
     paddingBottom: 16,
   },
+  maintenanceWrap: {
+    paddingHorizontal: 20,
+    gap: 8,
+    marginBottom: 16,
+  },
   createPostWrap: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -228,10 +235,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-  },
-  maintenanceWrap: {
-    gap: 8,
-    marginBottom: 16,
   },
   maintenanceCard: {
     flexDirection: 'row',

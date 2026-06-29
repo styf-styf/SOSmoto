@@ -64,10 +64,14 @@ export async function getDueMaintenance(vehicle: Vehicle): Promise<MaintenanceIt
   return items.sort((a, b) => a.kmRemaining - b.kmRemaining);
 }
 
-export async function markCompleted(suggestionId: string): Promise<void> {
+export async function markCompleted(suggestionId: string, atKm?: number): Promise<void> {
   const { error } = await supabase
     .from('maintenance_suggestions')
-    .update({ status: 'completed' })
+    .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      completed_at_km: atKm ?? null,
+    })
     .eq('id', suggestionId);
   if (error) throw error;
 }
@@ -76,8 +80,10 @@ export interface MaintenanceAlert {
   suggestionId: string;
   vehicleId: string;
   vehicleLabel: string;
+  vehicleMileage: number;
   serviceName: string;
   overdue: boolean;
+  kmRemaining: number;
 }
 
 // Alertas ya calculadas por la Edge Function check-maintenance (status 'notified'),
@@ -85,14 +91,14 @@ export interface MaintenanceAlert {
 export async function getHomeMaintenanceAlerts(clientId: string): Promise<MaintenanceAlert[]> {
   const { data: vehicles, error: vehiclesError } = await supabase
     .from('vehicles')
-    .select('id, brand, model')
+    .select('id, brand, model, current_mileage')
     .eq('user_id', clientId);
   if (vehiclesError) throw vehiclesError;
   if (!vehicles || vehicles.length === 0) return [];
 
   const { data: suggestions, error: suggestionsError } = await supabase
     .from('maintenance_suggestions')
-    .select('id, vehicle_id, rule_id, overdue_notified_at')
+    .select('id, vehicle_id, rule_id, due_at_km, overdue_notified_at')
     .in('vehicle_id', vehicles.map((v) => v.id))
     .eq('status', 'notified');
   if (suggestionsError) throw suggestionsError;
@@ -117,8 +123,10 @@ export async function getHomeMaintenanceAlerts(clientId: string): Promise<Mainte
         suggestionId: s.id,
         vehicleId: s.vehicle_id,
         vehicleLabel: `${vehicle.brand} ${vehicle.model}`,
+        vehicleMileage: vehicle.current_mileage,
         serviceName: rule.service_name,
         overdue: s.overdue_notified_at !== null,
+        kmRemaining: (s.due_at_km ?? 0) - vehicle.current_mileage,
       };
     })
     .filter((a): a is MaintenanceAlert => a !== null);

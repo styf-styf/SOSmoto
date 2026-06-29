@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../../lib/requireAdmin';
+import { sendPushToUser } from '../../../../../lib/push';
 import { createAdminClient } from '../../../../../lib/supabase/admin';
 
 // "Limitar" no oculta al negocio de la búsqueda ni afecta sus anuncios
@@ -17,11 +18,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
+  const { data: business, error } = await supabase
     .from('businesses')
     .update({ is_limited: true, limitation_reason: reason.trim() })
-    .eq('id', params.id);
+    .eq('id', params.id)
+    .select('owner_id')
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (business?.owner_id) {
+    await sendPushToUser(business.owner_id, 'Negocio limitado', `Tu negocio está limitado: ${reason.trim()}`, {
+      type: 'business_limited',
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

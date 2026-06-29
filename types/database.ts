@@ -106,6 +106,7 @@ export interface Service {
   reference_price: number | null;
   photos: string[];
   is_active: boolean;
+  views: number;
   created_at: string;
 }
 
@@ -119,6 +120,7 @@ export interface Product {
   stock: number;
   photos: string[];
   is_active: boolean;
+  views: number;
   created_at: string;
 }
 
@@ -153,6 +155,22 @@ export interface HelpRequestNotification {
   business_id: string;
   notified_at: string;
   responded: boolean;
+}
+
+export type GrowthSuggestionType =
+  | 'upgrade_plan_limit_reached'
+  | 'upgrade_plan_near_limit'
+  | 'advertise_low_visibility'
+  | 'advertise_new_business';
+
+export interface GrowthSuggestion {
+  id: string;
+  business_id: string;
+  type: GrowthSuggestionType;
+  title: string;
+  body: string;
+  status: 'active' | 'dismissed';
+  created_at: string;
 }
 
 export interface Review {
@@ -274,6 +292,8 @@ export interface MaintenanceSuggestion {
   due_at_km: number | null;
   status: MaintenanceSuggestionStatus;
   overdue_notified_at: string | null;
+  completed_at: string | null;
+  completed_at_km: number | null;
   created_at: string;
 }
 

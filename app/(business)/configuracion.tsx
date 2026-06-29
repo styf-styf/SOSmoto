@@ -49,6 +49,7 @@ export default function BusinessConfiguracionScreen() {
 
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -89,8 +90,14 @@ export default function BusinessConfiguracionScreen() {
   );
 
   async function handleSignOut() {
-    await signOut();
-    router.replace('/(auth)/login');
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/(auth)/login');
+    } catch (err) {
+      console.error('sign out error', err);
+      setSigningOut(false);
+    }
   }
 
   function handleToggleDay(key: string, open: boolean) {
@@ -179,7 +186,7 @@ export default function BusinessConfiguracionScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.placeholder}>No tienes un negocio registrado.</Text>
-        <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} />
+        <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} loading={signingOut} />
       </View>
     );
   }
@@ -273,7 +280,19 @@ export default function BusinessConfiguracionScreen() {
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>Gestión</Text>
-      <Button title="Agenda" variant="secondary" onPress={() => router.push('/(business)/agenda-negocio')} />
+      <Button title="Estadísticas" variant="secondary" onPress={() => router.push('/(business)/estadisticas')} />
+      <Button
+        title="Crece tu negocio"
+        variant="secondary"
+        onPress={() => router.push('/(business)/crece-tu-negocio')}
+        style={styles.spacedButton}
+      />
+      <Button
+        title="Agenda"
+        variant="secondary"
+        onPress={() => router.push('/(business)/agenda-negocio')}
+        style={styles.spacedButton}
+      />
       <Button
         title="Plan y suscripción"
         variant="secondary"
@@ -320,7 +339,7 @@ export default function BusinessConfiguracionScreen() {
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>General</Text>
-      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} />
+      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} loading={signingOut} />
     </ScrollView>
   );
 }

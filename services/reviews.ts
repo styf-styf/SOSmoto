@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Appointment, Business, HelpRequest, Review } from '../types/database';
+import type { Appointment, Business, HelpRequest, MaintenanceSuggestion, Review, Vehicle } from '../types/database';
 
 export interface CreateReviewParams {
   reviewerId: string;
@@ -91,7 +91,8 @@ export async function getBusinessReviews(businessId: string): Promise<Review[]> 
 
 export interface ServiceHistoryItem {
   id: string;
-  kind: 'help_request' | 'appointment';
+  kind: 'help_request' | 'appointment' | 'maintenance';
+  title: string;
   status: string;
   createdAt: string;
   description: string | null;
@@ -102,7 +103,7 @@ export interface ServiceHistoryItem {
 }
 
 export async function getServiceHistory(clientId: string): Promise<ServiceHistoryItem[]> {
-  const [helpRequestsResult, appointmentsResult] = await Promise.all([
+  const [helpRequestsResult, appointmentsResult, vehiclesResult] = await Promise.all([
     supabase
       .from('help_requests')
       .select('*')
@@ -115,9 +116,31 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
       .eq('client_id', clientId)
       .in('status', ['completed', 'cancelled'])
       .order('created_at', { ascending: false }),
+    supabase.from('vehicles').select('id, brand, model').eq('user_id', clientId),
   ]);
   if (helpRequestsResult.error) throw helpRequestsResult.error;
   if (appointmentsResult.error) throw appointmentsResult.error;
+  if (vehiclesResult.error) throw vehiclesResult.error;
+
+  const vehicles = (vehiclesResult.data ?? []) as Pick<Vehicle, 'id' | 'brand' | 'model'>[];
+  const vehicleIds = vehicles.map((v) => v.id);
+
+  const { data: maintenanceData, error: maintenanceError } = vehicleIds.length
+    ? await supabase
+        .from('maintenance_suggestions')
+        .select('*')
+        .in('vehicle_id', vehicleIds)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+    : { data: [] as MaintenanceSuggestion[], error: null };
+  if (maintenanceError) throw maintenanceError;
+
+  const maintenanceSuggestions = (maintenanceData ?? []) as MaintenanceSuggestion[];
+  const ruleIds = Array.from(new Set(maintenanceSuggestions.map((s) => s.rule_id)));
+  const { data: rulesData, error: rulesError } = ruleIds.length
+    ? await supabase.from('maintenance_rules').select('id, service_name').in('id', ruleIds)
+    : { data: [] as { id: string; service_name: string }[], error: null };
+  if (rulesError) throw rulesError;
 
   const helpRequests = (helpRequestsResult.data ?? []) as HelpRequest[];
   const appointmentRows = (appointmentsResult.data ?? []) as unknown as (Appointment & {
@@ -160,29 +183,57 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
       .map((r) => [r.appointment_id as string, r])
   );
 
-  const helpRequestItems: ServiceHistoryItem[] = helpRequests.map((hr) => ({
-    id: hr.id,
-    kind: 'help_request',
-    status: hr.status,
-    createdAt: hr.created_at,
-    description: hr.description,
-    business: hr.accepted_business_id ? businessById.get(hr.accepted_business_id) ?? null : null,
-    review: reviewByHelpRequestId.get(hr.id) ?? null,
-    helpRequestId: hr.id,
-  }));
+  const helpRequestItems: ServiceHistoryItem[] = helpRequests.map((hr) => {
+    const business = hr.accepted_business_id ? businessById.get(hr.accepted_business_id) ?? null : null;
+    return {
+      id: hr.id,
+      kind: 'help_request',
+      title: business?.name ?? 'Taller',
+      status: hr.status,
+      createdAt: hr.created_at,
+      description: hr.description,
+      business,
+      review: reviewByHelpRequestId.get(hr.id) ?? null,
+      helpRequestId: hr.id,
+    };
+  });
 
-  const appointmentItems: ServiceHistoryItem[] = appointmentRows.map((appt) => ({
-    id: appt.id,
-    kind: 'appointment',
-    status: appt.status,
-    createdAt: appt.created_at,
-    description: appt.services?.name ?? appt.notes ?? null,
-    business: businessById.get(appt.business_id) ?? null,
-    review: reviewByAppointmentId.get(appt.id) ?? null,
-    appointmentId: appt.id,
-  }));
+  const appointmentItems: ServiceHistoryItem[] = appointmentRows.map((appt) => {
+    const business = businessById.get(appt.business_id) ?? null;
+    return {
+      id: appt.id,
+      kind: 'appointment',
+      title: business?.name ?? 'Taller',
+      status: appt.status,
+      createdAt: appt.created_at,
+      description: appt.services?.name ?? appt.notes ?? null,
+      business,
+      review: reviewByAppointmentId.get(appt.id) ?? null,
+      appointmentId: appt.id,
+    };
+  });
 
-  return [...helpRequestItems, ...appointmentItems].sort(
+  const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
+  const ruleById = new Map(((rulesData ?? []) as { id: string; service_name: string }[]).map((r) => [r.id, r]));
+
+  const maintenanceItems: ServiceHistoryItem[] = maintenanceSuggestions.map((suggestion) => {
+    const vehicle = vehicleById.get(suggestion.vehicle_id);
+    const rule = ruleById.get(suggestion.rule_id);
+    return {
+      id: suggestion.id,
+      kind: 'maintenance',
+      title: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Tu moto',
+      status: 'completed',
+      createdAt: suggestion.completed_at ?? suggestion.created_at,
+      description:
+        `${rule?.service_name ?? 'Mantenimiento'}` +
+        (suggestion.completed_at_km !== null ? ` · ${suggestion.completed_at_km.toLocaleString()} km` : ''),
+      business: null,
+      review: null,
+    };
+  });
+
+  return [...helpRequestItems, ...appointmentItems, ...maintenanceItems].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }

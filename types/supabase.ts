@@ -267,6 +267,7 @@ export interface Database {
           reference_price: number | null;
           photos: string[];
           is_active: boolean;
+          views: number;
           created_at: string;
         };
         Insert: {
@@ -277,6 +278,7 @@ export interface Database {
           reference_price?: number | null;
           photos?: string[];
           is_active?: boolean;
+          views?: number;
           created_at?: string;
         };
         Update: {
@@ -287,6 +289,7 @@ export interface Database {
           reference_price?: number | null;
           photos?: string[];
           is_active?: boolean;
+          views?: number;
           created_at?: string;
         };
         Relationships: [];
@@ -302,6 +305,7 @@ export interface Database {
           stock: number;
           photos: string[];
           is_active: boolean;
+          views: number;
           created_at: string;
         };
         Insert: {
@@ -314,6 +318,7 @@ export interface Database {
           stock?: number;
           photos?: string[];
           is_active?: boolean;
+          views?: number;
           created_at?: string;
         };
         Update: {
@@ -326,6 +331,7 @@ export interface Database {
           stock?: number;
           photos?: string[];
           is_active?: boolean;
+          views?: number;
           created_at?: string;
         };
         Relationships: [];
@@ -405,6 +411,36 @@ export interface Database {
           business_id?: string;
           notified_at?: string;
           responded?: boolean;
+        };
+        Relationships: [];
+      };
+      growth_suggestions: {
+        Row: {
+          id: string;
+          business_id: string;
+          type: string;
+          title: string;
+          body: string;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          type: string;
+          title: string;
+          body: string;
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          type?: string;
+          title?: string;
+          body?: string;
+          status?: string;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -719,6 +755,8 @@ export interface Database {
           due_at_km: number | null;
           status: 'pending' | 'notified' | 'dismissed' | 'completed';
           overdue_notified_at: string | null;
+          completed_at: string | null;
+          completed_at_km: number | null;
           created_at: string;
         };
         Insert: {
@@ -728,6 +766,8 @@ export interface Database {
           due_at_km?: number | null;
           status?: 'pending' | 'notified' | 'dismissed' | 'completed';
           overdue_notified_at?: string | null;
+          completed_at?: string | null;
+          completed_at_km?: number | null;
           created_at?: string;
         };
         Update: {
@@ -737,6 +777,8 @@ export interface Database {
           due_at_km?: number | null;
           status?: 'pending' | 'notified' | 'dismissed' | 'completed';
           overdue_notified_at?: string | null;
+          completed_at?: string | null;
+          completed_at_km?: number | null;
           created_at?: string;
         };
         Relationships: [];
@@ -897,6 +939,10 @@ export interface Database {
       };
       increment_story_metric: {
         Args: { story_id: string; metric: string };
+        Returns: undefined;
+      };
+      increment_catalog_views: {
+        Args: { item_id: string; item_type: string };
         Returns: undefined;
       };
     };

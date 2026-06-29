@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { TextField } from '../../../components/TextField';
@@ -7,6 +8,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import { createBusiness, getMyWorkBusiness } from '../../../services/businesses';
+import { dismissGrowthSuggestion, getActiveGrowthSuggestion } from '../../../services/growth';
 import {
   getBusinessStories,
   getSeenStoryIds,
@@ -19,7 +21,7 @@ import {
 import { CreateBusinessPostBox } from '../../../components/CreateBusinessPostBox';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
-import type { Business, BusinessType } from '../../../types/database';
+import type { Business, BusinessType, GrowthSuggestion } from '../../../types/database';
 import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
 
 export default function BusinessHomeScreen() {
@@ -30,6 +32,7 @@ export default function BusinessHomeScreen() {
   const [activeStories, setActiveStories] = useState(0);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
+  const [growthSuggestion, setGrowthSuggestion] = useState<GrowthSuggestion | null>(null);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
 
@@ -60,11 +63,13 @@ export default function BusinessHomeScreen() {
         }
       }
 
-      const [stories, businessStoriesGlobal, clientStoriesGlobal] = await Promise.all([
+      const [stories, businessStoriesGlobal, clientStoriesGlobal, suggestion] = await Promise.all([
         getBusinessStories(result.id),
         getVisibleBusinessStoriesGlobal(),
         getVisibleClientStories(),
+        getActiveGrowthSuggestion(result.id),
       ]);
+      setGrowthSuggestion(suggestion);
       const visibleOwnStories = stories.filter(isStoryVisible);
       setActiveStories(visibleOwnStories.length);
       setOwnPreviewImageUrl(visibleOwnStories[0]?.image_url ?? null);
@@ -94,6 +99,17 @@ export default function BusinessHomeScreen() {
       load().catch((err) => console.error('refresh business home error', err));
     }, [load])
   );
+
+  async function handleDismissSuggestion() {
+    if (!growthSuggestion) return;
+    const id = growthSuggestion.id;
+    setGrowthSuggestion(null);
+    try {
+      await dismissGrowthSuggestion(id);
+    } catch (err) {
+      console.error('dismiss growth suggestion error', err);
+    }
+  }
 
   if (loading) {
     return (
@@ -140,6 +156,26 @@ export default function BusinessHomeScreen() {
               }))}
             />
           </View>
+          {growthSuggestion && (
+            <View style={styles.growthWrap}>
+              <View style={styles.growthCard}>
+                <Ionicons name="trending-up" size={20} color={colors.primary} />
+                <View style={styles.growthCardText}>
+                  <Text style={styles.growthCardTitle}>{growthSuggestion.title}</Text>
+                  <Text style={styles.growthCardBody}>{growthSuggestion.body}</Text>
+                </View>
+                <Pressable
+                  style={styles.growthCardAction}
+                  onPress={() => router.push('/(business)/crece-tu-negocio')}
+                >
+                  <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+                </Pressable>
+                <Pressable style={styles.growthCardAction} onPress={handleDismissSuggestion}>
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            </View>
+          )}
           {isOwner && (
             <View style={styles.createPostWrap}>
               {business.is_limited ? (
@@ -270,6 +306,34 @@ const styles = StyleSheet.create({
   },
   storiesWrap: {
     paddingBottom: 16,
+  },
+  growthWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  growthCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFF1E6',
+    borderRadius: 12,
+    padding: 14,
+  },
+  growthCardText: {
+    flex: 1,
+  },
+  growthCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  growthCardBody: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  growthCardAction: {
+    padding: 6,
   },
   createPostWrap: {
     paddingHorizontal: 20,

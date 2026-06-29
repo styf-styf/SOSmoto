@@ -116,12 +116,14 @@ La publicidad **siempre es un pago independiente**, sin importar el plan (Free, 
 | Productos en catálogo | Hasta 5 | Hasta 30 | Ilimitado |
 | Servicios en catálogo | Hasta 3 | Hasta 15 | Ilimitado |
 | Fotos por producto/servicio | 1 | 3 | 5 |
-| Recepción de solicitudes de auxilio | Sí | Sí | Sí (prioridad en matching) |
+| Recepción de solicitudes de auxilio | Sí | Sí | Sí |
 | Posición en resultados de búsqueda | Normal | Normal | Destacado |
 | Empleados/mecánicos vinculados | 1 | 3 | Ilimitado |
 | Dashboard/estadísticas | Básico | Intermedio | Avanzado (clics, vistas, conversión) |
 | Soporte | Estándar | Prioritario | Prioritario dedicado |
 | Insignia "verificado" | No | Opcional | Incluido |
+
+**Nota sobre auxilio en carretera:** el matching de solicitudes de auxilio no tiene prioridad por plan — todos los talleres dentro del radio de cobertura configurado reciben la solicitud al mismo tiempo, sin importar Free/Estándar/Pro. La única variable que determina quién la recibe es el radio (`aid_radius_km`).
 
 **Nota técnica importante:** la validación de límites de catálogo (productos/servicios) debe hacerse en el backend, no solo en el frontend — al intentar agregar un producto que excede el límite del plan, el sistema debe bloquear la acción y sugerir upgrade.
 
@@ -188,7 +190,6 @@ Distinto a la publicidad pagada: son mensajes automáticos generados por la plat
 **Sugerencia de cambio de plan:**
 - Negocio en Free llega al límite (ej. intenta agregar producto #6) → mensaje de upgrade a Estándar + botón directo a cambio de plan
 - Negocio en Estándar cerca del límite (ej. 25/30 productos) → notificación preventiva
-- Negocio pierde solicitudes de auxilio por no tener prioridad de matching → sugerencia de upgrade a Pro
 
 **Sugerencia de publicidad:**
 - Negocio con pocas visitas/clics en su perfil (dato del dashboard) → sugerencia de campaña para aumentar visibilidad

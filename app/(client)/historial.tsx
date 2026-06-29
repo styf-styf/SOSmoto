@@ -15,6 +15,7 @@ const statusLabel: Record<string, string> = {
 const kindLabel: Record<ServiceHistoryItem['kind'], string> = {
   help_request: 'Auxilio',
   appointment: 'Cita',
+  maintenance: 'Mantenimiento',
 };
 
 export default function HistorialScreen() {
@@ -85,7 +86,7 @@ function HistoryCard({ item, onReviewed }: { item: ServiceHistoryItem; onReviewe
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>{item.business?.name ?? 'Taller'}</Text>
+      <Text style={styles.cardTitle}>{item.title}</Text>
       <Text style={styles.cardMeta}>
         {kindLabel[item.kind]} · {statusLabel[item.status] ?? item.status} ·{' '}
         {new Date(item.createdAt).toLocaleDateString()}

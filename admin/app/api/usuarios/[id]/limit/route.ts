@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../../lib/requireAdmin';
+import { sendPushToUser } from '../../../../../lib/push';
 import { createAdminClient } from '../../../../../lib/supabase/admin';
 
 // "Limitar" no bloquea el login ni oculta nada -- solo impide crear
@@ -27,6 +28,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     .update({ is_limited: true, limitation_reason: reason.trim() })
     .eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await sendPushToUser(params.id, 'Cuenta limitada', `Tu cuenta está limitada: ${reason.trim()}`, {
+    type: 'account_limited',
+  });
 
   return NextResponse.json({ success: true });
 }

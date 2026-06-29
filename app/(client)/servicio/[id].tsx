@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 're
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
-import { getServiceById } from '../../../services/catalog';
+import { getServiceById, incrementServiceViews } from '../../../services/catalog';
 import type { ServiceWithBusiness } from '../../../services/catalog';
 
 export default function ServiceDetailScreen() {
@@ -15,6 +15,7 @@ export default function ServiceDetailScreen() {
     if (!id) return;
     const result = await getServiceById(id);
     setService(result);
+    if (result) incrementServiceViews(id).catch((err) => console.error('increment service views error', err));
   }, [id]);
 
   useEffect(() => {

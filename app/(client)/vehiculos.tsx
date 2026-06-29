@@ -121,7 +121,7 @@ function VehicleCard({
 
   async function handleComplete(item: MaintenanceItem) {
     try {
-      await markCompleted(item.suggestion.id);
+      await markCompleted(item.suggestion.id, vehicle.current_mileage);
       setMaintenance((prev) => prev.filter((m) => m.suggestion.id !== item.suggestion.id));
     } catch (err) {
       console.error('mark completed error', err);

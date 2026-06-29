@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 're
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
-import { getProductById } from '../../../services/catalog';
+import { getProductById, incrementProductViews } from '../../../services/catalog';
 import type { ProductWithBusiness } from '../../../services/catalog';
 
 export default function ProductDetailScreen() {
@@ -15,6 +15,7 @@ export default function ProductDetailScreen() {
     if (!id) return;
     const result = await getProductById(id);
     setProduct(result);
+    if (result) incrementProductViews(id).catch((err) => console.error('increment product views error', err));
   }, [id]);
 
   useEffect(() => {

@@ -55,6 +55,16 @@ export interface ProductWithBusiness extends Product {
   business_name: string;
 }
 
+export async function incrementProductViews(id: string): Promise<void> {
+  const { error } = await supabase.rpc('increment_catalog_views', { item_id: id, item_type: 'product' });
+  if (error) throw error;
+}
+
+export async function incrementServiceViews(id: string): Promise<void> {
+  const { error } = await supabase.rpc('increment_catalog_views', { item_id: id, item_type: 'service' });
+  if (error) throw error;
+}
+
 export async function getServiceById(id: string): Promise<ServiceWithBusiness | null> {
   const { data, error } = await supabase.from('services').select('*, businesses(name)').eq('id', id).maybeSingle();
   if (error) throw error;

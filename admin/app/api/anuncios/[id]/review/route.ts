@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../../lib/requireAdmin';
+import { sendPushToUser } from '../../../../../lib/push';
 import { createAdminClient } from '../../../../../lib/supabase/admin';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
@@ -12,8 +13,29 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from('ads').update({ status: decision }).eq('id', params.id);
+  const { data: ad, error } = await supabase
+    .from('ads')
+    .update({ status: decision })
+    .eq('id', params.id)
+    .select('business_id, title')
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('owner_id')
+    .eq('id', ad.business_id)
+    .maybeSingle();
+  if (business?.owner_id) {
+    await sendPushToUser(
+      business.owner_id,
+      decision === 'active' ? 'Anuncio aprobado' : 'Anuncio rechazado',
+      decision === 'active'
+        ? `Tu campaña "${ad.title}" ya está activa.`
+        : `Tu campaña "${ad.title}" fue rechazada. Revisa el contenido e intenta de nuevo.`,
+      { type: decision === 'active' ? 'ad_approved' : 'ad_rejected', adId: params.id }
+    );
+  }
 
   return NextResponse.json({ success: true });
 }
