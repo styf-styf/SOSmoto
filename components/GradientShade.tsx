@@ -18,11 +18,16 @@ export function GradientShade({
   height,
   position = 'bottom',
   maxOpacity = DEFAULT_MAX_OPACITY,
+  color = '#000',
   style,
 }: {
   height: number;
   position?: 'top' | 'bottom';
   maxOpacity?: number;
+  // Por defecto simula una sombra (bandas negras). Para fundir dos fondos de
+  // color distinto (ej. blanco -> gris entre el header y la primera tarjeta
+  // sin imagen) se pasa el color del fondo de arriba en vez del negro.
+  color?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   // Para la sombra de arriba se invierte la curva: la banda más oscura debe
@@ -38,7 +43,7 @@ export function GradientShade({
       style={[styles.container, position === 'top' ? styles.top : styles.bottom, { height }, style]}
     >
       {opacities.map((opacity, index) => (
-        <View key={index} style={[styles.band, { opacity }]} />
+        <View key={index} style={[styles.band, { opacity, backgroundColor: color }]} />
       ))}
     </View>
   );

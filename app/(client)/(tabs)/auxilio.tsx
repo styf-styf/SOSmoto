@@ -139,8 +139,6 @@ export default function AuxilioScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.compactTitle}>Auxilio en carretera</Text>
-
       {coords ? (
         <MapView
           style={styles.bigMap}
@@ -339,14 +337,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  compactTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
   },
   bigMap: {
     flex: 1,

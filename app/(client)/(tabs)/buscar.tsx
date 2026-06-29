@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AdGridCard } from '../../../components/AdGridCard';
 import { BusinessListItem } from '../../../components/BusinessListItem';
-import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
@@ -109,11 +117,10 @@ export default function BuscarScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Buscar talleres</Text>
-
-      <TextField
-        label="Buscar"
-        placeholder="Nombre, dirección o ciudad"
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Buscar"
+        placeholderTextColor={colors.textMuted}
         value={query}
         onChangeText={setQuery}
       />
@@ -199,10 +206,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
+  searchInput: {
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    fontSize: 16,
     color: colors.text,
+    backgroundColor: colors.surface,
     marginBottom: 12,
   },
   limitedContainer: {

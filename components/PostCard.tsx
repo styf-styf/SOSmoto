@@ -12,6 +12,7 @@ export function PostCard({
   detailHref,
   showTopShadow = true,
   showBottomShadow = true,
+  topFadeFromHeader = false,
 }: {
   post: PostWithAuthor;
   detailHref: string;
@@ -21,6 +22,9 @@ export function PostCard({
   // vez de dos tarjetas hundidas por separado.
   showTopShadow?: boolean;
   showBottomShadow?: boolean;
+  // Cuando este post es el primero del feed (nada arriba salvo el header
+  // blanco), se funde de blanco a gris en vez de mostrar la sombra normal.
+  topFadeFromHeader?: boolean;
 }) {
   const authorName = getPostAuthorName(post);
   const avatarUrl = getPostAuthorAvatar(post);
@@ -67,7 +71,12 @@ export function PostCard({
       style={[styles.card, !hasImage && styles.cardNoImage, !hasImage && !showBottomShadow && styles.cardNoBorder]}
       onPress={() => router.push(detailHref)}
     >
-      {!hasImage && showTopShadow && <GradientShade position="top" height={8} maxOpacity={0.12} />}
+      {!hasImage && topFadeFromHeader && (
+        <GradientShade position="top" height={24} maxOpacity={1} color={colors.background} />
+      )}
+      {!hasImage && !topFadeFromHeader && showTopShadow && (
+        <GradientShade position="top" height={8} maxOpacity={0.12} />
+      )}
       <View style={[styles.authorRow, hasImage && expanded && styles.authorRowExpanded]}>
         <View style={styles.avatar}>
           {avatarUrl ? (

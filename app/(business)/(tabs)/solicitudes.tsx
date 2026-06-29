@@ -137,8 +137,6 @@ export default function SolicitudesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Solicitudes de auxilio</Text>
-
       {active && (
         <View style={styles.activeCard}>
           <Text style={styles.activeTitle}>Auxilio en curso</Text>
@@ -316,12 +314,6 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     paddingBottom: 20,
     backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,

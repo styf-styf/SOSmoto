@@ -190,7 +190,6 @@ export default function CatalogoScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Catálogo</Text>
         {business.is_limited && (
           <Text style={styles.limitedNotice}>
             Tu negocio está limitado: no puedes crear, editar ni eliminar servicios o productos.
@@ -606,12 +605,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIDE_PADDING,
     paddingTop: 36,
     paddingBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
   },
   placeholder: {
     color: colors.textMuted,

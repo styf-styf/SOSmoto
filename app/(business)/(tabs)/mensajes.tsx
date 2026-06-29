@@ -83,7 +83,6 @@ export default function BusinessMensajesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Mensajes</Text>
       {conversations.length === 0 ? (
         <Text style={styles.placeholder}>Tus chats con clientes aparecerán aquí.</Text>
       ) : (
@@ -138,12 +137,6 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     paddingBottom: 20,
     backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
   },
   placeholder: {
     color: colors.textMuted,

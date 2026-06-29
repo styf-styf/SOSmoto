@@ -20,6 +20,7 @@ export default function ConfiguracionScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -37,8 +38,14 @@ export default function ConfiguracionScreen() {
   }
 
   async function handleSignOut() {
-    await signOut();
-    router.replace('/(auth)/login');
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/(auth)/login');
+    } catch (err) {
+      console.error('sign out error', err);
+      setSigningOut(false);
+    }
   }
 
   async function handleSaveProfile() {
@@ -186,7 +193,7 @@ export default function ConfiguracionScreen() {
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>General</Text>
-      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} />
+      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} loading={signingOut} />
       <Button
         title="Eliminar cuenta"
         variant="secondary"

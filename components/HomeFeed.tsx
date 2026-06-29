@@ -68,7 +68,12 @@ function buildRows(
   return rows;
 }
 
-type DecoratedRow = FeedRow & { gray: boolean; showTopShadow: boolean; showBottomShadow: boolean };
+type DecoratedRow = FeedRow & {
+  gray: boolean;
+  showTopShadow: boolean;
+  showBottomShadow: boolean;
+  topFadeFromHeader?: boolean;
+};
 
 function isGrayPost(row: FeedRow | null): boolean {
   return !!row && row.kind === 'post' && !row.post.image_url;
@@ -88,9 +93,19 @@ function decorateRows(rows: FeedRow[]): DecoratedRow[] {
     if (row.kind === 'post') {
       const gray = !row.post.image_url;
       if (!gray) return { ...row, gray: false, showTopShadow: true, showBottomShadow: true };
+      const isFirst = i === 0;
       const prevGray = isGrayPost(prev) || prev?.kind === 'catalog';
       const nextGray = isGrayPost(next) || next?.kind === 'catalog';
-      return { ...row, gray: true, showTopShadow: !prevGray, showBottomShadow: !nextGray };
+      // i === 0: no hay nada arriba en el feed salvo el header (blanco) -- en
+      // vez de la sombra normal (o nada), se funde de blanco a gris para que
+      // el cambio de fondo se vea como una transición, no como un escalón.
+      return {
+        ...row,
+        gray: true,
+        showTopShadow: !prevGray && !isFirst,
+        showBottomShadow: !nextGray,
+        topFadeFromHeader: isFirst,
+      };
     }
 
     if (row.kind === 'catalog') {
@@ -209,6 +224,7 @@ export const HomeFeed = forwardRef<
               detailHref={`/(${role})/publicacion/${item.post.id}`}
               showTopShadow={item.showTopShadow}
               showBottomShadow={item.showBottomShadow}
+              topFadeFromHeader={item.topFadeFromHeader}
             />
           );
         }
