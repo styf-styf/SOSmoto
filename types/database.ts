@@ -155,6 +155,7 @@ export interface HelpRequestNotification {
   business_id: string;
   notified_at: string;
   responded: boolean;
+  out_of_range: boolean;
 }
 
 export type GrowthSuggestionType =

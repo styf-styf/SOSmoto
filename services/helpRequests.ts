@@ -3,7 +3,14 @@ import { distanceKm } from '../utils/distance';
 import { notifyUser } from './notifications';
 import type { Business, HelpRequest, HelpRequestNotification } from '../types/database';
 
-async function findNearbyWorkshops(latitude: number, longitude: number): Promise<Business[]> {
+const FALLBACK_NEAREST_COUNT = 5;
+
+interface NearbyWorkshopsResult {
+  workshops: Business[];
+  outOfRange: boolean;
+}
+
+async function findNearbyWorkshops(latitude: number, longitude: number): Promise<NearbyWorkshopsResult> {
   const { data, error } = await supabase
     .from('businesses')
     .select('*')
@@ -11,13 +18,29 @@ async function findNearbyWorkshops(latitude: number, longitude: number): Promise
     .not('aid_radius_km', 'is', null);
   if (error) throw error;
 
-  return ((data ?? []) as Business[]).filter(
-    (b) => distanceKm(latitude, longitude, b.latitude, b.longitude) <= (b.aid_radius_km ?? 0)
-  );
+  const candidates = ((data ?? []) as Business[]).map((b) => ({
+    business: b,
+    distance: distanceKm(latitude, longitude, b.latitude, b.longitude),
+  }));
+
+  const inRange = candidates.filter((c) => c.distance <= (c.business.aid_radius_km ?? 0));
+  if (inRange.length > 0) {
+    return { workshops: inRange.map((c) => c.business), outOfRange: false };
+  }
+
+  // Ningun taller tiene al cliente dentro de su radio configurado -- en vez
+  // de dejar la solicitud sin nadie a quien notificar (grave en una
+  // emergencia), se notifica igual a los mas cercanos, marcados como fuera
+  // de su radio declarado.
+  const nearest = candidates
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, FALLBACK_NEAREST_COUNT)
+    .map((c) => c.business);
+  return { workshops: nearest, outOfRange: true };
 }
 
 export async function getNearbyWorkshops(latitude: number, longitude: number): Promise<Business[]> {
-  return findNearbyWorkshops(latitude, longitude);
+  return (await findNearbyWorkshops(latitude, longitude)).workshops;
 }
 
 export async function updateHelpRequestBusinessLocation(
@@ -58,10 +81,10 @@ export async function createHelpRequest(params: CreateHelpRequestParams): Promis
     .single();
   if (error) throw error;
 
-  const nearbyWorkshops = await findNearbyWorkshops(params.latitude, params.longitude);
+  const { workshops: nearbyWorkshops, outOfRange } = await findNearbyWorkshops(params.latitude, params.longitude);
   if (nearbyWorkshops.length > 0) {
     const { error: notifyError } = await supabase.from('help_request_notifications').insert(
-      nearbyWorkshops.map((b) => ({ help_request_id: helpRequest.id, business_id: b.id }))
+      nearbyWorkshops.map((b) => ({ help_request_id: helpRequest.id, business_id: b.id, out_of_range: outOfRange }))
     );
     if (notifyError) throw notifyError;
 
@@ -87,6 +110,17 @@ export async function getNotifiedWorkshopsCount(helpRequestId: string): Promise<
   return count ?? 0;
 }
 
+export async function wasNotifiedOutOfRange(helpRequestId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('help_request_notifications')
+    .select('out_of_range')
+    .eq('help_request_id', helpRequestId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.out_of_range ?? false;
+}
+
 export async function getActiveHelpRequest(clientId: string): Promise<HelpRequest | null> {
   const { data, error } = await supabase
     .from('help_requests')
@@ -103,6 +137,12 @@ export async function getActiveHelpRequest(clientId: string): Promise<HelpReques
 export async function cancelHelpRequest(id: string): Promise<void> {
   const { error } = await supabase.from('help_requests').update({ status: 'cancelled' }).eq('id', id);
   if (error) throw error;
+}
+
+export async function getHelpRequestById(id: string): Promise<HelpRequest | null> {
+  const { data, error } = await supabase.from('help_requests').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data as HelpRequest | null;
 }
 
 export function subscribeToHelpRequest(id: string, onChange: () => void) {
@@ -188,16 +228,16 @@ export async function getPendingRequests(businessId: string): Promise<PendingHel
 export interface AcceptHelpRequestParams {
   helpRequestId: string;
   businessId: string;
-  estimatedArrivalMinutes: number;
 }
 
+// El tiempo estimado de llegada ya no se pide al taller -- update-help-request-eta
+// lo calcula solo (Google Distance Matrix) en cuanto hay ubicación en vivo del taller.
 export async function acceptHelpRequest(params: AcceptHelpRequestParams): Promise<void> {
   const { data, error } = await supabase
     .from('help_requests')
     .update({
       status: 'accepted',
       accepted_business_id: params.businessId,
-      estimated_arrival_minutes: params.estimatedArrivalMinutes,
       accepted_at: new Date().toISOString(),
     })
     .eq('id', params.helpRequestId)
@@ -218,7 +258,7 @@ export async function acceptHelpRequest(params: AcceptHelpRequestParams): Promis
   await notifyUser(
     acceptedRequest.client_id,
     'Un taller va en camino',
-    `Llega en ~${params.estimatedArrivalMinutes} minutos.`,
+    'Aceptaron tu solicitud de auxilio. Te avisaremos el tiempo estimado de llegada en cuanto lo tengamos.',
     { type: 'help_request_accepted', helpRequestId: acceptedRequest.id }
   );
 }

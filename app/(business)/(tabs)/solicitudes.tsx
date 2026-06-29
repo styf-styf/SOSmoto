@@ -35,6 +35,7 @@ export default function SolicitudesScreen() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
+  const [locationSharingFailed, setLocationSharingFailed] = useState(false);
 
   const load = useCallback(async (id: string) => {
     const [pendingList, activeRequest] = await Promise.all([
@@ -72,15 +73,23 @@ export default function SolicitudesScreen() {
     return unsubscribe;
   }, [businessId, load]);
 
-  useLiveLocationSharing(!!active, (coords) => {
-    if (!active) return;
-    setActive((prev) =>
-      prev ? { ...prev, business_latitude: coords.latitude, business_longitude: coords.longitude } : prev
-    );
-    updateHelpRequestBusinessLocation(active.id, coords.latitude, coords.longitude).catch((err) =>
-      console.error('update business location error', err)
-    );
-  });
+  useEffect(() => {
+    setLocationSharingFailed(false);
+  }, [active?.id]);
+
+  useLiveLocationSharing(
+    !!active,
+    (coords) => {
+      if (!active) return;
+      setActive((prev) =>
+        prev ? { ...prev, business_latitude: coords.latitude, business_longitude: coords.longitude } : prev
+      );
+      updateHelpRequestBusinessLocation(active.id, coords.latitude, coords.longitude).catch((err) =>
+        console.error('update business location error', err)
+      );
+    },
+    () => setLocationSharingFailed(true)
+  );
 
   async function handleComplete() {
     if (!active) return;
@@ -142,7 +151,13 @@ export default function SolicitudesScreen() {
           <Text style={styles.activeTitle}>Auxilio en curso</Text>
           <Text style={styles.activeMeta}>{active.description ?? 'Sin descripción'}</Text>
           {active.estimated_arrival_minutes !== null && (
-            <Text style={styles.activeMeta}>ETA informado: {active.estimated_arrival_minutes} min</Text>
+            <Text style={styles.activeMeta}>ETA estimado: {active.estimated_arrival_minutes} min</Text>
+          )}
+          {locationSharingFailed && (
+            <Text style={styles.locationWarning}>
+              No pudimos compartir tu ubicación en vivo (revisa el permiso/GPS de la app). El cliente no verá tu
+              posición ni un ETA actualizado hasta que lo actives.
+            </Text>
           )}
 
           <MapView
@@ -222,22 +237,14 @@ function RequestCard({
   canAccept: boolean;
   onResolved: () => void;
 }) {
-  const [accepting, setAccepting] = useState(false);
-  const [eta, setEta] = useState('15');
   const [saving, setSaving] = useState(false);
 
   async function handleAccept() {
-    const parsed = Number(eta);
-    if (Number.isNaN(parsed) || parsed <= 0) {
-      Alert.alert('Tiempo inválido', 'Ingresa un número de minutos válido.');
-      return;
-    }
     setSaving(true);
     try {
       await acceptHelpRequest({
         helpRequestId: item.helpRequest.id,
         businessId,
-        estimatedArrivalMinutes: parsed,
       });
       onResolved();
     } catch (err) {
@@ -266,34 +273,24 @@ function RequestCard({
       <Text style={styles.cardName}>{item.client?.full_name ?? 'Cliente'}</Text>
       {item.client?.phone && <Text style={styles.cardMeta}>{item.client.phone}</Text>}
       <Text style={styles.cardMeta}>{item.helpRequest.description ?? 'Sin descripción'}</Text>
-
-      {accepting ? (
-        <View style={styles.etaRow}>
-          <TextField label="ETA (min)" keyboardType="numeric" value={eta} onChangeText={setEta} />
-          <View style={styles.actionsRow}>
-            <Button title="Confirmar" onPress={handleAccept} loading={saving} style={styles.flexButton} />
-            <Button
-              title="Cancelar"
-              variant="secondary"
-              onPress={() => setAccepting(false)}
-              style={styles.flexButton}
-            />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.actionsRow}>
-          {canAccept && (
-            <Button title="Aceptar" onPress={() => setAccepting(true)} style={styles.flexButton} />
-          )}
-          <Button
-            title="Rechazar"
-            variant="secondary"
-            onPress={handleReject}
-            loading={saving}
-            style={styles.flexButton}
-          />
-        </View>
+      {item.notification.out_of_range && (
+        <Text style={styles.outOfRangeNotice}>
+          Fuera de tu radio de cobertura configurado — nadie más cercano estaba disponible.
+        </Text>
       )}
+
+      <View style={styles.actionsRow}>
+        {canAccept && (
+          <Button title="Aceptar" onPress={handleAccept} loading={saving} style={styles.flexButton} />
+        )}
+        <Button
+          title="Rechazar"
+          variant="secondary"
+          onPress={handleReject}
+          loading={saving}
+          style={styles.flexButton}
+        />
+      </View>
       {!canAccept && (
         <Text style={styles.noPermission}>No tienes permiso para aceptar auxilios. Pídele acceso al dueño.</Text>
       )}
@@ -342,6 +339,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 2,
   },
+  locationWarning: {
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: 6,
+  },
   completeButton: {
     marginTop: 12,
   },
@@ -372,9 +374,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
-  etaRow: {
-    marginTop: 12,
-  },
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -387,5 +386,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
     marginTop: 8,
+  },
+  outOfRangeNotice: {
+    fontSize: 12,
+    color: colors.warning,
+    marginTop: 6,
   },
 });

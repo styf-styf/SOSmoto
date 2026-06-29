@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getActiveHelpRequest, subscribeToHelpRequest } from '../services/helpRequests';
+import { getActiveHelpRequest, getHelpRequestById, subscribeToHelpRequest } from '../services/helpRequests';
 import type { HelpRequest } from '../types/database';
 
 export function useActiveHelpRequest(clientId: string | undefined) {
   const [activeRequest, setActiveRequest] = useState<HelpRequest | null>(null);
+  const [completedRequest, setCompletedRequest] = useState<HelpRequest | null>(null);
 
   const load = useCallback(async () => {
     if (!clientId) {
@@ -20,9 +21,26 @@ export function useActiveHelpRequest(clientId: string | undefined) {
 
   useEffect(() => {
     if (!activeRequest) return;
-    const unsubscribe = subscribeToHelpRequest(activeRequest.id, load);
+    const requestId = activeRequest.id;
+    // getActiveHelpRequest deja de devolver la solicitud en cuanto pasa a
+    // 'completed', así que hay que leerla por id antes de recargar para
+    // poder mostrarle al cliente el prompt de calificación.
+    const unsubscribe = subscribeToHelpRequest(requestId, () => {
+      getHelpRequestById(requestId)
+        .then((updated) => {
+          if (updated?.status === 'completed') setCompletedRequest(updated);
+        })
+        .catch((err) => console.error('check completed help request error', err))
+        .finally(() => load());
+    });
     return unsubscribe;
   }, [activeRequest?.id, load]);
 
-  return { activeRequest, setActiveRequest, refresh: load };
+  return {
+    activeRequest,
+    setActiveRequest,
+    completedRequest,
+    clearCompletedRequest: () => setCompletedRequest(null),
+    refresh: load,
+  };
 }

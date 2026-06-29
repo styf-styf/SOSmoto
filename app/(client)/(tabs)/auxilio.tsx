@@ -17,7 +17,9 @@ import {
   createHelpRequest,
   getNearbyWorkshops,
   getNotifiedWorkshopsCount,
+  wasNotifiedOutOfRange,
 } from '../../../services/helpRequests';
+import { createReview } from '../../../services/reviews';
 import { getVehicles } from '../../../services/vehicles';
 import type { Business, HelpRequest, Vehicle } from '../../../types/database';
 
@@ -32,7 +34,8 @@ const statusLabel: Record<HelpRequest['status'], string> = {
 export default function AuxilioScreen() {
   const { profile } = useAuth();
   const { coords, getCoords } = useLocation();
-  const { activeRequest, setActiveRequest } = useActiveHelpRequestContext();
+  const { activeRequest, setActiveRequest, completedRequest, clearCompletedRequest } =
+    useActiveHelpRequestContext();
 
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -122,6 +125,10 @@ export default function AuxilioScreen() {
 
   if (activeRequest) {
     return <ActiveRequestCard request={activeRequest} onCancel={handleCancel} />;
+  }
+
+  if (completedRequest) {
+    return <CompletedRequestCard request={completedRequest} onDone={clearCompletedRequest} />;
   }
 
   if (vehicles.length === 0) {
@@ -216,6 +223,7 @@ export default function AuxilioScreen() {
 function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCancel: () => void }) {
   const [business, setBusiness] = useState<Business | null>(null);
   const [notifiedCount, setNotifiedCount] = useState<number | null>(null);
+  const [outOfRange, setOutOfRange] = useState(false);
 
   useEffect(() => {
     if (request.accepted_business_id) {
@@ -233,6 +241,11 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
         if (!cancelled) setNotifiedCount(count);
       })
       .catch((err) => console.error('load notified count error', err));
+    wasNotifiedOutOfRange(request.id)
+      .then((value) => {
+        if (!cancelled) setOutOfRange(value);
+      })
+      .catch((err) => console.error('load out of range error', err));
     return () => {
       cancelled = true;
     };
@@ -270,6 +283,12 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
                 ? `Notificamos a ${notifiedCount} taller${notifiedCount === 1 ? '' : 'es'} cercano${notifiedCount === 1 ? '' : 's'}.`
                 : 'No encontramos talleres cercanos disponibles por ahora. Tu solicitud sigue activa.'}
           </Text>
+          {notifiedCount !== null && notifiedCount > 0 && outOfRange && (
+            <Text style={styles.statusDetailMuted}>
+              Ningún taller cubre tu zona habitualmente; notificamos a los más cercanos disponibles, podrían tardar
+              un poco más en responder.
+            </Text>
+          )}
         </>
       )}
 
@@ -322,6 +341,62 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
       {(request.status === 'pending' || request.status === 'accepted') && (
         <Button title="Cancelar solicitud" variant="secondary" onPress={onCancel} style={styles.cancelButton} />
       )}
+    </View>
+  );
+}
+
+function CompletedRequestCard({ request, onDone }: { request: HelpRequest; onDone: () => void }) {
+  const { profile } = useAuth();
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!request.accepted_business_id) return;
+    getBusinessById(request.accepted_business_id)
+      .then(setBusiness)
+      .catch((err) => console.error('load business error', err));
+  }, [request.accepted_business_id]);
+
+  async function handleSubmit() {
+    if (!profile || !request.accepted_business_id) return;
+    setSaving(true);
+    try {
+      await createReview({
+        reviewerId: profile.id,
+        businessId: request.accepted_business_id,
+        helpRequestId: request.id,
+        rating,
+        comment: comment.trim() || undefined,
+      });
+      onDone();
+    } catch (err) {
+      console.error('create review error', err);
+      Alert.alert('Error', 'No se pudo enviar la calificación.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <View style={styles.center}>
+      <Text style={styles.statusTitle}>Auxilio completado</Text>
+      <View style={styles.businessCard}>
+        <Text style={styles.businessName}>¿Cómo te fue con {business?.name ?? 'el taller'}?</Text>
+        <View style={styles.starsRow}>
+          {[1, 2, 3, 4, 5].map((value) => (
+            <Pressable key={value} onPress={() => setRating(value)}>
+              <Ionicons name={value <= rating ? 'star' : 'star-outline'} size={28} color={colors.warning} />
+            </Pressable>
+          ))}
+        </View>
+        <TextField label="Comentario (opcional)" value={comment} onChangeText={setComment} />
+        <View style={styles.businessActions}>
+          <Button title="Enviar" onPress={handleSubmit} loading={saving} style={styles.flexButton} />
+          <Button title="Omitir" variant="secondary" onPress={onDone} style={styles.flexButton} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -425,6 +500,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
   },
+  statusDetailMuted: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
   businessCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -446,6 +528,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 12,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  flexButton: {
+    flex: 1,
   },
   businessActionButton: {
     flexDirection: 'row',

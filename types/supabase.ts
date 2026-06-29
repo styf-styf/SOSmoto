@@ -397,6 +397,7 @@ export interface Database {
           business_id: string;
           notified_at: string;
           responded: boolean;
+          out_of_range: boolean;
         };
         Insert: {
           id?: string;
@@ -404,6 +405,7 @@ export interface Database {
           business_id: string;
           notified_at?: string;
           responded?: boolean;
+          out_of_range?: boolean;
         };
         Update: {
           id?: string;
@@ -411,6 +413,7 @@ export interface Database {
           business_id?: string;
           notified_at?: string;
           responded?: boolean;
+          out_of_range?: boolean;
         };
         Relationships: [];
       };

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { notifyUser } from './notifications';
 import type { Appointment, Business, HelpRequest, MaintenanceSuggestion, Review, Vehicle } from '../types/database';
 
 export interface CreateReviewParams {
@@ -25,6 +26,21 @@ export async function createReview(params: CreateReviewParams): Promise<Review> 
     .single();
 
   if (error) throw error;
+
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('owner_id')
+    .eq('id', params.businessId)
+    .maybeSingle();
+  if (business?.owner_id) {
+    await notifyUser(
+      business.owner_id,
+      'Nueva calificación',
+      `Un cliente calificó tu negocio con ${params.rating} estrella${params.rating === 1 ? '' : 's'}.`,
+      { type: 'new_review', businessId: params.businessId }
+    );
+  }
+
   return data as Review;
 }
 

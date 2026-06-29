@@ -93,7 +93,13 @@ function HistoryCard({ item, onReviewed }: { item: ServiceHistoryItem; onReviewe
       </Text>
       {item.description && <Text style={styles.cardMeta}>{item.description}</Text>}
 
-      {item.status === 'completed' &&
+      {item.status === 'cancelled' && item.business && !item.review && (
+        <Text style={styles.cardMeta}>
+          El taller fue asignado pero la solicitud se canceló. Si no se presentó, puedes calificarlo.
+        </Text>
+      )}
+
+      {(item.status === 'completed' || item.status === 'cancelled') &&
         item.business &&
         (item.review ? (
           <View style={styles.reviewDone}>

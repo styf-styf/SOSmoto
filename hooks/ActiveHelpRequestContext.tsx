@@ -6,6 +6,8 @@ import type { HelpRequest } from '../types/database';
 interface ActiveHelpRequestContextValue {
   activeRequest: HelpRequest | null;
   setActiveRequest: (request: HelpRequest | null) => void;
+  completedRequest: HelpRequest | null;
+  clearCompletedRequest: () => void;
   refresh: () => Promise<void>;
 }
 

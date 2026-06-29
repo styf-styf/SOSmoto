@@ -38,7 +38,7 @@ App móvil (Android/iOS), nombre comercial **SOSmoto**, que conecta motociclista
 ### Negocio (taller/tienda)
 - Registro/login, configuración de perfil de negocio (nombre, dirección, ciudad, ubicación geográfica, horario)
 - Configuración de catálogo: servicios (con descripción y precio referencial) y productos (con stock)
-- Recepción y gestión de solicitudes de auxilio (aceptar/rechazar, tiempo estimado de llegada)
+- Recepción y gestión de solicitudes de auxilio (aceptar/rechazar); el tiempo estimado de llegada ya no se escribe a mano, se calcula automáticamente (Google Distance Matrix) en cuanto el taller comparte su ubicación en vivo
 - Radio de cobertura configurable para auxilio
 - Gestión de empleados/mecánicos vinculados al negocio
 - Agenda/citas para mantenimiento programado
