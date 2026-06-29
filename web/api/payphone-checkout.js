@@ -28,18 +28,29 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (payment.checkout_opened_at) {
-    // Esta pagina ya se sirvio antes para este pago -- es una recarga (ej. el
-    // navegador del celular recargo la pestana al volver de la app de la
-    // wallet), no la primera vez. Re-inicializar el widget de Payphone con el
-    // mismo client_transaction_id fallaria con "transaccion ya existe", asi
-    // que en vez de eso mandamos a la pagina de retorno: ella ya sabe esperar
-    // al webhook y mostrar el estado real (aprobado o "todavia procesando").
+  // Marca atomicamente esta carga como "la primera" -- el UPDATE solo afecta
+  // una fila si checkout_opened_at todavia es null. Esto evita una condicion
+  // de carrera: si dos requests para el mismo paymentId llegan casi al mismo
+  // tiempo (ej. el navegador del celular reintenta la carga al volver de la
+  // app de la wallet), un simple "leer y despues escribir" deja que ambas
+  // lean null antes de que cualquiera escriba, y las dos terminan llamando a
+  // Payphone con el mismo client_transaction_id -- error "ya existe la
+  // transaccion". Con un UPDATE condicionado, solo una request "gana" y
+  // renderiza el widget; la otra (o cualquier recarga posterior) se manda
+  // directo a la pagina de retorno, que ya sabe esperar/confirmar el pago.
+  const { data: claimed } = await supabase
+    .from('payments')
+    .update({ checkout_opened_at: new Date().toISOString() })
+    .eq('id', paymentId)
+    .is('checkout_opened_at', null)
+    .select('id')
+    .maybeSingle();
+
+  if (!claimed) {
     res.writeHead(302, { Location: `/api/payphone-return?clientTransactionId=${payment.client_transaction_id}` });
     res.end();
     return;
   }
-  await supabase.from('payments').update({ checkout_opened_at: new Date().toISOString() }).eq('id', paymentId);
 
   const amountCents = Math.round(Number(payment.amount) * 100);
 
