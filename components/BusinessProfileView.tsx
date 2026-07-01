@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
 import { colors } from '../constants/colors';
@@ -159,7 +159,8 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const showFollow = mode === 'public' && profile?.role === 'client';
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, mode === 'public' && styles.containerWithHeader]}>
+      {mode === 'public' && <Stack.Screen options={{ title: business.name }} />}
       {mode === 'self' && business.is_limited && (
         <View style={styles.suspendedBanner}>
           <Ionicons name="alert-circle" size={18} color={colors.danger} />
@@ -237,18 +238,16 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       </View>
 
       {mode === 'self' && (
-        <View style={styles.actionsRow}>
-          <Button
-            title="Catálogo"
-            variant="secondary"
+        <View style={styles.profileActionsRow}>
+          <ProfileActionButton
+            icon="grid-outline"
+            label="Catálogo"
             onPress={() => router.push('/(business)/catalogo')}
-            style={styles.actionButton}
           />
-          <Button
-            title="Anuncios"
-            variant="secondary"
+          <ProfileActionButton
+            icon="megaphone-outline"
+            label="Anuncios"
             onPress={() => router.push('/(business)/publicidad')}
-            style={styles.actionButton}
           />
         </View>
       )}
@@ -448,6 +447,12 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     paddingBottom: 32,
     backgroundColor: colors.background,
+  },
+  // El modo "public" ya tiene header nativo (con flecha de regreso) -- el
+  // padding de 36 era para compensar la ausencia de header y separar del
+  // status bar, ahora sobra y deja el avatar/título muy lejos del header.
+  containerWithHeader: {
+    paddingTop: 16,
   },
   placeholder: {
     color: colors.textMuted,

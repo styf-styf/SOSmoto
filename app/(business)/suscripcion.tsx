@@ -148,7 +148,6 @@ export default function SuscripcionScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Plan y suscripción</Text>
       <Text style={styles.helperText}>
         Los planes pagos se cobran y se gestionan desde el portal web de SOSmoto (Payphone). Te avisaremos antes de
         que venza tu suscripción para que renueves.
@@ -214,7 +213,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

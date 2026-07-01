@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
+import { useAuth } from '../../../hooks/useAuth';
 import { getServiceById, incrementServiceViews } from '../../../services/catalog';
 import type { ServiceWithBusiness } from '../../../services/catalog';
 
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { profile } = useAuth();
   const [service, setService] = useState<ServiceWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,6 +35,14 @@ export default function ServiceDetailScreen() {
     );
   }
 
+  if (profile?.role !== 'client') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>Esta vista es solo para clientes.</Text>
+      </View>
+    );
+  }
+
   if (!service) {
     return (
       <View style={styles.center}>
@@ -43,6 +53,7 @@ export default function ServiceDetailScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Stack.Screen options={{ title: service.name }} />
       {service.photos[0] && (
         <Image source={{ uri: service.photos[0] }} style={styles.photo} resizeMode="cover" />
       )}
@@ -98,7 +109,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

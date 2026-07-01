@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  findNodeHandle,
   Image,
   Modal,
   Pressable,
@@ -12,6 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
 import { GradientShade } from '../../../components/GradientShade';
@@ -61,12 +63,16 @@ type FormState = { kind: 'service'; service: Service | null } | { kind: 'product
 // cual" lo ve el cliente, con las acciones de gestión superpuestas.
 export default function CatalogoScreen() {
   const { profile } = useAuth();
+  const { highlightId } = useLocalSearchParams<{ highlightId?: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const highlightCardRef = useRef<View | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -91,6 +97,28 @@ export default function CatalogoScreen() {
       .catch((err) => console.error('load catalogo error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    if (!highlightId || !products.length) return;
+    setHighlightedId(highlightId);
+    const scrollTimer = setTimeout(() => {
+      if (highlightCardRef.current && scrollRef.current) {
+        const node = findNodeHandle(scrollRef.current);
+        if (node) {
+          highlightCardRef.current.measureLayout(
+            node,
+            (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true }),
+            () => {}
+          );
+        }
+      }
+    }, 350);
+    const clearTimer = setTimeout(() => setHighlightedId(null), 3500);
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [highlightId, products.length]);
 
   if (loading) {
     return (
@@ -189,7 +217,7 @@ export default function CatalogoScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
         {business.is_limited && (
           <Text style={styles.limitedNotice}>
             Tu negocio está limitado: no puedes crear, editar ni eliminar servicios o productos.
@@ -239,6 +267,9 @@ export default function CatalogoScreen() {
             readOnly={business.is_limited}
             onEdit={(product) => setForm({ kind: 'product', product })}
             onDelete={confirmDeleteProduct}
+            highlightId={highlightId}
+            highlightCardRef={highlightCardRef}
+            highlightedId={highlightedId}
           />
         )}
       </ScrollView>
@@ -272,11 +303,17 @@ function CatalogGrid<T extends CatalogDisplayItem>({
   onEdit,
   onDelete,
   readOnly,
+  highlightId,
+  highlightCardRef,
+  highlightedId,
 }: {
   items: T[];
   onEdit: (item: T) => void;
   onDelete: (item: T) => void;
   readOnly?: boolean;
+  highlightId?: string;
+  highlightCardRef?: { current: View | null };
+  highlightedId?: string | null;
 }) {
   const withPhoto = items.filter((item) => item.photos.length > 0);
   const withoutPhoto = items.filter((item) => item.photos.length === 0);
@@ -285,7 +322,12 @@ function CatalogGrid<T extends CatalogDisplayItem>({
       {withPhoto.length > 0 && (
         <View style={styles.grid}>
           {withPhoto.map((item) => (
-            <Pressable key={item.id} style={styles.gridCard} onPress={() => !readOnly && onEdit(item)}>
+            <Pressable
+              key={item.id}
+              ref={item.id === highlightId && highlightCardRef ? (el: any) => { highlightCardRef.current = el; } : undefined}
+              style={[styles.gridCard, item.id === highlightedId && styles.gridCardHighlight]}
+              onPress={() => !readOnly && onEdit(item)}
+            >
               <Image source={{ uri: item.photos[0] }} style={styles.gridImage} resizeMode="cover" />
               <GradientShade height={Math.round(CARD_HEIGHT * 0.55)} />
               <Text numberOfLines={1} style={styles.gridName}>
@@ -309,7 +351,12 @@ function CatalogGrid<T extends CatalogDisplayItem>({
       {withoutPhoto.length > 0 && (
         <View style={[withPhoto.length > 0 && styles.listWrapWithGrid]}>
           {withoutPhoto.map((item) => (
-            <Pressable key={item.id} style={styles.itemRow} onPress={() => !readOnly && onEdit(item)}>
+            <Pressable
+              key={item.id}
+              ref={item.id === highlightId && highlightCardRef ? (el: any) => { highlightCardRef.current = el; } : undefined}
+              style={[styles.itemRow, item.id === highlightedId && styles.itemRowHighlight]}
+              onPress={() => !readOnly && onEdit(item)}
+            >
               <Text style={styles.itemName} numberOfLines={1}>
                 {item.name}
                 {!item.is_active ? ' · Oculto' : ''}
@@ -786,5 +833,12 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     fontWeight: '600',
+  },
+  gridCardHighlight: {
+    borderWidth: 2.5,
+    borderColor: colors.primary,
+  },
+  itemRowHighlight: {
+    backgroundColor: `${colors.primary}18`,
   },
 });

@@ -344,3 +344,20 @@ export interface Follow {
   business_id: string;
   created_at: string;
 }
+
+export type ProductIntentStatus = 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+
+export interface ProductIntent {
+  id: string;
+  client_id: string;
+  product_id: string;
+  business_id: string;
+  status: ProductIntentStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductIntentWithProduct extends ProductIntent {
+  product_name: string;
+  product_price: number | null;
+}

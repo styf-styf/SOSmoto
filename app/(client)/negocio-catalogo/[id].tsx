@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { GradientShade } from '../../../components/GradientShade';
 import { colors } from '../../../constants/colors';
 import { getBusinessById } from '../../../services/businesses';
@@ -74,7 +74,7 @@ export default function NegocioCatalogoScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{business.name}</Text>
+      <Stack.Screen options={{ title: business.name }} />
 
       <Section title="Servicios">
         {services.length === 0 ? (
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: SIDE_PADDING,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 32,
     backgroundColor: colors.background,
   },

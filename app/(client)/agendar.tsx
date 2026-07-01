@@ -78,7 +78,6 @@ export default function AgendarScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Solicitar cita</Text>
       <Text style={styles.placeholder}>{business?.name}</Text>
       <Text style={styles.hint}>
         Elige el servicio que necesitas. El taller te propondrá una fecha y hora, y podrás aprobarla o rechazarla.
@@ -146,7 +145,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

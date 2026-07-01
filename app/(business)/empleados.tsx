@@ -80,7 +80,6 @@ export default function EmpleadosScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Equipo</Text>
       <Text style={styles.helperText}>
         {allowedAdditional !== null
           ? `${employees.length}/${allowedAdditional} mecánicos adicionales (plan ${limits?.planName})`
@@ -258,7 +257,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

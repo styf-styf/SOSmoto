@@ -71,7 +71,9 @@ export default function HistoriasScreen() {
 
   const activeCount = stories.filter(isStoryVisible).length;
   const atLimit = plan?.maxActiveStories !== null && activeCount >= (plan?.maxActiveStories ?? Infinity);
-  const canPin = plan?.planName === 'pro';
+  // Fijar como destacado permanente está desactivado temporalmente (historias quedaban
+  // visibles para siempre sin aviso claro) -- pendiente de mejorar o quitar.
+  const canPin = false;
 
   function resetForm() {
     setImageUrl('');
@@ -165,7 +167,6 @@ export default function HistoriasScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Historias</Text>
       <Text style={styles.helperText}>
         Foto visible 24h para tus clientes. {plan?.maxActiveStories === null ? 'Tu plan permite historias ilimitadas.' : `${activeCount}/${plan?.maxActiveStories ?? 0} historias activas según tu plan ${plan?.planName}.`}
       </Text>
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

@@ -7,7 +7,6 @@ import { AuthProvider } from '../hooks/AuthContext';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,

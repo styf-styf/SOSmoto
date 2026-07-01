@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
@@ -72,6 +72,13 @@ export default function ChatScreen() {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages.length]);
 
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    return sub.remove;
+  }, []);
+
   async function handleSend() {
     if (!profile || !clientId || !businessId || !text.trim()) return;
     const body = text.trim();
@@ -110,38 +117,38 @@ export default function ChatScreen() {
         onPressName={businessId ? () => router.push(`/(client)/business/${businessId}`) : undefined}
       />
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
-        {messages.length === 0 ? (
-          <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
-        ) : (
-          messages.map((message, index) => (
-            <View key={message.id}>
-              {shouldShowDateSeparator(messages, index) && (
-                <View style={styles.dateSeparator}>
-                  <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <ScrollView ref={scrollRef} style={styles.flex} contentContainerStyle={styles.messages}>
+          {messages.length === 0 ? (
+            <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
+          ) : (
+            messages.map((message, index) => (
+              <View key={message.id}>
+                {shouldShowDateSeparator(messages, index) && (
+                  <View style={styles.dateSeparator}>
+                    <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                  </View>
+                )}
+                <View
+                  style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
+                >
+                  <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
+                    {message.body}
+                  </Text>
                 </View>
-              )}
-              <View
-                style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
-              >
-                <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
-                  {message.body}
+                <Text
+                  style={[
+                    styles.messageTime,
+                    message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
+                  ]}
+                >
+                  {formatMessageTime(message.created_at)}
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.messageTime,
-                  message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
-                ]}
-              >
-                {formatMessageTime(message.created_at)}
-              </Text>
-            </View>
-          ))
-        )}
-      </ScrollView>
+            ))
+          )}
+        </ScrollView>
 
-      <KeyboardStickyView>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -154,7 +161,7 @@ export default function ChatScreen() {
             <Ionicons name="send" size={18} color="#fff" />
           </Pressable>
         </View>
-      </KeyboardStickyView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -169,6 +176,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   messages: {
     padding: 16,

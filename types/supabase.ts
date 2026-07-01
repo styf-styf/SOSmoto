@@ -873,6 +873,36 @@ export interface Database {
         };
         Relationships: [];
       };
+      product_intents: {
+        Row: {
+          id: string;
+          client_id: string;
+          product_id: string;
+          business_id: string;
+          status: 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          product_id: string;
+          business_id: string;
+          status?: 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          product_id?: string;
+          business_id?: string;
+          status?: 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       business_verification_requests: {
         Row: {
           id: string;

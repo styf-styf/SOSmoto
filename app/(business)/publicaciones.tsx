@@ -141,7 +141,6 @@ export default function BusinessPublicacionesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Publicaciones</Text>
       <Text style={styles.helperText}>Foto y texto permanentes, visibles para toda la comunidad.</Text>
 
       {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede publicar.</Text>}
@@ -271,7 +270,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

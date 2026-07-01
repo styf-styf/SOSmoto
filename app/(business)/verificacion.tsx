@@ -148,7 +148,6 @@ export default function VerificacionScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Verificación de negocio</Text>
       <Text style={styles.helperText}>
         Sube tu cédula o RUC y una foto del local. Un admin revisará tu solicitud y, si todo está en orden, tu negocio
         recibirá la insignia de "verificado".
@@ -220,7 +219,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

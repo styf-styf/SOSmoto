@@ -1,6 +1,7 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 
 interface ChatHeaderProps {
@@ -11,41 +12,49 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ name, avatarUrl, fallbackIcon = 'person', onPressName }: ChatHeaderProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.header}>
-      <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-        <Ionicons name="chevron-back" size={24} color={colors.text} />
-      </Pressable>
-      <Pressable style={styles.identity} onPress={onPressName} disabled={!onPressName}>
-        <View style={styles.avatar}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name={fallbackIcon} size={18} color={colors.primary} />
-          )}
-        </View>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
-      </Pressable>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.bar}>
+        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </Pressable>
+        <Pressable style={styles.identity} onPress={onPressName} disabled={!onPressName}>
+          <View style={styles.avatar}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name={fallbackIcon} size={18} color={colors.primary} />
+            )}
+          </View>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
+  container: {
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  bar: {
+    height: 38,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 4,
     gap: 4,
-    paddingHorizontal: 8,
-    paddingTop: 36,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.background,
   },
   backButton: {
-    padding: 6,
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
   },
   identity: {
     flexDirection: 'row',
@@ -54,17 +63,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
   },
   name: {
     fontSize: 16,

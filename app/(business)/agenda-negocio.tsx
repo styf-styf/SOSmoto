@@ -208,8 +208,6 @@ export default function AgendaNegocioScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Agenda</Text>
-
       {appointments.length === 0 ? (
         <Text style={styles.placeholder}>Todavía no tienes citas agendadas.</Text>
       ) : (
@@ -372,7 +370,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

@@ -111,7 +111,6 @@ export default function ClientHistoriasScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Mis historias</Text>
       <Text style={styles.helperText}>
         Foto visible 24h para toda la comunidad. {activeCount}/{CLIENT_DAILY_LIMIT} historias activas hoy.
       </Text>
@@ -187,7 +186,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

@@ -151,7 +151,6 @@ export default function PublicidadScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Publicidad</Text>
       <Text style={styles.helperText}>
         Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las
         aprueba. Una vez activa, se muestra automáticamente en inicio, búsqueda y perfiles relevantes — no eliges
@@ -266,7 +265,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },

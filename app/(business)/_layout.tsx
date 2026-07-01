@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { AppHeader } from '../../components/AppHeader';
 
 // Mismo motivo que app/(client)/_layout.tsx: Stack real envolviendo el
 // navegador de Tabs en "(tabs)" para que "atrás" haga pop pantalla por
@@ -10,24 +11,27 @@ export default function BusinessLayout() {
   usePushNotifications(profile?.id);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="chat/[id]" />
-      <Stack.Screen name="historia/[businessId]" />
-      <Stack.Screen name="historia-cliente/[clientId]" />
-      <Stack.Screen name="publicaciones" />
-      <Stack.Screen name="publicacion/[id]" />
-      <Stack.Screen name="anuncio/[id]" />
-      <Stack.Screen name="empleados" />
-      <Stack.Screen name="suscripcion" />
-      <Stack.Screen name="agenda-negocio" />
-      <Stack.Screen name="publicidad" />
-      <Stack.Screen name="historias" />
-      <Stack.Screen name="configuracion" />
-      <Stack.Screen name="verificacion" />
-      <Stack.Screen name="estado-cuenta" />
-      <Stack.Screen name="estadisticas" />
-      <Stack.Screen name="crece-tu-negocio" />
+    <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* chat/[id], historia/[businessId] y historia-cliente/[clientId] ya traen su
+          propio botón de regreso (ChatHeader / StoryViewer) -- header nativo apagado
+          para no duplicarlo. */}
+      <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="historia/[businessId]" options={{ headerShown: false }} />
+      <Stack.Screen name="historia-cliente/[clientId]" options={{ headerShown: false }} />
+      <Stack.Screen name="publicaciones" options={{ title: 'Publicaciones' }} />
+      <Stack.Screen name="publicacion/[id]" options={{ title: 'Publicación' }} />
+      <Stack.Screen name="anuncio/[id]" options={{ title: 'Anuncio' }} />
+      <Stack.Screen name="empleados" options={{ title: 'Equipo' }} />
+      <Stack.Screen name="suscripcion" options={{ title: 'Plan y suscripción' }} />
+      <Stack.Screen name="agenda-negocio" options={{ title: 'Agenda' }} />
+      <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
+      <Stack.Screen name="historias" options={{ title: 'Historias' }} />
+      <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
+      <Stack.Screen name="verificacion" options={{ title: 'Verificación de negocio' }} />
+      <Stack.Screen name="estado-cuenta" options={{ title: 'Estado de cuenta' }} />
+      <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />
+      <Stack.Screen name="crece-tu-negocio" options={{ title: 'Crece tu negocio' }} />
     </Stack>
   );
 }

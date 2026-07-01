@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
@@ -8,8 +8,9 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
+import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
 import { getUserById } from '../../../services/users';
-import type { Message, User } from '../../../types/database';
+import type { Message, ProductIntentWithProduct, User } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
@@ -25,6 +26,8 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
+  const [processingIntent, setProcessingIntent] = useState<string | null>(null);
 
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
@@ -47,6 +50,7 @@ export default function ChatScreen() {
         const [history] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
+          getPendingIntentsForBusinessClient(thread.businessId, thread.clientId).then(setIntents),
         ]);
         setMessages(history);
         if (profile) {
@@ -74,6 +78,26 @@ export default function ChatScreen() {
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages.length]);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    return sub.remove;
+  }, []);
+
+  async function handleIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
+    setProcessingIntent(intentId);
+    try {
+      await updateIntentStatus(intentId, status);
+      setIntents((prev) => prev.filter((i) => i.id !== intentId));
+    } catch (err) {
+      console.error('update intent error', err);
+      Alert.alert('Error', 'No se pudo actualizar el estado. Intenta de nuevo.');
+    } finally {
+      setProcessingIntent(null);
+    }
+  }
 
   async function handleSend() {
     if (!profile || !clientId || !businessId || !text.trim()) return;
@@ -108,43 +132,78 @@ export default function ChatScreen() {
     <View style={styles.container}>
       <ChatHeader name={client?.full_name ?? 'Cliente'} avatarUrl={client?.avatar_url} fallbackIcon="person" />
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages}>
-        {messages.length === 0 ? (
-          <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
-        ) : (
-          messages.map((message, index) => (
-            <View key={message.id}>
-              {shouldShowDateSeparator(messages, index) && (
-                <View style={styles.dateSeparator}>
-                  <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        {intents.length > 0 && (
+          <View style={styles.intentsBanner}>
+            {intents.map((intent) => (
+              <View key={intent.id} style={styles.intentCard}>
+                <View style={styles.intentInfo}>
+                  <Ionicons name="cube-outline" size={16} color={colors.primary} />
+                  <Text style={styles.intentText} numberOfLines={1}>
+                    Quiere apartar: <Text style={styles.intentName}>{intent.product_name}</Text>
+                    {intent.product_price != null ? ` · $${intent.product_price.toFixed(2)}` : ''}
+                  </Text>
                 </View>
-              )}
-              <View
-                style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
-              >
-                <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
-                  {message.body}
+                <View style={styles.intentActions}>
+                  <Pressable
+                    style={[styles.intentBtn, styles.intentBtnConfirm]}
+                    onPress={() => handleIntentAction(intent.id, 'confirmed')}
+                    disabled={processingIntent === intent.id}
+                  >
+                    {processingIntent === intent.id ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.intentBtnText}>Confirmar venta</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.intentBtn, styles.intentBtnReject]}
+                    onPress={() => handleIntentAction(intent.id, 'unavailable')}
+                    disabled={processingIntent === intent.id}
+                  >
+                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+        <ScrollView ref={scrollRef} style={styles.flex} contentContainerStyle={styles.messages}>
+          {messages.length === 0 ? (
+            <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
+          ) : (
+            messages.map((message, index) => (
+              <View key={message.id}>
+                {shouldShowDateSeparator(messages, index) && (
+                  <View style={styles.dateSeparator}>
+                    <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                  </View>
+                )}
+                <View
+                  style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
+                >
+                  <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
+                    {message.body}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.messageTime,
+                    message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
+                  ]}
+                >
+                  {formatMessageTime(message.created_at)}
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.messageTime,
-                  message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
-                ]}
-              >
-                {formatMessageTime(message.created_at)}
-              </Text>
-            </View>
-          ))
-        )}
-      </ScrollView>
+            ))
+          )}
+        </ScrollView>
 
-      {isLimited ? (
-        <View style={styles.limitedNotice}>
-          <Text style={styles.limitedNoticeText}>Tu negocio está limitado: no puedes enviar mensajes.</Text>
-        </View>
-      ) : (
-        <KeyboardStickyView>
+        {isLimited ? (
+          <View style={styles.limitedNotice}>
+            <Text style={styles.limitedNoticeText}>Tu negocio está limitado: no puedes enviar mensajes.</Text>
+          </View>
+        ) : (
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
@@ -157,8 +216,8 @@ export default function ChatScreen() {
               <Ionicons name="send" size={18} color="#fff" />
             </Pressable>
           </View>
-        </KeyboardStickyView>
-      )}
+        )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -173,6 +232,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   messages: {
     padding: 16,
@@ -258,6 +320,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  intentsBanner: {
+    backgroundColor: '#EEF4FF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  intentCard: {
+    gap: 6,
+  },
+  intentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  intentText: {
+    fontSize: 13,
+    color: colors.text,
+    flex: 1,
+  },
+  intentName: {
+    fontWeight: '700',
+  },
+  intentActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  intentBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  intentBtnConfirm: {
+    backgroundColor: colors.primary,
+  },
+  intentBtnReject: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  intentBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  intentBtnTextReject: {
+    color: colors.text,
   },
   limitedNotice: {
     padding: 14,

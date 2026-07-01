@@ -129,7 +129,6 @@ export default function ClientPublicacionesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Mis publicaciones</Text>
       <Text style={styles.helperText}>Foto y texto permanentes, visibles para toda la comunidad.</Text>
 
       {profile?.is_limited && (
@@ -218,7 +217,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 36,
+    paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
