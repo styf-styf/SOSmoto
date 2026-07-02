@@ -6,7 +6,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessConversations, subscribeToThreadChanges } from '../../../services/messages';
-import { supabase } from '../../../services/supabase';
+import { getUsersByIds } from '../../../services/users';
 import { formatConversationTimestamp } from '../../../utils/chatFormat';
 
 interface ConversationRow {
@@ -36,13 +36,8 @@ export default function BusinessMensajesScreen() {
       return;
     }
 
-    const { data: clients, error } = await supabase
-      .from('users')
-      .select('id, full_name, avatar_url')
-      .in('id', summaries.map((s) => s.otherId));
-    if (error) throw error;
-
-    const clientById = new Map((clients ?? []).map((c) => [c.id, c]));
+    const clients = await getUsersByIds(summaries.map((s) => s.otherId));
+    const clientById = new Map(clients.map((c) => [c.id, c]));
     setConversations(
       summaries.map((s) => {
         const client = clientById.get(s.otherId);

@@ -151,12 +151,12 @@ export async function getActiveProfileAds(city: string | null): Promise<AdWithBu
 
 export async function registerAdImpression(adId: string): Promise<void> {
   const { error } = await supabase.rpc('increment_ad_metric', { ad_id: adId, metric: 'impression' });
-  if (error) throw error;
+  if (error) console.error('registerAdImpression error', error);
 }
 
 export async function registerAdClick(adId: string): Promise<void> {
   const { error } = await supabase.rpc('increment_ad_metric', { ad_id: adId, metric: 'click' });
-  if (error) throw error;
+  if (error) console.error('registerAdClick error', error);
 }
 
 export async function pauseAd(adId: string): Promise<Ad> {

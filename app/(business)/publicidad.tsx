@@ -130,6 +130,7 @@ export default function PublicidadScreen() {
       setAds((prev) => prev.map((a) => (a.id === ad.id ? updated : a)));
     } catch (err) {
       console.error('pause ad error', err);
+      Alert.alert('Error', 'No se pudo pausar la campaña. Intenta de nuevo.');
     }
   }
 

@@ -40,13 +40,13 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
   if (message.sender_id === message.client_id) {
     const business = await getBusinessById(message.business_id);
     if (business) {
-      await notifyUser(business.owner_id, 'Nuevo mensaje', message.body, {
+      await notifyUser(business.owner_id, 'Nuevo mensaje', 'Tienes un mensaje nuevo', {
         type: 'message',
         businessId: message.business_id,
       });
     }
   } else {
-    await notifyUser(message.client_id, 'Nuevo mensaje', message.body, {
+    await notifyUser(message.client_id, 'Nuevo mensaje', 'Tienes un mensaje nuevo', {
       type: 'message',
       businessId: message.business_id,
     });

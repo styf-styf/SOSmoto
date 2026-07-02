@@ -131,6 +131,13 @@ export async function getBusinessById(id: string): Promise<Business | null> {
   return data as Business | null;
 }
 
+export async function getBusinessesByIds(ids: string[]): Promise<Business[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from('businesses').select('*').in('id', ids);
+  if (error) throw error;
+  return (data ?? []) as Business[];
+}
+
 export async function getMyBusiness(ownerId: string): Promise<Business | null> {
   const { data, error } = await supabase
     .from('businesses')

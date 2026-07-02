@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
-import { getBusinessById } from '../../../services/businesses';
+import { getBusinessesByIds } from '../../../services/businesses';
 import { getClientConversations, subscribeToThreadChanges } from '../../../services/messages';
 import type { Business } from '../../../types/database';
 import { formatConversationTimestamp } from '../../../utils/chatFormat';
@@ -24,10 +24,11 @@ export default function MensajesScreen() {
   const load = useCallback(async () => {
     if (!profile) return;
     const summaries = await getClientConversations(profile.id);
-    const businesses = await Promise.all(summaries.map((s) => getBusinessById(s.otherId)));
+    const businessesArr = await getBusinessesByIds(summaries.map((s) => s.otherId));
+    const businessById = new Map(businessesArr.map((b) => [b.id, b]));
     const rows: ConversationRow[] = summaries
-      .map((s, i) => {
-        const business = businesses[i];
+      .map((s) => {
+        const business = businessById.get(s.otherId);
         if (!business) return null;
         return {
           business,

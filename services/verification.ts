@@ -35,6 +35,6 @@ export async function createVerificationRequest(
     })
     .select()
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   return data as BusinessVerificationRequest;
 }

@@ -28,6 +28,15 @@ export async function updateUserProfile(userId: string, params: UpdateUserProfil
   return data as User;
 }
 
+export async function getUsersByIds(
+  ids: string[]
+): Promise<Array<{ id: string; full_name: string; avatar_url: string | null }>> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from('users').select('id, full_name, avatar_url').in('id', ids);
+  if (error) throw error;
+  return (data ?? []) as Array<{ id: string; full_name: string; avatar_url: string | null }>;
+}
+
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;

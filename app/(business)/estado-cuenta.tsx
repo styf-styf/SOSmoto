@@ -20,6 +20,7 @@ export default function EstadoCuentaScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setLoading(true);
       load()
         .catch((err) => console.error('load estado cuenta error', err))
         .finally(() => setLoading(false));

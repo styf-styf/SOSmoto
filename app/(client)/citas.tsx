@@ -34,6 +34,7 @@ export default function CitasScreen() {
   const { profile } = useAuth();
   const [appointments, setAppointments] = useState<ClientAppointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -57,15 +58,22 @@ export default function CitasScreen() {
   }, [profile, load]);
 
   async function handleCancel(id: string) {
+    if (processingId) return;
+    setProcessingId(id);
     try {
       await cancelAppointment(id, 'client');
       setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)));
     } catch (err) {
       console.error('cancel appointment error', err);
+      Alert.alert('Error', 'No se pudo cancelar. Intenta de nuevo.');
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleReschedule(id: string) {
+    if (processingId) return;
+    setProcessingId(id);
     try {
       await requestReschedule(id);
       setAppointments((prev) =>
@@ -73,19 +81,29 @@ export default function CitasScreen() {
       );
     } catch (err) {
       console.error('request reschedule error', err);
+      Alert.alert('Error', 'No se pudo reagendar. Intenta de nuevo.');
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleApprove(id: string) {
+    if (processingId) return;
+    setProcessingId(id);
     try {
       await approveAppointment(id);
       setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'confirmed' } : a)));
     } catch (err) {
       console.error('approve appointment error', err);
+      Alert.alert('Error', 'No se pudo aprobar. Intenta de nuevo.');
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleRequestOtherTime(id: string) {
+    if (processingId) return;
+    setProcessingId(id);
     try {
       await requestReschedule(id);
       setAppointments((prev) =>
@@ -94,6 +112,8 @@ export default function CitasScreen() {
     } catch (err) {
       console.error('request other time error', err);
       Alert.alert('Error', 'No se pudo solicitar otro horario. Intenta de nuevo.');
+    } finally {
+      setProcessingId(null);
     }
   }
 
@@ -131,18 +151,26 @@ export default function CitasScreen() {
 
             {appointment.status === 'scheduled' && (
               <View style={styles.actionsRow}>
-                <Button title="Aprobar" onPress={() => handleApprove(appointment.id)} style={styles.flexButton} />
+                <Button
+                  title="Aprobar"
+                  onPress={() => handleApprove(appointment.id)}
+                  style={styles.flexButton}
+                  loading={processingId === appointment.id}
+                  disabled={processingId !== null && processingId !== appointment.id}
+                />
                 <Button
                   title="Otro horario"
                   variant="secondary"
                   onPress={() => handleRequestOtherTime(appointment.id)}
                   style={styles.flexButton}
+                  disabled={processingId !== null}
                 />
                 <Button
                   title="Cancelar"
                   variant="secondary"
                   onPress={() => handleCancel(appointment.id)}
                   style={{ flex: 1, borderColor: colors.danger }}
+                  disabled={processingId !== null}
                 />
               </View>
             )}
@@ -153,6 +181,8 @@ export default function CitasScreen() {
                 variant="secondary"
                 onPress={() => handleCancel(appointment.id)}
                 style={styles.cancelButton}
+                loading={processingId === appointment.id}
+                disabled={processingId !== null && processingId !== appointment.id}
               />
             )}
 
@@ -163,12 +193,15 @@ export default function CitasScreen() {
                   variant="secondary"
                   onPress={() => handleReschedule(appointment.id)}
                   style={styles.flexButton}
+                  loading={processingId === appointment.id}
+                  disabled={processingId !== null && processingId !== appointment.id}
                 />
                 <Button
                   title="Cancelar"
                   variant="secondary"
                   onPress={() => handleCancel(appointment.id)}
                   style={styles.flexButton}
+                  disabled={processingId !== null}
                 />
               </View>
             )}
