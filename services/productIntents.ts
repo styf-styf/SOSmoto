@@ -67,7 +67,7 @@ export async function updateIntentStatus(
 ): Promise<void> {
   const { data: intent, error: fetchError } = await supabase
     .from('product_intents')
-    .select('client_id, product_id')
+    .select('client_id, product_id, business_id')
     .eq('id', intentId)
     .maybeSingle();
   if (fetchError) throw fetchError;
@@ -90,7 +90,7 @@ export async function updateIntentStatus(
       status === 'confirmed'
         ? `Tu apartado de "${productName}" fue confirmado por el negocio`
         : `El negocio indicó que "${productName}" no está disponible en este momento`;
-    await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id });
+    await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id });
   }
 }
 

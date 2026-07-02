@@ -112,7 +112,8 @@ export async function hasUnreadMessagesForBusiness(businessId: string): Promise<
     .from('messages')
     .select('sender_id, client_id')
     .eq('business_id', businessId)
-    .is('read_at', null);
+    .is('read_at', null)
+    .limit(50);
   if (error) throw error;
   return (data ?? []).some((row) => row.sender_id === row.client_id);
 }

@@ -42,6 +42,12 @@ export default function ServiceDetailScreen() {
   }, [load]);
 
   useEffect(() => {
+    if (profile && profile.role !== 'client' && id) {
+      router.replace('/(business)/(tabs)/catalogo');
+    }
+  }, [profile?.role, id]);
+
+  useEffect(() => {
     if (!profile?.id || !id) return;
     return subscribeToClientServiceIntent(profile.id, id, setIntent, () => {
       Alert.alert('No disponible', 'El negocio indicó que este servicio no está disponible en este momento.');
@@ -75,18 +81,10 @@ export default function ServiceDetailScreen() {
     }
   }
 
-  if (loading) {
+  if (loading || (profile && profile.role !== 'client')) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (profile?.role !== 'client') {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.placeholder}>Esta vista es solo para clientes.</Text>
       </View>
     );
   }

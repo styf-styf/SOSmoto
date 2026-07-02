@@ -6,11 +6,25 @@ export interface BusinessWithDistance extends Business {
   distance_km: number | null;
 }
 
+const SEARCH_RADIUS_KM = 60;
+
 export async function getNearbyBusinesses(
   coords: { latitude: number; longitude: number } | null,
   limit = 20
 ): Promise<BusinessWithDistance[]> {
-  const { data, error } = await supabase.from('businesses').select('*').limit(100);
+  let query = supabase.from('businesses').select('*');
+
+  if (coords) {
+    const latDelta = SEARCH_RADIUS_KM / 111;
+    const lngDelta = SEARCH_RADIUS_KM / (111 * Math.cos((coords.latitude * Math.PI) / 180));
+    query = query
+      .gte('latitude', coords.latitude - latDelta)
+      .lte('latitude', coords.latitude + latDelta)
+      .gte('longitude', coords.longitude - lngDelta)
+      .lte('longitude', coords.longitude + lngDelta);
+  }
+
+  const { data, error } = await query.limit(200);
   if (error) throw error;
 
   const businesses = (data ?? []) as Business[];

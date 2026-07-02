@@ -142,12 +142,14 @@ export async function getFeedCatalogPool(limit = 30): Promise<FeedCatalogItem[]>
       .from('services')
       .select('*, businesses(name, logo_url)')
       .eq('is_active', true)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(limit),
     supabase
       .from('products')
       .select('*, businesses(name, logo_url)')
       .eq('is_active', true)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(limit),
   ]);
   if (servicesResult.error) throw servicesResult.error;
   if (productsResult.error) throw productsResult.error;
@@ -188,21 +190,31 @@ export interface PlanLimits {
   maxActiveStories: number | null;
 }
 
+const FREE_PLAN_LIMITS: PlanLimits = {
+  planName: 'free',
+  maxServices: 3,
+  maxProducts: 5,
+  maxEmployees: 1,
+  maxActiveStories: null,
+};
+
 export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   const { data, error } = await supabase
     .from('businesses')
     .select('subscription_plans(name, max_services, max_products, max_employees, max_active_stories)')
     .eq('id', businessId)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) return FREE_PLAN_LIMITS;
 
   const plan = (data as any)?.subscription_plans;
+  if (!plan) return FREE_PLAN_LIMITS;
   return {
-    planName: plan?.name ?? 'free',
-    maxServices: plan?.max_services ?? null,
-    maxProducts: plan?.max_products ?? null,
-    maxEmployees: plan?.max_employees ?? null,
-    maxActiveStories: plan?.max_active_stories ?? null,
+    planName: plan.name ?? 'free',
+    maxServices: plan.max_services ?? null,
+    maxProducts: plan.max_products ?? null,
+    maxEmployees: plan.max_employees ?? null,
+    maxActiveStories: plan.max_active_stories ?? null,
   };
 }
 

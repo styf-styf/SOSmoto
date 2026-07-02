@@ -67,7 +67,7 @@ export async function updateServiceIntentStatus(
 ): Promise<void> {
   const { data: intent, error: fetchError } = await supabase
     .from('service_intents')
-    .select('client_id, service_id')
+    .select('client_id, service_id, business_id')
     .eq('id', intentId)
     .maybeSingle();
   if (fetchError) throw fetchError;
@@ -90,7 +90,7 @@ export async function updateServiceIntentStatus(
       status === 'confirmed'
         ? `Tu cita para "${serviceName}" fue confirmada por el negocio`
         : `El negocio indicó que "${serviceName}" no está disponible en este momento`;
-    await notifyUser(intent.client_id, title, body, { type: 'service_intent', serviceId: intent.service_id });
+    await notifyUser(intent.client_id, title, body, { type: 'service_intent', serviceId: intent.service_id, businessId: intent.business_id });
   }
 }
 

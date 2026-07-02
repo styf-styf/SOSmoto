@@ -71,7 +71,7 @@ export default function ChatScreen() {
         setText(body);
       })
       .finally(() => setSending(false));
-  }, [loading, clientId, businessId]);
+  }, [loading, clientId, businessId, autoSend, profile, prefill]);
 
   useEffect(() => {
     if (!businessId || !clientId) return;
