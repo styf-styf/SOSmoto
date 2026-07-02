@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
-import { getMyBusiness } from '../../../services/businesses';
+import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessConversations, subscribeToThreadChanges } from '../../../services/messages';
 import { supabase } from '../../../services/supabase';
 import { formatConversationTimestamp } from '../../../utils/chatFormat';
@@ -26,11 +26,11 @@ export default function BusinessMensajesScreen() {
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const business = await getMyBusiness(profile.id);
-    if (!business) return;
-    setBusinessId(business.id);
+    const work = await getMyWorkBusiness(profile.id);
+    if (!work) return;
+    setBusinessId(work.business.id);
 
-    const summaries = await getBusinessConversations(business.id);
+    const summaries = await getBusinessConversations(work.business.id);
     if (summaries.length === 0) {
       setConversations([]);
       return;

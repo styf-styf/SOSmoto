@@ -121,7 +121,8 @@ export async function getPendingServiceIntentsForBusinessClient(
 export function subscribeToClientServiceIntent(
   clientId: string,
   serviceId: string,
-  onUpdate: (intent: ServiceIntent | null) => void
+  onUpdate: (intent: ServiceIntent | null) => void,
+  onUnavailable?: () => void
 ) {
   const channel = supabase
     .channel(`service_intent_${clientId}_${serviceId}`)
@@ -135,6 +136,7 @@ export function subscribeToClientServiceIntent(
           onUpdate(row);
         } else {
           onUpdate(null);
+          if (row.status === 'unavailable') onUnavailable?.();
         }
       }
     )

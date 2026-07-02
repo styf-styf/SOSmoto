@@ -43,7 +43,9 @@ export default function ServiceDetailScreen() {
 
   useEffect(() => {
     if (!profile?.id || !id) return;
-    return subscribeToClientServiceIntent(profile.id, id, setIntent);
+    return subscribeToClientServiceIntent(profile.id, id, setIntent, () => {
+      Alert.alert('No disponible', 'El negocio indicó que este servicio no está disponible en este momento.');
+    });
   }, [profile?.id, id]);
 
   async function handleAgendar() {

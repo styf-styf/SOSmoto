@@ -7,7 +7,6 @@ import {
   approveAppointment,
   cancelAppointment,
   getClientAppointments,
-  rejectAppointment,
   requestReschedule,
   subscribeToClientAppointments,
   type ClientAppointment,
@@ -86,12 +85,15 @@ export default function CitasScreen() {
     }
   }
 
-  async function handleReject(id: string) {
+  async function handleRequestOtherTime(id: string) {
     try {
-      await rejectAppointment(id);
-      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'rejected' } : a)));
+      await requestReschedule(id);
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: 'pending', requested_at: null } : a))
+      );
     } catch (err) {
-      console.error('reject appointment error', err);
+      console.error('request other time error', err);
+      Alert.alert('Error', 'No se pudo solicitar otro horario. Intenta de nuevo.');
     }
   }
 
@@ -131,10 +133,16 @@ export default function CitasScreen() {
               <View style={styles.actionsRow}>
                 <Button title="Aprobar" onPress={() => handleApprove(appointment.id)} style={styles.flexButton} />
                 <Button
-                  title="Rechazar"
+                  title="Otro horario"
                   variant="secondary"
-                  onPress={() => handleReject(appointment.id)}
+                  onPress={() => handleRequestOtherTime(appointment.id)}
                   style={styles.flexButton}
+                />
+                <Button
+                  title="Cancelar"
+                  variant="secondary"
+                  onPress={() => handleCancel(appointment.id)}
+                  style={{ flex: 1, borderColor: colors.danger }}
                 />
               </View>
             )}

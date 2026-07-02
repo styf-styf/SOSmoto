@@ -43,7 +43,9 @@ export default function ProductDetailScreen() {
 
   useEffect(() => {
     if (!profile?.id || !id) return;
-    return subscribeToClientIntent(profile.id, id, setIntent);
+    return subscribeToClientIntent(profile.id, id, setIntent, () => {
+      Alert.alert('No disponible', 'El negocio indicó que este producto no está disponible en este momento.');
+    });
   }, [profile?.id, id]);
 
   async function handleApartar() {

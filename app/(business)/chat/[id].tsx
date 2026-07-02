@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
-import { getMyBusiness } from '../../../services/businesses';
+import { getMyWorkBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
 import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
@@ -36,9 +36,9 @@ export default function ChatScreen() {
     if (profile.role === 'client') {
       return { clientId: profile.id, businessId: id, isLimited: false };
     }
-    const business = await getMyBusiness(profile.id);
-    if (!business) return null;
-    return { clientId: id, businessId: business.id, isLimited: business.is_limited };
+    const work = await getMyWorkBusiness(profile.id);
+    if (!work) return null;
+    return { clientId: id, businessId: work.business.id, isLimited: work.business.is_limited };
   }, [profile, id]);
 
   useEffect(() => {

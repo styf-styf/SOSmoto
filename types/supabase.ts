@@ -197,6 +197,7 @@ export interface Database {
           has_priority_matching: boolean;
           has_featured_listing: boolean;
           has_stories: boolean;
+          max_active_stories: number | null;
           price_monthly: number;
         };
         Insert: {
@@ -209,6 +210,7 @@ export interface Database {
           has_priority_matching?: boolean;
           has_featured_listing?: boolean;
           has_stories?: boolean;
+          max_active_stories?: number | null;
           price_monthly?: number;
         };
         Update: {
@@ -221,6 +223,7 @@ export interface Database {
           has_priority_matching?: boolean;
           has_featured_listing?: boolean;
           has_stories?: boolean;
+          max_active_stories?: number | null;
           price_monthly?: number;
         };
         Relationships: [];

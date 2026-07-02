@@ -22,11 +22,15 @@ export async function sendPushNotification(
   data?: Record<string, unknown>
 ): Promise<void> {
   try {
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ to: pushToken, title, body, data }),
     });
+    const result = await response.json();
+    if (!response.ok || result.errors?.length) {
+      console.error('expo push error', result.errors ?? result);
+    }
   } catch (err) {
     console.error('send push notification error', err);
   }
