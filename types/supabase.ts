@@ -186,6 +186,36 @@ export interface Database {
         };
         Relationships: [];
       };
+      employee_invitations: {
+        Row: {
+          id: string;
+          business_id: string;
+          invitee_id: string;
+          can_accept_aid_requests: boolean;
+          status: 'pending' | 'accepted' | 'rejected';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          invitee_id: string;
+          can_accept_aid_requests?: boolean;
+          status?: 'pending' | 'accepted' | 'rejected';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          invitee_id?: string;
+          can_accept_aid_requests?: boolean;
+          status?: 'pending' | 'accepted' | 'rejected';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       subscription_plans: {
         Row: {
           id: string;

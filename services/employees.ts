@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getPlanLimits } from './catalog';
+import { sendEmployeeInvitation } from './employeeInvitations';
 import type { BusinessEmployee } from '../types/database';
 
 export interface EmployeeWithUser extends BusinessEmployee {
@@ -29,7 +30,7 @@ export async function addEmployeeByEmail(
   businessId: string,
   email: string,
   canAcceptAidRequests: boolean
-): Promise<EmployeeWithUser> {
+): Promise<void> {
   const limits = await getPlanLimits(businessId);
   if (limits.maxEmployees !== null) {
     const current = await getEmployees(businessId);
@@ -60,20 +61,7 @@ export async function addEmployeeByEmail(
     throw new Error('Esa persona ya es parte de tu equipo.');
   }
 
-  const { data, error } = await supabase
-    .from('business_employees')
-    .insert({
-      business_id: businessId,
-      user_id: userId,
-      role: 'mechanic',
-      can_accept_aid_requests: canAcceptAidRequests,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-
-  const employees = await getEmployees(businessId);
-  return employees.find((e) => e.id === data.id) ?? { ...data, user: null };
+  await sendEmployeeInvitation(businessId, userId, canAcceptAidRequests);
 }
 
 export async function updateEmployeePermission(

@@ -69,6 +69,28 @@ export interface BusinessEmployee {
   created_at: string;
 }
 
+export type InvitationStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface EmployeeInvitation {
+  id: string;
+  business_id: string;
+  invitee_id: string;
+  can_accept_aid_requests: boolean;
+  status: InvitationStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeInvitationWithBusiness extends EmployeeInvitation {
+  business_name: string;
+  business_logo_url: string | null;
+}
+
+export interface EmployeeInvitationWithInvitee extends EmployeeInvitation {
+  invitee_name: string;
+  invitee_email: string;
+}
+
 export type PlanName = 'free' | 'standard' | 'pro';
 
 export interface SubscriptionPlan {

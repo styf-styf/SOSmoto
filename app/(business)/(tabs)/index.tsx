@@ -8,6 +8,12 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import { createBusiness, getMyWorkBusiness } from '../../../services/businesses';
+import {
+  acceptInvitation,
+  getMyPendingInvitations,
+  rejectInvitation,
+  type EmployeeInvitationWithBusiness,
+} from '../../../services/employeeInvitations';
 import { dismissGrowthSuggestion, getActiveGrowthSuggestion } from '../../../services/growth';
 import {
   getBusinessStories,
@@ -29,6 +35,7 @@ export default function BusinessHomeScreen() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pendingInvitations, setPendingInvitations] = useState<EmployeeInvitationWithBusiness[]>([]);
   const [activeStories, setActiveStories] = useState(0);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
@@ -43,7 +50,12 @@ export default function BusinessHomeScreen() {
       const result = work?.business ?? null;
       setBusiness(result);
       setIsOwner(work?.isOwner ?? false);
-      if (!result) return;
+      if (!result) {
+        const invitations = await getMyPendingInvitations(profile.id);
+        setPendingInvitations(invitations);
+        return;
+      }
+      setPendingInvitations([]);
 
       if (!limitCheckedRef.current) {
         limitCheckedRef.current = true;
@@ -120,6 +132,14 @@ export default function BusinessHomeScreen() {
   }
 
   if (!business) {
+    if (pendingInvitations.length > 0) {
+      return (
+        <PendingInvitationsScreen
+          invitations={pendingInvitations}
+          onResponded={load}
+        />
+      );
+    }
     return <BusinessOnboarding onCreated={setBusiness} />;
   }
 
@@ -188,6 +208,89 @@ export default function BusinessHomeScreen() {
         </View>
       }
     />
+  );
+}
+
+function PendingInvitationsScreen({
+  invitations,
+  onResponded,
+}: {
+  invitations: EmployeeInvitationWithBusiness[];
+  onResponded: () => void;
+}) {
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  async function handleAccept(inv: EmployeeInvitationWithBusiness) {
+    setProcessingId(inv.id);
+    try {
+      await acceptInvitation(inv.id);
+      onResponded();
+    } catch (err) {
+      console.error('accept invitation error', err);
+      Alert.alert('Error', 'No se pudo aceptar la invitación. Intenta de nuevo.');
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleReject(inv: EmployeeInvitationWithBusiness) {
+    Alert.alert(
+      'Rechazar invitación',
+      `¿Seguro que quieres rechazar la invitación de ${inv.business_name}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Rechazar',
+          style: 'destructive',
+          onPress: async () => {
+            setProcessingId(inv.id);
+            try {
+              await rejectInvitation(inv.id);
+              onResponded();
+            } catch (err) {
+              console.error('reject invitation error', err);
+              Alert.alert('Error', 'No se pudo rechazar la invitación.');
+            } finally {
+              setProcessingId(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.invitationsContainer}>
+      <Ionicons name="mail-outline" size={48} color={colors.primary} style={styles.invitationsIcon} />
+      <Text style={styles.invitationsTitle}>Tienes invitaciones</Text>
+      <Text style={styles.invitationsSubtitle}>
+        Un taller te invitó a unirte como mecánico. Acepta para empezar a trabajar.
+      </Text>
+      {invitations.map((inv) => (
+        <View key={inv.id} style={styles.invitationCard}>
+          <Text style={styles.invitationBusiness}>{inv.business_name}</Text>
+          <Text style={styles.invitationMeta}>
+            {inv.can_accept_aid_requests
+              ? 'Podrás aceptar solicitudes de auxilio'
+              : 'Sin permisos de auxilio inicialmente'}
+          </Text>
+          <View style={styles.invitationActions}>
+            <Button
+              title="Aceptar"
+              onPress={() => handleAccept(inv)}
+              loading={processingId === inv.id}
+              style={styles.flexButton}
+            />
+            <Button
+              title="Rechazar"
+              variant="secondary"
+              onPress={() => handleReject(inv)}
+              style={styles.flexButton}
+            />
+          </View>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -345,6 +448,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBE8E8',
     borderRadius: 8,
     padding: 10,
+  },
+  invitationsContainer: {
+    padding: 24,
+    backgroundColor: colors.background,
+    flexGrow: 1,
+    alignItems: 'center',
+  },
+  invitationsIcon: {
+    marginBottom: 16,
+    marginTop: 32,
+  },
+  invitationsTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  invitationsSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  invitationCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 14,
+    width: '100%',
+  },
+  invitationBusiness: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  invitationMeta: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 14,
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  flexButton: {
+    flex: 1,
   },
   onboardingContainer: {
     padding: 20,

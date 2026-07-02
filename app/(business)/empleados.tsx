@@ -14,6 +14,11 @@ import {
   updateEmployeePermission,
   type EmployeeWithUser,
 } from '../../services/employees';
+import {
+  cancelInvitation,
+  getPendingInvitationsForBusiness,
+  type EmployeeInvitationWithInvitee,
+} from '../../services/employeeInvitations';
 
 export default function EmpleadosScreen() {
   const { profile } = useAuth();
@@ -21,6 +26,7 @@ export default function EmpleadosScreen() {
   const [isOwner, setIsOwner] = useState(false);
   const [isLimited, setIsLimited] = useState(false);
   const [employees, setEmployees] = useState<EmployeeWithUser[]>([]);
+  const [invitations, setInvitations] = useState<EmployeeInvitationWithInvitee[]>([]);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -33,12 +39,14 @@ export default function EmpleadosScreen() {
     setIsOwner(work.isOwner);
     setIsLimited(work.business.is_limited);
 
-    const [employeeList, planLimits] = await Promise.all([
+    const [employeeList, planLimits, pendingInvitations] = await Promise.all([
       getEmployees(work.business.id),
       getPlanLimits(work.business.id),
+      getPendingInvitationsForBusiness(work.business.id),
     ]);
     setEmployees(employeeList);
     setLimits(planLimits);
+    setInvitations(pendingInvitations);
   }, [profile]);
 
   useEffect(() => {
@@ -92,6 +100,22 @@ export default function EmpleadosScreen() {
         </Text>
       )}
 
+      {/* Invitaciones pendientes */}
+      {invitations.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Invitaciones pendientes</Text>
+          {invitations.map((inv) => (
+            <InvitationRow
+              key={inv.id}
+              invitation={inv}
+              isOwner={isOwner && !isLimited}
+              onCancelled={() => setInvitations((prev) => prev.filter((i) => i.id !== inv.id))}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Mecánicos activos */}
       {employees.length === 0 ? (
         <Text style={styles.placeholder}>Todavía no agregas mecánicos.</Text>
       ) : (
@@ -114,9 +138,9 @@ export default function EmpleadosScreen() {
           <AddEmployeeForm
             businessId={businessId}
             onCancel={() => setShowForm(false)}
-            onAdded={(employee) => {
-              setEmployees((prev) => [employee, ...prev]);
+            onInvited={() => {
               setShowForm(false);
+              load().catch((err) => console.error('reload empleados error', err));
             }}
           />
         ) : (
@@ -127,6 +151,64 @@ export default function EmpleadosScreen() {
         <Text style={styles.helperText}>Solo el dueño del negocio puede agregar o quitar mecánicos.</Text>
       )}
     </ScrollView>
+  );
+}
+
+function InvitationRow({
+  invitation,
+  isOwner,
+  onCancelled,
+}: {
+  invitation: EmployeeInvitationWithInvitee;
+  isOwner: boolean;
+  onCancelled: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  function handleCancel() {
+    Alert.alert('Cancelar invitación', `¿Cancelar la invitación enviada a ${invitation.invitee_name}?`, [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Cancelar invitación',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await cancelInvitation(invitation.id);
+            onCancelled();
+          } catch (err) {
+            console.error('cancel invitation error', err);
+            Alert.alert('Error', 'No se pudo cancelar la invitación.');
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  return (
+    <View style={[styles.card, styles.invitationCard]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.invitationInfo}>
+          <Ionicons name="time-outline" size={16} color={colors.warning} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>{invitation.invitee_name}</Text>
+            <Text style={styles.cardMeta}>{invitation.invitee_email}</Text>
+          </View>
+        </View>
+        {isOwner && (
+          <Pressable onPress={handleCancel} disabled={busy}>
+            {busy ? (
+              <ActivityIndicator size="small" color={colors.danger} />
+            ) : (
+              <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
+            )}
+          </Pressable>
+        )}
+      </View>
+      <Text style={styles.invitationStatus}>Esperando respuesta…</Text>
+    </View>
   );
 }
 
@@ -197,11 +279,11 @@ function EmployeeRow({
 function AddEmployeeForm({
   businessId,
   onCancel,
-  onAdded,
+  onInvited,
 }: {
   businessId: string;
   onCancel: () => void;
-  onAdded: (employee: EmployeeWithUser) => void;
+  onInvited: () => void;
 }) {
   const [email, setEmail] = useState('');
   const [canAccept, setCanAccept] = useState(true);
@@ -214,11 +296,12 @@ function AddEmployeeForm({
     }
     setSaving(true);
     try {
-      const employee = await addEmployeeByEmail(businessId, email.trim(), canAccept);
-      onAdded(employee);
+      await addEmployeeByEmail(businessId, email.trim(), canAccept);
+      Alert.alert('Invitación enviada', 'El mecánico recibirá una notificación para aceptar o rechazar la invitación.');
+      onInvited();
     } catch (err) {
       console.error('add employee error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo agregar al mecánico.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo enviar la invitación.');
     } finally {
       setSaving(false);
     }
@@ -240,7 +323,7 @@ function AddEmployeeForm({
         <Switch value={canAccept} onValueChange={setCanAccept} />
       </View>
       <View style={styles.editActions}>
-        <Button title="Agregar" onPress={handleAdd} loading={saving} style={styles.flexButton} />
+        <Button title="Enviar invitación" onPress={handleAdd} loading={saving} style={styles.flexButton} />
         <Button title="Cancelar" variant="secondary" onPress={onCancel} style={styles.flexButton} />
       </View>
     </View>
@@ -261,11 +344,16 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
+  section: {
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   helperText: {
     fontSize: 13,
@@ -291,10 +379,21 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  invitationCard: {
+    borderWidth: 1,
+    borderColor: colors.warning + '40',
+    backgroundColor: colors.warning + '10',
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  invitationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
   cardTitle: {
     fontSize: 16,
@@ -306,6 +405,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  invitationStatus: {
+    fontSize: 12,
+    color: colors.warning,
+    fontWeight: '600',
+    marginTop: 6,
   },
   cardFooter: {
     flexDirection: 'row',
