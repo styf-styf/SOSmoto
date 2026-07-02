@@ -11,7 +11,9 @@ export async function getClientIntentForProduct(
     .select('*')
     .eq('client_id', clientId)
     .eq('product_id', productId)
-    .eq('status', 'pending')
+    .in('status', ['pending', 'confirmed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data as ProductIntent | null;
@@ -63,11 +65,33 @@ export async function updateIntentStatus(
   intentId: string,
   status: ProductIntentStatus
 ): Promise<void> {
+  const { data: intent, error: fetchError } = await supabase
+    .from('product_intents')
+    .select('client_id, product_id')
+    .eq('id', intentId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+
   const { error } = await supabase
     .from('product_intents')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', intentId);
   if (error) throw error;
+
+  if (intent && (status === 'confirmed' || status === 'unavailable')) {
+    const { data: product } = await supabase
+      .from('products')
+      .select('name')
+      .eq('id', intent.product_id)
+      .maybeSingle();
+    const productName = product?.name ?? 'tu producto';
+    const title = status === 'confirmed' ? 'Apartado confirmado' : 'Producto no disponible';
+    const body =
+      status === 'confirmed'
+        ? `Tu apartado de "${productName}" fue confirmado por el negocio`
+        : `El negocio indicó que "${productName}" no está disponible en este momento`;
+    await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id });
+  }
 }
 
 export async function getPendingIntentsForBusinessClient(
@@ -90,6 +114,33 @@ export async function getPendingIntentsForBusinessClient(
       product_price: row.products?.reference_price ?? null,
     })
   );
+}
+
+export function subscribeToClientIntent(
+  clientId: string,
+  productId: string,
+  onUpdate: (intent: ProductIntent | null) => void
+) {
+  const channel = supabase
+    .channel(`product_intent_${clientId}_${productId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'product_intents', filter: `client_id=eq.${clientId}` },
+      (payload) => {
+        const row = payload.new as ProductIntent;
+        if (row.product_id !== productId) return;
+        if (row.status === 'confirmed' || row.status === 'pending') {
+          onUpdate(row);
+        } else {
+          onUpdate(null);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 export async function getBusinessIntentStats(

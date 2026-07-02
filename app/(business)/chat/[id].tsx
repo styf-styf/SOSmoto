@@ -9,8 +9,9 @@ import { useAuth } from '../../../hooks/useAuth';
 import { getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
+import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
 import { getUserById } from '../../../services/users';
-import type { Message, ProductIntentWithProduct, User } from '../../../types/database';
+import type { Message, ProductIntentWithProduct, ServiceIntentWithService, User } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
@@ -27,6 +28,7 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
+  const [serviceIntents, setServiceIntents] = useState<ServiceIntentWithService[]>([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
 
   const resolveThread = useCallback(async () => {
@@ -51,6 +53,7 @@ export default function ChatScreen() {
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
           getPendingIntentsForBusinessClient(thread.businessId, thread.clientId).then(setIntents),
+          getPendingServiceIntentsForBusinessClient(thread.businessId, thread.clientId).then(setServiceIntents),
         ]);
         setMessages(history);
         if (profile) {
@@ -99,6 +102,19 @@ export default function ChatScreen() {
     }
   }
 
+  async function handleServiceIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
+    setProcessingIntent(intentId);
+    try {
+      await updateServiceIntentStatus(intentId, status);
+      setServiceIntents((prev) => prev.filter((i) => i.id !== intentId));
+    } catch (err) {
+      console.error('update service intent error', err);
+      Alert.alert('Error', 'No se pudo actualizar el estado. Intenta de nuevo.');
+    } finally {
+      setProcessingIntent(null);
+    }
+  }
+
   async function handleSend() {
     if (!profile || !clientId || !businessId || !text.trim()) return;
     const body = text.trim();
@@ -133,7 +149,7 @@ export default function ChatScreen() {
       <ChatHeader name={client?.full_name ?? 'Cliente'} avatarUrl={client?.avatar_url} fallbackIcon="person" />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
-        {intents.length > 0 && (
+        {(intents.length > 0 || serviceIntents.length > 0) && (
           <View style={styles.intentsBanner}>
             {intents.map((intent) => (
               <View key={intent.id} style={styles.intentCard}>
@@ -159,6 +175,37 @@ export default function ChatScreen() {
                   <Pressable
                     style={[styles.intentBtn, styles.intentBtnReject]}
                     onPress={() => handleIntentAction(intent.id, 'unavailable')}
+                    disabled={processingIntent === intent.id}
+                  >
+                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+            {serviceIntents.map((intent) => (
+              <View key={intent.id} style={styles.intentCard}>
+                <View style={styles.intentInfo}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.intentText} numberOfLines={1}>
+                    Quiere agendar: <Text style={styles.intentName}>{intent.service_name}</Text>
+                    {intent.service_price != null ? ` · $${intent.service_price.toFixed(2)}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.intentActions}>
+                  <Pressable
+                    style={[styles.intentBtn, styles.intentBtnConfirm]}
+                    onPress={() => handleServiceIntentAction(intent.id, 'confirmed')}
+                    disabled={processingIntent === intent.id}
+                  >
+                    {processingIntent === intent.id ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.intentBtnText}>Confirmar cita</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.intentBtn, styles.intentBtnReject]}
+                    onPress={() => handleServiceIntentAction(intent.id, 'unavailable')}
                     disabled={processingIntent === intent.id}
                   >
                     <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>

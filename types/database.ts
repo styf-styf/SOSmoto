@@ -361,3 +361,20 @@ export interface ProductIntentWithProduct extends ProductIntent {
   product_name: string;
   product_price: number | null;
 }
+
+export type ServiceIntentStatus = 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+
+export interface ServiceIntent {
+  id: string;
+  client_id: string;
+  service_id: string;
+  business_id: string;
+  status: ServiceIntentStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceIntentWithService extends ServiceIntent {
+  service_name: string;
+  service_price: number | null;
+}

@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  findNodeHandle,
   Image,
   Modal,
   Pressable,
@@ -72,7 +71,6 @@ export default function CatalogoScreen() {
   const [form, setForm] = useState<FormState | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  const highlightCardRef = useRef<View | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -101,24 +99,13 @@ export default function CatalogoScreen() {
   useEffect(() => {
     if (!highlightId || !products.length) return;
     setHighlightedId(highlightId);
-    const scrollTimer = setTimeout(() => {
-      if (highlightCardRef.current && scrollRef.current) {
-        const node = findNodeHandle(scrollRef.current);
-        if (node) {
-          highlightCardRef.current.measureLayout(
-            node,
-            (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true }),
-            () => {}
-          );
-        }
-      }
-    }, 350);
     const clearTimer = setTimeout(() => setHighlightedId(null), 3500);
-    return () => {
-      clearTimeout(scrollTimer);
-      clearTimeout(clearTimer);
-    };
+    return () => clearTimeout(clearTimer);
   }, [highlightId, products.length]);
+
+  function handleHighlightLayout(y: number) {
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
+  }
 
   if (loading) {
     return (
@@ -268,8 +255,8 @@ export default function CatalogoScreen() {
             onEdit={(product) => setForm({ kind: 'product', product })}
             onDelete={confirmDeleteProduct}
             highlightId={highlightId}
-            highlightCardRef={highlightCardRef}
             highlightedId={highlightedId}
+            onHighlightLayout={handleHighlightLayout}
           />
         )}
       </ScrollView>
@@ -304,58 +291,88 @@ function CatalogGrid<T extends CatalogDisplayItem>({
   onDelete,
   readOnly,
   highlightId,
-  highlightCardRef,
   highlightedId,
+  onHighlightLayout,
 }: {
   items: T[];
   onEdit: (item: T) => void;
   onDelete: (item: T) => void;
   readOnly?: boolean;
   highlightId?: string;
-  highlightCardRef?: { current: View | null };
   highlightedId?: string | null;
+  onHighlightLayout?: (y: number) => void;
 }) {
+  const containerY = useRef(0);
+  const cardLocalY = useRef<number | null>(null);
+
   const withPhoto = items.filter((item) => item.photos.length > 0);
   const withoutPhoto = items.filter((item) => item.photos.length === 0);
+  const targetInPhoto = !!highlightId && withPhoto.some((i) => i.id === highlightId);
+  const targetInList = !!highlightId && withoutPhoto.some((i) => i.id === highlightId);
+
   return (
     <>
       {withPhoto.length > 0 && (
-        <View style={styles.grid}>
+        <View
+          style={styles.grid}
+          onLayout={targetInPhoto ? (e) => {
+            containerY.current = e.nativeEvent.layout.y;
+            if (cardLocalY.current !== null && onHighlightLayout) {
+              onHighlightLayout(containerY.current + cardLocalY.current);
+            }
+          } : undefined}
+        >
           {withPhoto.map((item) => (
-            <Pressable
+            <View
               key={item.id}
-              ref={item.id === highlightId && highlightCardRef ? (el: any) => { highlightCardRef.current = el; } : undefined}
-              style={[styles.gridCard, item.id === highlightedId && styles.gridCardHighlight]}
-              onPress={() => !readOnly && onEdit(item)}
+              style={[styles.gridCardWrapper, item.id === highlightedId && styles.gridCardHighlight]}
+              onLayout={item.id === highlightId ? (e) => {
+                cardLocalY.current = e.nativeEvent.layout.y;
+              } : undefined}
             >
-              <Image source={{ uri: item.photos[0] }} style={styles.gridImage} resizeMode="cover" />
-              <GradientShade height={Math.round(CARD_HEIGHT * 0.55)} />
-              <Text numberOfLines={1} style={styles.gridName}>
-                {item.name}
-              </Text>
-              <Text style={styles.gridPrice}>{formatItemPrice(item.reference_price)}</Text>
-              {!item.is_active && (
-                <View style={styles.hiddenBadge}>
-                  <Text style={styles.hiddenBadgeText}>Oculto</Text>
-                </View>
-              )}
-              {!readOnly && (
-                <Pressable style={styles.deleteIcon} onPress={() => onDelete(item)}>
-                  <Ionicons name="trash-outline" size={15} color="#fff" />
-                </Pressable>
-              )}
-            </Pressable>
+              <Pressable
+                style={styles.gridCard}
+                onPress={() => !readOnly && onEdit(item)}
+              >
+                <Image source={{ uri: item.photos[0] }} style={styles.gridImage} resizeMode="cover" />
+                <GradientShade height={Math.round(CARD_HEIGHT * 0.55)} />
+                <Text numberOfLines={1} style={styles.gridName}>
+                  {item.name}
+                </Text>
+                <Text style={styles.gridPrice}>{formatItemPrice(item.reference_price)}</Text>
+                {!item.is_active && (
+                  <View style={styles.hiddenBadge}>
+                    <Text style={styles.hiddenBadgeText}>Oculto</Text>
+                  </View>
+                )}
+                {!readOnly && (
+                  <Pressable style={styles.deleteIcon} onPress={() => onDelete(item)}>
+                    <Ionicons name="trash-outline" size={15} color="#fff" />
+                  </Pressable>
+                )}
+              </Pressable>
+            </View>
           ))}
         </View>
       )}
       {withoutPhoto.length > 0 && (
-        <View style={[withPhoto.length > 0 && styles.listWrapWithGrid]}>
+        <View
+          style={[withPhoto.length > 0 && styles.listWrapWithGrid]}
+          onLayout={targetInList ? (e) => {
+            containerY.current = e.nativeEvent.layout.y;
+            if (cardLocalY.current !== null && onHighlightLayout) {
+              onHighlightLayout(containerY.current + cardLocalY.current);
+            }
+          } : undefined}
+        >
           {withoutPhoto.map((item) => (
             <Pressable
               key={item.id}
-              ref={item.id === highlightId && highlightCardRef ? (el: any) => { highlightCardRef.current = el; } : undefined}
               style={[styles.itemRow, item.id === highlightedId && styles.itemRowHighlight]}
               onPress={() => !readOnly && onEdit(item)}
+              onLayout={item.id === highlightId ? (e) => {
+                cardLocalY.current = e.nativeEvent.layout.y;
+              } : undefined}
             >
               <Text style={styles.itemName} numberOfLines={1}>
                 {item.name}
@@ -695,9 +712,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: GRID_GAP,
   },
-  gridCard: {
+  gridCardWrapper: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
+    borderRadius: 12,
+  },
+  gridCard: {
+    flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -837,6 +858,7 @@ const styles = StyleSheet.create({
   gridCardHighlight: {
     borderWidth: 2.5,
     borderColor: colors.primary,
+    borderRadius: 12,
   },
   itemRowHighlight: {
     backgroundColor: `${colors.primary}18`,

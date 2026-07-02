@@ -12,9 +12,10 @@ import type { Business, Message } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
-  const { id, prefill } = useLocalSearchParams<{ id: string; prefill?: string }>();
+  const { id, prefill, autoSend } = useLocalSearchParams<{ id: string; prefill?: string; autoSend?: string }>();
   const { profile } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+  const autoSentRef = useRef(false);
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -53,6 +54,24 @@ export default function ChatScreen() {
       .catch((err) => console.error('load chat error', err))
       .finally(() => setLoading(false));
   }, [resolveThread]);
+
+  useEffect(() => {
+    if (loading || !autoSend || autoSentRef.current) return;
+    if (!clientId || !businessId || !profile || !prefill?.trim()) return;
+    autoSentRef.current = true;
+    const body = prefill.trim();
+    setText('');
+    setSending(true);
+    sendMessage({ clientId, businessId, senderId: profile.id, body })
+      .then((message) => {
+        setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      })
+      .catch((err) => {
+        console.error('auto send error', err);
+        setText(body);
+      })
+      .finally(() => setSending(false));
+  }, [loading, clientId, businessId]);
 
   useEffect(() => {
     if (!businessId || !clientId) return;

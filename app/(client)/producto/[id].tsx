@@ -9,6 +9,7 @@ import {
   cancelProductIntent,
   createProductIntent,
   getClientIntentForProduct,
+  subscribeToClientIntent,
 } from '../../../services/productIntents';
 import type { ProductWithBusiness } from '../../../services/catalog';
 import type { ProductIntent } from '../../../types/database';
@@ -40,6 +41,11 @@ export default function ProductDetailScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
+  useEffect(() => {
+    if (!profile?.id || !id) return;
+    return subscribeToClientIntent(profile.id, id, setIntent);
+  }, [profile?.id, id]);
+
   async function handleApartar() {
     if (!profile || !product) return;
     setApartando(true);
@@ -55,6 +61,7 @@ export default function ProductDetailScreen() {
           params: {
             id: product.business_id,
             prefill: `Hola, quiero apartar: ${product.name}${product.reference_price != null ? ` ($${product.reference_price.toFixed(2)})` : ''}`,
+            autoSend: 'true',
           },
         });
       }
@@ -66,17 +73,18 @@ export default function ProductDetailScreen() {
     }
   }
 
-  if (loading) {
+  useEffect(() => {
+    if (profile && profile.role !== 'client' && id) {
+      router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
+    }
+  }, [profile?.role, id]);
+
+  if (loading || (profile && profile.role !== 'client')) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
-  }
-
-  if (profile?.role !== 'client') {
-    if (id) router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
-    return null;
   }
 
   if (!product) {
@@ -112,7 +120,7 @@ export default function ProductDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        {product.stock > 0 && profile?.role === 'client' && (
+        {product.stock > 0 && profile?.role === 'client' && intent?.status !== 'confirmed' && (
           <Button
             title={intent ? 'Cancelar apartado' : 'Apartar producto'}
             onPress={handleApartar}
@@ -120,9 +128,14 @@ export default function ProductDetailScreen() {
             style={intent ? styles.buttonCancel : styles.button}
           />
         )}
-        {intent && profile?.role === 'client' && (
+        {intent?.status === 'pending' && (
           <Text style={styles.intentBadge}>
             Apartado — en espera de confirmación del negocio
+          </Text>
+        )}
+        {intent?.status === 'confirmed' && (
+          <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
+            ✓ Apartado confirmado por el negocio
           </Text>
         )}
         <Button
@@ -228,6 +241,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  intentBadgeConfirmed: {
+    color: colors.success,
   },
   photo: {
     width: '100%',
