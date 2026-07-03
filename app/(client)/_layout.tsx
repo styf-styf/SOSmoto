@@ -12,7 +12,7 @@ import { AppHeader } from '../../components/AppHeader';
 // pantalla secundaria, queda oculta (igual que la mayoría de apps).
 export default function ClientLayout() {
   const { profile } = useAuth();
-  usePushNotifications(profile?.id);
+  usePushNotifications(profile?.id, 'client');
 
   return (
     <ActiveHelpRequestProvider clientId={profile?.id}>
@@ -41,6 +41,7 @@ export default function ClientLayout() {
         <Stack.Screen name="estado-cuenta" options={{ title: 'Estado de cuenta' }} />
         <Stack.Screen name="agendar" options={{ title: 'Solicitar cita' }} />
         <Stack.Screen name="citas" options={{ title: 'Mis citas' }} />
+        <Stack.Screen name="portafolio/[id]" options={{ title: 'Portafolio de trabajos' }} />
       </Stack>
     </ActiveHelpRequestProvider>
   );

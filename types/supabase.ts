@@ -104,6 +104,7 @@ export interface Database {
           followers_count: number;
           plan_id: string;
           aid_radius_km: number | null;
+          is_available_for_aid: boolean;
           is_24h: boolean;
           is_limited: boolean;
           limitation_reason: string | null;
@@ -128,6 +129,7 @@ export interface Database {
           followers_count?: number;
           plan_id: string;
           aid_radius_km?: number | null;
+          is_available_for_aid?: boolean;
           is_24h?: boolean;
           is_limited?: boolean;
           limitation_reason?: string | null;
@@ -152,9 +154,34 @@ export interface Database {
           followers_count?: number;
           plan_id?: string;
           aid_radius_km?: number | null;
+          is_available_for_aid?: boolean;
           is_24h?: boolean;
           is_limited?: boolean;
           limitation_reason?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      portfolio_photos: {
+        Row: {
+          id: string;
+          business_id: string;
+          image_url: string;
+          caption: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          image_url: string;
+          caption?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          image_url?: string;
+          caption?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -182,6 +209,27 @@ export interface Database {
           user_id?: string;
           role?: 'owner' | 'mechanic';
           can_accept_aid_requests?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      employee_removal_notices: {
+        Row: {
+          id: string;
+          user_id: string;
+          business_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          business_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          business_name?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -1039,6 +1087,10 @@ export interface Database {
       };
       increment_catalog_views: {
         Args: { item_id: string; item_type: string };
+        Returns: undefined;
+      };
+      change_role_to_client: {
+        Args: Record<string, never>;
         Returns: undefined;
       };
     };

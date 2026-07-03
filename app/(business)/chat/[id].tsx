@@ -12,7 +12,16 @@ import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../..
 import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
 import { getUserById } from '../../../services/users';
 import type { Message, ProductIntentWithProduct, ServiceIntentWithService, User } from '../../../types/database';
-import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
+import { encodeQuote, formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
+
+const QUICK_REPLIES = [
+  'En camino',
+  '¿Cuál es tu dirección exacta?',
+  '¿Cuál es el problema específico?',
+  'Llegamos en 15 minutos',
+  'Ya estamos disponibles',
+  'El presupuesto es $',
+];
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,6 +36,11 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [quoteService, setQuoteService] = useState('');
+  const [quotePrice, setQuotePrice] = useState('');
+  const [quoteTime, setQuoteTime] = useState('');
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
   const [serviceIntents, setServiceIntents] = useState<ServiceIntentWithService[]>([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
@@ -115,10 +129,10 @@ export default function ChatScreen() {
     }
   }
 
-  async function handleSend() {
-    if (!profile || !clientId || !businessId || !text.trim()) return;
-    const body = text.trim();
-    setText('');
+  async function handleSend(overrideBody?: string) {
+    const body = overrideBody ?? text.trim();
+    if (!profile || !clientId || !businessId || !body) return;
+    if (!overrideBody) setText('');
     setSending(true);
     try {
       const message = await sendMessage({
@@ -130,10 +144,27 @@ export default function ChatScreen() {
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
     } catch (err) {
       console.error('send message error', err);
-      setText(body);
+      if (!overrideBody) setText(body);
     } finally {
       setSending(false);
     }
+  }
+
+  function handleSendQuote() {
+    if (!quoteService.trim()) {
+      Alert.alert('Falta el servicio', 'Ingresa el nombre del servicio o trabajo.');
+      return;
+    }
+    const encoded = encodeQuote({
+      service: quoteService.trim(),
+      price: quotePrice.trim() || 'A convenir',
+      time: quoteTime.trim() || 'A definir',
+    });
+    handleSend(encoded);
+    setShowQuoteForm(false);
+    setQuoteService('');
+    setQuotePrice('');
+    setQuoteTime('');
   }
 
   if (loading) {
@@ -219,30 +250,43 @@ export default function ChatScreen() {
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
           ) : (
-            messages.map((message, index) => (
-              <View key={message.id}>
-                {shouldShowDateSeparator(messages, index) && (
-                  <View style={styles.dateSeparator}>
-                    <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
-                  </View>
-                )}
-                <View
-                  style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
-                >
-                  <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
-                    {message.body}
+            messages.map((message, index) => {
+              const isMine = message.sender_id === profile?.id;
+              const quote = parseQuote(message.body);
+              return (
+                <View key={message.id}>
+                  {shouldShowDateSeparator(messages, index) && (
+                    <View style={styles.dateSeparator}>
+                      <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                    </View>
+                  )}
+                  {quote ? (
+                    <View style={[styles.quoteCard, isMine ? styles.quoteCardMine : styles.quoteCardTheirs]}>
+                      <View style={styles.quoteHeader}>
+                        <Ionicons name="receipt-outline" size={14} color={colors.primary} />
+                        <Text style={styles.quoteTitle}>Cotización</Text>
+                      </View>
+                      <Text style={styles.quoteService}>{quote.service}</Text>
+                      <View style={styles.quoteRow}>
+                        <Text style={styles.quoteLabel}>Precio:</Text>
+                        <Text style={styles.quoteValue}>{quote.price}</Text>
+                      </View>
+                      <View style={styles.quoteRow}>
+                        <Text style={styles.quoteLabel}>Tiempo est.:</Text>
+                        <Text style={styles.quoteValue}>{quote.time}</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                      <Text style={isMine ? styles.bubbleTextMine : styles.bubbleText}>{message.body}</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.messageTime, isMine ? styles.messageTimeMine : styles.messageTimeTheirs]}>
+                    {formatMessageTime(message.created_at)}
                   </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.messageTime,
-                    message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
-                  ]}
-                >
-                  {formatMessageTime(message.created_at)}
-                </Text>
-              </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
 
@@ -251,18 +295,86 @@ export default function ChatScreen() {
             <Text style={styles.limitedNoticeText}>Tu negocio está limitado: no puedes enviar mensajes.</Text>
           </View>
         ) : (
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe un mensaje…"
-              placeholderTextColor={colors.textMuted}
-              value={text}
-              onChangeText={setText}
-            />
-            <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
-              <Ionicons name="send" size={18} color="#fff" />
-            </Pressable>
-          </View>
+          <>
+            {showQuickReplies && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickRepliesRow}
+                keyboardShouldPersistTaps="always"
+              >
+                {QUICK_REPLIES.map((reply) => (
+                  <Pressable
+                    key={reply}
+                    style={styles.quickReplyChip}
+                    onPress={() => { setText(reply); setShowQuickReplies(false); }}
+                  >
+                    <Text style={styles.quickReplyText}>{reply}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            {showQuoteForm && (
+              <View style={styles.quoteForm}>
+                <Text style={styles.quoteFormTitle}>Nueva cotización</Text>
+                <TextInput
+                  style={styles.quoteInput}
+                  placeholder="Servicio o trabajo"
+                  placeholderTextColor={colors.textMuted}
+                  value={quoteService}
+                  onChangeText={setQuoteService}
+                />
+                <TextInput
+                  style={styles.quoteInput}
+                  placeholder="Precio (ej. $25 o A convenir)"
+                  placeholderTextColor={colors.textMuted}
+                  value={quotePrice}
+                  onChangeText={setQuotePrice}
+                />
+                <TextInput
+                  style={styles.quoteInput}
+                  placeholder="Tiempo estimado (ej. 2 horas)"
+                  placeholderTextColor={colors.textMuted}
+                  value={quoteTime}
+                  onChangeText={setQuoteTime}
+                />
+                <View style={styles.quoteFormActions}>
+                  <Pressable style={styles.quoteFormBtn} onPress={handleSendQuote}>
+                    <Text style={styles.quoteFormBtnText}>Enviar cotización</Text>
+                  </Pressable>
+                  <Pressable style={styles.quoteFormBtnSecondary} onPress={() => setShowQuoteForm(false)}>
+                    <Text style={styles.quoteFormBtnSecondaryText}>Cancelar</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.inputRow}>
+              <Pressable
+                style={styles.iconButton}
+                onPress={() => { setShowQuickReplies((v) => !v); setShowQuoteForm(false); }}
+              >
+                <Ionicons name="flash-outline" size={20} color={showQuickReplies ? colors.primary : colors.textMuted} />
+              </Pressable>
+              <Pressable
+                style={styles.iconButton}
+                onPress={() => { setShowQuoteForm((v) => !v); setShowQuickReplies(false); }}
+              >
+                <Ionicons name="receipt-outline" size={20} color={showQuoteForm ? colors.primary : colors.textMuted} />
+              </Pressable>
+              <TextInput
+                style={styles.input}
+                placeholder="Escribe un mensaje…"
+                placeholderTextColor={colors.textMuted}
+                value={text}
+                onChangeText={setText}
+              />
+              <Pressable style={styles.sendButton} onPress={() => handleSend()} disabled={sending}>
+                <Ionicons name="send" size={18} color="#fff" />
+              </Pressable>
+            </View>
+          </>
         )}
       </KeyboardAvoidingView>
     </View>
@@ -343,11 +455,17 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: 6,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
@@ -367,6 +485,131 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickRepliesRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  quickReplyChip: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickReplyText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  quoteForm: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: 8,
+  },
+  quoteFormTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  quoteInput: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  quoteFormActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  quoteFormBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  quoteFormBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  quoteFormBtnSecondary: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quoteFormBtnSecondaryText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  quoteCard: {
+    maxWidth: '80%',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+  },
+  quoteCardMine: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#FFF8F0',
+    borderColor: colors.primary,
+  },
+  quoteCardTheirs: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  quoteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  quoteTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  quoteService: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  quoteRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  quoteLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+    minWidth: 80,
+  },
+  quoteValue: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+    flex: 1,
   },
   intentsBanner: {
     backgroundColor: '#EEF4FF',

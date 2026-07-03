@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { distanceKm } from '../utils/distance';
 import { notifyUser } from './notifications';
-import type { Business, HelpRequest, HelpRequestNotification } from '../types/database';
+import type { Business, HelpRequest, HelpRequestNotification, VehicleInfo } from '../types/database';
 
 const FALLBACK_NEAREST_COUNT = 5;
 
@@ -15,6 +15,7 @@ async function findNearbyWorkshops(latitude: number, longitude: number): Promise
     .from('businesses')
     .select('*')
     .eq('business_type', 'workshop')
+    .eq('is_available_for_aid', true)
     .not('aid_radius_km', 'is', null);
   if (error) throw error;
 
@@ -179,6 +180,7 @@ export interface PendingHelpRequest {
   notification: HelpRequestNotification;
   helpRequest: HelpRequest;
   client: { id: string; full_name: string; phone: string | null } | null;
+  vehicle: VehicleInfo | null;
 }
 
 export async function getPendingRequests(businessId: string): Promise<PendingHelpRequest[]> {
@@ -203,23 +205,34 @@ export async function getPendingRequests(businessId: string): Promise<PendingHel
 
   const helpRequestList = (helpRequests ?? []) as HelpRequest[];
   const clientIds = Array.from(new Set(helpRequestList.map((hr) => hr.client_id)));
+  const vehicleIds = Array.from(new Set(helpRequestList.map((hr) => hr.vehicle_id)));
 
-  const { data: clients, error: clientsError } = clientIds.length
-    ? await supabase.from('users').select('id, full_name, phone').in('id', clientIds)
-    : { data: [], error: null };
+  const [{ data: clients, error: clientsError }, { data: vehicles, error: vehiclesError }] =
+    await Promise.all([
+      clientIds.length
+        ? supabase.from('users').select('id, full_name, phone').in('id', clientIds)
+        : Promise.resolve({ data: [], error: null }),
+      vehicleIds.length
+        ? supabase.from('vehicles').select('id, brand, model, year').in('id', vehicleIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
   if (clientsError) throw clientsError;
+  if (vehiclesError) throw vehiclesError;
 
   const helpRequestById = new Map(helpRequestList.map((hr) => [hr.id, hr]));
-  const clientById = new Map((clients ?? []).map((c) => [c.id, c]));
+  const clientById = new Map((clients ?? []).map((c: any) => [c.id as string, c]));
+  const vehicleById = new Map((vehicles ?? []).map((v: any) => [v.id as string, v]));
 
   return notificationList
     .map((notification) => {
       const helpRequest = helpRequestById.get(notification.help_request_id);
       if (!helpRequest) return null;
+      const veh = vehicleById.get(helpRequest.vehicle_id) as any;
       return {
         notification,
         helpRequest,
-        client: clientById.get(helpRequest.client_id) ?? null,
+        client: (clientById.get(helpRequest.client_id) as any) ?? null,
+        vehicle: veh ? { brand: veh.brand, model: veh.model, year: veh.year } : null,
       };
     })
     .filter((item): item is PendingHelpRequest => item !== null);

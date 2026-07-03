@@ -9,6 +9,7 @@ import { signOut } from '../services/auth';
 import { getBusinessById, getMyWorkBusiness, updateBusiness } from '../services/businesses';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../services/follows';
 import { getMyBusinessPosts } from '../services/posts';
+import { getPortfolioPhotos, type PortfolioPhoto } from '../services/portfolio';
 import { getBusinessReviews } from '../services/reviews';
 import { pickAndUploadBusinessImage } from '../services/storage';
 import type { Business, Post, Review } from '../types/database';
@@ -43,6 +44,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioPhoto[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -71,8 +73,12 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     setIsOwner(owner);
     if (!resolvedBusiness) return;
 
-    const myPosts = await getMyBusinessPosts(resolvedBusiness.id);
+    const [myPosts, portfolioPhotos] = await Promise.all([
+      getMyBusinessPosts(resolvedBusiness.id),
+      getPortfolioPhotos(resolvedBusiness.id),
+    ]);
     setPosts(myPosts);
+    setPortfolio(portfolioPhotos);
 
     if (mode === 'public') {
       const reviewsResult = await getBusinessReviews(resolvedBusiness.id);
@@ -357,6 +363,52 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
               ))}
             </View>
           )}
+        </>
+      )}
+
+      {portfolio.length > 0 && (
+        <>
+          <View style={styles.divider} />
+          <View style={styles.postsHeaderRow}>
+            <Text style={styles.sectionTitle}>Portafolio de trabajos</Text>
+            {mode === 'self' && isOwner && (
+              <Pressable onPress={() => router.push('/(business)/portafolio')}>
+                <Text style={styles.manageLink}>Gestionar</Text>
+              </Pressable>
+            )}
+            {mode === 'public' && (
+              <Pressable onPress={() => business && router.push(`/(client)/portafolio/${business.id}`)}>
+                <Text style={styles.manageLink}>Ver todo</Text>
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.grid}>
+            {portfolio.slice(0, 6).map((photo) => (
+              <Pressable
+                key={photo.id}
+                style={styles.gridCell}
+                onPress={() => mode === 'public' && business && router.push(`/(client)/portafolio/${business.id}`)}
+              >
+                <Image source={{ uri: photo.image_url }} style={styles.gridImage} />
+              </Pressable>
+            ))}
+          </View>
+          {portfolio.length > 6 && (
+            <Pressable onPress={() => mode === 'public' && business && router.push(`/(client)/portafolio/${business.id}`)}>
+              <Text style={[styles.placeholderText, { marginTop: 8 }, mode === 'public' && { color: colors.primary }]}>
+                +{portfolio.length - 6} fotos más
+              </Text>
+            </Pressable>
+          )}
+        </>
+      )}
+
+      {mode === 'self' && isOwner && portfolio.length === 0 && (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.sectionTitle}>Portafolio de trabajos</Text>
+          <Text style={styles.placeholderText}>Sube fotos de tus trabajos para generar confianza.</Text>
+          <Button title="Agregar fotos al portafolio" variant="secondary" onPress={() => router.push('/(business)/portafolio')} />
         </>
       )}
 

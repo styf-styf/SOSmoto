@@ -13,6 +13,17 @@ export interface User {
   created_at: string;
 }
 
+export interface VehicleInfo {
+  brand: string;
+  model: string;
+  year: number;
+}
+
+export function formatVehicle(v: VehicleInfo | null | undefined): string | null {
+  if (!v) return null;
+  return `${v.brand} ${v.model} ${v.year}`;
+}
+
 export interface Vehicle {
   id: string;
   user_id: string;
@@ -52,9 +63,18 @@ export interface Business {
   followers_count: number;
   plan_id: string;
   aid_radius_km: number | null;
+  is_available_for_aid: boolean;
   is_24h: boolean;
   is_limited: boolean;
   limitation_reason: string | null;
+  created_at: string;
+}
+
+export interface PortfolioPhoto {
+  id: string;
+  business_id: string;
+  image_url: string;
+  caption: string | null;
   created_at: string;
 }
 
@@ -66,6 +86,13 @@ export interface BusinessEmployee {
   user_id: string;
   role: EmployeeRole;
   can_accept_aid_requests: boolean;
+  created_at: string;
+}
+
+export interface EmployeeRemovalNotice {
+  id: string;
+  user_id: string;
+  business_name: string;
   created_at: string;
 }
 

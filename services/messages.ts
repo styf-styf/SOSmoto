@@ -43,6 +43,7 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
       await notifyUser(business.owner_id, 'Nuevo mensaje', 'Tienes un mensaje nuevo', {
         type: 'message',
         businessId: message.business_id,
+        clientId: message.client_id,
       });
     }
   } else {

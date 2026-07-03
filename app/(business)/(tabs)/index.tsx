@@ -14,6 +14,12 @@ import {
   rejectInvitation,
   type EmployeeInvitationWithBusiness,
 } from '../../../services/employeeInvitations';
+import {
+  dismissRemovalNotice,
+  getMyRemovalNotice,
+} from '../../../services/employees';
+import { changeRoleToClient } from '../../../services/users';
+import type { EmployeeRemovalNotice } from '../../../types/database';
 import { dismissGrowthSuggestion, getActiveGrowthSuggestion } from '../../../services/growth';
 import {
   getBusinessStories,
@@ -31,11 +37,12 @@ import type { Business, BusinessType, GrowthSuggestion } from '../../../types/da
 import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
 
 export default function BusinessHomeScreen() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pendingInvitations, setPendingInvitations] = useState<EmployeeInvitationWithBusiness[]>([]);
+  const [removalNotice, setRemovalNotice] = useState<EmployeeRemovalNotice | null>(null);
   const [activeStories, setActiveStories] = useState(0);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
@@ -51,10 +58,15 @@ export default function BusinessHomeScreen() {
       setBusiness(result);
       setIsOwner(work?.isOwner ?? false);
       if (!result) {
-        const invitations = await getMyPendingInvitations(profile.id);
+        const [invitations, notice] = await Promise.all([
+          getMyPendingInvitations(profile.id),
+          getMyRemovalNotice(profile.id),
+        ]);
         setPendingInvitations(invitations);
+        setRemovalNotice(notice);
         return;
       }
+      setRemovalNotice(null);
       setPendingInvitations([]);
 
       if (!limitCheckedRef.current) {
@@ -132,6 +144,21 @@ export default function BusinessHomeScreen() {
   }
 
   if (!business) {
+    if (removalNotice) {
+      return (
+        <RemovedNoticeScreen
+          notice={removalNotice}
+          onDismissed={() => {
+            setRemovalNotice(null);
+          }}
+          onChangeToClient={async () => {
+            await changeRoleToClient();
+            await refreshProfile();
+            router.replace('/');
+          }}
+        />
+      );
+    }
     if (pendingInvitations.length > 0) {
       return (
         <PendingInvitationsScreen
@@ -208,6 +235,91 @@ export default function BusinessHomeScreen() {
         </View>
       }
     />
+  );
+}
+
+function RemovedNoticeScreen({
+  notice,
+  onDismissed,
+  onChangeToClient,
+}: {
+  notice: EmployeeRemovalNotice;
+  onDismissed: () => void;
+  onChangeToClient: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState<'register' | 'wait' | 'client' | null>(null);
+
+  async function handleDismiss(action: 'register' | 'wait') {
+    setBusy(action);
+    try {
+      await dismissRemovalNotice(notice.id);
+      onDismissed();
+    } catch (err) {
+      console.error('dismiss removal notice error', err);
+      Alert.alert('Error', 'No se pudo continuar. Intenta de nuevo.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleChangeToClient() {
+    Alert.alert(
+      'Cambiar a cuenta de cliente',
+      'Tu cuenta pasará a ser de cliente. Ya no tendrás acceso al panel de negocio. ¿Confirmas?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cambiar',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy('client');
+            try {
+              await dismissRemovalNotice(notice.id);
+              await onChangeToClient();
+            } catch (err) {
+              console.error('change role to client error', err);
+              Alert.alert('Error', 'No se pudo cambiar el rol. Intenta de nuevo.');
+              setBusy(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.removedContainer}>
+      <Ionicons name="person-remove-outline" size={52} color={colors.danger} style={styles.removedIcon} />
+      <Text style={styles.removedTitle}>Fuiste removido del equipo</Text>
+      <Text style={styles.removedSubtitle}>
+        Ya no eres parte del equipo de <Text style={styles.removedBusiness}>{notice.business_name}</Text>.
+        Elige cómo quieres continuar:
+      </Text>
+
+      <Button
+        title="Registrar mi propio negocio"
+        onPress={() => handleDismiss('register')}
+        loading={busy === 'register'}
+        disabled={busy !== null}
+        style={styles.removedButton}
+      />
+      <Button
+        title="Esperar invitación de otro negocio"
+        variant="secondary"
+        onPress={() => handleDismiss('wait')}
+        loading={busy === 'wait'}
+        disabled={busy !== null}
+        style={styles.removedButton}
+      />
+      <Button
+        title="Cambiar a cuenta de cliente"
+        variant="secondary"
+        onPress={handleChangeToClient}
+        loading={busy === 'client'}
+        disabled={busy !== null}
+        style={styles.removedButton}
+      />
+    </ScrollView>
   );
 }
 
@@ -448,6 +560,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBE8E8',
     borderRadius: 8,
     padding: 10,
+  },
+  removedContainer: {
+    padding: 24,
+    backgroundColor: colors.background,
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removedIcon: {
+    marginBottom: 20,
+  },
+  removedTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  removedSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  removedBusiness: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  removedButton: {
+    width: '100%',
+    marginBottom: 12,
   },
   invitationsContainer: {
     padding: 24,

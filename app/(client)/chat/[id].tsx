@@ -9,7 +9,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import type { Business, Message } from '../../../types/database';
-import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
+import { formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
   const { id, prefill, autoSend } = useLocalSearchParams<{ id: string; prefill?: string; autoSend?: string }>();
@@ -141,30 +141,43 @@ export default function ChatScreen() {
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
           ) : (
-            messages.map((message, index) => (
-              <View key={message.id}>
-                {shouldShowDateSeparator(messages, index) && (
-                  <View style={styles.dateSeparator}>
-                    <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
-                  </View>
-                )}
-                <View
-                  style={[styles.bubble, message.sender_id === profile?.id ? styles.bubbleMine : styles.bubbleTheirs]}
-                >
-                  <Text style={message.sender_id === profile?.id ? styles.bubbleTextMine : styles.bubbleText}>
-                    {message.body}
+            messages.map((message, index) => {
+              const isMine = message.sender_id === profile?.id;
+              const quote = parseQuote(message.body);
+              return (
+                <View key={message.id}>
+                  {shouldShowDateSeparator(messages, index) && (
+                    <View style={styles.dateSeparator}>
+                      <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                    </View>
+                  )}
+                  {quote ? (
+                    <View style={[styles.quoteCard, isMine ? styles.quoteCardMine : styles.quoteCardTheirs]}>
+                      <View style={styles.quoteHeader}>
+                        <Ionicons name="receipt-outline" size={14} color={colors.primary} />
+                        <Text style={styles.quoteTitle}>Cotización del taller</Text>
+                      </View>
+                      <Text style={styles.quoteService}>{quote.service}</Text>
+                      <View style={styles.quoteRow}>
+                        <Text style={styles.quoteLabel}>Precio:</Text>
+                        <Text style={styles.quoteValue}>{quote.price}</Text>
+                      </View>
+                      <View style={styles.quoteRow}>
+                        <Text style={styles.quoteLabel}>Tiempo est.:</Text>
+                        <Text style={styles.quoteValue}>{quote.time}</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                      <Text style={isMine ? styles.bubbleTextMine : styles.bubbleText}>{message.body}</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.messageTime, isMine ? styles.messageTimeMine : styles.messageTimeTheirs]}>
+                    {formatMessageTime(message.created_at)}
                   </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.messageTime,
-                    message.sender_id === profile?.id ? styles.messageTimeMine : styles.messageTimeTheirs,
-                  ]}
-                >
-                  {formatMessageTime(message.created_at)}
-                </Text>
-              </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
 
@@ -283,5 +296,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quoteCard: {
+    maxWidth: '80%',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+  },
+  quoteCardMine: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#FFF8F0',
+    borderColor: colors.primary,
+  },
+  quoteCardTheirs: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  quoteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  quoteTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  quoteService: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  quoteRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  quoteLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+    minWidth: 80,
+  },
+  quoteValue: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+    flex: 1,
   },
 });

@@ -16,6 +16,7 @@ import {
   type BusinessAppointment,
 } from '../../services/appointments';
 import { getMyWorkBusiness } from '../../services/businesses';
+import { formatVehicle } from '../../types/database';
 import { createClientReview, getReviewedTargetIds } from '../../services/reviews';
 
 const statusLabel: Record<BusinessAppointment['status'], string> = {
@@ -226,6 +227,7 @@ export default function AgendaNegocioScreen() {
                 })}
               </Text>
             )}
+            {appointment.vehicle && <Text style={styles.cardMeta}>{formatVehicle(appointment.vehicle)}</Text>}
             {appointment.service_name && <Text style={styles.cardMeta}>{appointment.service_name}</Text>}
             {appointment.notes && <Text style={styles.cardMeta}>{appointment.notes}</Text>}
 

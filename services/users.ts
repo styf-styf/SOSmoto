@@ -41,3 +41,8 @@ export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }
+
+export async function changeRoleToClient(): Promise<void> {
+  const { error } = await supabase.rpc('change_role_to_client');
+  if (error) throw error;
+}

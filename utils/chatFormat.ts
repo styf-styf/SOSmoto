@@ -1,3 +1,24 @@
+const QUOTE_PREFIX = '__QUOTE__';
+
+export interface QuotePayload {
+  service: string;
+  price: string;
+  time: string;
+}
+
+export function encodeQuote(payload: QuotePayload): string {
+  return `${QUOTE_PREFIX}${JSON.stringify(payload)}`;
+}
+
+export function parseQuote(body: string): QuotePayload | null {
+  if (!body.startsWith(QUOTE_PREFIX)) return null;
+  try {
+    return JSON.parse(body.slice(QUOTE_PREFIX.length)) as QuotePayload;
+  } catch {
+    return null;
+  }
+}
+
 function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }

@@ -76,6 +76,36 @@ export interface PublicFeedPageParams {
   before?: { createdAt: string; id: string };
 }
 
+export async function getFollowingFeedPage(
+  clientId: string,
+  params: PublicFeedPageParams = {}
+): Promise<PostWithAuthor[]> {
+  const { data: follows, error: followsError } = await supabase
+    .from('follows')
+    .select('business_id')
+    .eq('client_id', clientId);
+  if (followsError) throw followsError;
+
+  const followedIds = ((follows ?? []) as { business_id: string }[]).map((f) => f.business_id);
+  if (followedIds.length === 0) return [];
+
+  let query = supabase
+    .from('posts')
+    .select(FEED_SELECT)
+    .in('business_id', followedIds)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+
+  if (params.before) {
+    const { createdAt, id } = params.before;
+    query = query.or(`created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`);
+  }
+
+  const { data, error } = await query.limit(params.limit ?? 10);
+  if (error) throw error;
+  return (data ?? []) as unknown as PostWithAuthor[];
+}
+
 // Feed público de publicaciones (de cualquier negocio o cliente) -- se usa
 // igual en el home del cliente y el del negocio, paginado por cursor
 // (created_at + id de la última publicación cargada) para scroll infinito.

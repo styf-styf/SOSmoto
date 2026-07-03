@@ -241,6 +241,14 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   return (data ?? []) as SubscriptionPlan[];
 }
 
+export async function setBusinessAvailability(businessId: string, available: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('businesses')
+    .update({ is_available_for_aid: available })
+    .eq('id', businessId);
+  if (error) throw error;
+}
+
 export async function updateBusinessPlan(businessId: string, planId: string): Promise<Business> {
   const { data, error } = await supabase
     .from('businesses')
@@ -250,4 +258,38 @@ export async function updateBusinessPlan(businessId: string, planId: string): Pr
     .single();
   if (error) throw error;
   return data as Business;
+}
+
+export async function getNewNearbyBusinesses(
+  coords: { latitude: number; longitude: number } | null,
+  limit = 6
+): Promise<BusinessWithDistance[]> {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('*')
+    .neq('business_type', 'brand_advertiser')
+    .or(`created_at.gte.${thirtyDaysAgo.toISOString()},followers_count.lt.5`)
+    .limit(30);
+
+  if (error) throw error;
+
+  const businesses = (data ?? []) as Business[];
+  const withDistance: BusinessWithDistance[] = businesses.map((b) => ({
+    ...b,
+    distance_km: coords
+      ? distanceKm(coords.latitude, coords.longitude, b.latitude, b.longitude)
+      : null,
+  }));
+
+  withDistance.sort((a, b) => {
+    if (a.distance_km === null && b.distance_km === null) return 0;
+    if (a.distance_km === null) return 1;
+    if (b.distance_km === null) return -1;
+    return a.distance_km - b.distance_km;
+  });
+
+  return withDistance.slice(0, limit);
 }

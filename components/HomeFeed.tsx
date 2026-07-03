@@ -4,7 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import { colors } from '../constants/colors';
 import { getFeedAds, type AdWithBusiness } from '../services/ads';
 import { getFeedCatalogPool, type FeedCatalogItem } from '../services/catalog';
-import { getPublicFeedPage, type PostWithAuthor } from '../services/posts';
+import { getFollowingFeedPage, getPublicFeedPage, type PostWithAuthor } from '../services/posts';
 import { applyFreshnessOrder } from '../utils/feedOrdering';
 import { AdBanner } from './AdBanner';
 import { FeedCatalogStrip } from './FeedCatalogStrip';
@@ -128,6 +128,9 @@ export const HomeFeed = forwardRef<
   {
     role: 'client' | 'business';
     city: string | null;
+    feedMode?: 'all' | 'following';
+    clientId?: string;
+    emptyMessage?: string;
     ListHeaderComponent?: ReactElement;
     // El pantalla padre carga las Historias por separado (fuera de este feed
     // de posts/catálogo/anuncios) -- sin esto, el pull-to-refresh solo
@@ -135,7 +138,7 @@ export const HomeFeed = forwardRef<
     // reabrir la app.
     onRefresh?: () => Promise<void> | void;
   }
->(function HomeFeed({ role, city, ListHeaderComponent, onRefresh }, ref) {
+>(function HomeFeed({ role, city, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh }, ref) {
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [catalogPoolPhoto, setCatalogPoolPhoto] = useState<FeedCatalogItem[]>([]);
   const [catalogPoolNoPhoto, setCatalogPoolNoPhoto] = useState<FeedCatalogItem[]>([]);
@@ -148,20 +151,24 @@ export const HomeFeed = forwardRef<
   const lastSeenAdAt = useRef<string | null>(null);
 
   const loadInitial = useCallback(async () => {
-    const [postsPage, catalog, ads] = await Promise.all([
-      getPublicFeedPage({ limit: PAGE_SIZE }),
-      getFeedCatalogPool(),
-      getFeedAds(city),
-    ]);
+    const postsPage =
+      feedMode === 'following' && clientId
+        ? await getFollowingFeedPage(clientId, { limit: PAGE_SIZE })
+        : await getPublicFeedPage({ limit: PAGE_SIZE });
+
+    const [catalog, ads] = await Promise.all([getFeedCatalogPool(), getFeedAds(city)]);
+
     setPosts(postsPage);
     const orderedCatalog = applyFreshnessOrder(catalog, (item) => item.createdAt, lastSeenCatalogAt);
     setCatalogPoolPhoto(orderedCatalog.filter((item) => item.photoUrl));
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(ads, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
-  }, [city]);
+  }, [city, feedMode, clientId]);
 
   useEffect(() => {
+    setPosts([]);
+    setHasMore(true);
     setLoading(true);
     loadInitial()
       .catch((err) => console.error('home feed load error', err))
@@ -189,7 +196,10 @@ export const HomeFeed = forwardRef<
     setLoadingMore(true);
     try {
       const last = posts[posts.length - 1];
-      const nextPage = await getPublicFeedPage({ limit: PAGE_SIZE, before: { createdAt: last.created_at, id: last.id } });
+      const nextPage =
+        feedMode === 'following' && clientId
+          ? await getFollowingFeedPage(clientId, { limit: PAGE_SIZE, before: { createdAt: last.created_at, id: last.id } })
+          : await getPublicFeedPage({ limit: PAGE_SIZE, before: { createdAt: last.created_at, id: last.id } });
       setPosts((prev) => [...prev, ...nextPage]);
       setHasMore(nextPage.length === PAGE_SIZE);
     } catch (err) {
@@ -243,7 +253,11 @@ export const HomeFeed = forwardRef<
         return <AdBanner ad={item.ad} detailHref={`/(${role})/anuncio/${item.ad.id}`} />;
       }}
       ListHeaderComponent={ListHeaderComponent}
-      ListEmptyComponent={<Text style={styles.placeholder}>Todavía no hay publicaciones.</Text>}
+      ListEmptyComponent={
+        <Text style={styles.placeholder}>
+          {emptyMessage ?? 'Todavía no hay publicaciones.'}
+        </Text>
+      }
       contentContainerStyle={styles.container}
       onEndReachedThreshold={0.4}
       onEndReached={handleLoadMore}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
@@ -8,6 +8,7 @@ interface AuthContextValue {
   session: Session | null;
   profile: User | null;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,7 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loading = !sessionLoaded || profileLoading;
 
-  return <AuthContext.Provider value={{ session, profile, loading }}>{children}</AuthContext.Provider>;
+  const refreshProfile = useCallback(async () => {
+    if (!session?.user) return;
+    const { data, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+    if (!error && data) setProfile(data as User);
+  }, [session?.user?.id]);
+
+  return <AuthContext.Provider value={{ session, profile, loading, refreshProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

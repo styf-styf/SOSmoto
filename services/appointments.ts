@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { notifyUser } from './notifications';
-import type { Appointment } from '../types/database';
+import type { Appointment, VehicleInfo } from '../types/database';
 
 export interface CreateAppointmentParams {
   clientId: string;
@@ -64,6 +64,7 @@ export async function getClientAppointments(clientId: string): Promise<ClientApp
 export interface BusinessAppointment extends Appointment {
   service_name: string | null;
   client: { full_name: string; phone: string | null } | null;
+  vehicle: VehicleInfo | null;
 }
 
 export async function getBusinessAppointments(businessId: string): Promise<BusinessAppointment[]> {
@@ -75,20 +76,35 @@ export async function getBusinessAppointments(businessId: string): Promise<Busin
   if (error) throw error;
 
   const rows = data ?? [];
-  const clientIds = Array.from(new Set(rows.map((r: any) => r.client_id)));
+  const clientIds = Array.from(new Set(rows.map((r: any) => r.client_id as string)));
+  const vehicleIds = Array.from(
+    new Set(rows.map((r: any) => r.vehicle_id as string | null).filter((v): v is string => Boolean(v)))
+  );
 
-  const { data: clients, error: clientsError } = clientIds.length
-    ? await supabase.from('users').select('id, full_name, phone').in('id', clientIds)
-    : { data: [], error: null };
+  const [{ data: clients, error: clientsError }, { data: vehicles, error: vehiclesError }] =
+    await Promise.all([
+      clientIds.length
+        ? supabase.from('users').select('id, full_name, phone').in('id', clientIds)
+        : Promise.resolve({ data: [], error: null }),
+      vehicleIds.length
+        ? supabase.from('vehicles').select('id, brand, model, year').in('id', vehicleIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
   if (clientsError) throw clientsError;
+  if (vehiclesError) throw vehiclesError;
 
-  const clientById = new Map((clients ?? []).map((c) => [c.id, c]));
+  const clientById = new Map((clients ?? []).map((c: any) => [c.id as string, c]));
+  const vehicleById = new Map((vehicles ?? []).map((v: any) => [v.id as string, v]));
 
-  return rows.map((row: any) => ({
-    ...row,
-    service_name: row.services?.name ?? null,
-    client: clientById.get(row.client_id) ?? null,
-  })) as BusinessAppointment[];
+  return rows.map((row: any) => {
+    const veh = row.vehicle_id ? (vehicleById.get(row.vehicle_id) as any) ?? null : null;
+    return {
+      ...row,
+      service_name: row.services?.name ?? null,
+      client: (clientById.get(row.client_id) as any) ?? null,
+      vehicle: veh ? { brand: veh.brand, model: veh.model, year: veh.year } : null,
+    };
+  }) as BusinessAppointment[];
 }
 
 export async function cancelAppointment(id: string, cancelledBy: 'client' | 'business'): Promise<void> {

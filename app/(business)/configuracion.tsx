@@ -33,6 +33,7 @@ export default function BusinessConfiguracionScreen() {
   const { getCoords } = useLocation();
 
   const [business, setBusiness] = useState<Business | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [plan, setPlan] = useState<PlanLimits | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -56,6 +57,7 @@ export default function BusinessConfiguracionScreen() {
     const work = await getMyWorkBusiness(profile.id);
     const myBusiness = work?.business ?? null;
     setBusiness(myBusiness);
+    setIsOwner(work?.isOwner ?? false);
     if (!myBusiness) return;
 
     setName(myBusiness.name);
@@ -218,25 +220,33 @@ export default function BusinessConfiguracionScreen() {
         <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
       </Pressable>
 
+      {!isOwner && (
+        <View style={styles.readOnlyBanner}>
+          <Text style={styles.readOnlyText}>Solo el dueño del negocio puede editar estos datos.</Text>
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>Datos del negocio</Text>
-      <TextField label="Nombre" value={name} onChangeText={setName} />
-      <TextField label="Descripción" value={description} onChangeText={setDescription} multiline />
-      <TextField label="Dirección" value={address} onChangeText={setAddress} />
-      <TextField label="Ciudad" value={city} onChangeText={setCity} />
-      <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-      <TextField label="WhatsApp" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" />
+      <TextField label="Nombre" value={name} onChangeText={setName} editable={isOwner} />
+      <TextField label="Descripción" value={description} onChangeText={setDescription} multiline editable={isOwner} />
+      <TextField label="Dirección" value={address} onChangeText={setAddress} editable={isOwner} />
+      <TextField label="Ciudad" value={city} onChangeText={setCity} editable={isOwner} />
+      <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={isOwner} />
+      <TextField label="WhatsApp" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" editable={isOwner} />
 
       <Text style={styles.sectionTitle}>Ubicación</Text>
       <Text style={styles.helperText}>
         Lat: {business.latitude.toFixed(5)}, Lng: {business.longitude.toFixed(5)}
       </Text>
-      <Button
-        title={locating ? 'Obteniendo ubicación…' : 'Actualizar con mi ubicación actual'}
-        variant="secondary"
-        onPress={handleUpdateLocation}
-        loading={locating}
-        style={styles.locationButton}
-      />
+      {isOwner && (
+        <Button
+          title={locating ? 'Obteniendo ubicación…' : 'Actualizar con mi ubicación actual'}
+          variant="secondary"
+          onPress={handleUpdateLocation}
+          loading={locating}
+          style={styles.locationButton}
+        />
+      )}
 
       {business.business_type === 'workshop' && (
         <>
@@ -247,13 +257,14 @@ export default function BusinessConfiguracionScreen() {
             keyboardType="numeric"
             value={radius}
             onChangeText={setRadius}
+            editable={isOwner}
           />
         </>
       )}
 
       <View style={styles.toggleRow}>
         <Text style={styles.toggleLabel}>Atención 24/7</Text>
-        <Switch value={is24h} onValueChange={setIs24h} />
+        <Switch value={is24h} onValueChange={setIs24h} disabled={!isOwner} />
       </View>
 
       <Text style={styles.sectionTitle}>Horario</Text>
@@ -264,7 +275,7 @@ export default function BusinessConfiguracionScreen() {
           <View key={day.key} style={styles.dayRow}>
             <View style={styles.dayHeader}>
               <Text style={styles.dayLabel}>{day.label}</Text>
-              <Switch value={isOpen} onValueChange={(v) => handleToggleDay(day.key, v)} />
+              <Switch value={isOpen} onValueChange={(v) => handleToggleDay(day.key, v)} disabled={!isOwner} />
             </View>
             {isOpen && (
               <View style={styles.dayTimes}>
@@ -274,6 +285,7 @@ export default function BusinessConfiguracionScreen() {
                   value={value?.open ?? ''}
                   onChangeText={(t) => handleScheduleTime(day.key, 'open', t)}
                   style={styles.timeInput}
+                  editable={isOwner}
                 />
                 <TextField
                   label="Cierre"
@@ -281,6 +293,7 @@ export default function BusinessConfiguracionScreen() {
                   value={value?.close ?? ''}
                   onChangeText={(t) => handleScheduleTime(day.key, 'close', t)}
                   style={styles.timeInput}
+                  editable={isOwner}
                 />
               </View>
             )}
@@ -288,7 +301,7 @@ export default function BusinessConfiguracionScreen() {
         );
       })}
 
-      <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />
+      {isOwner && <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />}
 
       <View style={styles.divider} />
 
@@ -304,6 +317,24 @@ export default function BusinessConfiguracionScreen() {
         title="Agenda"
         variant="secondary"
         onPress={() => router.push('/(business)/agenda-negocio')}
+        style={styles.spacedButton}
+      />
+      <Button
+        title="Historial de trabajos"
+        variant="secondary"
+        onPress={() => router.push('/(business)/historial')}
+        style={styles.spacedButton}
+      />
+      <Button
+        title="Portafolio de trabajos"
+        variant="secondary"
+        onPress={() => router.push('/(business)/portafolio')}
+        style={styles.spacedButton}
+      />
+      <Button
+        title="Recordatorios de mantenimiento"
+        variant="secondary"
+        onPress={() => router.push('/(business)/mantenimiento-proactivo')}
         style={styles.spacedButton}
       />
       <Button
@@ -431,6 +462,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginBottom: 10,
+  },
+  readOnlyBanner: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.textMuted,
+  },
+  readOnlyText: {
+    fontSize: 13,
+    color: colors.textMuted,
   },
   locationButton: {
     marginBottom: 12,

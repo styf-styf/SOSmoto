@@ -8,7 +8,7 @@ import { AppHeader } from '../../components/AppHeader';
 // pantalla en vez de saltar siempre a Inicio.
 export default function BusinessLayout() {
   const { profile } = useAuth();
-  usePushNotifications(profile?.id);
+  usePushNotifications(profile?.id, 'business');
 
   return (
     <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>
@@ -26,6 +26,10 @@ export default function BusinessLayout() {
       <Stack.Screen name="empleados" options={{ title: 'Equipo' }} />
       <Stack.Screen name="suscripcion" options={{ title: 'Plan y suscripción' }} />
       <Stack.Screen name="agenda-negocio" options={{ title: 'Agenda' }} />
+      <Stack.Screen name="historial" options={{ title: 'Historial de trabajos' }} />
+      <Stack.Screen name="cliente/[id]" options={{ title: 'Perfil del cliente' }} />
+      <Stack.Screen name="portafolio" options={{ title: 'Portafolio de trabajos' }} />
+      <Stack.Screen name="mantenimiento-proactivo" options={{ title: 'Recordatorios de mantenimiento' }} />
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
       <Stack.Screen name="historias" options={{ title: 'Historias' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />

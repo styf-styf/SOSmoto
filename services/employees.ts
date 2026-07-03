@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { getPlanLimits } from './catalog';
 import { sendEmployeeInvitation } from './employeeInvitations';
-import type { BusinessEmployee } from '../types/database';
+import type { BusinessEmployee, EmployeeRemovalNotice } from '../types/database';
 
 export interface EmployeeWithUser extends BusinessEmployee {
   user: { full_name: string; email: string; phone: string | null } | null;
@@ -76,7 +76,49 @@ export async function updateEmployeePermission(
 }
 
 export async function removeEmployee(employeeId: string): Promise<void> {
+  // Leer antes de borrar para poder crear el aviso de remoción
+  const { data: emp } = await supabase
+    .from('business_employees')
+    .select('user_id, business_id')
+    .eq('id', employeeId)
+    .single();
+
   const { error } = await supabase.from('business_employees').delete().eq('id', employeeId);
+  if (error) throw error;
+
+  // Fire-and-forget: el mecánico verá el aviso al reabrir la app
+  if (emp?.user_id && emp?.business_id) {
+    supabase
+      .from('businesses')
+      .select('name')
+      .eq('id', emp.business_id)
+      .single()
+      .then(({ data: biz }) => {
+        const businessName = biz?.name ?? 'el negocio';
+        supabase
+          .from('employee_removal_notices')
+          .insert({ user_id: emp.user_id, business_name: businessName })
+          .then(({ error: noticeError }) => {
+            if (noticeError) console.error('removal notice insert error', noticeError);
+          });
+      });
+  }
+}
+
+export async function getMyRemovalNotice(userId: string): Promise<EmployeeRemovalNotice | null> {
+  const { data, error } = await supabase
+    .from('employee_removal_notices')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as EmployeeRemovalNotice | null;
+}
+
+export async function dismissRemovalNotice(noticeId: string): Promise<void> {
+  const { error } = await supabase.from('employee_removal_notices').delete().eq('id', noticeId);
   if (error) throw error;
 }
 
