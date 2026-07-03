@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,7 @@ export default function ClientPublicacionesScreen() {
   const [tagResults, setTagResults] = useState<BusinessWithDistance[]>([]);
   const [searching, setSearching] = useState(false);
   const [taggedBusiness, setTaggedBusiness] = useState<BusinessWithDistance | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -67,22 +68,26 @@ export default function ClientPublicacionesScreen() {
     }
   }
 
-  async function handleSearchBusiness(text: string) {
+  function handleSearchBusiness(text: string) {
     setTagQuery(text);
     setTaggedBusiness(null);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (text.trim().length < 2) {
       setTagResults([]);
+      setSearching(false);
       return;
     }
     setSearching(true);
-    try {
-      const results = await searchBusinesses({ query: text.trim() });
-      setTagResults(results.slice(0, 8));
-    } catch (err) {
-      console.error('search business error', err);
-    } finally {
-      setSearching(false);
-    }
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await searchBusinesses({ query: text.trim() });
+        setTagResults(results.slice(0, 8));
+      } catch (err) {
+        console.error('search business error', err);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
   }
 
   async function handleCreate() {

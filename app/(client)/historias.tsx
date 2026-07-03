@@ -4,7 +4,7 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
-import { createStory, deleteStory, getClientStories, isStoryVisible } from '../../services/stories';
+import { createStory, deleteStory, getClientActiveStoryCount, getClientStories, isStoryVisible } from '../../services/stories';
 import { pickAndUploadClientStoryImage } from '../../services/storage';
 import type { Story } from '../../types/database';
 
@@ -44,10 +44,20 @@ export default function ClientHistoriasScreen() {
     setCaption('');
   }
 
-  function handleAddPress() {
+  async function handleAddPress() {
+    if (!profile) return;
     if (atLimit) {
       Alert.alert('Límite diario alcanzado', `Puedes subir hasta ${CLIENT_DAILY_LIMIT} historias por día.`);
       return;
+    }
+    try {
+      const freshCount = await getClientActiveStoryCount(profile.id);
+      if (freshCount >= CLIENT_DAILY_LIMIT) {
+        Alert.alert('Límite diario alcanzado', `Puedes subir hasta ${CLIENT_DAILY_LIMIT} historias por día.`);
+        return;
+      }
+    } catch {
+      // si falla la verificación, deja intentar (el trigger del DB lo bloquea de todas formas)
     }
     resetForm();
     setShowForm(true);

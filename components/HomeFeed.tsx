@@ -222,6 +222,7 @@ export const HomeFeed = forwardRef<
             <PostCard
               post={item.post}
               detailHref={`/(${role})/publicacion/${item.post.id}`}
+              userRole={role}
               showTopShadow={item.showTopShadow}
               showBottomShadow={item.showBottomShadow}
               topFadeFromHeader={item.topFadeFromHeader}

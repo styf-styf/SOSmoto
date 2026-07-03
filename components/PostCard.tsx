@@ -10,12 +10,14 @@ import { getPostAuthorAvatar, getPostAuthorName, getPostTag, type PostWithAuthor
 export function PostCard({
   post,
   detailHref,
+  userRole = 'client',
   showTopShadow = true,
   showBottomShadow = true,
   topFadeFromHeader = false,
 }: {
   post: PostWithAuthor;
   detailHref: string;
+  userRole?: 'client' | 'business';
   // Cuando este post (sin imagen) queda pegado a otro bloque "de fondo"
   // (catálogo u otro post sin imagen), HomeFeed apaga la sombra del lado
   // compartido para que ambos se vean como un solo fondo gris continuo en
@@ -28,7 +30,7 @@ export function PostCard({
 }) {
   const authorName = getPostAuthorName(post);
   const avatarUrl = getPostAuthorAvatar(post);
-  const tag = getPostTag(post);
+  const tag = getPostTag(post, userRole);
   const isBusiness = !!post.author_business;
   const hasImage = !!post.image_url;
   const [expanded, setExpanded] = useState(false);

@@ -75,8 +75,8 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!businessId || !clientId) return;
-    const unsubscribe = subscribeToMessages('business_id', businessId, (message) => {
-      if (message.client_id !== clientId) return;
+    const unsubscribe = subscribeToMessages('client_id', clientId, (message) => {
+      if (message.business_id !== businessId) return;
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
       if (profile && message.sender_id !== profile.id) {
         markThreadRead(clientId, businessId, profile.id).catch((err) =>

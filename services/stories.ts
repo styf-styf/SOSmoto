@@ -212,6 +212,17 @@ export async function getSeenStoryIds(clientId: string, storyIds: string[]): Pro
   return new Set((data ?? []).map((row) => row.story_id as string));
 }
 
+export async function getClientActiveStoryCount(clientId: string): Promise<number> {
+  const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count, error } = await supabase
+    .from('stories')
+    .select('*', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .gt('created_at', dayAgoIso);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function registerStoryView(storyId: string, clientId: string): Promise<void> {
   const { error: viewError } = await supabase
     .from('story_views')

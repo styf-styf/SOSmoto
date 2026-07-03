@@ -21,6 +21,7 @@ export default function BusinessLayout() {
       <Stack.Screen name="historia-cliente/[clientId]" options={{ headerShown: false }} />
       <Stack.Screen name="publicaciones" options={{ title: 'Publicaciones' }} />
       <Stack.Screen name="publicacion/[id]" options={{ title: 'Publicación' }} />
+      <Stack.Screen name="business/[id]" options={{ title: 'Perfil del negocio' }} />
       <Stack.Screen name="anuncio/[id]" options={{ title: 'Anuncio' }} />
       <Stack.Screen name="empleados" options={{ title: 'Equipo' }} />
       <Stack.Screen name="suscripcion" options={{ title: 'Plan y suscripción' }} />

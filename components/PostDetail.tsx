@@ -17,7 +17,7 @@ import {
   type PostWithAuthor,
 } from '../services/posts';
 
-export function PostDetail({ postId }: { postId: string }) {
+export function PostDetail({ postId, userRole = 'client' }: { postId: string; userRole?: 'client' | 'business' }) {
   const { profile } = useAuth();
   const { isLimited } = useAccountLimited();
   const [post, setPost] = useState<PostWithAuthor | null>(null);
@@ -75,7 +75,7 @@ export function PostDetail({ postId }: { postId: string }) {
   const authorName = getPostAuthorName(post);
   const avatarUrl = getPostAuthorAvatar(post);
   const isBusiness = !!post.author_business;
-  const tag = getPostTag(post);
+  const tag = getPostTag(post, userRole);
 
   return (
     <View style={styles.container}>

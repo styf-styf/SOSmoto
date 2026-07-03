@@ -122,8 +122,11 @@ export interface PostTag {
 // igual decisión que el botón de acción de Historias (StoryViewer.tsx):
 // funciona igual sin importar si quien lo ve está en el home de cliente o
 // de negocio.
-export function getPostTag(post: PostWithAuthor): PostTag | null {
-  if (post.tag_business) return { label: post.tag_business.name, href: `/(client)/business/${post.tag_business.id}` };
+export function getPostTag(post: PostWithAuthor, role: 'client' | 'business' = 'client'): PostTag | null {
+  if (post.tag_business) {
+    const prefix = role === 'business' ? '/(business)' : '/(client)';
+    return { label: post.tag_business.name, href: `${prefix}/business/${post.tag_business.id}` };
+  }
   if (post.tag_service) return { label: post.tag_service.name, href: `/(client)/servicio/${post.tag_service.id}` };
   if (post.tag_product) return { label: post.tag_product.name, href: `/(client)/producto/${post.tag_product.id}` };
   return null;

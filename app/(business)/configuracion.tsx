@@ -126,11 +126,24 @@ export default function BusinessConfiguracionScreen() {
     }
   }
 
+  function isValidTime(t: string): boolean {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+  }
+
   async function handleSave() {
     if (!business) return;
     if (!name.trim() || !address.trim() || !city.trim()) {
       Alert.alert('Faltan datos', 'Completa nombre, dirección y ciudad.');
       return;
+    }
+
+    for (const [key, value] of Object.entries(schedule)) {
+      if (!value) continue;
+      if (!isValidTime(value.open) || !isValidTime(value.close)) {
+        const dayLabel = days.find((d) => d.key === key)?.label ?? key;
+        Alert.alert('Horario inválido', `El horario de ${dayLabel} debe usar formato HH:MM (ej. 08:00, 18:30).`);
+        return;
+      }
     }
 
     let parsedRadius: number | null = null;
