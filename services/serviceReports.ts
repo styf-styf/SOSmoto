@@ -86,6 +86,17 @@ export async function getDraftByAppointment(
   return data as ServiceReport | null;
 }
 
+// Returns a draft by its own ID (for standalone informes not linked to an appointment).
+export async function getDraftById(reportId: string): Promise<ServiceReport | null> {
+  const { data, error } = await (supabase.from('service_reports') as any)
+    .select('*')
+    .eq('id', reportId)
+    .eq('status', 'draft')
+    .maybeSingle();
+  if (error) throw error;
+  return data as ServiceReport | null;
+}
+
 export async function createServiceReport(
   params: CreateServiceReportParams & { draftId?: string }
 ): Promise<ServiceReport> {

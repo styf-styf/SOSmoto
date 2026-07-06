@@ -191,6 +191,52 @@ export default function ClienteDetailScreen() {
         </>
       )}
 
+      {/* Informes de servicio (standalone — sin cita ni auxilio vinculado) */}
+      {(() => {
+        const standalone = clientReports.filter((r) => !r.appointment_id && !r.help_request_id);
+        if (standalone.length === 0) return null;
+        return (
+          <>
+            <Text style={styles.sectionTitle}>Informes de servicio</Text>
+            {standalone.map((report) => {
+              const isDraftReport = report.status === 'draft';
+              const href = isDraftReport
+                ? `/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}&reportId=${report.id}&appointmentStatus=completed`
+                : `/(business)/informe/${report.id}`;
+              return (
+                <Pressable
+                  key={report.id}
+                  style={styles.historyCard}
+                  onPress={() => router.push(href as any)}
+                >
+                  <View style={styles.historyHeader}>
+                    <View style={[styles.badge, styles.badgeAppt]}>
+                      <Text style={styles.badgeText}>
+                        {report.service_category ?? 'Informe'}
+                      </Text>
+                    </View>
+                    <Text style={styles.historyDate}>{formatDate(report.created_at)}</Text>
+                  </View>
+                  {report.vehicle_label && (
+                    <Text style={styles.historyMeta}>{report.vehicle_label}</Text>
+                  )}
+                  <View style={styles.historyReportBtn}>
+                    <Ionicons
+                      name={isDraftReport ? 'document-text-outline' : 'document-text'}
+                      size={14}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.historyReportBtnText}>
+                      {isDraftReport ? 'Continuar borrador' : 'Ver informe'}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </>
+        );
+      })()}
+
       {/* Historial de interacciones */}
       <Text style={styles.sectionTitle}>Historial contigo</Text>
       {history.length === 0 ? (

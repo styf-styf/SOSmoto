@@ -22,6 +22,7 @@ import { getVehicles } from '../../services/vehicles';
 import {
   createServiceReport,
   getDraftByAppointment,
+  getDraftById,
   upsertDraft,
   type InspectionGroup,
   type ServiceCategory,
@@ -78,6 +79,7 @@ export default function NuevoInformeScreen() {
   const params = useLocalSearchParams<{
     appointmentId?: string;
     appointmentStatus?: string;
+    reportId?: string;
     clientId?: string;
     helpRequestId?: string;
     clientName?: string;
@@ -163,40 +165,49 @@ export default function NuevoInformeScreen() {
     }
   }, [isExternal, businessId, params.clientId, params.clientName]);
 
-  // Carga borrador si existe para esta cita
+  function applyDraft(draft: import('../../types/database').ServiceReport) {
+    setDraftId(draft.id);
+    setDraftLoaded(true);
+    if (draft.service_category) setCategory(draft.service_category as ServiceCategory);
+    if (draft.service_km != null) setServiceKm(String(draft.service_km));
+    if (draft.entry_date) setEntryDate(new Date(draft.entry_date));
+    if (draft.exit_date) setExitDate(new Date(draft.exit_date));
+    const svcs = (draft.services_performed ?? []).filter(Boolean);
+    setServices(svcs.length ? svcs : ['']);
+    if (draft.parts_used?.length) {
+      setParts(draft.parts_used.map((p) => ({ name: p.name, quantity: String(p.quantity) })));
+    }
+    if (draft.inspection_checklist?.length) {
+      setGroups(
+        draft.inspection_checklist.map((g) => ({
+          group: g.group,
+          items: g.items,
+          observations: g.observations ?? '',
+          collapsed: true,
+          newItemText: '',
+        }))
+      );
+    }
+    if (draft.observations) setServiceDescription(draft.observations);
+    if (draft.recommendations) setRecommendations(draft.recommendations);
+    if (draft.next_maintenance_km != null) setNextKm(String(draft.next_maintenance_km));
+  }
+
+  // Carga borrador vinculado a una cita
   useEffect(() => {
     if (!businessId || !params.appointmentId) return;
     getDraftByAppointment(params.appointmentId, businessId)
-      .then((draft) => {
-        if (!draft) return;
-        setDraftId(draft.id);
-        setDraftLoaded(true);
-        if (draft.service_category) setCategory(draft.service_category as ServiceCategory);
-        if (draft.service_km != null) setServiceKm(String(draft.service_km));
-        if (draft.entry_date) setEntryDate(new Date(draft.entry_date));
-        if (draft.exit_date) setExitDate(new Date(draft.exit_date));
-        const svcs = (draft.services_performed ?? []).filter(Boolean);
-        setServices(svcs.length ? svcs : ['']);
-        if (draft.parts_used?.length) {
-          setParts(draft.parts_used.map((p) => ({ name: p.name, quantity: String(p.quantity) })));
-        }
-        if (draft.inspection_checklist?.length) {
-          setGroups(
-            draft.inspection_checklist.map((g) => ({
-              group: g.group,
-              items: g.items,
-              observations: g.observations ?? '',
-              collapsed: true,
-              newItemText: '',
-            }))
-          );
-        }
-        if (draft.observations) setServiceDescription(draft.observations);
-        if (draft.recommendations) setRecommendations(draft.recommendations);
-        if (draft.next_maintenance_km != null) setNextKm(String(draft.next_maintenance_km));
-      })
-      .catch((err) => console.error('load draft error', err));
+      .then((draft) => { if (draft) applyDraft(draft); })
+      .catch((err) => console.error('load draft by appointment error', err));
   }, [businessId, params.appointmentId]);
+
+  // Carga borrador standalone (sin cita) por su ID directo
+  useEffect(() => {
+    if (!businessId || !params.reportId || params.appointmentId) return;
+    getDraftById(params.reportId)
+      .then((draft) => { if (draft) applyDraft(draft); })
+      .catch((err) => console.error('load draft by id error', err));
+  }, [businessId, params.reportId, params.appointmentId]);
 
   function toggleGroup(gi: number) {
     setGroups((prev) => prev.map((g, i) => i === gi ? { ...g, collapsed: !g.collapsed } : g));
