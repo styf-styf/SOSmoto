@@ -45,7 +45,7 @@ export function ServiceReportView({ report }: Props) {
   });
 
   const groups = (report.inspection_checklist ?? []) as InspectionGroup[];
-  const hasChecklist = groups.some((g) => g.items.some((i) => i.status !== 'na'));
+  const hasChecklist = groups.some((g) => g.items.some((i) => i.status !== 'na') || !!g.observations);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -75,9 +75,18 @@ export function ServiceReportView({ report }: Props) {
         </View>
       </View>
 
-      {/* Placa y fechas */}
-      {(report.vehicle_plate || report.entry_date || report.exit_date) && (
+      {/* Vehículo, placa y fechas */}
+      {(report.vehicle_label || report.vehicle_plate || report.entry_date || report.exit_date) && (
         <View style={styles.infoGrid}>
+          {report.vehicle_label && (
+            <View style={[styles.infoItem, styles.infoItemFull]}>
+              <Ionicons name="bicycle-outline" size={15} color={colors.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoLabel}>Vehículo</Text>
+                <Text style={styles.infoValue}>{report.vehicle_label}</Text>
+              </View>
+            </View>
+          )}
           {report.vehicle_plate && (
             <View style={styles.infoItem}>
               <Ionicons name="car-outline" size={15} color={colors.textMuted} />
@@ -261,6 +270,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: colors.surface, borderRadius: 12, padding: 12,
     flex: 1, minWidth: 130,
+  },
+  infoItemFull: {
+    flexBasis: '100%',
+    flex: 0,
   },
   infoLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
   infoValue: { fontSize: 14, color: colors.text, fontWeight: '700', marginTop: 2 },
