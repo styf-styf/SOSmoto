@@ -201,6 +201,27 @@ export async function getClientReportIdsByAppointments(
 export async function confirmServiceReport(id: string): Promise<void> {
   const { error } = await (supabase.rpc as any)('confirm_service_report', { report_id: id });
   if (error) throw error;
+
+  const { data: report } = await (supabase.from('service_reports') as any)
+    .select('business_id, vehicle_plate')
+    .eq('id', id)
+    .maybeSingle();
+  if (!report?.business_id) return;
+
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('owner_id, name')
+    .eq('id', report.business_id)
+    .maybeSingle();
+  if (!business?.owner_id) return;
+
+  const label = report.vehicle_plate ? `(${report.vehicle_plate})` : '';
+  await notifyUser(
+    business.owner_id,
+    'Informe confirmado',
+    `El cliente confirmó haber recibido el informe de servicio ${label}`.trim(),
+    { type: 'service_report', reportId: id }
+  ).catch((err) => console.warn('notify business on report confirm', err));
 }
 
 // Todos los informes de un cliente con un negocio específico (para CRM).
