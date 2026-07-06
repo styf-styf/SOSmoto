@@ -107,7 +107,7 @@ export async function getBusinessReviews(businessId: string): Promise<Review[]> 
 
 export interface ServiceHistoryItem {
   id: string;
-  kind: 'help_request' | 'appointment' | 'maintenance';
+  kind: 'help_request' | 'appointment' | 'maintenance' | 'report';
   title: string;
   status: string;
   createdAt: string;
@@ -118,8 +118,16 @@ export interface ServiceHistoryItem {
   appointmentId?: string;
 }
 
+type StandaloneReport = {
+  id: string;
+  business_id: string;
+  services_performed: string[];
+  created_at: string;
+  client_confirmed_at: string | null;
+};
+
 export async function getServiceHistory(clientId: string): Promise<ServiceHistoryItem[]> {
-  const [helpRequestsResult, appointmentsResult, vehiclesResult] = await Promise.all([
+  const [helpRequestsResult, appointmentsResult, vehiclesResult, standaloneReportsResult] = await Promise.all([
     supabase
       .from('help_requests')
       .select('*')
@@ -133,10 +141,18 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
       .in('status', ['completed', 'cancelled'])
       .order('created_at', { ascending: false }),
     supabase.from('vehicles').select('id, brand, model').eq('user_id', clientId),
+    (supabase.from('service_reports') as any)
+      .select('id, business_id, services_performed, created_at, client_confirmed_at')
+      .eq('client_id', clientId)
+      .eq('status', 'sent')
+      .is('appointment_id', null)
+      .order('created_at', { ascending: false }),
   ]);
   if (helpRequestsResult.error) throw helpRequestsResult.error;
   if (appointmentsResult.error) throw appointmentsResult.error;
   if (vehiclesResult.error) throw vehiclesResult.error;
+  if (standaloneReportsResult.error) throw standaloneReportsResult.error;
+  const standaloneReports = ((standaloneReportsResult.data ?? []) as StandaloneReport[]);
 
   const vehicles = (vehiclesResult.data ?? []) as Pick<Vehicle, 'id' | 'brand' | 'model'>[];
   const vehicleIds = vehicles.map((v) => v.id);
@@ -167,6 +183,7 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
     new Set([
       ...helpRequests.map((r) => r.accepted_business_id).filter((id): id is string => !!id),
       ...appointmentRows.map((a) => a.business_id),
+      ...standaloneReports.map((r) => r.business_id),
     ])
   );
   const helpRequestIds = helpRequests.map((r) => r.id);
@@ -249,7 +266,22 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
     };
   });
 
-  return [...helpRequestItems, ...appointmentItems, ...maintenanceItems].sort(
+  const reportItems: ServiceHistoryItem[] = standaloneReports.map((r) => {
+    const business = businessById.get(r.business_id) ?? null;
+    const desc = r.services_performed?.length ? r.services_performed.slice(0, 2).join(', ') : null;
+    return {
+      id: r.id,
+      kind: 'report',
+      title: business?.name ?? 'Taller',
+      status: r.client_confirmed_at ? 'confirmed' : 'received',
+      createdAt: r.created_at,
+      description: desc,
+      business,
+      review: null,
+    };
+  });
+
+  return [...helpRequestItems, ...appointmentItems, ...maintenanceItems, ...reportItems].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }

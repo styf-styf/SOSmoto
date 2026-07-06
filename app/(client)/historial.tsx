@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Button } from '../../components/Button';
@@ -9,22 +17,50 @@ import { useAuth } from '../../hooks/useAuth';
 import { createReview, getServiceHistory, type ServiceHistoryItem } from '../../services/reviews';
 import { getClientReportIdsByAppointments } from '../../services/serviceReports';
 
+type FilterKey = 'all' | 'appointment' | 'help_request' | 'report';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'appointment', label: 'Citas' },
+  { key: 'help_request', label: 'Auxilios' },
+  { key: 'report', label: 'Informes' },
+];
+
 const statusLabel: Record<string, string> = {
   completed: 'Completado',
   cancelled: 'Cancelado',
+  received: 'Recibido',
+  confirmed: 'Confirmado',
 };
 
 const kindLabel: Record<ServiceHistoryItem['kind'], string> = {
   help_request: 'Auxilio',
   appointment: 'Cita',
   maintenance: 'Mantenimiento',
+  report: 'Informe',
 };
+
+function matchesFilter(
+  item: ServiceHistoryItem,
+  filter: FilterKey,
+  reportIds: Map<string, string>
+): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'report') {
+    return (
+      item.kind === 'report' ||
+      (item.kind === 'appointment' && !!item.appointmentId && reportIds.has(item.appointmentId))
+    );
+  }
+  return item.kind === filter;
+}
 
 export default function HistorialScreen() {
   const { profile } = useAuth();
   const [items, setItems] = useState<ServiceHistoryItem[]>([]);
   const [reportIds, setReportIds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterKey>('all');
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -43,6 +79,8 @@ export default function HistorialScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
+  const filtered = items.filter((item) => matchesFilter(item, filter, reportIds));
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -52,24 +90,65 @@ export default function HistorialScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {items.length === 0 ? (
-        <Text style={styles.placeholder}>Aún no tienes servicios en tu historial.</Text>
-      ) : (
-        items.map((item) => (
-          <HistoryCard
-            key={`${item.kind}_${item.id}`}
-            item={item}
-            reportId={item.appointmentId ? reportIds.get(item.appointmentId) : undefined}
-            onReviewed={load}
-          />
-        ))
-      )}
-    </ScrollView>
+    <View style={styles.root}>
+      {/* Filtros */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
+        {FILTERS.map((f) => (
+          <Pressable
+            key={f.key}
+            style={[styles.chip, filter === f.key && styles.chipActive]}
+            onPress={() => setFilter(f.key)}
+          >
+            <Text style={[styles.chipText, filter === f.key && styles.chipTextActive]}>
+              {f.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <ScrollView contentContainerStyle={styles.container}>
+        {filtered.length === 0 ? (
+          <Text style={styles.placeholder}>
+            {filter === 'all'
+              ? 'Aún no tienes servicios en tu historial.'
+              : `No tienes ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()} en tu historial.`}
+          </Text>
+        ) : (
+          filtered.map((item) => {
+            const reportId =
+              item.kind === 'report'
+                ? item.id
+                : item.appointmentId
+                ? reportIds.get(item.appointmentId)
+                : undefined;
+            return (
+              <HistoryCard
+                key={`${item.kind}_${item.id}`}
+                item={item}
+                reportId={reportId}
+                onReviewed={load}
+              />
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-function HistoryCard({ item, reportId, onReviewed }: { item: ServiceHistoryItem; reportId?: string; onReviewed: () => void }) {
+function HistoryCard({
+  item,
+  reportId,
+  onReviewed,
+}: {
+  item: ServiceHistoryItem;
+  reportId?: string;
+  onReviewed: () => void;
+}) {
   const { profile } = useAuth();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -98,6 +177,8 @@ function HistoryCard({ item, reportId, onReviewed }: { item: ServiceHistoryItem;
     }
   }
 
+  const isReport = item.kind === 'report';
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{item.title}</Text>
@@ -114,13 +195,14 @@ function HistoryCard({ item, reportId, onReviewed }: { item: ServiceHistoryItem;
         </Pressable>
       )}
 
-      {item.status === 'cancelled' && item.business && !item.review && (
+      {!isReport && item.status === 'cancelled' && item.business && !item.review && (
         <Text style={styles.cardMeta}>
           El taller fue asignado pero la solicitud se canceló. Si no se presentó, puedes calificarlo.
         </Text>
       )}
 
-      {(item.status === 'completed' || item.status === 'cancelled') &&
+      {!isReport &&
+        (item.status === 'completed' || item.status === 'cancelled') &&
         item.business &&
         (item.review ? (
           <View style={styles.reviewDone}>
@@ -132,7 +214,11 @@ function HistoryCard({ item, reportId, onReviewed }: { item: ServiceHistoryItem;
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((value) => (
                 <Pressable key={value} onPress={() => setRating(value)}>
-                  <Ionicons name={value <= rating ? 'star' : 'star-outline'} size={24} color={colors.warning} />
+                  <Ionicons
+                    name={value <= rating ? 'star' : 'star-outline'}
+                    size={24}
+                    color={colors.warning}
+                  />
                 </Pressable>
               ))}
             </View>
@@ -155,17 +241,45 @@ function HistoryCard({ item, reportId, onReviewed }: { item: ServiceHistoryItem;
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
+  filterRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: '#fff',
+  },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 4,
     paddingBottom: 20,
-    backgroundColor: colors.background,
     gap: 12,
   },
   placeholder: {
