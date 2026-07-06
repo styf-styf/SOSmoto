@@ -252,6 +252,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
