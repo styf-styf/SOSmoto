@@ -90,13 +90,9 @@ export default function HistorialScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <ScrollView contentContainerStyle={styles.container}>
       {/* Filtros */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
+      <View style={styles.filterRow}>
         {FILTERS.map((f) => (
           <Pressable
             key={f.key}
@@ -108,35 +104,33 @@ export default function HistorialScreen() {
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
-      <ScrollView style={styles.flex1} contentContainerStyle={styles.container}>
-        {filtered.length === 0 ? (
-          <Text style={styles.placeholder}>
-            {filter === 'all'
-              ? 'Aún no tienes servicios en tu historial.'
-              : `No tienes ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()} en tu historial.`}
-          </Text>
-        ) : (
-          filtered.map((item) => {
-            const reportId =
-              item.kind === 'report'
-                ? item.id
-                : item.appointmentId
-                ? reportIds.get(item.appointmentId)
-                : undefined;
-            return (
-              <HistoryCard
-                key={`${item.kind}_${item.id}`}
-                item={item}
-                reportId={reportId}
-                onReviewed={load}
-              />
-            );
-          })
-        )}
-      </ScrollView>
-    </View>
+      {filtered.length === 0 ? (
+        <Text style={styles.placeholder}>
+          {filter === 'all'
+            ? 'Aún no tienes servicios en tu historial.'
+            : `No tienes ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()} en tu historial.`}
+        </Text>
+      ) : (
+        filtered.map((item) => {
+          const reportId =
+            item.kind === 'report'
+              ? item.id
+              : item.appointmentId
+              ? reportIds.get(item.appointmentId)
+              : undefined;
+          return (
+            <HistoryCard
+              key={`${item.kind}_${item.id}`}
+              item={item}
+              reportId={reportId}
+              onReviewed={load}
+            />
+          );
+        })
+      )}
+    </ScrollView>
   );
 }
 
@@ -241,13 +235,6 @@ function HistoryCard({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex1: {
-    flex: 1,
-  },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -256,10 +243,9 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 4,
   },
   chip: {
     paddingHorizontal: 14,
