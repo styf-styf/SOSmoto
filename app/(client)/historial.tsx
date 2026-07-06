@@ -110,7 +110,7 @@ export default function HistorialScreen() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={styles.flex1} contentContainerStyle={styles.container}>
         {filtered.length === 0 ? (
           <Text style={styles.placeholder}>
             {filter === 'all'
@@ -244,6 +244,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex1: {
+    flex: 1,
   },
   center: {
     flex: 1,
