@@ -37,7 +37,6 @@ export default function VerificacionScreen() {
   const [idDoc, setIdDoc] = useState<DocState>(emptyDoc);
   const [rucDoc, setRucDoc] = useState<DocState>(emptyDoc);
   const [storefrontPhoto, setStorefrontPhoto] = useState<DocState>(emptyDoc);
-  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -92,13 +91,11 @@ export default function VerificacionScreen() {
         idDocumentPath: idDoc.path,
         rucDocumentPath: rucDoc.path ?? undefined,
         storefrontPhotoPath: storefrontPhoto.path,
-        notes: notes.trim() || undefined,
       });
       setLatestRequest(created);
       setIdDoc(emptyDoc);
       setRucDoc(emptyDoc);
       setStorefrontPhoto(emptyDoc);
-      setNotes('');
       Alert.alert('Enviado', 'Tu solicitud de verificación quedó en revisión.');
     } catch (err) {
       console.error('create verification request error', err);
@@ -171,14 +168,6 @@ export default function VerificacionScreen() {
         label="Foto del local"
         doc={storefrontPhoto}
         onPress={() => handlePick('storefront-photo', setStorefrontPhoto)}
-      />
-
-      <TextField
-        label="Notas para el admin (opcional)"
-        placeholder="Cualquier dato adicional que ayude a verificarte"
-        value={notes}
-        onChangeText={setNotes}
-        multiline
       />
 
       <Button
