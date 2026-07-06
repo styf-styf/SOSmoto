@@ -203,12 +203,16 @@ export default function ClienteDetailScreen() {
           const existingReport = clientReports.find(
             (r) => (isAppt && r.appointment_id === rawId) || (isAid && r.help_request_id === rawId)
           );
-          const createHref = `/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}` +
+          const isDraft = existingReport?.status === 'draft';
+          // El historial solo muestra citas completadas → appointmentStatus siempre 'completed'
+          const baseInformeHref = `/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}&appointmentStatus=completed` +
             (isAppt ? `&appointmentId=${rawId}` : '') +
             (isAid ? `&helpRequestId=${rawId}` : '');
           const cardPress = isPending ? undefined : existingReport
-            ? () => router.push(`/(business)/informe/${existingReport.id}`)
-            : () => router.push(createHref as any);
+            ? isDraft
+              ? () => router.push(baseInformeHref as any)
+              : () => router.push(`/(business)/informe/${existingReport.id}`)
+            : () => router.push(baseInformeHref as any);
 
           return (
             <Pressable key={item.id} style={styles.historyCard} onPress={cardPress}>
@@ -229,10 +233,17 @@ export default function ClienteDetailScreen() {
               {!isPending && (
                 <View style={styles.historyReportBtn}>
                   {existingReport ? (
-                    <>
-                      <Ionicons name="document-text-outline" size={14} color={colors.primary} />
-                      <Text style={styles.historyReportBtnText}>Ver informe</Text>
-                    </>
+                    isDraft ? (
+                      <>
+                        <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                        <Text style={[styles.historyReportBtnText, { color: colors.primary }]}>Continuar borrador</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                        <Text style={styles.historyReportBtnText}>Ver informe</Text>
+                      </>
+                    )
                   ) : (
                     <>
                       <Ionicons name="add-circle-outline" size={14} color={colors.primary} />

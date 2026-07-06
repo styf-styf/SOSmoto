@@ -379,11 +379,14 @@ export default function ClienteExternoScreen() {
       ) : (
         pastApts.map((apt) => {
           const existingReport = (data?.reports ?? []).find((r) => r.appointment_id === apt.id);
-          const createHref = `${informeBase}&appointmentId=${apt.id}`;
+          const isDraft = existingReport?.status === 'draft';
+          const editHref = `${informeBase}&appointmentId=${apt.id}&appointmentStatus=completed`;
           const cardPress = apt.status === 'completed'
             ? existingReport
-              ? () => router.push(`/(business)/informe/${existingReport.id}`)
-              : () => router.push(createHref as any)
+              ? isDraft
+                ? () => router.push(editHref as any)
+                : () => router.push(`/(business)/informe/${existingReport.id}`)
+              : () => router.push(editHref as any)
             : undefined;
 
           return (
@@ -407,10 +410,17 @@ export default function ClienteExternoScreen() {
               {apt.status === 'completed' && (
                 <View style={styles.historyReportBtn}>
                   {existingReport ? (
-                    <>
-                      <Ionicons name="document-text-outline" size={14} color={colors.primary} />
-                      <Text style={styles.historyReportBtnText}>Ver informe</Text>
-                    </>
+                    isDraft ? (
+                      <>
+                        <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                        <Text style={styles.historyReportBtnText}>Continuar borrador</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                        <Text style={styles.historyReportBtnText}>Ver informe</Text>
+                      </>
+                    )
                   ) : (
                     <>
                       <Ionicons name="add-circle-outline" size={14} color={colors.primary} />

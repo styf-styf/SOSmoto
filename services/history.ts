@@ -318,7 +318,7 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
 
 export interface ExternalClientData {
   appointments: { id: string; requested_at: string | null; status: string; service_name: string | null; notes: string | null }[];
-  reports: { id: string; created_at: string; vehicle_label: string | null; service_category: string | null; appointment_id: string | null }[];
+  reports: { id: string; created_at: string; vehicle_label: string | null; service_category: string | null; appointment_id: string | null; status: 'draft' | 'sent' }[];
 }
 
 export async function getExternalClientData(
@@ -333,7 +333,7 @@ export async function getExternalClientData(
       .is('client_id', null)
       .order('requested_at', { ascending: false }),
     (supabase.from('service_reports') as any)
-      .select('id, created_at, vehicle_label, service_category, appointment_id')
+      .select('id, created_at, vehicle_label, service_category, appointment_id, status')
       .eq('business_id', businessId)
       .eq('external_client_name', name)
       .is('client_id', null)
@@ -354,6 +354,7 @@ export async function getExternalClientData(
       vehicle_label: r.vehicle_label ?? null,
       service_category: r.service_category ?? null,
       appointment_id: r.appointment_id ?? null,
+      status: (r.status ?? 'sent') as 'draft' | 'sent',
     })),
   };
 }
