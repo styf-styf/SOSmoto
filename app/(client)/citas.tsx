@@ -14,6 +14,9 @@ import {
   type ClientAppointment,
 } from '../../services/appointments';
 import { syncAppointmentReminders } from '../../services/appointmentReminders';
+import { getClientReportIdsByAppointments } from '../../services/serviceReports';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 function defaultCounterTime(): Date {
   const d = new Date();
@@ -29,6 +32,7 @@ function fmtDate(iso: string) {
 export default function CitasScreen() {
   const { profile } = useAuth();
   const [appointments, setAppointments] = useState<ClientAppointment[]>([]);
+  const [reportIds, setReportIds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -43,8 +47,12 @@ export default function CitasScreen() {
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const result = await getClientAppointments(profile.id);
+    const [result, reportMap] = await Promise.all([
+      getClientAppointments(profile.id),
+      getClientReportIdsByAppointments(profile.id),
+    ]);
     setAppointments(result);
+    setReportIds(reportMap);
     // Sincronizar recordatorios locales con las citas vigentes
     syncAppointmentReminders(
       result.map((a) => ({
@@ -183,6 +191,8 @@ export default function CitasScreen() {
           const clientProposed =
             appointment.status === 'scheduled' && appointment.proposed_by === 'client';
 
+          const reportId = reportIds.get(appointment.id);
+
           return (
             <View key={appointment.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -207,6 +217,16 @@ export default function CitasScreen() {
                   </Text>
                   <Text style={styles.dateValue}>{fmtDate(appointment.requested_at)}</Text>
                 </View>
+              )}
+
+              {appointment.status === 'completed' && reportId && (
+                <Pressable
+                  style={styles.reportBtn}
+                  onPress={() => router.push(`/(client)/informe/${reportId}`)}
+                >
+                  <Ionicons name="document-text-outline" size={15} color={colors.primary} />
+                  <Text style={styles.reportBtnText}>Ver informe de servicio</Text>
+                </Pressable>
               )}
 
               {/* Taller propuso → cliente aprueba o contra-propone */}
@@ -501,5 +521,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
+  },
+  reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  reportBtnText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
