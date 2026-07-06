@@ -122,6 +122,7 @@ export default function NuevoInformeScreen() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftVehiclePlate, setDraftVehiclePlate] = useState<string | null>(null);
 
   const loadBusiness = useCallback(async () => {
     if (!profile) return;
@@ -165,8 +166,17 @@ export default function NuevoInformeScreen() {
     }
   }, [isExternal, businessId, params.clientId, params.clientName]);
 
+  // Cuando vehicleOptions llega (async) y el borrador tiene una placa guardada, auto-selecciona el vehículo correcto
+  useEffect(() => {
+    if (!draftVehiclePlate || !vehicleOptions.length || selectedVehicle) return;
+    const plate = draftVehiclePlate.toUpperCase();
+    const match = vehicleOptions.find((v) => v.plate?.toUpperCase() === plate);
+    if (match) setSelectedVehicle(match);
+  }, [draftVehiclePlate, vehicleOptions]);
+
   function applyDraft(draft: import('../../types/database').ServiceReport) {
     setDraftId(draft.id);
+    if (draft.vehicle_plate) setDraftVehiclePlate(draft.vehicle_plate);
     setDraftLoaded(true);
     if (draft.service_category) setCategory(draft.service_category as ServiceCategory);
     if (draft.service_km != null) setServiceKm(String(draft.service_km));

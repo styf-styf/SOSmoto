@@ -35,6 +35,7 @@ export default function BusinessLayout() {
       <Stack.Screen name="cliente-externo" options={{ title: 'Cliente externo' }} />
       <Stack.Screen name="nuevo-cliente" options={{ title: 'Nuevo cliente' }} />
 <Stack.Screen name="mantenimiento-proactivo" options={{ title: 'Recordatorios de mantenimiento' }} />
+      <Stack.Screen name="inventario" options={{ title: 'Inventario' }} />
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
       <Stack.Screen name="historias" options={{ title: 'Historias' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />

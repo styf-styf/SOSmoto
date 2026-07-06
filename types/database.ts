@@ -175,6 +175,18 @@ export interface Product {
   created_at: string;
 }
 
+export type StockMovementReason = 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
+
+export interface StockMovement {
+  id: string;
+  product_id: string;
+  business_id: string;
+  delta: number;
+  reason: StockMovementReason;
+  notes: string | null;
+  created_at: string;
+}
+
 export type HelpRequestStatus =
   | 'pending'
   | 'accepted'

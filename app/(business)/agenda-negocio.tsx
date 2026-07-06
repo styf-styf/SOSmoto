@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
@@ -102,6 +102,16 @@ export default function AgendaNegocioScreen() {
     });
     return unsubscribe;
   }, [businessId, load]);
+
+  // Recarga el mapa de informes cada vez que la pantalla recupera el foco (ej. al volver de nuevo-informe tras guardar borrador)
+  useFocusEffect(
+    useCallback(() => {
+      if (!businessId) return;
+      getReportIdsByAppointments(businessId)
+        .then((map) => setReportIdsByAppointment(map))
+        .catch((err) => console.error('reload reports on focus', err));
+    }, [businessId])
+  );
 
   function startProposing(id: string) {
     setProposingId(id);

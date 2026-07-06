@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
 import { GradientShade } from '../../../components/GradientShade';
@@ -210,6 +210,13 @@ export default function CatalogoScreen() {
             Tu negocio está limitado: no puedes crear, editar ni eliminar servicios o productos.
           </Text>
         )}
+
+        {/* Acceso rápido al inventario de productos */}
+        <Pressable style={styles.inventarioBtn} onPress={() => router.push('/(business)/inventario')}>
+          <Ionicons name="cube-outline" size={18} color={colors.primary} />
+          <Text style={styles.inventarioBtnText}>Ver inventario de productos</Text>
+          <Ionicons name="chevron-forward-outline" size={16} color={colors.textMuted} />
+        </Pressable>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>
@@ -696,6 +703,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
+  },
+  inventarioBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.surface, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 14,
+    marginBottom: 20,
+  },
+  inventarioBtnText: {
+    flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary,
   },
   addButton: {
     flexDirection: 'row',
