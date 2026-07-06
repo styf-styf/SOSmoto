@@ -10,6 +10,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
+import { addStockMovement } from '../../../services/inventory';
 import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
 import { acceptAppointmentRequest, getActiveAppointmentRequest, rejectAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
 import { scheduleAppointmentReminder } from '../../../services/appointmentReminders';
@@ -150,10 +151,21 @@ export default function ChatScreen() {
     return sub.remove;
   }, []);
 
-  async function handleIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
+  async function handleIntentAction(intentId: string, status: 'confirmed' | 'unavailable' | 'cancelled') {
     setProcessingIntent(intentId);
     try {
       await updateIntentStatus(intentId, status);
+      if (status === 'confirmed' && businessId) {
+        const intent = intents.find((i) => i.id === intentId);
+        if (intent) {
+          addStockMovement({
+            businessId,
+            productId: intent.product_id,
+            delta: -1,
+            reason: 'sale',
+          }).catch((err) => console.warn('stock movement on sale error', err));
+        }
+      }
       setIntents((prev) => prev.filter((i) => i.id !== intentId));
     } catch (err) {
       console.error('update intent error', err);
@@ -358,9 +370,9 @@ export default function ChatScreen() {
                     {intent.product_price != null ? ` · $${intent.product_price.toFixed(2)}` : ''}
                   </Text>
                 </View>
-                <View style={styles.intentActions}>
+                <View style={styles.intentActionsCol}>
                   <Pressable
-                    style={[styles.intentBtn, styles.intentBtnConfirm]}
+                    style={[styles.intentBtn, styles.intentBtnConfirm, { flex: undefined }]}
                     onPress={() => handleIntentAction(intent.id, 'confirmed')}
                     disabled={processingIntent === intent.id}
                   >
@@ -370,13 +382,22 @@ export default function ChatScreen() {
                       <Text style={styles.intentBtnText}>Confirmar venta</Text>
                     )}
                   </Pressable>
-                  <Pressable
-                    style={[styles.intentBtn, styles.intentBtnReject]}
-                    onPress={() => handleIntentAction(intent.id, 'unavailable')}
-                    disabled={processingIntent === intent.id}
-                  >
-                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
-                  </Pressable>
+                  <View style={styles.intentActions}>
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnReject]}
+                      onPress={() => handleIntentAction(intent.id, 'unavailable')}
+                      disabled={processingIntent === intent.id}
+                    >
+                      <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnReject]}
+                      onPress={() => handleIntentAction(intent.id, 'cancelled')}
+                      disabled={processingIntent === intent.id}
+                    >
+                      <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>Cancelar venta</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             ))}
@@ -982,6 +1003,9 @@ const styles = StyleSheet.create({
   intentActions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  intentActionsCol: {
+    gap: 6,
   },
   intentBtn: {
     flex: 1,

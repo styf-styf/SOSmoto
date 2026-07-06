@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
 import { GradientShade } from '../../../components/GradientShade';
@@ -95,6 +95,16 @@ export default function CatalogoScreen() {
       .catch((err) => console.error('load catalogo error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Recarga productos al recuperar el foco (ej. al volver del inventario tras actualizar stock)
+  useFocusEffect(
+    useCallback(() => {
+      if (!business) return;
+      getAllProducts(business.id)
+        .then((list) => setProducts(list))
+        .catch((err) => console.error('reload products on focus', err));
+    }, [business])
+  );
 
   useEffect(() => {
     if (!highlightId || !products.length) return;

@@ -78,18 +78,23 @@ export async function updateIntentStatus(
     .eq('id', intentId);
   if (error) throw error;
 
-  if (intent && (status === 'confirmed' || status === 'unavailable')) {
+  if (intent && (status === 'confirmed' || status === 'unavailable' || status === 'cancelled')) {
     const { data: product } = await supabase
       .from('products')
       .select('name')
       .eq('id', intent.product_id)
       .maybeSingle();
     const productName = product?.name ?? 'tu producto';
-    const title = status === 'confirmed' ? 'Apartado confirmado' : 'Producto no disponible';
+    const title =
+      status === 'confirmed' ? 'Apartado confirmado' :
+      status === 'unavailable' ? 'Producto no disponible' :
+      'Venta cancelada';
     const body =
       status === 'confirmed'
         ? `Tu apartado de "${productName}" fue confirmado por el negocio`
-        : `El negocio indicó que "${productName}" no está disponible en este momento`;
+        : status === 'unavailable'
+        ? `El negocio indicó que "${productName}" no está disponible en este momento`
+        : `La venta de "${productName}" fue cancelada por el negocio`;
     await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id });
   }
 }

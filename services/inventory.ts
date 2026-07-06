@@ -46,14 +46,19 @@ export interface AddMovementParams {
   delta: number;
   reason: StockMovementReason;
   notes?: string;
-  currentStock: number;
+  currentStock?: number; // si se omite, se consulta de la BD
 }
 
 // Registra un movimiento y actualiza products.stock en una sola operación lógica.
 // delta > 0 = entrada, delta < 0 = salida/daño.
 // Para 'adjustment', el llamador ya calcula delta = nuevoStock - stockActual.
 export async function addStockMovement(params: AddMovementParams): Promise<Product> {
-  const newStock = params.currentStock + params.delta;
+  let current = params.currentStock;
+  if (current === undefined) {
+    const { data } = await supabase.from('products').select('stock').eq('id', params.productId).single();
+    current = (data as any)?.stock ?? 0;
+  }
+  const newStock = (current ?? 0) + params.delta;
   if (newStock < 0) throw new Error('El stock no puede quedar negativo.');
 
   const { error: movErr } = await (supabase.from('stock_movements') as any).insert({
