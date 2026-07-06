@@ -192,9 +192,22 @@ export default function CitasScreen() {
             appointment.status === 'scheduled' && appointment.proposed_by === 'client';
 
           const reportId = reportIds.get(appointment.id);
+          const CardWrapper = appointment.status === 'completed' && reportId
+            ? ({ children }: { children: React.ReactNode }) => (
+                <Pressable
+                  key={appointment.id}
+                  style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                  onPress={() => router.push(`/(client)/informe/${reportId}`)}
+                >
+                  {children}
+                </Pressable>
+              )
+            : ({ children }: { children: React.ReactNode }) => (
+                <View key={appointment.id} style={styles.card}>{children}</View>
+              );
 
           return (
-            <View key={appointment.id} style={styles.card}>
+            <CardWrapper key={appointment.id}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{appointment.business_name}</Text>
                 <View style={[styles.statusBadge, statusBadgeStyle(appointment)]}>
@@ -219,14 +232,21 @@ export default function CitasScreen() {
                 </View>
               )}
 
-              {appointment.status === 'completed' && reportId && (
-                <Pressable
-                  style={styles.reportBtn}
-                  onPress={() => router.push(`/(client)/informe/${reportId}`)}
-                >
-                  <Ionicons name="document-text-outline" size={15} color={colors.primary} />
-                  <Text style={styles.reportBtnText}>Ver informe de servicio</Text>
-                </Pressable>
+              {appointment.status === 'completed' && (
+                reportId ? (
+                  <Pressable
+                    style={styles.reportBtn}
+                    onPress={() => router.push(`/(client)/informe/${reportId}`)}
+                  >
+                    <Ionicons name="document-text-outline" size={15} color={colors.primary} />
+                    <Text style={styles.reportBtnText}>Ver informe de servicio</Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.reportBtn}>
+                    <Ionicons name="time-outline" size={15} color={colors.textMuted} />
+                    <Text style={styles.reportPendingText}>Informe pendiente</Text>
+                  </View>
+                )
               )}
 
               {/* Taller propuso → cliente aprueba o contra-propone */}
@@ -367,7 +387,7 @@ export default function CitasScreen() {
                   />
                 </View>
               )}
-            </View>
+            </CardWrapper>
           );
         }))
       }
@@ -522,6 +542,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
+  cardPressed: {
+    opacity: 0.75,
+  },
   reportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -532,5 +555,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primary,
     fontWeight: '600',
+  },
+  reportPendingText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
 });
