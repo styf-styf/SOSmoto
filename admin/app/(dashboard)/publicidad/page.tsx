@@ -1,23 +1,40 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
 import type { AdminAdRow } from '../../../lib/types';
+import { Paginator } from '../../../components/Paginator';
 import { AdPauseButton } from './AdPauseButton';
 import { AdReviewActions } from './AdReviewActions';
+
+const PAGE_SIZE = 12;
 
 const AD_SELECT =
   'id, business_id, title, image_url, link_url, target_city, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name)';
 
-export default async function PublicidadPage() {
+export default async function PublicidadPage({
+  searchParams,
+}: {
+  searchParams: { page?: string };
+}) {
+  const page = Math.max(1, Number(searchParams.page) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
   const supabase = createAdminClient();
 
   const [pendingResult, activeResult, revenueResult] = await Promise.all([
     supabase.from('ads').select(AD_SELECT).eq('status', 'pending_review').order('created_at', { ascending: true }),
-    supabase.from('ads').select(AD_SELECT).eq('status', 'active').order('created_at', { ascending: false }),
+    supabase
+      .from('ads')
+      .select(AD_SELECT, { count: 'exact' })
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .range(from, to),
     supabase.from('payments').select('amount').eq('type', 'advertising').eq('status', 'completed'),
   ]);
 
   const pending = (pendingResult.data ?? []) as unknown as AdminAdRow[];
   const active = (activeResult.data ?? []) as unknown as AdminAdRow[];
   const totalRevenue = (revenueResult.data ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPages = activeResult.count ? Math.ceil(activeResult.count / PAGE_SIZE) : 1;
 
   return (
     <div>
@@ -59,7 +76,9 @@ export default async function PublicidadPage() {
         )}
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold">Activas ({active.length})</h2>
+      <h2 className="mb-3 text-lg font-semibold">
+        Activas{activeResult.count != null ? ` (${activeResult.count})` : ''}
+      </h2>
       {activeResult.error && <p className="text-sm text-red-600">Error: {activeResult.error.message}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {active.map((ad) => (
@@ -81,6 +100,7 @@ export default async function PublicidadPage() {
         ))}
         {active.length === 0 && !activeResult.error && <p className="text-sm text-gray-500">No hay campañas activas.</p>}
       </div>
+      <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?page=${p}`} />
     </div>
   );
 }

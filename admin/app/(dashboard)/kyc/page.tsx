@@ -1,6 +1,9 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
 import type { AdminVerificationRequestRow, KycStatus } from '../../../lib/types';
+import { Paginator } from '../../../components/Paginator';
 import { KycReviewActions } from './KycReviewActions';
+
+const HISTORY_PAGE_SIZE = 20;
 
 const KYC_BUCKET = 'kyc-documents';
 const SIGNED_URL_TTL_SECONDS = 600;
@@ -47,21 +50,27 @@ function DocLink({ label, url }: { label: string; url: string | undefined }) {
   );
 }
 
-export default async function KycPage() {
+export default async function KycPage({
+  searchParams,
+}: {
+  searchParams: { history_page?: string };
+}) {
+  const historyPage = Math.max(1, Number(searchParams.history_page) || 1);
   const supabase = createAdminClient();
 
   const [pendingResult, historyResult] = await Promise.all([
     supabase.from('business_verification_requests').select(REQUEST_SELECT).eq('status', 'pending_review').order('created_at', { ascending: true }),
     supabase
       .from('business_verification_requests')
-      .select(REQUEST_SELECT)
+      .select(REQUEST_SELECT, { count: 'exact' })
       .neq('status', 'pending_review')
       .order('created_at', { ascending: false })
-      .limit(20),
+      .range((historyPage - 1) * HISTORY_PAGE_SIZE, historyPage * HISTORY_PAGE_SIZE - 1),
   ]);
 
   const pending = (pendingResult.data ?? []) as unknown as AdminVerificationRequestRow[];
   const history = (historyResult.data ?? []) as unknown as AdminVerificationRequestRow[];
+  const historyTotalPages = historyResult.count ? Math.ceil(historyResult.count / HISTORY_PAGE_SIZE) : 1;
   const signedUrls = await buildSignedUrlMap(supabase, [...pending, ...history]);
 
   return (
@@ -93,7 +102,9 @@ export default async function KycPage() {
         )}
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold">Historial reciente</h2>
+      <h2 className="mb-3 text-lg font-semibold">
+        Historial{historyResult.count != null ? ` (${historyResult.count})` : ''}
+      </h2>
       {historyResult.error && <p className="text-sm text-red-600">Error: {historyResult.error.message}</p>}
       <table className="w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
         <thead>
@@ -124,6 +135,11 @@ export default async function KycPage() {
           )}
         </tbody>
       </table>
+      <Paginator
+        page={historyPage}
+        totalPages={historyTotalPages}
+        buildHref={(p) => `?history_page=${p}`}
+      />
     </div>
   );
 }

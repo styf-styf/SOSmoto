@@ -1,5 +1,6 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
 import type { AdminBusinessRow, BusinessType } from '../../../lib/types';
+import { Paginator } from '../../../components/Paginator';
 import { BusinessActions } from './BusinessActions';
 
 const PAGE_SIZE = 25;
@@ -115,19 +116,11 @@ export default async function NegociosPage({
         </tbody>
       </table>
 
-      {totalPages > 1 && (
-        <div className="mt-4 flex gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <a
-              key={p}
-              href={`?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}&page=${p}`}
-              className={`rounded-lg px-3 py-1 text-sm ${p === page ? 'bg-primary text-white' : 'bg-white text-gray-700'}`}
-            >
-              {p}
-            </a>
-          ))}
-        </div>
-      )}
+      <Paginator
+        page={page}
+        totalPages={totalPages}
+        buildHref={(p) => `?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}&page=${p}`}
+      />
     </div>
   );
 }
