@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-56 flex-col border-r border-gray-200 bg-white p-4">
+      <aside className="sticky top-0 flex h-screen w-56 flex-shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white p-4">
         <h1 className="mb-6 text-base font-bold">SOSmoto · Admin</h1>
         <nav className="flex flex-1 flex-col gap-1">
           {navItems.map((item) => (

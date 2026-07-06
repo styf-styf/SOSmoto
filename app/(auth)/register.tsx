@@ -88,7 +88,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Crear cuenta</Text>
 
       <View style={styles.roleSelector}>

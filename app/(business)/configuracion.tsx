@@ -1,26 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
-import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
-import { useLocation } from '../../hooks/useLocation';
 import { signOut } from '../../services/auth';
-import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
+import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getPendingRequests } from '../../services/helpRequests';
-import type { Business, BusinessSchedule } from '../../types/database';
-
-const days: { key: string; label: string }[] = [
-  { key: 'lunes', label: 'Lunes' },
-  { key: 'martes', label: 'Martes' },
-  { key: 'miercoles', label: 'Miércoles' },
-  { key: 'jueves', label: 'Jueves' },
-  { key: 'viernes', label: 'Viernes' },
-  { key: 'sabado', label: 'Sábado' },
-  { key: 'domingo', label: 'Domingo' },
-];
+import type { Business } from '../../types/database';
 
 const planLabel: Record<string, string> = {
   free: 'Free',
@@ -30,26 +19,11 @@ const planLabel: Record<string, string> = {
 
 export default function BusinessConfiguracionScreen() {
   const { profile } = useAuth();
-  const { getCoords } = useLocation();
 
   const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
   const [plan, setPlan] = useState<PlanLimits | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [phone, setPhone] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [radius, setRadius] = useState('');
-  const [is24h, setIs24h] = useState(false);
-  const [schedule, setSchedule] = useState<BusinessSchedule>({});
-
-  const [saving, setSaving] = useState(false);
-  const [locating, setLocating] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const load = useCallback(async () => {
@@ -57,19 +31,7 @@ export default function BusinessConfiguracionScreen() {
     const work = await getMyWorkBusiness(profile.id);
     const myBusiness = work?.business ?? null;
     setBusiness(myBusiness);
-    setIsOwner(work?.isOwner ?? false);
     if (!myBusiness) return;
-
-    setName(myBusiness.name);
-    setDescription(myBusiness.description ?? '');
-    setAddress(myBusiness.address);
-    setCity(myBusiness.city);
-    setPhone(myBusiness.phone ?? '');
-    setWhatsapp(myBusiness.whatsapp ?? '');
-    setRadius(myBusiness.aid_radius_km !== null ? String(myBusiness.aid_radius_km) : '');
-    setIs24h(myBusiness.is_24h);
-    setSchedule(myBusiness.schedule ?? {});
-
     const [planLimits, pending] = await Promise.all([
       getPlanLimits(myBusiness.id),
       getPendingRequests(myBusiness.id),
@@ -99,93 +61,6 @@ export default function BusinessConfiguracionScreen() {
     } catch (err) {
       console.error('sign out error', err);
       setSigningOut(false);
-    }
-  }
-
-  function handleToggleDay(key: string, open: boolean) {
-    setSchedule((prev) => ({
-      ...prev,
-      [key]: open ? prev[key] ?? { open: '08:00', close: '18:00' } : null,
-    }));
-  }
-
-  function handleScheduleTime(key: string, field: 'open' | 'close', value: string) {
-    setSchedule((prev) => {
-      const current = prev[key] ?? { open: '08:00', close: '18:00' };
-      return { ...prev, [key]: { ...current, [field]: value } };
-    });
-  }
-
-  async function handleUpdateLocation() {
-    setLocating(true);
-    try {
-      await getCoords();
-      Alert.alert('Listo', 'Se obtuvo tu ubicación actual. Guarda los cambios para aplicarla.');
-    } catch (err) {
-      Alert.alert('No se pudo obtener tu ubicación', 'Activa el GPS y el permiso de ubicación.');
-    } finally {
-      setLocating(false);
-    }
-  }
-
-  function isValidTime(t: string): boolean {
-    return /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
-  }
-
-  async function handleSave() {
-    if (!business) return;
-    if (!name.trim() || !address.trim() || !city.trim()) {
-      Alert.alert('Faltan datos', 'Completa nombre, dirección y ciudad.');
-      return;
-    }
-
-    for (const [key, value] of Object.entries(schedule)) {
-      if (!value) continue;
-      if (!isValidTime(value.open) || !isValidTime(value.close)) {
-        const dayLabel = days.find((d) => d.key === key)?.label ?? key;
-        Alert.alert('Horario inválido', `El horario de ${dayLabel} debe usar formato HH:MM (ej. 08:00, 18:30).`);
-        return;
-      }
-    }
-
-    let parsedRadius: number | null = null;
-    if (business.business_type === 'workshop') {
-      parsedRadius = radius.trim() ? Number(radius) : null;
-      if (parsedRadius !== null && (Number.isNaN(parsedRadius) || parsedRadius <= 0)) {
-        Alert.alert('Radio inválido', 'Ingresa un número de km válido.');
-        return;
-      }
-    }
-
-    setSaving(true);
-    try {
-      let coordsUpdate = {};
-      try {
-        const coords = await getCoords();
-        coordsUpdate = { latitude: coords.latitude, longitude: coords.longitude };
-      } catch {
-        // mantiene la ubicación anterior si no se pudo obtener una nueva
-      }
-
-      const updated = await updateBusiness(business.id, {
-        name: name.trim(),
-        description: description.trim() || null,
-        address: address.trim(),
-        city: city.trim(),
-        phone: phone.trim() || null,
-        whatsapp: whatsapp.trim() || null,
-        schedule,
-        aid_radius_km: parsedRadius,
-        is_24h: is24h,
-        ...coordsUpdate,
-      });
-      setBusiness(updated);
-      Alert.alert('Guardado', 'Los datos de tu negocio se actualizaron.');
-    } catch (err) {
-      console.error('update business error', err);
-      Alert.alert('Error', 'No se pudo guardar los cambios.');
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -220,160 +95,93 @@ export default function BusinessConfiguracionScreen() {
         <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
       </Pressable>
 
-      {!isOwner && (
-        <View style={styles.readOnlyBanner}>
-          <Text style={styles.readOnlyText}>Solo el dueño del negocio puede editar estos datos.</Text>
-        </View>
-      )}
+      <View style={styles.divider} />
 
-      <Text style={styles.sectionTitle}>Datos del negocio</Text>
-      <TextField label="Nombre" value={name} onChangeText={setName} editable={isOwner} />
-      <TextField label="Descripción" value={description} onChangeText={setDescription} multiline editable={isOwner} />
-      <TextField label="Dirección" value={address} onChangeText={setAddress} editable={isOwner} />
-      <TextField label="Ciudad" value={city} onChangeText={setCity} editable={isOwner} />
-      <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={isOwner} />
-      <TextField label="WhatsApp" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" editable={isOwner} />
-
-      <Text style={styles.sectionTitle}>Ubicación</Text>
-      <Text style={styles.helperText}>
-        Lat: {business.latitude.toFixed(5)}, Lng: {business.longitude.toFixed(5)}
-      </Text>
-      {isOwner && (
-        <Button
-          title={locating ? 'Obteniendo ubicación…' : 'Actualizar con mi ubicación actual'}
-          variant="secondary"
-          onPress={handleUpdateLocation}
-          loading={locating}
-          style={styles.locationButton}
-        />
-      )}
-
-      {business.business_type === 'workshop' && (
-        <>
-          <Text style={styles.sectionTitle}>Auxilio en carretera</Text>
-          <TextField
-            label="Radio de cobertura (km)"
-            placeholder="5"
-            keyboardType="numeric"
-            value={radius}
-            onChangeText={setRadius}
-            editable={isOwner}
-          />
-        </>
-      )}
-
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Atención 24/7</Text>
-        <Switch value={is24h} onValueChange={setIs24h} disabled={!isOwner} />
+      <Text style={styles.sectionTitle}>Mi negocio</Text>
+      <View style={styles.menuGroup}>
+        <MenuRow icon="storefront-outline" label="Datos del negocio" onPress={() => router.push('/(business)/datos-negocio')} />
+        <MenuRow icon="time-outline" label="Horario" onPress={() => router.push('/(business)/horario')} />
+        <MenuRow icon="grid-outline" label="Catálogo" onPress={() => router.push('/(business)/catalogo')} />
+        <MenuRow icon="calendar-outline" label="Agenda" onPress={() => router.push('/(business)/agenda-negocio')} />
+        <MenuRow icon="people-outline" label="Clientes" onPress={() => router.push('/(business)/clientes')} />
+        <MenuRow icon="film-outline" label="Historias" onPress={() => router.push('/(business)/historias')} />
+        <MenuRow icon="images-outline" label="Publicaciones" onPress={() => router.push('/(business)/publicaciones')} />
+        <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} last />
       </View>
 
-      <Text style={styles.sectionTitle}>Horario</Text>
-      {days.map((day) => {
-        const value = schedule[day.key];
-        const isOpen = value !== null && value !== undefined;
-        return (
-          <View key={day.key} style={styles.dayRow}>
-            <View style={styles.dayHeader}>
-              <Text style={styles.dayLabel}>{day.label}</Text>
-              <Switch value={isOpen} onValueChange={(v) => handleToggleDay(day.key, v)} disabled={!isOwner} />
-            </View>
-            {isOpen && (
-              <View style={styles.dayTimes}>
-                <TextField
-                  label="Apertura"
-                  placeholder="08:00"
-                  value={value?.open ?? ''}
-                  onChangeText={(t) => handleScheduleTime(day.key, 'open', t)}
-                  style={styles.timeInput}
-                  editable={isOwner}
-                />
-                <TextField
-                  label="Cierre"
-                  placeholder="18:00"
-                  value={value?.close ?? ''}
-                  onChangeText={(t) => handleScheduleTime(day.key, 'close', t)}
-                  style={styles.timeInput}
-                  editable={isOwner}
-                />
-              </View>
-            )}
-          </View>
-        );
-      })}
+      <Text style={styles.sectionTitle}>Crecimiento</Text>
+      <View style={styles.menuGroup}>
+        <MenuRow icon="stats-chart-outline" label="Estadísticas" onPress={() => router.push('/(business)/estadisticas')} />
+        <MenuRow icon="megaphone-outline" label="Publicidad" onPress={() => router.push('/(business)/publicidad')} />
+        <MenuRow icon="trending-up-outline" label="Crece tu negocio" onPress={() => router.push('/(business)/crece-tu-negocio')} last />
+      </View>
 
-      {isOwner && <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />}
+      <Text style={styles.sectionTitle}>Plan y cuenta</Text>
+      <View style={styles.menuGroup}>
+        <MenuRow
+          icon="card-outline"
+          label="Plan y suscripción"
+          badge={plan ? planLabel[plan.planName] ?? plan.planName : undefined}
+          onPress={() => router.push('/(business)/suscripcion')}
+        />
+        <MenuRow icon="people-circle-outline" label="Equipo" onPress={() => router.push('/(business)/empleados')} />
+        <MenuRow
+          icon="shield-checkmark-outline"
+          label="Verificación"
+          badge={business.is_verified ? 'Verificado ✓' : undefined}
+          onPress={() => router.push('/(business)/verificacion')}
+        />
+        <MenuRow
+          icon="alert-circle-outline"
+          label="Estado de cuenta"
+          badge={business.is_limited ? 'Limitado' : undefined}
+          badgeDanger={business.is_limited}
+          onPress={() => router.push('/(business)/estado-cuenta')}
+          last
+        />
+      </View>
 
       <View style={styles.divider} />
 
-      <Text style={styles.sectionTitle}>Gestión</Text>
-      <Button title="Estadísticas" variant="secondary" onPress={() => router.push('/(business)/estadisticas')} />
-      <Button
-        title="Crece tu negocio"
-        variant="secondary"
-        onPress={() => router.push('/(business)/crece-tu-negocio')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Agenda"
-        variant="secondary"
-        onPress={() => router.push('/(business)/agenda-negocio')}
-        style={styles.spacedButton}
-      />
-
-<Button
-        title="Recordatorios de mantenimiento"
-        variant="secondary"
-        onPress={() => router.push('/(business)/mantenimiento-proactivo')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Plan y suscripción"
-        variant="secondary"
-        onPress={() => router.push('/(business)/suscripcion')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Equipo (empleados/mecánicos)"
-        variant="secondary"
-        onPress={() => router.push('/(business)/empleados')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Publicidad"
-        variant="secondary"
-        onPress={() => router.push('/(business)/publicidad')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Historias"
-        variant="secondary"
-        onPress={() => router.push('/(business)/historias')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Gestionar publicaciones"
-        variant="secondary"
-        onPress={() => router.push('/(business)/publicaciones')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title={business.is_verified ? 'Verificación ✓' : 'Verificación (KYC)'}
-        variant="secondary"
-        onPress={() => router.push('/(business)/verificacion')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title={business.is_limited ? 'Estado de cuenta · Limitado' : 'Estado de cuenta'}
-        variant="secondary"
-        onPress={() => router.push('/(business)/estado-cuenta')}
-        style={styles.spacedButton}
-      />
-
-      <View style={styles.divider} />
-
-      <Text style={styles.sectionTitle}>General</Text>
-      <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} loading={signingOut} />
+      <Pressable
+        style={({ pressed }) => [styles.signOutRow, pressed && styles.menuRowPressed]}
+        onPress={handleSignOut}
+        disabled={signingOut}
+      >
+        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        <Text style={styles.signOutLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
+      </Pressable>
     </ScrollView>
+  );
+}
+
+function MenuRow({
+  icon,
+  label,
+  badge,
+  badgeDanger,
+  onPress,
+  last,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  badge?: string;
+  badgeDanger?: boolean;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.menuRow, !last && styles.menuRowBorder, pressed && styles.menuRowPressed]}
+      onPress={onPress}
+    >
+      <View style={styles.menuRowIconWrap}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+      </View>
+      <Text style={styles.menuRowLabel}>{label}</Text>
+      {badge && <Text style={[styles.menuRowBadge, badgeDanger && styles.menuRowBadgeDanger]}>{badge}</Text>}
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </Pressable>
   );
 }
 
@@ -401,7 +209,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginBottom: 20,
+    marginBottom: 16,
     alignSelf: 'flex-start',
   },
   planBadgeText: {
@@ -413,7 +221,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
   },
   statLabel: {
     color: colors.textMuted,
@@ -429,78 +236,73 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
-    marginTop: 12,
+    color: colors.textMuted,
+    marginTop: 20,
     marginBottom: 8,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  toggleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
-  readOnlyBanner: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.textMuted,
-  },
-  readOnlyText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  locationButton: {
-    marginBottom: 12,
-  },
-  dayRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: 10,
-    marginBottom: 10,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dayLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dayTimes: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  timeInput: {
-    flex: 1,
-  },
-  saveButton: {
-    marginTop: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   divider: {
     height: 1,
     backgroundColor: colors.border,
     marginVertical: 20,
   },
-  spacedButton: {
-    marginTop: 12,
+  menuGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  menuRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuRowPressed: {
+    opacity: 0.55,
+  },
+  menuRowIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuRowLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  menuRowBadge: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+    marginRight: 4,
+  },
+  menuRowBadgeDanger: {
+    color: colors.danger,
+  },
+  signOutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+  },
+  signOutLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.danger,
   },
 });

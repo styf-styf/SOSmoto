@@ -39,6 +39,8 @@ export default function BusinessLayout() {
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
       <Stack.Screen name="historias" options={{ title: 'Historias' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
+      <Stack.Screen name="datos-negocio" options={{ title: 'Datos del negocio' }} />
+      <Stack.Screen name="horario" options={{ title: 'Horario' }} />
       <Stack.Screen name="verificacion" options={{ title: 'Verificación de negocio' }} />
       <Stack.Screen name="estado-cuenta" options={{ title: 'Estado de cuenta' }} />
       <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />

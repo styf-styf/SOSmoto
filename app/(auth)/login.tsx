@@ -25,9 +25,12 @@ export default function LoginScreen() {
       await signIn(email.trim(), password);
       router.replace('/');
     } catch (err) {
-      console.error('login error', err);
-      const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión.';
-      Alert.alert('Error', message);
+      const raw = err instanceof Error ? err.message : '';
+      const message =
+        /invalid.login.credentials|invalid_credentials|email.not.confirmed|wrong.password|user.not.found/i.test(raw)
+          ? 'Correo o contraseña incorrectos.'
+          : raw || 'No se pudo iniciar sesión. Intenta de nuevo.';
+      Alert.alert('Error al iniciar sesión', message);
     } finally {
       setLoading(false);
     }
@@ -53,7 +56,7 @@ export default function LoginScreen() {
   const disabled = loading || resetting;
 
   return (
-    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>SOSmoto</Text>
       <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
 

@@ -1,9 +1,18 @@
+import { ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from '../hooks/AuthContext';
+
+// Cualquier ScrollView de la app permite que un tap sobre un botón/tarjeta
+// dispare la acción Y cierre el teclado en un solo gesto, sin requerir
+// dos taps (uno para cerrar el teclado y otro para la acción).
+(ScrollView as any).defaultProps = {
+  ...((ScrollView as any).defaultProps ?? {}),
+  keyboardShouldPersistTaps: 'handled',
+};
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

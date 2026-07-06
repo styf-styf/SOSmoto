@@ -217,7 +217,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         </View>
         {mode === 'self' && (
           <Pressable onPress={() => router.push('/(business)/configuracion')}>
-            <Ionicons name="menu" size={26} color={colors.text} />
+            <Ionicons name="settings-outline" size={24} color={colors.text} />
           </Pressable>
         )}
       </View>
@@ -255,9 +255,9 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             onPress={() => router.push('/(business)/clientes')}
           />
           <ProfileActionButton
-            icon="megaphone-outline"
-            label="Anuncios"
-            onPress={() => router.push('/(business)/publicidad')}
+            icon="stats-chart-outline"
+            label="Estadísticas"
+            onPress={() => router.push('/(business)/estadisticas')}
           />
         </View>
       )}
