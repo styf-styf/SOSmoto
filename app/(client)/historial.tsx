@@ -173,8 +173,8 @@ function HistoryCard({
 
   const isReport = item.kind === 'report';
 
-  return (
-    <View style={styles.card}>
+  const cardContent = (
+    <>
       <Text style={styles.cardTitle}>{item.title}</Text>
       <Text style={styles.cardMeta}>
         {kindLabel[item.kind]} · {statusLabel[item.status] ?? item.status} ·{' '}
@@ -183,10 +183,10 @@ function HistoryCard({
       {item.description && <Text style={styles.cardMeta}>{item.description}</Text>}
 
       {reportId && (
-        <Pressable style={styles.reportBtn} onPress={() => router.push(`/(client)/informe/${reportId}`)}>
+        <View style={styles.reportBtn}>
           <Ionicons name="document-text-outline" size={15} color={colors.primary} />
           <Text style={styles.reportBtnText}>Ver informe de servicio</Text>
-        </Pressable>
+        </View>
       )}
 
       {!isReport && item.status === 'cancelled' && item.business && !item.review && (
@@ -230,6 +230,23 @@ function HistoryCard({
         ) : (
           <Button title="Calificar" variant="secondary" onPress={() => setShowForm(true)} style={styles.reviewButton} />
         ))}
+    </>
+  );
+
+  if (reportId) {
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        onPress={() => router.push(`/(client)/informe/${reportId}`)}
+      >
+        {cardContent}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.card}>
+      {cardContent}
     </View>
   );
 }
@@ -319,6 +336,9 @@ const styles = StyleSheet.create({
   },
   reviewButton: {
     marginTop: 12,
+  },
+  cardPressed: {
+    opacity: 0.75,
   },
   reportBtn: {
     flexDirection: 'row',
