@@ -84,7 +84,6 @@ export default async function KycPage() {
               {req.ruc_document_path && <DocLink label="RUC" url={signedUrls.get(req.ruc_document_path)} />}
               <DocLink label="Local" url={signedUrls.get(req.storefront_photo_path)} />
             </div>
-            {req.notes && <p className="mt-2 text-xs text-gray-600">"{req.notes}"</p>}
             <p className="mt-2 text-xs text-gray-400">{new Date(req.created_at).toLocaleString('es-EC')}</p>
             <KycReviewActions requestId={req.id} />
           </div>
