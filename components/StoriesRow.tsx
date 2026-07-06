@@ -88,8 +88,9 @@ const CARD_HEIGHT = 132;
 
 const styles = StyleSheet.create({
   list: {
-    gap: 10,
-    paddingLeft: 10,
+    gap: 6,
+    paddingLeft: 6,
+    paddingRight: 6,
     paddingBottom: 8,
   },
   card: {

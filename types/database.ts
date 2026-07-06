@@ -17,6 +17,7 @@ export interface VehicleInfo {
   brand: string;
   model: string;
   year: number;
+  plate?: string | null;
 }
 
 export function formatVehicle(v: VehicleInfo | null | undefined): string | null {
@@ -30,6 +31,7 @@ export interface Vehicle {
   brand: string;
   model: string;
   year: number;
+  plate: string | null;
   current_mileage: number;
   last_mileage_update: string;
   moto_type: MotoType | null;
@@ -361,13 +363,68 @@ export type AppointmentStatus = 'pending' | 'scheduled' | 'confirmed' | 'rejecte
 
 export interface Appointment {
   id: string;
-  client_id: string;
+  client_id: string | null;
   business_id: string;
   vehicle_id: string | null;
   service_id: string | null;
   requested_at: string | null;
+  proposed_by: 'client' | 'business' | null;
   notes: string | null;
   status: AppointmentStatus;
+  external_client_name: string | null;
+  external_client_phone: string | null;
+  created_at: string;
+}
+
+export interface ServiceReportPart {
+  name: string;
+  quantity: number;
+}
+
+export type InspectionStatus = 'ok' | 'attention' | 'critical' | 'na';
+
+export interface InspectionItem {
+  item: string;
+  status: InspectionStatus;
+}
+
+export interface InspectionGroup {
+  group: string;
+  observations?: string | null;
+  items: InspectionItem[];
+}
+
+export type ServiceCategory =
+  | 'Mantenimiento preventivo'
+  | 'Reparación'
+  | 'Diagnóstico'
+  | 'Revisión general'
+  | 'Lavado / Estética'
+  | 'Otro';
+
+export interface ServiceReport {
+  id: string;
+  business_id: string;
+  client_id: string | null;
+  appointment_id: string | null;
+  help_request_id: string | null;
+  vehicle_id: string | null;
+  vehicle_label: string | null;
+  external_client_name: string | null;
+  service_category: ServiceCategory | null;
+  service_km: number | null;
+  services_performed: string[];
+  parts_used: ServiceReportPart[] | null;
+  inspection_checklist: InspectionGroup[] | null;
+  observations: string | null;
+  recommendations: string | null;
+  vehicle_plate: string | null;
+  entry_date: string | null;
+  exit_date: string | null;
+  next_maintenance_km: number | null;
+  next_maintenance_date: string | null;
+  client_confirmed_at: string | null;
+  status: 'draft' | 'sent';
   created_at: string;
 }
 
@@ -391,6 +448,22 @@ export interface Follow {
   id: string;
   client_id: string;
   business_id: string;
+  created_at: string;
+}
+
+export type AppointmentRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+
+export interface AppointmentRequest {
+  id: string;
+  client_id: string;
+  business_id: string;
+  service_id: string | null;
+  vehicle_id: string | null;
+  service_name: string | null;
+  vehicle_label: string | null;
+  notes: string | null;
+  suggested_at: string | null;
+  status: AppointmentRequestStatus;
   created_at: string;
 }
 

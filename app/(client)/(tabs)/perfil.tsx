@@ -107,6 +107,25 @@ export default function ClientPerfilScreen() {
         </View>
       </View>
 
+      <View style={styles.actionsRow}>
+        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/citas')}>
+          <Ionicons name="calendar-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnLabel}>Mis citas</Text>
+        </Pressable>
+        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/historial')}>
+          <Ionicons name="time-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnLabel}>Historial</Text>
+        </Pressable>
+        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/publicaciones')}>
+          <Ionicons name="grid-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnLabel}>Publicaciones</Text>
+        </Pressable>
+        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/invitaciones')}>
+          <Ionicons name="mail-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnLabel}>Invitaciones</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>Siguiendo</Text>
@@ -274,6 +293,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 10,
+  },
+  actionBtnLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text,
   },
   divider: {
     height: 1,

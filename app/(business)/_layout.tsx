@@ -26,10 +26,15 @@ export default function BusinessLayout() {
       <Stack.Screen name="empleados" options={{ title: 'Equipo' }} />
       <Stack.Screen name="suscripcion" options={{ title: 'Plan y suscripción' }} />
       <Stack.Screen name="agenda-negocio" options={{ title: 'Agenda' }} />
-      <Stack.Screen name="historial" options={{ title: 'Historial de trabajos' }} />
+      <Stack.Screen name="nueva-cita" options={{ title: 'Nueva cita' }} />
+      <Stack.Screen name="nuevo-informe" options={{ title: 'Nuevo informe' }} />
+      <Stack.Screen name="informe/[id]" options={{ title: 'Informe de servicio' }} />
+
+      <Stack.Screen name="clientes" options={{ title: 'Mis clientes' }} />
       <Stack.Screen name="cliente/[id]" options={{ title: 'Perfil del cliente' }} />
-      <Stack.Screen name="portafolio" options={{ title: 'Portafolio de trabajos' }} />
-      <Stack.Screen name="mantenimiento-proactivo" options={{ title: 'Recordatorios de mantenimiento' }} />
+      <Stack.Screen name="cliente-externo" options={{ title: 'Cliente externo' }} />
+      <Stack.Screen name="nuevo-cliente" options={{ title: 'Nuevo cliente' }} />
+<Stack.Screen name="mantenimiento-proactivo" options={{ title: 'Recordatorios de mantenimiento' }} />
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
       <Stack.Screen name="historias" options={{ title: 'Historias' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />

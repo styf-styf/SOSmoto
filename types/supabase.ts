@@ -49,6 +49,7 @@ export interface Database {
           brand: string;
           model: string;
           year: number;
+          plate: string | null;
           current_mileage: number;
           last_mileage_update: string;
           moto_type: 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser' | null;
@@ -62,6 +63,7 @@ export interface Database {
           brand: string;
           model: string;
           year: number;
+          plate?: string | null;
           current_mileage?: number;
           last_mileage_update?: string;
           moto_type?: 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser' | null;
@@ -75,6 +77,7 @@ export interface Database {
           brand?: string;
           model?: string;
           year?: number;
+          plate?: string | null;
           current_mileage?: number;
           last_mileage_update?: string;
           moto_type?: 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser' | null;

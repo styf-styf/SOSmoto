@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { createReview, getServiceHistory, type ServiceHistoryItem } from '../../services/reviews';
+import { getClientReportIdsByAppointments } from '../../services/serviceReports';
 
 const statusLabel: Record<string, string> = {
   completed: 'Completado',
@@ -21,12 +23,17 @@ const kindLabel: Record<ServiceHistoryItem['kind'], string> = {
 export default function HistorialScreen() {
   const { profile } = useAuth();
   const [items, setItems] = useState<ServiceHistoryItem[]>([]);
+  const [reportIds, setReportIds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!profile) return;
-    const history = await getServiceHistory(profile.id);
+    const [history, reportMap] = await Promise.all([
+      getServiceHistory(profile.id),
+      getClientReportIdsByAppointments(profile.id),
+    ]);
     setItems(history);
+    setReportIds(reportMap);
   }, [profile]);
 
   useEffect(() => {
@@ -49,13 +56,20 @@ export default function HistorialScreen() {
       {items.length === 0 ? (
         <Text style={styles.placeholder}>Aún no tienes servicios en tu historial.</Text>
       ) : (
-        items.map((item) => <HistoryCard key={`${item.kind}_${item.id}`} item={item} onReviewed={load} />)
+        items.map((item) => (
+          <HistoryCard
+            key={`${item.kind}_${item.id}`}
+            item={item}
+            reportId={item.appointmentId ? reportIds.get(item.appointmentId) : undefined}
+            onReviewed={load}
+          />
+        ))
       )}
     </ScrollView>
   );
 }
 
-function HistoryCard({ item, onReviewed }: { item: ServiceHistoryItem; onReviewed: () => void }) {
+function HistoryCard({ item, reportId, onReviewed }: { item: ServiceHistoryItem; reportId?: string; onReviewed: () => void }) {
   const { profile } = useAuth();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -92,6 +106,13 @@ function HistoryCard({ item, onReviewed }: { item: ServiceHistoryItem; onReviewe
         {new Date(item.createdAt).toLocaleDateString()}
       </Text>
       {item.description && <Text style={styles.cardMeta}>{item.description}</Text>}
+
+      {reportId && (
+        <Pressable style={styles.reportBtn} onPress={() => router.push(`/(client)/informe/${reportId}`)}>
+          <Ionicons name="document-text-outline" size={15} color={colors.primary} />
+          <Text style={styles.reportBtnText}>Ver informe de servicio</Text>
+        </Pressable>
+      )}
 
       {item.status === 'cancelled' && item.business && !item.review && (
         <Text style={styles.cardMeta}>
@@ -193,5 +214,16 @@ const styles = StyleSheet.create({
   },
   reviewButton: {
     marginTop: 12,
+  },
+  reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  reportBtnText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

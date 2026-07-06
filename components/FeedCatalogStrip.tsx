@@ -10,10 +10,11 @@ import type { FeedCatalogItem } from '../services/catalog';
 // vertical con imagen de fondo + degradado + nombre), pero más grande: 3
 // tarjetas visibles por pantalla en vez de las 4 de Historias.
 const VISIBLE_CARDS = 3;
-const GAP = 10;
-const SIDE_PADDING = 10;
+const GAP = 6;
+const SIDE_PADDING = 6;
+const CARD_PEEK = 20; // franja de la 4ta tarjeta visible como pista de scroll
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING - GAP * VISIBLE_CARDS) / VISIBLE_CARDS);
+const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING - GAP * VISIBLE_CARDS - CARD_PEEK) / VISIBLE_CARDS);
 const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.65);
 
 export function FeedCatalogStrip({
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
   list: {
     gap: GAP,
     paddingLeft: SIDE_PADDING,
+    paddingRight: SIDE_PADDING,
     paddingVertical: 8,
   },
   card: {

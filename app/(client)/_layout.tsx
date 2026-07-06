@@ -41,8 +41,9 @@ export default function ClientLayout() {
         <Stack.Screen name="estado-cuenta" options={{ title: 'Estado de cuenta' }} />
         <Stack.Screen name="agendar" options={{ title: 'Solicitar cita' }} />
         <Stack.Screen name="citas" options={{ title: 'Mis citas' }} />
-        <Stack.Screen name="portafolio/[id]" options={{ title: 'Portafolio de trabajos' }} />
-      </Stack>
+        <Stack.Screen name="informe/[id]" options={{ title: 'Informe de servicio' }} />
+        <Stack.Screen name="invitaciones" options={{ title: 'Invitaciones' }} />
+</Stack>
     </ActiveHelpRequestProvider>
   );
 }

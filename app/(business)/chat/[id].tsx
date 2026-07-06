@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useLocalSearchParams } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
 import { colors } from '../../../constants/colors';
@@ -10,6 +11,8 @@ import { getMyWorkBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
 import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
+import { acceptAppointmentRequest, getActiveAppointmentRequest, rejectAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
+import { scheduleAppointmentReminder } from '../../../services/appointmentReminders';
 import { getUserById } from '../../../services/users';
 import type { Message, ProductIntentWithProduct, ServiceIntentWithService, User } from '../../../types/database';
 import { encodeQuote, formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
@@ -22,6 +25,17 @@ const QUICK_REPLIES = [
   'Ya estamos disponibles',
   'El presupuesto es $',
 ];
+
+function defaultApproveDate(suggestedAt?: string | null): Date {
+  if (suggestedAt) {
+    const d = new Date(suggestedAt);
+    if (!isNaN(d.getTime()) && d.getTime() > Date.now()) return d;
+  }
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  return d;
+}
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,6 +59,15 @@ export default function ChatScreen() {
   const [serviceIntents, setServiceIntents] = useState<ServiceIntentWithService[]>([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
 
+  // Solicitud de cita pendiente
+  const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
+  const [processingRequest, setProcessingRequest] = useState(false);
+  const [showApproveForm, setShowApproveForm] = useState(false);
+  const [approvePickerDate, setApprovePickerDate] = useState<Date>(new Date());
+  const [approvePickerTime, setApprovePickerTime] = useState<Date>(new Date());
+  const [showApproveDatePicker, setShowApproveDatePicker] = useState(false);
+  const [showApproveTimePicker, setShowApproveTimePicker] = useState(false);
+
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
     if (profile.role === 'client') {
@@ -63,13 +86,20 @@ export default function ChatScreen() {
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
         setIsLimited(thread.isLimited);
-        const [history] = await Promise.all([
+        const [history, , , , activeRequest] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
           getPendingIntentsForBusinessClient(thread.businessId, thread.clientId).then(setIntents),
           getPendingServiceIntentsForBusinessClient(thread.businessId, thread.clientId).then(setServiceIntents),
+          getActiveAppointmentRequest(thread.clientId, thread.businessId),
         ]);
         setMessages(history);
+        if (activeRequest) {
+          setAppointmentRequest(activeRequest);
+          const prefill = defaultApproveDate(activeRequest.suggested_at);
+          setApprovePickerDate(prefill);
+          setApprovePickerTime(prefill);
+        }
         if (profile) {
           await markThreadRead(thread.clientId, thread.businessId, profile.id);
         }
@@ -77,6 +107,23 @@ export default function ChatScreen() {
       .catch((err) => console.error('load chat error', err))
       .finally(() => setLoading(false));
   }, [resolveThread]);
+
+  // Suscripción a cambios en la solicitud de cita
+  useEffect(() => {
+    if (!clientId || !businessId) return;
+    const unsubscribe = subscribeToAppointmentRequest(clientId, businessId, 'business', (req) => {
+      if (req.status === 'pending') {
+        setAppointmentRequest(req);
+        const prefill = defaultApproveDate(req.suggested_at);
+        setApprovePickerDate(prefill);
+        setApprovePickerTime(prefill);
+      } else {
+        setAppointmentRequest(null);
+        setShowApproveForm(false);
+      }
+    });
+    return unsubscribe;
+  }, [clientId, businessId]);
 
   useEffect(() => {
     if (!businessId || !clientId) return;
@@ -129,6 +176,70 @@ export default function ChatScreen() {
     }
   }
 
+  function openApproveForm() {
+    if (!appointmentRequest) return;
+    const prefill = defaultApproveDate(appointmentRequest.suggested_at);
+    setApprovePickerDate(prefill);
+    setApprovePickerTime(prefill);
+    setShowApproveDatePicker(false);
+    setShowApproveTimePicker(false);
+    setShowQuoteForm(false);
+    setShowQuickReplies(false);
+    setShowApproveForm(true);
+  }
+
+  async function handleAcceptRequest() {
+    if (!appointmentRequest || processingRequest) return;
+    const dt = new Date(approvePickerDate);
+    dt.setHours(approvePickerTime.getHours(), approvePickerTime.getMinutes(), 0, 0);
+    if (dt.getTime() < Date.now()) {
+      Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
+      return;
+    }
+    setProcessingRequest(true);
+    try {
+      const newAppointment = await acceptAppointmentRequest(appointmentRequest, dt.toISOString());
+      // Recordatorio local para el taller
+      await scheduleAppointmentReminder({
+        appointmentId: newAppointment.id,
+        scheduledAt: dt.toISOString(),
+        clientLabel: client?.full_name ?? 'Cliente',
+        serviceName: appointmentRequest.service_name ?? undefined,
+      });
+      setAppointmentRequest(null);
+      setShowApproveForm(false);
+    } catch (err) {
+      console.error('accept request error', err);
+      Alert.alert('Error', 'No se pudo confirmar la cita. Intenta de nuevo.');
+    } finally {
+      setProcessingRequest(false);
+    }
+  }
+
+  async function handleRejectRequest() {
+    if (!appointmentRequest || processingRequest) return;
+    Alert.alert('Rechazar solicitud', '¿Seguro que quieres rechazar esta solicitud de cita?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, rechazar',
+        style: 'destructive',
+        onPress: async () => {
+          setProcessingRequest(true);
+          try {
+            await rejectAppointmentRequest(appointmentRequest);
+            setAppointmentRequest(null);
+            setShowApproveForm(false);
+          } catch (err) {
+            console.error('reject request error', err);
+            Alert.alert('Error', 'No se pudo rechazar la solicitud.');
+          } finally {
+            setProcessingRequest(false);
+          }
+        },
+      },
+    ]);
+  }
+
   async function handleSend(overrideBody?: string) {
     const body = overrideBody ?? text.trim();
     if (!profile || !clientId || !businessId || !body) return;
@@ -175,13 +286,69 @@ export default function ChatScreen() {
     );
   }
 
+  const hasBanner = intents.length > 0 || serviceIntents.length > 0 || appointmentRequest !== null;
+  const approveDateTime = (() => {
+    const dt = new Date(approvePickerDate);
+    dt.setHours(approvePickerTime.getHours(), approvePickerTime.getMinutes(), 0, 0);
+    return dt;
+  })();
+
   return (
     <View style={styles.container}>
       <ChatHeader name={client?.full_name ?? 'Cliente'} avatarUrl={client?.avatar_url} fallbackIcon="person" />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
-        {(intents.length > 0 || serviceIntents.length > 0) && (
+        {hasBanner && (
           <View style={styles.intentsBanner}>
+            {/* Banner de solicitud de cita (lado taller) */}
+            {appointmentRequest && (
+              <View style={styles.intentCard}>
+                <View style={styles.intentInfo}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <View style={styles.requestInfo}>
+                    <Text style={styles.intentText} numberOfLines={1}>
+                      Solicitud de cita:{' '}
+                      <Text style={styles.intentName}>
+                        {appointmentRequest.service_name ?? 'Sin servicio especificado'}
+                      </Text>
+                    </Text>
+                    {appointmentRequest.suggested_at ? (
+                      <Text style={styles.requestSub}>
+                        Fecha sugerida:{' '}
+                        {new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+                {!showApproveForm && (
+                  <View style={styles.intentActions}>
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnConfirm]}
+                      onPress={openApproveForm}
+                      disabled={processingRequest}
+                    >
+                      <Text style={styles.intentBtnText}>Aceptar</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnReject]}
+                      onPress={handleRejectRequest}
+                      disabled={processingRequest}
+                    >
+                      {processingRequest ? (
+                        <ActivityIndicator size="small" color={colors.danger} />
+                      ) : (
+                        <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>Rechazar</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Intents de producto */}
             {intents.map((intent) => (
               <View key={intent.id} style={styles.intentCard}>
                 <View style={styles.intentInfo}>
@@ -213,6 +380,8 @@ export default function ChatScreen() {
                 </View>
               </View>
             ))}
+
+            {/* Intents de servicio */}
             {serviceIntents.map((intent) => (
               <View key={intent.id} style={styles.intentCard}>
                 <View style={styles.intentInfo}>
@@ -246,6 +415,7 @@ export default function ChatScreen() {
             ))}
           </View>
         )}
+
         <ScrollView ref={scrollRef} style={styles.flex} contentContainerStyle={styles.messages}>
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
@@ -350,19 +520,106 @@ export default function ChatScreen() {
               </View>
             )}
 
+            {/* Formulario de confirmación de fecha al aceptar solicitud */}
+            {showApproveForm && appointmentRequest && (
+              <View style={styles.approveForm}>
+                <Text style={styles.approveFormTitle}>Confirmar fecha de cita</Text>
+                {appointmentRequest.vehicle_label ? (
+                  <Text style={styles.approveFormSub}>Moto: {appointmentRequest.vehicle_label}</Text>
+                ) : null}
+
+                <Text style={styles.approveFieldLabel}>Fecha</Text>
+                <Pressable
+                  style={styles.approvePickerBtn}
+                  onPress={() => { setShowApproveDatePicker((v) => !v); setShowApproveTimePicker(false); }}
+                >
+                  <Text style={styles.approvePickerBtnText}>
+                    {approvePickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </Text>
+                </Pressable>
+                {showApproveDatePicker && (
+                  <DateTimePicker
+                    value={approvePickerDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                    minimumDate={new Date()}
+                    onChange={(_, date) => {
+                      if (Platform.OS === 'android') setShowApproveDatePicker(false);
+                      if (date) setApprovePickerDate(date);
+                    }}
+                  />
+                )}
+
+                <Text style={styles.approveFieldLabel}>Hora</Text>
+                <Pressable
+                  style={styles.approvePickerBtn}
+                  onPress={() => { setShowApproveTimePicker((v) => !v); setShowApproveDatePicker(false); }}
+                >
+                  <Text style={styles.approvePickerBtnText}>
+                    {approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </Pressable>
+                {showApproveTimePicker && (
+                  <DateTimePicker
+                    value={approvePickerTime}
+                    mode="time"
+                    display="spinner"
+                    onChange={(_, time) => {
+                      if (Platform.OS === 'android') setShowApproveTimePicker(false);
+                      if (time) setApprovePickerTime(time);
+                    }}
+                  />
+                )}
+
+                <Text style={styles.approveHint}>
+                  Cita para:{' '}
+                  {approveDateTime.toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+                </Text>
+
+                <View style={styles.approveFormActions}>
+                  <Pressable
+                    style={[styles.approveFormBtn, processingRequest && styles.approveFormBtnDisabled]}
+                    onPress={handleAcceptRequest}
+                    disabled={processingRequest}
+                  >
+                    {processingRequest ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.approveFormBtnText}>Confirmar cita</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={styles.approveFormBtnSecondary}
+                    onPress={() => setShowApproveForm(false)}
+                    disabled={processingRequest}
+                  >
+                    <Text style={styles.approveFormBtnSecondaryText}>Volver</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             <View style={styles.inputRow}>
               <Pressable
                 style={styles.iconButton}
-                onPress={() => { setShowQuickReplies((v) => !v); setShowQuoteForm(false); }}
+                onPress={() => { setShowQuickReplies((v) => !v); setShowQuoteForm(false); setShowApproveForm(false); }}
               >
                 <Ionicons name="flash-outline" size={20} color={showQuickReplies ? colors.primary : colors.textMuted} />
               </Pressable>
               <Pressable
                 style={styles.iconButton}
-                onPress={() => { setShowQuoteForm((v) => !v); setShowQuickReplies(false); }}
+                onPress={() => { setShowQuoteForm((v) => !v); setShowQuickReplies(false); setShowApproveForm(false); }}
               >
                 <Ionicons name="receipt-outline" size={20} color={showQuoteForm ? colors.primary : colors.textMuted} />
               </Pressable>
+              {clientId && (
+                <Pressable
+                  style={styles.iconButton}
+                  onPress={() => router.push(`/(business)/nueva-cita?clientId=${clientId}`)}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
+                </Pressable>
+              )}
               <TextInput
                 style={styles.input}
                 placeholder="Escribe un mensaje…"
@@ -560,6 +817,85 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  approveForm: {
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: '#F0F7FF',
+    gap: 4,
+  },
+  approveFormTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  approveFormSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
+  approveFieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  approvePickerBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  approvePickerBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  approveHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  approveFormActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  approveFormBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  approveFormBtnDisabled: {
+    opacity: 0.6,
+  },
+  approveFormBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  approveFormBtnSecondary: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  approveFormBtnSecondaryText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   quoteCard: {
     maxWidth: '80%',
     borderRadius: 14,
@@ -624,8 +960,16 @@ const styles = StyleSheet.create({
   },
   intentInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 6,
+  },
+  requestInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  requestSub: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
   intentText: {
     fontSize: 13,
@@ -651,7 +995,7 @@ const styles = StyleSheet.create({
   intentBtnReject: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.danger,
   },
   intentBtnText: {
     fontSize: 12,
@@ -659,7 +1003,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   intentBtnTextReject: {
-    color: colors.text,
+    color: colors.danger,
   },
   limitedNotice: {
     padding: 14,

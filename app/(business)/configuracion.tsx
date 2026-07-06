@@ -319,19 +319,8 @@ export default function BusinessConfiguracionScreen() {
         onPress={() => router.push('/(business)/agenda-negocio')}
         style={styles.spacedButton}
       />
-      <Button
-        title="Historial de trabajos"
-        variant="secondary"
-        onPress={() => router.push('/(business)/historial')}
-        style={styles.spacedButton}
-      />
-      <Button
-        title="Portafolio de trabajos"
-        variant="secondary"
-        onPress={() => router.push('/(business)/portafolio')}
-        style={styles.spacedButton}
-      />
-      <Button
+
+<Button
         title="Recordatorios de mantenimiento"
         variant="secondary"
         onPress={() => router.push('/(business)/mantenimiento-proactivo')}

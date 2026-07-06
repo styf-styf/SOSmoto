@@ -7,7 +7,7 @@ import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getDueMaintenance, markCompleted, type MaintenanceItem } from '../../services/maintenance';
-import { createVehicle, deleteVehicle, getVehicles, updateMileage } from '../../services/vehicles';
+import { createVehicle, deleteVehicle, getVehicles, updateVehicle } from '../../services/vehicles';
 import type { MotoType, Vehicle } from '../../types/database';
 
 const motoTypeLabel: Record<MotoType, string> = {
@@ -106,10 +106,15 @@ function VehicleCard({
   onUpdated: (vehicle: Vehicle) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [brand, setBrand] = useState(vehicle.brand);
+  const [model, setModel] = useState(vehicle.model);
+  const [year, setYear] = useState(String(vehicle.year));
+  const [motoType, setMotoType] = useState<MotoType>(vehicle.moto_type ?? 'street');
   const [mileage, setMileage] = useState(String(vehicle.current_mileage));
   const [avgMonthlyKm, setAvgMonthlyKm] = useState(
     vehicle.avg_monthly_km !== null ? String(vehicle.avg_monthly_km) : ''
   );
+  const [plate, setPlate] = useState(vehicle.plate ?? '');
   const [saving, setSaving] = useState(false);
   const [maintenance, setMaintenance] = useState<MaintenanceItem[]>([]);
 
@@ -129,8 +134,17 @@ function VehicleCard({
   }
 
   async function handleSave() {
-    const parsed = Number(mileage);
-    if (Number.isNaN(parsed) || parsed < 0) {
+    const parsedYear = Number(year);
+    const parsedMileage = Number(mileage);
+    if (!brand.trim() || !model.trim()) {
+      Alert.alert('Faltan datos', 'Completa marca y modelo.');
+      return;
+    }
+    if (Number.isNaN(parsedYear) || parsedYear < 1900) {
+      Alert.alert('Año inválido', 'Ingresa un año válido.');
+      return;
+    }
+    if (Number.isNaN(parsedMileage) || parsedMileage < 0) {
       Alert.alert('Kilometraje inválido', 'Ingresa un número válido.');
       return;
     }
@@ -141,11 +155,19 @@ function VehicleCard({
     }
     setSaving(true);
     try {
-      const updated = await updateMileage(vehicle.id, parsed, parsedAvg);
+      const updated = await updateVehicle(vehicle.id, {
+        brand: brand.trim(),
+        model: model.trim(),
+        year: parsedYear,
+        plate: plate.trim(),
+        currentMileage: parsedMileage,
+        avgMonthlyKm: parsedAvg,
+        motoType,
+      });
       onUpdated(updated);
       setEditing(false);
     } catch (err) {
-      console.error('update mileage error', err);
+      console.error('update vehicle error', err);
     } finally {
       setSaving(false);
     }
@@ -154,9 +176,17 @@ function VehicleCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>
-          {vehicle.brand} {vehicle.model} ({vehicle.year})
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>
+            {vehicle.brand} {vehicle.model} ({vehicle.year})
+          </Text>
+          {vehicle.plate && (
+            <Text style={styles.plateBadge}>{vehicle.plate}</Text>
+          )}
+        </View>
+        <Pressable onPress={() => setEditing((e) => !e)} style={{ marginRight: 12 }}>
+          <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+        </Pressable>
         <Pressable onPress={onDelete}>
           <Ionicons name="trash-outline" size={20} color={colors.danger} />
         </Pressable>
@@ -164,6 +194,22 @@ function VehicleCard({
 
       {editing ? (
         <View style={styles.editForm}>
+          <TextField label="Marca" placeholder="Honda" value={brand} onChangeText={setBrand} />
+          <TextField label="Modelo" placeholder="CB190R" value={model} onChangeText={setModel} />
+          <TextField
+            label="Año"
+            placeholder="2022"
+            keyboardType="numeric"
+            value={year}
+            onChangeText={setYear}
+          />
+          <TextField
+            label="Número de placa"
+            placeholder="ABC-1234"
+            value={plate}
+            onChangeText={(v) => setPlate(v.toUpperCase())}
+            autoCapitalize="characters"
+          />
           <TextField
             label="Kilometraje actual"
             keyboardType="numeric"
@@ -171,7 +217,7 @@ function VehicleCard({
             onChangeText={setMileage}
           />
           <TextField
-            label="Promedio de km que rodas al mes (opcional)"
+            label="Promedio de km al mes (opcional)"
             placeholder="800"
             keyboardType="numeric"
             value={avgMonthlyKm}
@@ -180,6 +226,20 @@ function VehicleCard({
           <Text style={styles.helperText}>
             Con este dato te avisamos de tu próximo mantenimiento aunque no abras la app seguido.
           </Text>
+          <Text style={styles.fieldLabel}>Tipo de moto</Text>
+          <View style={styles.typeSelector}>
+            {(Object.keys(motoTypeLabel) as MotoType[]).map((type) => (
+              <Pressable
+                key={type}
+                onPress={() => setMotoType(type)}
+                style={[styles.typeOption, motoType === type && styles.typeOptionSelected]}
+              >
+                <Text style={[styles.typeOptionText, motoType === type && styles.typeOptionTextSelected]}>
+                  {motoTypeLabel[type]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <View style={styles.editActions}>
             <Button title="Guardar" onPress={handleSave} loading={saving} style={styles.flexButton} />
             <Button
@@ -191,14 +251,14 @@ function VehicleCard({
           </View>
         </View>
       ) : (
-        <Pressable onPress={() => setEditing(true)}>
+        <View>
           <Text style={styles.cardMeta}>
-            {vehicle.current_mileage.toLocaleString()} km · tocar para actualizar
+            {vehicle.current_mileage.toLocaleString()} km
           </Text>
           {vehicle.avg_monthly_km !== null && (
             <Text style={styles.cardMetaSmall}>~{vehicle.avg_monthly_km.toLocaleString()} km/mes</Text>
           )}
-        </Pressable>
+        </View>
       )}
 
       {!vehicle.moto_type ? null : maintenance.length === 0 ? null : (
@@ -243,6 +303,7 @@ function AddVehicleForm({
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
+  const [plate, setPlate] = useState('');
   const [mileage, setMileage] = useState('0');
   const [avgMonthlyKm, setAvgMonthlyKm] = useState('');
   const [motoType, setMotoType] = useState<MotoType>('street');
@@ -252,8 +313,8 @@ function AddVehicleForm({
     if (!profile) return;
     const parsedYear = Number(year);
     const parsedMileage = Number(mileage);
-    if (!brand.trim() || !model.trim() || !parsedYear) {
-      Alert.alert('Faltan datos', 'Completa marca, modelo y año.');
+    if (!brand.trim() || !model.trim() || !parsedYear || !plate.trim()) {
+      Alert.alert('Faltan datos', 'Completa marca, modelo, año y placa.');
       return;
     }
     const parsedAvg = avgMonthlyKm.trim() ? Number(avgMonthlyKm) : undefined;
@@ -268,6 +329,7 @@ function AddVehicleForm({
         brand: brand.trim(),
         model: model.trim(),
         year: parsedYear,
+        plate: plate.trim().toUpperCase(),
         currentMileage: Number.isNaN(parsedMileage) ? 0 : parsedMileage,
         motoType,
         avgMonthlyKm: parsedAvg,
@@ -286,6 +348,13 @@ function AddVehicleForm({
       <TextField label="Marca" placeholder="Honda" value={brand} onChangeText={setBrand} />
       <TextField label="Modelo" placeholder="CB190R" value={model} onChangeText={setModel} />
       <TextField label="Año" placeholder="2022" keyboardType="numeric" value={year} onChangeText={setYear} />
+      <TextField
+        label="Número de placa"
+        placeholder="ABC-1234"
+        value={plate}
+        onChangeText={(v) => setPlate(v.toUpperCase())}
+        autoCapitalize="characters"
+      />
       <TextField
         label="Kilometraje actual"
         placeholder="0"
@@ -356,6 +425,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     flex: 1,
+  },
+  plateBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: 3,
+    letterSpacing: 1,
   },
   cardMeta: {
     fontSize: 14,

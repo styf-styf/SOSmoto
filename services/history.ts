@@ -16,8 +16,8 @@ export interface ClientProfileForBusiness {
   id: string;
   full_name: string;
   phone: string | null;
+  email: string | null;
   avatar_url: string | null;
-  vehicles: Array<VehicleInfo & { id: string; current_mileage: number }>;
 }
 
 type RawClient = { id: string; full_name: string; phone: string | null };
@@ -54,10 +54,10 @@ export async function getBusinessHistory(
 
   let apptQuery = supabase
     .from('appointments')
-    .select('id, client_id, vehicle_id, service_id, scheduled_at, requested_at')
+    .select('id, client_id, vehicle_id, service_id, requested_at')
     .eq('business_id', businessId)
     .eq('status', 'completed')
-    .order('scheduled_at', { ascending: false })
+    .order('requested_at', { ascending: false })
     .limit(limit);
   if (clientId) apptQuery = apptQuery.eq('client_id', clientId);
 
@@ -116,7 +116,7 @@ export async function getBusinessHistory(
     return {
       id: `appt:${r.id}`,
       type: 'appointment' as const,
-      date: r.scheduled_at ?? r.requested_at ?? r.created_at,
+      date: r.requested_at ?? r.created_at,
       clientId: r.client_id,
       clientName: client?.full_name ?? 'Cliente',
       clientPhone: client?.phone ?? null,
@@ -130,28 +130,273 @@ export async function getBusinessHistory(
   );
 }
 
+export interface CRMClient {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  avatar_url: string | null;
+  last_visit: string;
+  total_visits: number;
+  is_external?: boolean;
+  status?: 'pending' | 'accepted' | 'rejected';
+  crm_record_id?: string;
+}
+
+export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
+  // Paso 1: clientes explícitamente agregados al taller
+  const { data: bizClients } = await (supabase.from('business_clients') as any)
+    .select('id, client_id, external_name, external_phone, created_at')
+    .eq('business_id', businessId);
+
+  // status es una columna nueva (migración 0070) — query separada para no romper
+  // la lista principal si la migración aún no está aplicada.
+  const statusMap = new Map<string, 'pending' | 'accepted' | 'rejected'>();
+  const { data: statusRows } = await (supabase.from('business_clients') as any)
+    .select('id, status')
+    .eq('business_id', businessId);
+  for (const r of (statusRows ?? []) as any[]) {
+    statusMap.set(r.id as string, r.status ?? 'accepted');
+  }
+
+  // Paso 2: resumen de visitas reales (citas completadas + auxilios)
+  const [{ data: aids }, { data: apts }, { data: extApts }, { data: extReports }] = await Promise.all([
+    supabase
+      .from('help_requests')
+      .select('client_id, completed_at, created_at')
+      .eq('accepted_business_id', businessId)
+      .eq('status', 'completed'),
+    supabase
+      .from('appointments')
+      .select('client_id, requested_at')
+      .eq('business_id', businessId)
+      .eq('status', 'completed')
+      .not('client_id', 'is', null),
+    (supabase.from('appointments') as any)
+      .select('external_client_name, requested_at')
+      .eq('business_id', businessId)
+      .eq('status', 'completed')
+      .is('client_id', null)
+      .not('external_client_name', 'is', null),
+    (supabase.from('service_reports') as any)
+      .select('external_client_name, created_at')
+      .eq('business_id', businessId)
+      .is('client_id', null)
+      .not('external_client_name', 'is', null),
+  ]);
+
+  // Mapa de visitas por client_id
+  const appVisits = new Map<string, { lastVisit: string; total: number }>();
+  for (const r of (aids ?? []) as any[]) {
+    const date: string = r.completed_at ?? r.created_at;
+    const prev = appVisits.get(r.client_id);
+    appVisits.set(r.client_id, {
+      lastVisit: prev ? (date > prev.lastVisit ? date : prev.lastVisit) : date,
+      total: (prev?.total ?? 0) + 1,
+    });
+  }
+  for (const r of (apts ?? []) as any[]) {
+    if (!r.client_id || !r.requested_at) continue;
+    const prev = appVisits.get(r.client_id);
+    appVisits.set(r.client_id, {
+      lastVisit: prev ? (r.requested_at > prev.lastVisit ? r.requested_at : prev.lastVisit) : r.requested_at,
+      total: (prev?.total ?? 0) + 1,
+    });
+  }
+
+  // Mapa de visitas por nombre externo (lowercase)
+  const extVisits = new Map<string, { lastVisit: string; total: number }>();
+  for (const r of (extApts ?? []) as any[]) {
+    if (!r.external_client_name || !r.requested_at) continue;
+    const key = r.external_client_name.toLowerCase();
+    const prev = extVisits.get(key);
+    extVisits.set(key, {
+      lastVisit: prev ? (r.requested_at > prev.lastVisit ? r.requested_at : prev.lastVisit) : r.requested_at,
+      total: (prev?.total ?? 0) + 1,
+    });
+  }
+  for (const r of (extReports ?? []) as any[]) {
+    if (!r.external_client_name) continue;
+    const key = r.external_client_name.toLowerCase();
+    const prev = extVisits.get(key);
+    extVisits.set(key, {
+      lastVisit: prev ? (r.created_at > prev.lastVisit ? r.created_at : prev.lastVisit) : r.created_at,
+      total: (prev?.total ?? 0) + 1,
+    });
+  }
+
+  // Paso 3: construir lista desde business_clients (incluye clientes con 0 visitas)
+  const addedAppIds = new Set<string>();
+  const addedExtNames = new Set<string>();
+  const results: CRMClient[] = [];
+
+  const appIdsToFetch = (bizClients ?? [])
+    .filter((c: any) => c.client_id)
+    .map((c: any) => c.client_id as string);
+
+  let userMap = new Map<string, any>();
+  if (appIdsToFetch.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, phone, avatar_url')
+      .in('id', appIdsToFetch);
+    userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
+  }
+
+  for (const bc of (bizClients ?? []) as any[]) {
+    if (bc.client_id) {
+      addedAppIds.add(bc.client_id);
+      const u = userMap.get(bc.client_id);
+      if (!u) continue;
+      const status: 'pending' | 'accepted' | 'rejected' = statusMap.get(bc.id) ?? 'accepted';
+      const visits = status === 'accepted' ? appVisits.get(bc.client_id) : undefined;
+      results.push({
+        id: bc.client_id,
+        full_name: u.full_name,
+        phone: status === 'pending' ? null : (u.phone ?? null),
+        avatar_url: status === 'pending' ? null : (u.avatar_url ?? null),
+        last_visit: visits?.lastVisit ?? bc.created_at,
+        total_visits: visits?.total ?? 0,
+        is_external: false,
+        status,
+        crm_record_id: bc.id,
+      });
+    } else if (bc.external_name) {
+      const key = bc.external_name.toLowerCase();
+      addedExtNames.add(key);
+      const visits = extVisits.get(key);
+      results.push({
+        id: `ext:${encodeURIComponent(bc.external_name)}`,
+        full_name: bc.external_name,
+        phone: bc.external_phone ?? null,
+        avatar_url: null,
+        last_visit: visits?.lastVisit ?? bc.created_at,
+        total_visits: visits?.total ?? 0,
+        is_external: true,
+      });
+    }
+  }
+
+  // Paso 4: agregar clientes históricos no registrados explícitamente
+  const historicalAppIds = [...appVisits.keys()].filter((id) => !addedAppIds.has(id));
+  if (historicalAppIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, phone, avatar_url')
+      .in('id', historicalAppIds);
+    for (const u of (users ?? []) as any[]) {
+      const visits = appVisits.get(u.id)!;
+      results.push({
+        id: u.id,
+        full_name: u.full_name,
+        phone: u.phone ?? null,
+        avatar_url: u.avatar_url ?? null,
+        last_visit: visits.lastVisit,
+        total_visits: visits.total,
+        is_external: false,
+      });
+    }
+  }
+
+  for (const [key, visits] of extVisits.entries()) {
+    if (addedExtNames.has(key)) continue;
+    // Recuperar nombre original desde las citas
+    const aptRow = (extApts ?? []).find((r: any) => r.external_client_name?.toLowerCase() === key);
+    const name = (aptRow as any)?.external_client_name ?? key;
+    results.push({
+      id: `ext:${encodeURIComponent(name)}`,
+      full_name: name,
+      phone: null,
+      avatar_url: null,
+      last_visit: visits.lastVisit,
+      total_visits: visits.total,
+      is_external: true,
+    });
+  }
+
+  return results.sort((a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime());
+}
+
+export interface ExternalClientData {
+  appointments: { id: string; requested_at: string | null; status: string; service_name: string | null; notes: string | null }[];
+  reports: { id: string; created_at: string; vehicle_label: string | null; service_category: string | null; appointment_id: string | null }[];
+}
+
+export async function getExternalClientData(
+  businessId: string,
+  name: string
+): Promise<ExternalClientData> {
+  const [{ data: apts }, { data: rpts }] = await Promise.all([
+    (supabase.from('appointments') as any)
+      .select('id, requested_at, status, notes, services(name)')
+      .eq('business_id', businessId)
+      .eq('external_client_name', name)
+      .is('client_id', null)
+      .order('requested_at', { ascending: false }),
+    (supabase.from('service_reports') as any)
+      .select('id, created_at, vehicle_label, service_category, appointment_id')
+      .eq('business_id', businessId)
+      .eq('external_client_name', name)
+      .is('client_id', null)
+      .order('created_at', { ascending: false }),
+  ]);
+
+  return {
+    appointments: (apts ?? []).map((r: any) => ({
+      id: r.id,
+      requested_at: r.requested_at ?? null,
+      status: r.status,
+      service_name: r.services?.name ?? null,
+      notes: r.notes ?? null,
+    })),
+    reports: (rpts ?? []).map((r: any) => ({
+      id: r.id,
+      created_at: r.created_at,
+      vehicle_label: r.vehicle_label ?? null,
+      service_category: r.service_category ?? null,
+      appointment_id: r.appointment_id ?? null,
+    })),
+  };
+}
+
+export interface UserSearchResult {
+  id: string;
+  full_name: string;
+  phone: string | null;
+}
+
+export async function searchUsers(
+  query: string,
+  excludeIds: string[] = []
+): Promise<UserSearchResult[]> {
+  if (query.trim().length < 2) return [];
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, phone')
+    .eq('role', 'client')
+    .ilike('full_name', `%${query.trim()}%`)
+    .limit(8);
+  if (error) throw error;
+  const results = (data ?? []) as UserSearchResult[];
+  if (excludeIds.length === 0) return results;
+  return results.filter((u) => !excludeIds.includes(u.id));
+}
+
 export async function getClientProfileForBusiness(
   clientId: string
 ): Promise<ClientProfileForBusiness | null> {
-  const [{ data: user, error: userErr }, { data: vehicles, error: vehErr }] = await Promise.all([
-    supabase.from('users').select('id, full_name, phone, avatar_url').eq('id', clientId).maybeSingle(),
-    supabase.from('vehicles').select('id, brand, model, year, current_mileage').eq('user_id', clientId),
-  ]);
+  const { data: user, error: userErr } = await supabase
+    .from('users')
+    .select('id, full_name, phone, email, avatar_url')
+    .eq('id', clientId)
+    .maybeSingle();
   if (userErr) throw userErr;
   if (!user) return null;
-  if (vehErr) throw vehErr;
 
   return {
     id: (user as any).id,
     full_name: (user as any).full_name,
     phone: (user as any).phone ?? null,
+    email: (user as any).email ?? null,
     avatar_url: (user as any).avatar_url ?? null,
-    vehicles: (vehicles ?? []).map((v: any) => ({
-      id: v.id,
-      brand: v.brand,
-      model: v.model,
-      year: v.year,
-      current_mileage: v.current_mileage,
-    })),
   };
 }

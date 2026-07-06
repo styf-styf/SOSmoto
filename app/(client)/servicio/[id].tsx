@@ -1,38 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getServiceById, incrementServiceViews } from '../../../services/catalog';
-import {
-  cancelServiceIntent,
-  createServiceIntent,
-  getClientIntentForService,
-  subscribeToClientServiceIntent,
-} from '../../../services/serviceIntents';
 import type { ServiceWithBusiness } from '../../../services/catalog';
-import type { ServiceIntent } from '../../../types/database';
 
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
   const [service, setService] = useState<ServiceWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
-  const [intent, setIntent] = useState<ServiceIntent | null>(null);
-  const [agendando, setAgendando] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
     const result = await getServiceById(id);
     setService(result);
     if (result) incrementServiceViews(id).catch((err) => console.error('increment service views error', err));
-    if (profile?.id) {
-      getClientIntentForService(profile.id, id)
-        .then(setIntent)
-        .catch((err) => console.error('load service intent error', err));
-    }
-  }, [id, profile?.id]);
+  }, [id]);
 
   useEffect(() => {
     setLoading(true);
@@ -46,40 +32,6 @@ export default function ServiceDetailScreen() {
       router.replace('/(business)/(tabs)/catalogo');
     }
   }, [profile?.role, id]);
-
-  useEffect(() => {
-    if (!profile?.id || !id) return;
-    return subscribeToClientServiceIntent(profile.id, id, setIntent, () => {
-      Alert.alert('No disponible', 'El negocio indicó que este servicio no está disponible en este momento.');
-    });
-  }, [profile?.id, id]);
-
-  async function handleAgendar() {
-    if (!profile || !service) return;
-    setAgendando(true);
-    try {
-      if (intent) {
-        await cancelServiceIntent(intent.id);
-        setIntent(null);
-      } else {
-        const newIntent = await createServiceIntent(profile.id, service.id, service.business_id);
-        setIntent(newIntent);
-        router.push({
-          pathname: '/(client)/chat/[id]',
-          params: {
-            id: service.business_id,
-            prefill: `Hola, quiero agendar: ${service.name}${service.reference_price != null ? ` ($${service.reference_price.toFixed(2)})` : ''}`,
-            autoSend: 'true',
-          },
-        });
-      }
-    } catch (err) {
-      console.error('agendar error', err);
-      Alert.alert('Error', 'No se pudo procesar. Intenta de nuevo.');
-    } finally {
-      setAgendando(false);
-    }
-  }
 
   if (loading || (profile && profile.role !== 'client')) {
     return (
@@ -118,20 +70,16 @@ export default function ServiceDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        {intent?.status !== 'confirmed' && (
-          <Button
-            title={intent ? 'Cancelar cita' : 'Agendar servicio'}
-            onPress={handleAgendar}
-            loading={agendando}
-            style={intent ? styles.buttonCancel : styles.button}
-          />
-        )}
-        {intent?.status === 'pending' && (
-          <Text style={styles.intentBadge}>Cita solicitada — en espera de confirmación del negocio</Text>
-        )}
-        {intent?.status === 'confirmed' && (
-          <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>✓ Cita confirmada por el negocio</Text>
-        )}
+        <Button
+          title="Solicitar cita"
+          onPress={() =>
+            router.push({
+              pathname: '/(client)/agendar',
+              params: { businessId: service.business_id, serviceId: service.id },
+            })
+          }
+          style={styles.button}
+        />
         <Button
           title="Ver negocio"
           onPress={() => router.push(`/(client)/business/${service.business_id}`)}
@@ -215,18 +163,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   button: {},
-  buttonCancel: {
-    backgroundColor: colors.danger,
-  },
-  intentBadge: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  intentBadgeConfirmed: {
-    color: colors.success,
-  },
   photo: {
     width: '100%',
     height: 200,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
+import { cancelAppointmentRequest, getActiveAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
 import type { Business, Message } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
@@ -24,6 +25,10 @@ export default function ChatScreen() {
   const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+
+  // Banner de solicitud de cita
+  const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
+  const [cancellingRequest, setCancellingRequest] = useState(false);
 
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
@@ -45,6 +50,7 @@ export default function ChatScreen() {
         const [history] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getBusinessById(thread.businessId).then(setBusiness),
+          getActiveAppointmentRequest(thread.clientId, thread.businessId).then(setAppointmentRequest),
         ]);
         setMessages(history);
         if (profile) {
@@ -54,6 +60,15 @@ export default function ChatScreen() {
       .catch((err) => console.error('load chat error', err))
       .finally(() => setLoading(false));
   }, [resolveThread]);
+
+  // Suscripción a cambios en la solicitud de cita
+  useEffect(() => {
+    if (!clientId || !businessId) return;
+    const unsubscribe = subscribeToAppointmentRequest(clientId, businessId, 'client', (req) => {
+      setAppointmentRequest(req.status === 'pending' ? req : null);
+    });
+    return unsubscribe;
+  }, [clientId, businessId]);
 
   useEffect(() => {
     if (loading || !autoSend || autoSentRef.current) return;
@@ -119,6 +134,29 @@ export default function ChatScreen() {
     }
   }
 
+  async function handleCancelRequest() {
+    if (!appointmentRequest || cancellingRequest) return;
+    Alert.alert('Cancelar solicitud', '¿Seguro que quieres cancelar la solicitud de cita?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          setCancellingRequest(true);
+          try {
+            await cancelAppointmentRequest(appointmentRequest);
+            setAppointmentRequest(null);
+          } catch (err) {
+            console.error('cancel request error', err);
+            Alert.alert('Error', 'No se pudo cancelar la solicitud.');
+          } finally {
+            setCancellingRequest(false);
+          }
+        },
+      },
+    ]);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -137,6 +175,37 @@ export default function ChatScreen() {
       />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        {/* Banner: solicitud de cita pendiente (lado cliente) */}
+        {appointmentRequest && (
+          <View style={styles.requestBanner}>
+            <View style={styles.requestBannerInfo}>
+              <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+              <View style={styles.requestBannerText}>
+                <Text style={styles.requestBannerTitle}>Solicitud de cita pendiente</Text>
+                {appointmentRequest.service_name ? (
+                  <Text style={styles.requestBannerSub} numberOfLines={1}>
+                    {appointmentRequest.service_name}
+                    {appointmentRequest.suggested_at
+                      ? ` · ${new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`
+                      : ''}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+            <Pressable
+              style={styles.cancelRequestBtn}
+              onPress={handleCancelRequest}
+              disabled={cancellingRequest}
+            >
+              {cancellingRequest ? (
+                <ActivityIndicator size="small" color={colors.danger} />
+              ) : (
+                <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
+
         <ScrollView ref={scrollRef} style={styles.flex} contentContainerStyle={styles.messages}>
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
@@ -221,6 +290,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
+  },
+  requestBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EEF4FF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  requestBannerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  requestBannerText: {
+    flex: 1,
+  },
+  requestBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  requestBannerSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  cancelRequestBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  cancelRequestBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.danger,
   },
   dateSeparator: {
     alignSelf: 'center',
