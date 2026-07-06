@@ -23,7 +23,7 @@ import { getMyWorkBusiness } from '../../services/businesses';
 import { syncAppointmentReminders } from '../../services/appointmentReminders';
 import { formatVehicle } from '../../types/database';
 import { createClientReview, getReviewedTargetIds } from '../../services/reviews';
-import { getReportIdsByAppointments } from '../../services/serviceReports';
+import { getReportIdsByAppointments, type AppointmentReportInfo } from '../../services/serviceReports';
 
 function defaultTime(): Date {
   const d = new Date();
@@ -51,7 +51,7 @@ export default function AgendaNegocioScreen() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [reviewedAppointmentIds, setReviewedAppointmentIds] = useState<Set<string>>(new Set());
-  const [reportIdsByAppointment, setReportIdsByAppointment] = useState<Map<string, string>>(new Map());
+  const [reportIdsByAppointment, setReportIdsByAppointment] = useState<Map<string, AppointmentReportInfo>>(new Map());
   const [ratingId, setRatingId] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -283,6 +283,7 @@ export default function AgendaNegocioScreen() {
             appointment.status === 'scheduled' && appointment.proposed_by === 'client';
           const businessProposed =
             appointment.status === 'scheduled' && appointment.proposed_by === 'business';
+          const rpt = reportIdsByAppointment.get(appointment.id);
 
           return (
             <View key={appointment.id} style={styles.card}>
@@ -468,25 +469,22 @@ export default function AgendaNegocioScreen() {
 
               {/* Informe de servicio */}
               {appointment.status !== 'cancelled' && appointment.status !== 'rejected' && (
-                appointment.status === 'completed' ? (
-                  reportIdsByAppointment.has(appointment.id) ? (
-                    <Button
-                      title="Ver informe"
-                      variant="secondary"
-                      onPress={() => router.push(`/(business)/informe/${reportIdsByAppointment.get(appointment.id)}`)}
-                      style={styles.changeButton}
-                    />
-                  ) : (
-                    <Button
-                      title="Crear informe"
-                      variant="secondary"
-                      onPress={() => router.push(buildInformeUrl(appointment))}
-                      style={styles.changeButton}
-                    />
-                  )
+                rpt && !rpt.isDraft ? (
+                  <Button
+                    title="Ver informe"
+                    variant="secondary"
+                    onPress={() => router.push(`/(business)/informe/${rpt.id}`)}
+                    style={styles.changeButton}
+                  />
                 ) : (
                   <Button
-                    title="Informe"
+                    title={
+                      rpt?.isDraft
+                        ? 'Continuar informe'
+                        : appointment.status === 'completed'
+                        ? 'Crear informe'
+                        : 'Informe'
+                    }
                     variant="secondary"
                     onPress={() => router.push(buildInformeUrl(appointment))}
                     style={styles.changeButton}

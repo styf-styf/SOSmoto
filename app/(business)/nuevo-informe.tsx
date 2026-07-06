@@ -21,6 +21,8 @@ import { getBusinessClientByName, type ExternalVehicle } from '../../services/bu
 import { getVehicles } from '../../services/vehicles';
 import {
   createServiceReport,
+  getDraftByAppointment,
+  upsertDraft,
   type InspectionGroup,
   type ServiceCategory,
   type ServiceReportPart,
@@ -114,6 +116,10 @@ export default function NuevoInformeScreen() {
   const [recommendations, setRecommendations] = useState('');
   const [nextKm, setNextKm] = useState('');
   const [saving, setSaving] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   const loadBusiness = useCallback(async () => {
     if (!profile) return;
@@ -156,6 +162,41 @@ export default function NuevoInformeScreen() {
         .catch((err) => console.error('load crm vehicles error', err));
     }
   }, [isExternal, businessId, params.clientId, params.clientName]);
+
+  // Carga borrador si existe para esta cita
+  useEffect(() => {
+    if (!businessId || !params.appointmentId) return;
+    getDraftByAppointment(params.appointmentId, businessId)
+      .then((draft) => {
+        if (!draft) return;
+        setDraftId(draft.id);
+        setDraftLoaded(true);
+        if (draft.service_category) setCategory(draft.service_category as ServiceCategory);
+        if (draft.service_km != null) setServiceKm(String(draft.service_km));
+        if (draft.entry_date) setEntryDate(new Date(draft.entry_date));
+        if (draft.exit_date) setExitDate(new Date(draft.exit_date));
+        const svcs = (draft.services_performed ?? []).filter(Boolean);
+        setServices(svcs.length ? svcs : ['']);
+        if (draft.parts_used?.length) {
+          setParts(draft.parts_used.map((p) => ({ name: p.name, quantity: String(p.quantity) })));
+        }
+        if (draft.inspection_checklist?.length) {
+          setGroups(
+            draft.inspection_checklist.map((g) => ({
+              group: g.group,
+              items: g.items,
+              observations: g.observations ?? '',
+              collapsed: true,
+              newItemText: '',
+            }))
+          );
+        }
+        if (draft.observations) setServiceDescription(draft.observations);
+        if (draft.recommendations) setRecommendations(draft.recommendations);
+        if (draft.next_maintenance_km != null) setNextKm(String(draft.next_maintenance_km));
+      })
+      .catch((err) => console.error('load draft error', err));
+  }, [businessId, params.appointmentId]);
 
   function toggleGroup(gi: number) {
     setGroups((prev) => prev.map((g, i) => i === gi ? { ...g, collapsed: !g.collapsed } : g));
@@ -220,6 +261,52 @@ export default function NuevoInformeScreen() {
     setParts((prev) => prev.filter((_, idx) => idx !== i));
   }
 
+  function buildReportParams(validServices: string[]): Parameters<typeof createServiceReport>[0] {
+    const validParts: ServiceReportPart[] = parts
+      .filter((p) => p.name.trim())
+      .map((p) => ({ name: p.name.trim(), quantity: parseFloat(p.quantity) || 1 }));
+    const inspectionGroups: InspectionGroup[] = groups
+      .filter((g) => g.items.length > 0)
+      .map((g) => ({ group: g.group, observations: g.observations.trim() || null, items: g.items }));
+    return {
+      businessId: businessId!,
+      clientId: params.clientId || undefined,
+      appointmentId: params.appointmentId || undefined,
+      helpRequestId: params.helpRequestId || undefined,
+      vehicleLabel: selectedVehicle
+        ? [selectedVehicle.brand, selectedVehicle.model, String(selectedVehicle.year)].filter(Boolean).join(' ')
+        : params.vehicleLabel || undefined,
+      externalClientName: isExternal ? params.clientName?.trim() || undefined : undefined,
+      serviceCategory: category ?? undefined,
+      vehiclePlate: selectedVehicle?.plate?.toUpperCase() || params.vehiclePlate?.toUpperCase() || undefined,
+      serviceKm: serviceKm.trim() ? parseInt(serviceKm.trim(), 10) : undefined,
+      entryDate: entryDate.toISOString(),
+      exitDate: exitDate.toISOString(),
+      servicesPerformed: validServices,
+      partsUsed: validParts.length > 0 ? validParts : undefined,
+      inspectionChecklist: inspectionGroups.length > 0 ? inspectionGroups : undefined,
+      observations: serviceDescription.trim() || undefined,
+      recommendations: recommendations.trim() || undefined,
+      nextMaintenanceKm: nextKm.trim() ? parseInt(nextKm.trim(), 10) : undefined,
+    };
+  }
+
+  async function handleSaveDraft() {
+    if (!businessId) return;
+    setSavingDraft(true);
+    try {
+      const svcs = services.map((s) => s.trim()).filter(Boolean);
+      const saved = await upsertDraft(buildReportParams(svcs), draftId ?? undefined);
+      setDraftId(saved.id);
+      setLastSaved(new Date());
+    } catch (err) {
+      console.error('save draft error', err);
+      Alert.alert('Error', 'No se pudo guardar el borrador.');
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
   async function handleSubmit() {
     if (!businessId) return;
 
@@ -229,40 +316,11 @@ export default function NuevoInformeScreen() {
       return;
     }
 
-    const validParts: ServiceReportPart[] = parts
-      .filter((p) => p.name.trim())
-      .map((p) => ({ name: p.name.trim(), quantity: parseFloat(p.quantity) || 1 }));
-
-    const inspectionGroups: InspectionGroup[] = groups
-      .filter((g) => g.items.length > 0)
-      .map((g) => ({
-        group: g.group,
-        observations: g.observations.trim() || null,
-        items: g.items,
-      }));
-
     setSaving(true);
     try {
       const report = await createServiceReport({
-        businessId,
-        clientId: params.clientId || undefined,
-        appointmentId: params.appointmentId || undefined,
-        helpRequestId: params.helpRequestId || undefined,
-        vehicleLabel: selectedVehicle
-          ? [selectedVehicle.brand, selectedVehicle.model, String(selectedVehicle.year)].filter(Boolean).join(' ')
-          : params.vehicleLabel || undefined,
-        externalClientName: isExternal ? params.clientName?.trim() || undefined : undefined,
-        serviceCategory: category ?? undefined,
-        vehiclePlate: selectedVehicle?.plate?.toUpperCase() || params.vehiclePlate?.toUpperCase() || undefined,
-        serviceKm: serviceKm.trim() ? parseInt(serviceKm.trim(), 10) : undefined,
-        entryDate: entryDate.toISOString(),
-        exitDate: exitDate.toISOString(),
-        servicesPerformed: validServices,
-        partsUsed: validParts.length > 0 ? validParts : undefined,
-        inspectionChecklist: inspectionGroups.length > 0 ? inspectionGroups : undefined,
-        observations: serviceDescription.trim() || undefined,
-        recommendations: recommendations.trim() || undefined,
-        nextMaintenanceKm: nextKm.trim() ? parseInt(nextKm.trim(), 10) : undefined,
+        ...buildReportParams(validServices),
+        draftId: draftId ?? undefined,
       });
       router.replace(`/(business)/informe/${report.id}`);
     } catch (err) {
@@ -288,8 +346,16 @@ export default function NuevoInformeScreen() {
         <View style={styles.lockedBanner}>
           <Ionicons name="lock-closed-outline" size={16} color="#F57F17" />
           <Text style={styles.lockedBannerText}>
-            La cita aún no está completada. Puedes preparar el informe, pero no podrás guardarlo hasta completarla.
+            La cita aún no está completada. Puedes guardar el informe como borrador, pero no podrás enviarlo hasta completarla.
           </Text>
+        </View>
+      )}
+
+      {/* Borrador cargado */}
+      {draftLoaded && (
+        <View style={styles.draftLoadedBanner}>
+          <Ionicons name="document-text-outline" size={15} color={colors.primary} />
+          <Text style={styles.draftLoadedText}>Borrador cargado — continúa desde donde lo dejaste.</Text>
         </View>
       )}
 
@@ -646,16 +712,33 @@ export default function NuevoInformeScreen() {
         keyboardType="numeric"
       />
 
-      <Button
-        title="Crear y enviar informe"
-        onPress={handleSubmit}
-        loading={saving}
-        disabled={isLocked}
-        style={styles.submitBtn}
-      />
-      {isLocked && (
-        <Text style={styles.lockedHint}>Completa la cita para poder guardar el informe.</Text>
-      )}
+      {/* Acciones */}
+      <View style={styles.actionsFooter}>
+        {lastSaved && (
+          <View style={styles.savedRow}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+            <Text style={styles.savedText}>
+              Borrador guardado{' '}
+              {lastSaved.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+        )}
+        <Button
+          title="Guardar borrador"
+          variant="secondary"
+          onPress={handleSaveDraft}
+          loading={savingDraft}
+        />
+        <Button
+          title="Crear y enviar informe"
+          onPress={handleSubmit}
+          loading={saving}
+          disabled={isLocked}
+        />
+        {isLocked && (
+          <Text style={styles.lockedHint}>Completa la cita para poder enviar el informe.</Text>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -740,7 +823,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   dateBtnText: { fontSize: 13, color: colors.text, flex: 1 },
-  submitBtn: { marginTop: 28 },
+  actionsFooter: { marginTop: 28, gap: 10 },
+  savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  savedText: { fontSize: 12, color: colors.success, fontStyle: 'italic' },
+  draftLoadedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F0F7FF', borderWidth: 1, borderColor: '#BBDEFB',
+    borderRadius: 10, padding: 10, marginBottom: 12,
+  },
+  draftLoadedText: { flex: 1, fontSize: 13, color: colors.primary },
   lockedBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -30,34 +30,81 @@ export interface CreateServiceReportParams {
   nextMaintenanceDate?: string;
 }
 
-export async function createServiceReport(
-  params: CreateServiceReportParams
-): Promise<ServiceReport> {
-  const { data, error } = await (supabase.from('service_reports') as any)
-    .insert({
-      business_id: params.businessId,
-      client_id: params.clientId ?? null,
-      appointment_id: params.appointmentId ?? null,
-      help_request_id: params.helpRequestId ?? null,
-      vehicle_label: params.vehicleLabel ?? null,
-      external_client_name: params.externalClientName ?? null,
-      service_category: params.serviceCategory ?? null,
-      service_km: params.serviceKm ?? null,
-      vehicle_plate: params.vehiclePlate ?? null,
-      entry_date: params.entryDate ?? null,
-      exit_date: params.exitDate ?? null,
-      services_performed: params.servicesPerformed,
-      parts_used: params.partsUsed && params.partsUsed.length > 0 ? params.partsUsed : null,
-      inspection_checklist: params.inspectionChecklist && params.inspectionChecklist.length > 0
+function buildReportPayload(params: CreateServiceReportParams, status: 'draft' | 'sent') {
+  return {
+    business_id: params.businessId,
+    client_id: params.clientId ?? null,
+    appointment_id: params.appointmentId ?? null,
+    help_request_id: params.helpRequestId ?? null,
+    vehicle_label: params.vehicleLabel ?? null,
+    external_client_name: params.externalClientName ?? null,
+    service_category: params.serviceCategory ?? null,
+    service_km: params.serviceKm ?? null,
+    vehicle_plate: params.vehiclePlate ?? null,
+    entry_date: params.entryDate ?? null,
+    exit_date: params.exitDate ?? null,
+    services_performed: params.servicesPerformed,
+    parts_used: params.partsUsed && params.partsUsed.length > 0 ? params.partsUsed : null,
+    inspection_checklist:
+      params.inspectionChecklist && params.inspectionChecklist.length > 0
         ? params.inspectionChecklist
         : null,
-      observations: params.observations ?? null,
-      recommendations: params.recommendations ?? null,
-      next_maintenance_km: params.nextMaintenanceKm ?? null,
-      next_maintenance_date: params.nextMaintenanceDate ?? null,
-    })
-    .select()
-    .single();
+    observations: params.observations ?? null,
+    recommendations: params.recommendations ?? null,
+    next_maintenance_km: params.nextMaintenanceKm ?? null,
+    next_maintenance_date: params.nextMaintenanceDate ?? null,
+    status,
+  };
+}
+
+// Saves or updates a draft without notifying the client.
+export async function upsertDraft(
+  params: CreateServiceReportParams,
+  draftId?: string
+): Promise<ServiceReport> {
+  const payload = buildReportPayload(params, 'draft');
+  const q = draftId
+    ? (supabase.from('service_reports') as any).update(payload).eq('id', draftId).select().single()
+    : (supabase.from('service_reports') as any).insert(payload).select().single();
+  const { data, error } = await q;
+  if (error) throw error;
+  return data as ServiceReport;
+}
+
+// Returns the draft (if any) linked to a specific appointment.
+export async function getDraftByAppointment(
+  appointmentId: string,
+  businessId: string
+): Promise<ServiceReport | null> {
+  const { data, error } = await (supabase.from('service_reports') as any)
+    .select('*')
+    .eq('appointment_id', appointmentId)
+    .eq('business_id', businessId)
+    .eq('status', 'draft')
+    .maybeSingle();
+  if (error) throw error;
+  return data as ServiceReport | null;
+}
+
+export async function createServiceReport(
+  params: CreateServiceReportParams & { draftId?: string }
+): Promise<ServiceReport> {
+  const payload = buildReportPayload(params, 'sent');
+  let data: any;
+  let error: any;
+
+  if (params.draftId) {
+    ({ data, error } = await (supabase.from('service_reports') as any)
+      .update(payload)
+      .eq('id', params.draftId)
+      .select()
+      .single());
+  } else {
+    ({ data, error } = await (supabase.from('service_reports') as any)
+      .insert(payload)
+      .select()
+      .single());
+  }
   if (error) throw error;
 
   const report = data as ServiceReport;
@@ -98,30 +145,38 @@ export async function getServiceReport(id: string): Promise<ServiceReportWithBus
   };
 }
 
-// Devuelve un mapa appointmentId → reportId para las citas del negocio.
+export interface AppointmentReportInfo {
+  id: string;
+  isDraft: boolean;
+}
+
+// Devuelve un mapa appointmentId → { id, isDraft } para las citas del negocio.
 export async function getReportIdsByAppointments(
   businessId: string
-): Promise<Map<string, string>> {
+): Promise<Map<string, AppointmentReportInfo>> {
   const { data, error } = await (supabase.from('service_reports') as any)
-    .select('id, appointment_id')
+    .select('id, appointment_id, status')
     .eq('business_id', businessId)
     .not('appointment_id', 'is', null);
   if (error) throw error;
 
-  const map = new Map<string, string>();
+  const map = new Map<string, AppointmentReportInfo>();
   for (const row of (data ?? []) as any[]) {
-    if (row.appointment_id) map.set(row.appointment_id, row.id);
+    if (row.appointment_id) {
+      map.set(row.appointment_id, { id: row.id, isDraft: row.status === 'draft' });
+    }
   }
   return map;
 }
 
-// Devuelve un mapa appointmentId → reportId para el cliente (lado cliente).
+// Devuelve un mapa appointmentId → reportId para el cliente — solo informes enviados.
 export async function getClientReportIdsByAppointments(
   clientId: string
 ): Promise<Map<string, string>> {
   const { data, error } = await (supabase.from('service_reports') as any)
     .select('id, appointment_id')
     .eq('client_id', clientId)
+    .eq('status', 'sent')
     .not('appointment_id', 'is', null);
   if (error) throw error;
 
