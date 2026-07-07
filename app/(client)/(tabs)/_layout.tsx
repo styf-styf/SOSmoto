@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../../constants/colors';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
 import { useAuth } from '../../../hooks/useAuth';
@@ -16,16 +17,34 @@ export default function ClientTabsLayout() {
   const { profile } = useAuth();
   const { activeRequest } = useActiveHelpRequestContext();
   const hasUnreadMessages = useUnreadMessages(profile);
+  const insets = useSafeAreaInsets();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarHideOnKeyboard: true,
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Franja fija que bloquea el área del status bar mientras se hace scroll */}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top,
+          backgroundColor: colors.background,
+          zIndex: 100,
+        }}
+      />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarHideOnKeyboard: true,
+          sceneContainerStyle: {
+            backgroundColor: colors.background,
+            paddingTop: insets.top,
+          },
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -99,6 +118,7 @@ export default function ClientTabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
       />
-    </Tabs>
+      </Tabs>
+    </View>
   );
 }

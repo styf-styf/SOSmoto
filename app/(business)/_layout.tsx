@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useKycStatusAlert } from '../../hooks/useKycStatusAlert';
+import { getMyBusiness } from '../../services/businesses';
 import { AppHeader } from '../../components/AppHeader';
 
 // Mismo motivo que app/(client)/_layout.tsx: Stack real envolviendo el
@@ -9,6 +12,16 @@ import { AppHeader } from '../../components/AppHeader';
 export default function BusinessLayout() {
   const { profile } = useAuth();
   usePushNotifications(profile?.id, 'business');
+
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!profile?.id) return;
+    getMyBusiness(profile.id)
+      .then((b) => setBusinessId(b?.id ?? null))
+      .catch(() => {});
+  }, [profile?.id]);
+
+  useKycStatusAlert(businessId);
 
   return (
     <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>

@@ -141,7 +141,9 @@ export default function ChatScreen() {
   }, [businessId, clientId, profile]);
 
   useEffect(() => {
-    scrollRef.current?.scrollToEnd({ animated: true });
+    if (messages.length > 0) {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }
   }, [messages.length]);
 
   useEffect(() => {
@@ -437,7 +439,12 @@ export default function ChatScreen() {
           </View>
         )}
 
-        <ScrollView ref={scrollRef} style={styles.flex} contentContainerStyle={styles.messages}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.flex}
+          contentContainerStyle={styles.messages}
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+        >
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
           ) : (

@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Alert, Pressable, View, StyleSheet } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLayoutEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import {
@@ -9,12 +11,44 @@ import {
   type ServiceReportWithBusiness,
 } from '../../../services/serviceReports';
 import { ServiceReportView } from '../../../components/ServiceReportView';
+import { shareReportAsPdf } from '../../../utils/reportPdf';
 
 export default function InformeClienteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const navigation = useNavigation();
   const [report, setReport] = useState<ServiceReportWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!report) return;
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={handleShare}
+          disabled={sharing}
+          hitSlop={10}
+          style={{ marginRight: 4, opacity: sharing ? 0.4 : 1 }}
+        >
+          <Ionicons name="share-outline" size={22} color={colors.primary} />
+        </Pressable>
+      ),
+    });
+  }, [report, sharing]);
+
+  async function handleShare() {
+    if (!report) return;
+    setSharing(true);
+    try {
+      await shareReportAsPdf(report);
+    } catch (err) {
+      console.error('share report error', err);
+      Alert.alert('Error', 'No se pudo generar el PDF del informe.');
+    } finally {
+      setSharing(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {

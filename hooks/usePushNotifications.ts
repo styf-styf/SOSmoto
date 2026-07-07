@@ -54,6 +54,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'appointment_approved':
         router.push('/(business)/agenda-negocio');
         break;
+      case 'kyc_review':
+        router.push('/(business)/verificacion');
+        break;
     }
   }
 }
