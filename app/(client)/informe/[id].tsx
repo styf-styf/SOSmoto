@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, View, StyleSheet } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useLayoutEffect } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import {
@@ -15,27 +13,10 @@ import { shareReportAsPdf } from '../../../utils/reportPdf';
 
 export default function InformeClienteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const navigation = useNavigation();
   const [report, setReport] = useState<ServiceReportWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [sharing, setSharing] = useState(false);
-
-  useLayoutEffect(() => {
-    if (!report) return;
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          onPress={handleShare}
-          disabled={sharing}
-          hitSlop={10}
-          style={{ marginRight: 4, opacity: sharing ? 0.4 : 1 }}
-        >
-          <Ionicons name="share-outline" size={22} color={colors.primary} />
-        </Pressable>
-      ),
-    });
-  }, [report, sharing]);
 
   async function handleShare() {
     if (!report) return;
@@ -86,15 +67,17 @@ export default function InformeClienteScreen() {
   return (
     <View style={styles.wrapper}>
       <ServiceReportView report={report} />
-      {report.client_id && !report.client_confirmed_at && (
-        <View style={styles.footer}>
-          <Button
-            title="Confirmar recibido"
-            onPress={handleConfirm}
-            loading={confirming}
-          />
-        </View>
-      )}
+      <View style={styles.footer}>
+        {report.client_id && !report.client_confirmed_at && (
+          <Button title="Confirmar recibido" onPress={handleConfirm} loading={confirming} />
+        )}
+        <Button
+          title={sharing ? 'Generando PDF…' : 'Compartir informe'}
+          onPress={handleShare}
+          loading={sharing}
+          variant="secondary"
+        />
+      </View>
     </View>
   );
 }
@@ -103,6 +86,7 @@ const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   footer: {
+    gap: 10,
     padding: 20,
     paddingBottom: 32,
     borderTopWidth: 1,

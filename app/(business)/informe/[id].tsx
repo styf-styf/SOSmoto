@@ -1,15 +1,14 @@
-import { useCallback, useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, View, StyleSheet } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { getServiceReport, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { ServiceReportView } from '../../../components/ServiceReportView';
 import { shareReportAsPdf } from '../../../utils/reportPdf';
+import { Button } from '../../../components/Button';
 
 export default function InformeNegocioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const navigation = useNavigation();
   const [report, setReport] = useState<ServiceReportWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
@@ -23,22 +22,6 @@ export default function InformeNegocioScreen() {
         .finally(() => setLoading(false));
     }, [id])
   );
-
-  useLayoutEffect(() => {
-    if (!report) return;
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          onPress={handleShare}
-          disabled={sharing}
-          hitSlop={10}
-          style={{ marginRight: 4, opacity: sharing ? 0.4 : 1 }}
-        >
-          <Ionicons name="share-outline" size={22} color={colors.primary} />
-        </Pressable>
-      ),
-    });
-  }, [report, sharing]);
 
   async function handleShare() {
     if (!report) return;
@@ -61,18 +44,36 @@ export default function InformeNegocioScreen() {
     );
   }
 
-  if (!report) {
-    return null;
-  }
+  if (!report) return null;
 
-  return <ServiceReportView report={report} />;
+  return (
+    <View style={styles.wrapper}>
+      <ServiceReportView report={report} />
+      <View style={styles.footer}>
+        <Button
+          title={sharing ? 'Generando PDF…' : 'Compartir informe'}
+          onPress={handleShare}
+          loading={sharing}
+          variant="secondary"
+        />
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  wrapper: { flex: 1, backgroundColor: colors.background },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  footer: {
+    padding: 20,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     backgroundColor: colors.background,
   },
 });
