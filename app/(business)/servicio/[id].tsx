@@ -63,6 +63,11 @@ export default function BusinessServiceDetailScreen() {
 
       <View style={styles.buttonGroup}>
         <Button
+          title="Chatear con el negocio"
+          onPress={() => router.push(`/(business)/chat/${service.business_id}`)}
+          style={styles.button}
+        />
+        <Button
           title="Ver negocio"
           variant="secondary"
           onPress={() => router.push(`/(business)/business/${service.business_id}`)}
