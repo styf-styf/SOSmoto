@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
+import { getMyWorkBusiness } from '../../../services/businesses';
+import type { BusinessType } from '../../../types/database';
 
 // Solo las 5 pestañas reales viven en este navegador de Tabs -- el resto de
 // pantallas se registran como Stack.Screen en app/(business)/_layout.tsx,
@@ -13,6 +16,16 @@ export default function BusinessTabsLayout() {
   const { profile } = useAuth();
   const hasUnreadMessages = useUnreadMessages(profile);
   const insets = useSafeAreaInsets();
+  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+
+  useEffect(() => {
+    if (!profile) return;
+    getMyWorkBusiness(profile.id)
+      .then((work) => setBusinessType(work?.business?.business_type ?? null))
+      .catch(() => {});
+  }, [profile]);
+
+  const isWorkshop = businessType === 'workshop';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -58,6 +71,7 @@ export default function BusinessTabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="alert-circle" size={size} color={color} />
           ),
+          tabBarButton: isWorkshop ? undefined : () => null,
         }}
       />
       <Tabs.Screen

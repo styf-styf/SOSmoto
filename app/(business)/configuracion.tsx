@@ -90,10 +90,12 @@ export default function BusinessConfiguracionScreen() {
         </Text>
       </View>
 
-      <Pressable style={styles.statCard} onPress={() => router.push('/(business)/solicitudes')}>
-        <Text style={styles.statLabel}>Solicitudes de auxilio pendientes</Text>
-        <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
-      </Pressable>
+      {business.business_type === 'workshop' && (
+        <Pressable style={styles.statCard} onPress={() => router.push('/(business)/solicitudes')}>
+          <Text style={styles.statLabel}>Solicitudes de auxilio pendientes</Text>
+          <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
+        </Pressable>
+      )}
 
       <View style={styles.divider} />
 
@@ -102,11 +104,20 @@ export default function BusinessConfiguracionScreen() {
         <MenuRow icon="storefront-outline" label="Datos del negocio" onPress={() => router.push('/(business)/datos-negocio')} />
         <MenuRow icon="time-outline" label="Horario" onPress={() => router.push('/(business)/horario')} />
         <MenuRow icon="grid-outline" label="Catálogo" onPress={() => router.push('/(business)/catalogo')} />
-        <MenuRow icon="calendar-outline" label="Agenda" onPress={() => router.push('/(business)/agenda-negocio')} />
+        {business.business_type === 'workshop' && (
+          <MenuRow icon="calendar-outline" label="Agenda" onPress={() => router.push('/(business)/agenda-negocio')} />
+        )}
         <MenuRow icon="people-outline" label="Clientes" onPress={() => router.push('/(business)/clientes')} />
         <MenuRow icon="film-outline" label="Historias" onPress={() => router.push('/(business)/historias')} />
-        <MenuRow icon="images-outline" label="Publicaciones" onPress={() => router.push('/(business)/publicaciones')} />
-        <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} last />
+        <MenuRow
+          icon="images-outline"
+          label="Publicaciones"
+          onPress={() => router.push('/(business)/publicaciones')}
+          last={business.business_type !== 'workshop'}
+        />
+        {business.business_type === 'workshop' && (
+          <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} last />
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>Crecimiento</Text>

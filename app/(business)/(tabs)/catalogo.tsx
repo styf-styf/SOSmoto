@@ -106,11 +106,14 @@ export default function CatalogoScreen() {
   // Recarga productos al recuperar el foco (ej. al volver del inventario tras actualizar stock)
   useFocusEffect(
     useCallback(() => {
-      if (!business) return;
+      if (!business) {
+        load().catch((err) => console.error('reload catalogo on focus', err));
+        return;
+      }
       getAllProducts(business.id)
         .then((list) => setProducts(list))
         .catch((err) => console.error('reload products on focus', err));
-    }, [business])
+    }, [business, load])
   );
 
   useEffect(() => {
@@ -140,6 +143,16 @@ export default function CatalogoScreen() {
     );
   }
 
+  if (business.business_type === 'brand_advertiser') {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="megaphone-outline" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
+        <Text style={styles.placeholder}>Las marcas gestionan su visibilidad a través de anuncios publicitarios, no de catálogo.</Text>
+      </View>
+    );
+  }
+
+  const canHaveServices = business.business_type === 'workshop';
   const activeServicesCount = services.filter((s) => s.is_active).length;
   const activeProductsCount = products.filter((p) => p.is_active).length;
   const atServiceLimit = limits?.maxServices !== null && activeServicesCount >= (limits?.maxServices ?? Infinity);
@@ -235,30 +248,34 @@ export default function CatalogoScreen() {
           <Ionicons name="chevron-forward-outline" size={16} color={colors.textMuted} />
         </Pressable>
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>
-            Servicios ({activeServicesCount}
-            {limits?.maxServices !== null ? `/${limits?.maxServices}` : ''})
-          </Text>
-          {!business.is_limited && (
-            <Pressable onPress={handleAddService} style={styles.addButton}>
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={styles.addButtonText}>Agregar</Text>
-            </Pressable>
-          )}
-        </View>
-        {services.length === 0 ? (
-          <Text style={styles.placeholder}>Aún no agregas servicios.</Text>
-        ) : (
-          <CatalogGrid
-            items={services}
-            readOnly={business.is_limited}
-            onEdit={(service) => setForm({ kind: 'service', service })}
-            onDelete={confirmDeleteService}
-          />
+        {canHaveServices && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>
+                Servicios ({activeServicesCount}
+                {limits?.maxServices !== null ? `/${limits?.maxServices}` : ''})
+              </Text>
+              {!business.is_limited && (
+                <Pressable onPress={handleAddService} style={styles.addButton}>
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={styles.addButtonText}>Agregar</Text>
+                </Pressable>
+              )}
+            </View>
+            {services.length === 0 ? (
+              <Text style={styles.placeholder}>Aún no agregas servicios.</Text>
+            ) : (
+              <CatalogGrid
+                items={services}
+                readOnly={business.is_limited}
+                onEdit={(service) => setForm({ kind: 'service', service })}
+                onDelete={confirmDeleteService}
+              />
+            )}
+          </>
         )}
 
-        <View style={[styles.sectionHeaderRow, styles.sectionSpacing]}>
+        <View style={[styles.sectionHeaderRow, canHaveServices && styles.sectionSpacing]}>
           <Text style={styles.sectionTitle}>
             Productos ({activeProductsCount}
             {limits?.maxProducts !== null ? `/${limits?.maxProducts}` : ''})

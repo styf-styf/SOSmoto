@@ -245,11 +245,13 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             label="Catálogo"
             onPress={() => router.push('/(business)/catalogo')}
           />
-          <ProfileActionButton
-            icon="calendar-outline"
-            label="Agenda"
-            onPress={() => router.push('/(business)/agenda-negocio')}
-          />
+          {business.business_type === 'workshop' && (
+            <ProfileActionButton
+              icon="calendar-outline"
+              label="Agenda"
+              onPress={() => router.push('/(business)/agenda-negocio')}
+            />
+          )}
           <ProfileActionButton
             icon="people-outline"
             label="Clientes"
@@ -281,7 +283,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
               onPress={() => router.push(`${viewerPrefix}/chat/${business.id}`)}
             />
           )}
-          {showFollow && (
+          {showFollow && business.business_type === 'workshop' && (
             <ProfileActionButton
               icon="calendar-outline"
               label="Agendar"

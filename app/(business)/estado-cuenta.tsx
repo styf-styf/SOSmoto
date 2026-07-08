@@ -45,8 +45,27 @@ export default function EstadoCuentaScreen() {
 
   const isLimited = business.is_limited;
 
+  const businessTypeLabel: Record<string, string> = {
+    workshop: 'Taller',
+    store: 'Tienda',
+    brand_advertiser: 'Marca',
+  };
+  const businessTypeIcon: Record<string, 'construct' | 'storefront' | 'megaphone'> = {
+    workshop: 'construct',
+    store: 'storefront',
+    brand_advertiser: 'megaphone',
+  };
+  const typeLabel = businessTypeLabel[business.business_type] ?? business.business_type;
+  const typeIcon = businessTypeIcon[business.business_type] ?? 'business';
+
   return (
     <View style={styles.container}>
+      <View style={styles.typeRow}>
+        <Ionicons name={typeIcon} size={18} color={colors.textMuted} />
+        <Text style={styles.typeLabel}>Tipo de cuenta</Text>
+        <Text style={styles.typeValue}>{typeLabel}</Text>
+      </View>
+
       <View style={[styles.badge, isLimited ? styles.badgeLimited : styles.badgeActive]}>
         <Ionicons
           name={isLimited ? 'alert-circle' : 'checkmark-circle'}
@@ -163,5 +182,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     lineHeight: 18,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  typeLabel: {
+    fontSize: 14,
+    color: colors.textMuted,
+    flex: 1,
+  },
+  typeValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
 });
