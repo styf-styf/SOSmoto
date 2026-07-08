@@ -49,10 +49,14 @@ export async function getAllProducts(businessId: string): Promise<Product[]> {
 
 export interface ServiceWithBusiness extends Service {
   business_name: string;
+  business_owner_id: string;
+  business_logo_url: string | null;
 }
 
 export interface ProductWithBusiness extends Product {
   business_name: string;
+  business_owner_id: string;
+  business_logo_url: string | null;
 }
 
 export async function incrementProductViews(id: string): Promise<void> {
@@ -66,19 +70,19 @@ export async function incrementServiceViews(id: string): Promise<void> {
 }
 
 export async function getServiceById(id: string): Promise<ServiceWithBusiness | null> {
-  const { data, error } = await supabase.from('services').select('*, businesses(name)').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('services').select('*, businesses(name, owner_id, logo_url)').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const { businesses, ...service } = data as any;
-  return { ...service, business_name: businesses?.name ?? '' } as ServiceWithBusiness;
+  return { ...service, business_name: businesses?.name ?? '', business_owner_id: businesses?.owner_id ?? '', business_logo_url: businesses?.logo_url ?? null } as ServiceWithBusiness;
 }
 
 export async function getProductById(id: string): Promise<ProductWithBusiness | null> {
-  const { data, error } = await supabase.from('products').select('*, businesses(name)').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('products').select('*, businesses(name, owner_id, logo_url)').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const { businesses, ...product } = data as any;
-  return { ...product, business_name: businesses?.name ?? '' } as ProductWithBusiness;
+  return { ...product, business_name: businesses?.name ?? '', business_owner_id: businesses?.owner_id ?? '', business_logo_url: businesses?.logo_url ?? null } as ProductWithBusiness;
 }
 
 export async function getServicesForBusinesses(businessIds: string[], limit = 20): Promise<ServiceWithBusiness[]> {

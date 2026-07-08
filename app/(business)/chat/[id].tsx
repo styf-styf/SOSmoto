@@ -10,6 +10,7 @@ import { ImageViewerModal } from '../../../components/ImageViewerModal';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { supabase } from '../../../services/supabase';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
 import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
@@ -42,7 +43,7 @@ function defaultApproveDate(suggestedAt?: string | null): Date {
 }
 
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, initialMessage } = useLocalSearchParams<{ id: string; initialMessage?: string }>();
   const { profile } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -50,6 +51,7 @@ export default function ChatScreen() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isLimited, setIsLimited] = useState(false);
   const [client, setClient] = useState<User | null>(null);
+  const [otherBusiness, setOtherBusiness] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,18 @@ export default function ChatScreen() {
           getPendingServiceIntentsForBusinessClient(thread.businessId, thread.clientId).then(setServiceIntents),
           getActiveAppointmentRequest(thread.clientId, thread.businessId),
         ]);
+        // Si el interlocutor es propietario de un negocio (chat B2B), cargamos
+        // el negocio para mostrar su nombre y logo en el header en lugar de los
+        // datos personales del usuario.
+        supabase
+          .from('businesses')
+          .select('name, logo_url')
+          .eq('owner_id', thread.clientId)
+          .maybeSingle()
+          .then(
+            ({ data }: { data: { name: string; logo_url: string | null } | null }) => { if (data) setOtherBusiness(data); },
+            () => {}
+          );
         setMessages(history);
         if (activeRequest) {
           setAppointmentRequest(activeRequest);
@@ -113,6 +127,16 @@ export default function ChatScreen() {
       .catch((err) => console.error('load chat error', err))
       .finally(() => setLoading(false));
   }, [resolveThread]);
+
+  // Auto-envío del mensaje inicial (ej. al llegar desde detalle de servicio/producto)
+  const initialSentRef = useRef(false);
+  useEffect(() => {
+    if (!clientId || !businessId || !initialMessage || initialSentRef.current) return;
+    if (messages.length > 0) return; // hilo existente: no duplicar
+    initialSentRef.current = true;
+    handleSend(initialMessage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, businessId, messages.length]);
 
   // Suscripción a cambios en la solicitud de cita
   useEffect(() => {
@@ -376,7 +400,11 @@ export default function ChatScreen() {
   return (
     <View style={styles.container}>
       <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
-      <ChatHeader name={client?.full_name ?? 'Cliente'} avatarUrl={client?.avatar_url} fallbackIcon="person" />
+      <ChatHeader
+        name={otherBusiness?.name || client?.full_name || 'Cliente'}
+        avatarUrl={otherBusiness ? otherBusiness.logo_url : client?.avatar_url}
+        fallbackIcon={otherBusiness ? 'storefront' : 'person'}
+      />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (

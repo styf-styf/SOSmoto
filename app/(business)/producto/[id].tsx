@@ -68,7 +68,10 @@ export default function BusinessProductDetailScreen() {
       <View style={styles.buttonGroup}>
         <Button
           title="Chatear con el negocio"
-          onPress={() => router.push(`/(business)/chat/${product.business_id}`)}
+          onPress={() => {
+            const msg = encodeURIComponent(`Hola, estoy interesado en el producto "${product.name}". ¿Podrían darme más información?`);
+            router.push(`/(business)/chat/${product.business_owner_id}?initialMessage=${msg}`);
+          }}
           style={styles.button}
         />
         <Button

@@ -1,39 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
-import { getActiveProducts, getActiveServices } from '../services/catalog';
+import { searchBusinesses, type BusinessWithDistance } from '../services/businesses';
 import { createPost } from '../services/posts';
 import { pickAndUploadBusinessImage } from '../services/storage';
-import type { Product, Service } from '../types/database';
 
-type TagKind = 'service' | 'product';
-type TaggedItem = { kind: TagKind; id: string; name: string };
-
-// Versión de negocio de CreatePostBox (cliente) -- mismo composer compacto
-// sobre el feed de Inicio, pero la etiqueta es un servicio/producto del
-// propio catálogo en vez de buscar otro negocio.
 export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: string; onCreated?: () => void }) {
   const [caption, setCaption] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [posting, setPosting] = useState(false);
 
-  const [taggedItem, setTaggedItem] = useState<TaggedItem | null>(null);
-  const [showTagPicker, setShowTagPicker] = useState(false);
-  const [tagKind, setTagKind] = useState<TagKind>('service');
-  const [services, setServices] = useState<Service[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-
-  useEffect(() => {
-    if (!showTagPicker) return;
-    if (tagKind === 'service' && services.length === 0) {
-      getActiveServices(businessId).then(setServices).catch((err) => console.error('load services error', err));
-    }
-    if (tagKind === 'product' && products.length === 0) {
-      getActiveProducts(businessId).then(setProducts).catch((err) => console.error('load products error', err));
-    }
-  }, [showTagPicker, tagKind, businessId, services.length, products.length]);
+  const [taggedBusiness, setTaggedBusiness] = useState<BusinessWithDistance | null>(null);
+  const [showTagSearch, setShowTagSearch] = useState(false);
+  const [tagQuery, setTagQuery] = useState('');
+  const [tagResults, setTagResults] = useState<BusinessWithDistance[]>([]);
+  const [searchingTag, setSearchingTag] = useState(false);
 
   async function handlePickImage() {
     setUploadingImage(true);
@@ -48,10 +31,35 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
     }
   }
 
+  async function handleSearchTag(text: string) {
+    setTagQuery(text);
+    if (text.trim().length < 2) {
+      setTagResults([]);
+      return;
+    }
+    setSearchingTag(true);
+    try {
+      const results = await searchBusinesses({ query: text.trim() });
+      setTagResults(results.slice(0, 6));
+    } catch (err) {
+      console.error('search business error', err);
+    } finally {
+      setSearchingTag(false);
+    }
+  }
+
+  function handleSelectTag(business: BusinessWithDistance) {
+    setTaggedBusiness(business);
+    setShowTagSearch(false);
+    setTagQuery('');
+    setTagResults([]);
+  }
+
   function resetTag() {
-    setTaggedItem(null);
-    setShowTagPicker(false);
-    setTagKind('service');
+    setTaggedBusiness(null);
+    setShowTagSearch(false);
+    setTagQuery('');
+    setTagResults([]);
   }
 
   async function handlePublish() {
@@ -65,8 +73,7 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
         businessId,
         caption: caption.trim() || undefined,
         imageUrl: imageUrl || undefined,
-        tagServiceId: taggedItem?.kind === 'service' ? taggedItem.id : undefined,
-        tagProductId: taggedItem?.kind === 'product' ? taggedItem.id : undefined,
+        tagBusinessId: taggedBusiness?.id,
       });
       setCaption('');
       setImageUrl('');
@@ -81,7 +88,6 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
   }
 
   const canPublish = (caption.trim().length > 0 || !!imageUrl) && !posting && !uploadingImage;
-  const tagItems: { id: string; name: string }[] = tagKind === 'service' ? services : products;
 
   return (
     <View style={styles.card}>
@@ -94,10 +100,10 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
           )}
         </Pressable>
         <Pressable
-          style={[styles.iconCircle, !!taggedItem && styles.iconCircleActive]}
-          onPress={() => (taggedItem ? setTaggedItem(null) : setShowTagPicker((prev) => !prev))}
+          style={[styles.iconCircle, !!taggedBusiness && styles.iconCircleActive]}
+          onPress={() => (taggedBusiness ? setTaggedBusiness(null) : setShowTagSearch((prev) => !prev))}
         >
-          <Ionicons name="pricetag-outline" size={20} color={taggedItem ? '#fff' : colors.primary} />
+          <Ionicons name="pricetag-outline" size={20} color={taggedBusiness ? '#fff' : colors.primary} />
         </Pressable>
         <TextInput
           style={styles.input}
@@ -120,52 +126,34 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
         </View>
       ) : null}
 
-      {taggedItem ? (
+      {taggedBusiness ? (
         <View style={styles.tagChip}>
           <Ionicons name="pricetag" size={12} color={colors.primary} />
           <Text numberOfLines={1} style={styles.tagChipText}>
-            {taggedItem.name}
+            {taggedBusiness.name}
           </Text>
-          <Pressable onPress={() => setTaggedItem(null)}>
+          <Pressable onPress={() => setTaggedBusiness(null)}>
             <Ionicons name="close" size={14} color={colors.textMuted} />
           </Pressable>
         </View>
-      ) : showTagPicker ? (
-        <View style={styles.tagPickerWrap}>
-          <View style={styles.tagKindRow}>
-            <Pressable
-              style={[styles.tagKindChip, tagKind === 'service' && styles.tagKindChipSelected]}
-              onPress={() => setTagKind('service')}
-            >
-              <Text style={[styles.tagKindText, tagKind === 'service' && styles.tagKindTextSelected]}>Servicio</Text>
+      ) : showTagSearch ? (
+        <View style={styles.tagSearchWrap}>
+          <TextInput
+            style={styles.tagSearchInput}
+            placeholder="Buscar taller o tienda…"
+            placeholderTextColor={colors.textMuted}
+            value={tagQuery}
+            onChangeText={handleSearchTag}
+            autoFocus
+          />
+          {searchingTag && <ActivityIndicator color={colors.primary} size="small" style={styles.tagSearchSpinner} />}
+          {tagResults.map((b) => (
+            <Pressable key={b.id} style={styles.tagResultItem} onPress={() => handleSelectTag(b)}>
+              <Ionicons name="storefront" size={14} color={colors.primary} />
+              <Text style={styles.tagResultText}>{b.name}</Text>
             </Pressable>
-            <Pressable
-              style={[styles.tagKindChip, tagKind === 'product' && styles.tagKindChipSelected]}
-              onPress={() => setTagKind('product')}
-            >
-              <Text style={[styles.tagKindText, tagKind === 'product' && styles.tagKindTextSelected]}>Producto</Text>
-            </Pressable>
-          </View>
-          {tagItems.length === 0 ? (
-            <Text style={styles.tagEmptyText}>
-              {tagKind === 'service' ? 'No tienes servicios activos.' : 'No tienes productos activos.'}
-            </Text>
-          ) : (
-            tagItems.map((item) => (
-              <Pressable
-                key={item.id}
-                style={styles.tagResultItem}
-                onPress={() => {
-                  setTaggedItem({ kind: tagKind, id: item.id, name: item.name });
-                  setShowTagPicker(false);
-                }}
-              >
-                <Ionicons name={tagKind === 'service' ? 'construct-outline' : 'cube-outline'} size={14} color={colors.primary} />
-                <Text style={styles.tagResultText}>{item.name}</Text>
-              </Pressable>
-            ))
-          )}
-          <Pressable onPress={() => setShowTagPicker(false)}>
+          ))}
+          <Pressable onPress={() => setShowTagSearch(false)}>
             <Text style={styles.cancelTagText}>Cancelar</Text>
           </Pressable>
         </View>
@@ -256,40 +244,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
-  tagPickerWrap: {
+  tagSearchWrap: {
     backgroundColor: colors.background,
     borderRadius: 10,
     padding: 8,
     marginTop: 8,
   },
-  tagKindRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 4,
-  },
-  tagKindChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+  tagSearchInput: {
+    height: 38,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
-  tagKindChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  tagKindText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  tagKindTextSelected: {
-    color: colors.primary,
-  },
-  tagEmptyText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 6,
+  tagSearchSpinner: {
+    marginTop: 8,
   },
   tagResultItem: {
     flexDirection: 'row',

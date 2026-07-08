@@ -6,6 +6,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessConversations, subscribeToThreadChanges } from '../../../services/messages';
+import { supabase } from '../../../services/supabase';
 import { getUsersByIds } from '../../../services/users';
 import { formatConversationTimestamp } from '../../../utils/chatFormat';
 
@@ -13,6 +14,7 @@ interface ConversationRow {
   clientId: string;
   clientName: string;
   clientAvatarUrl: string | null;
+  isBusiness: boolean;
   lastMessage: string;
   lastMessageAt: string;
   unread: boolean;
@@ -39,13 +41,27 @@ export default function BusinessMensajesScreen() {
 
     const clients = await getUsersByIds(summaries.map((s) => s.otherId));
     const clientById = new Map(clients.map((c) => [c.id, c]));
+
+    // Para interlocutores B2B, buscamos si tienen un negocio como dueños.
+    const otherIds = summaries.map((s) => s.otherId);
+    const businessByOwnerId = new Map<string, { name: string; logo_url: string | null }>();
+    const { data: bizRows } = await supabase
+      .from('businesses')
+      .select('owner_id, name, logo_url')
+      .in('owner_id', otherIds);
+    (bizRows ?? []).forEach((b: { owner_id: string; name: string; logo_url: string | null }) => {
+      businessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url });
+    });
+
     setConversations(
       summaries.map((s) => {
         const client = clientById.get(s.otherId);
+        const biz = businessByOwnerId.get(s.otherId);
         return {
           clientId: s.otherId,
-          clientName: client?.full_name ?? 'Cliente',
-          clientAvatarUrl: client?.avatar_url ?? null,
+          clientName: biz?.name ?? client?.full_name ?? 'Cliente',
+          clientAvatarUrl: biz?.logo_url ?? client?.avatar_url ?? null,
+          isBusiness: !!biz,
           lastMessage: s.lastMessage,
           lastMessageAt: s.lastMessageAt,
           unread: s.lastSenderId === s.otherId && s.lastReadAt === null,
@@ -97,7 +113,7 @@ export default function BusinessMensajesScreen() {
               {row.clientAvatarUrl ? (
                 <Image source={{ uri: row.clientAvatarUrl }} style={styles.avatarImage} />
               ) : (
-                <Ionicons name="person" size={20} color={colors.primary} />
+                <Ionicons name={row.isBusiness ? 'storefront' : 'person'} size={20} color={colors.primary} />
               )}
             </View>
             <View style={styles.rowContent}>
