@@ -75,6 +75,14 @@ export default function BusinessTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="clientes"
+        options={{
+          title: 'Clientes',
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
+          tabBarButton: isWorkshop ? () => null : undefined,
+        }}
+      />
+      <Tabs.Screen
         name="mensajes"
         options={{
           title: 'Mensajes',
