@@ -53,7 +53,8 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const logoUrl = logoOverride ?? business?.logo_url ?? null;
   const postsWithImage = posts.filter((post) => post.image_url);
   const postsWithoutImage = posts.filter((post) => !post.image_url);
-  const postHrefBase = mode === 'self' ? '/(business)/publicacion' : '/(client)/publicacion';
+  const viewerPrefix = profile?.role === 'business' ? '/(business)' : '/(client)';
+  const postHrefBase = mode === 'self' ? '/(business)/publicacion' : `${viewerPrefix}/publicacion`;
 
   const load = useCallback(async () => {
     let resolvedBusiness: Business | null = null;
@@ -277,20 +278,20 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             <ProfileActionButton
               icon="chatbubble-outline"
               label="Mensaje"
-              onPress={() => router.push(`/(client)/chat/${business.id}`)}
+              onPress={() => router.push(`${viewerPrefix}/chat/${business.id}`)}
             />
           )}
           {showFollow && (
             <ProfileActionButton
               icon="calendar-outline"
               label="Agendar"
-              onPress={() => router.push({ pathname: '/(client)/agendar', params: { businessId: business.id } })}
+              onPress={() => router.push({ pathname: `${viewerPrefix}/agendar` as any, params: { businessId: business.id } })}
             />
           )}
           <ProfileActionButton
             icon="grid-outline"
             label="Catálogo"
-            onPress={() => router.push(`/(client)/negocio-catalogo/${business.id}`)}
+            onPress={() => router.push(`${viewerPrefix}/negocio-catalogo/${business.id}`)}
           />
         </View>
       )}

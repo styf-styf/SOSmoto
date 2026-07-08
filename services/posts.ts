@@ -71,17 +71,6 @@ export interface PostWithAuthor extends Post {
   tag_product: { id: string; name: string } | null;
 }
 
-export async function getClientPublicPosts(clientId: string): Promise<PostWithAuthor[]> {
-  const { data, error } = await supabase
-    .from('posts')
-    .select(FEED_SELECT)
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false })
-    .limit(20);
-  if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
-}
-
 export interface PublicFeedPageParams {
   limit?: number;
   before?: { createdAt: string; id: string };

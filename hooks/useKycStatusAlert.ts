@@ -23,7 +23,7 @@ export function useKycStatusAlert(businessId: string | null | undefined) {
     if (!businessId) return;
 
     const channel = supabase
-      .channel(`kyc_business_${businessId}`)
+      .channel(`kyc_business_${businessId}_${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
