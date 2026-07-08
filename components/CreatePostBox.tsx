@@ -6,11 +6,12 @@ import { useAuth } from '../hooks/useAuth';
 import { searchBusinesses, type BusinessWithDistance } from '../services/businesses';
 import { createPost } from '../services/posts';
 import { pickAndUploadClientPostImage } from '../services/storage';
+import { searchClients } from '../services/users';
 
-// Composer rápido sobre el feed de Inicio (debajo de Historias) -- todo en
-// una sola fila (foto, etiqueta, texto, enviar) igual que el input de Chat,
-// para que ocupe lo mínimo cuando no se está usando. Lo que necesita más
-// espacio (preview de imagen, buscador de etiqueta) se despliega debajo.
+type TagResult =
+  | { kind: 'business'; id: string; name: string }
+  | { kind: 'client'; id: string; name: string };
+
 export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
   const { profile } = useAuth();
   const [caption, setCaption] = useState('');
@@ -18,10 +19,10 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [posting, setPosting] = useState(false);
 
-  const [taggedBusiness, setTaggedBusiness] = useState<BusinessWithDistance | null>(null);
+  const [taggedItem, setTaggedItem] = useState<TagResult | null>(null);
   const [showTagSearch, setShowTagSearch] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
-  const [tagResults, setTagResults] = useState<BusinessWithDistance[]>([]);
+  const [tagResults, setTagResults] = useState<TagResult[]>([]);
   const [searchingTag, setSearchingTag] = useState(false);
 
   async function handlePickImage() {
@@ -46,24 +47,29 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
     }
     setSearchingTag(true);
     try {
-      const results = await searchBusinesses({ query: text.trim() });
-      setTagResults(results.slice(0, 6));
+      const [businesses, clients] = await Promise.all([
+        searchBusinesses({ query: text.trim() }),
+        searchClients(text.trim()),
+      ]);
+      const bizResults: TagResult[] = (businesses as BusinessWithDistance[]).slice(0, 4).map((b) => ({ kind: 'business', id: b.id, name: b.name }));
+      const clientResults: TagResult[] = clients.slice(0, 3).map((c) => ({ kind: 'client', id: c.id, name: c.full_name }));
+      setTagResults([...bizResults, ...clientResults]);
     } catch (err) {
-      console.error('search business error', err);
+      console.error('search tag error', err);
     } finally {
       setSearchingTag(false);
     }
   }
 
-  function handleSelectTag(business: BusinessWithDistance) {
-    setTaggedBusiness(business);
+  function handleSelectTag(item: TagResult) {
+    setTaggedItem(item);
     setShowTagSearch(false);
     setTagQuery('');
     setTagResults([]);
   }
 
   function resetTag() {
-    setTaggedBusiness(null);
+    setTaggedItem(null);
     setShowTagSearch(false);
     setTagQuery('');
     setTagResults([]);
@@ -81,7 +87,8 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
         clientId: profile.id,
         caption: caption.trim() || undefined,
         imageUrl: imageUrl || undefined,
-        tagBusinessId: taggedBusiness?.id,
+        tagBusinessId: taggedItem?.kind === 'business' ? taggedItem.id : undefined,
+        tagClientId: taggedItem?.kind === 'client' ? taggedItem.id : undefined,
       });
       setCaption('');
       setImageUrl('');
@@ -108,10 +115,10 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
           )}
         </Pressable>
         <Pressable
-          style={[styles.iconCircle, !!taggedBusiness && styles.iconCircleActive]}
-          onPress={() => (taggedBusiness ? setTaggedBusiness(null) : setShowTagSearch((prev) => !prev))}
+          style={[styles.iconCircle, !!taggedItem && styles.iconCircleActive]}
+          onPress={() => (taggedItem ? setTaggedItem(null) : setShowTagSearch((prev) => !prev))}
         >
-          <Ionicons name="pricetag-outline" size={20} color={taggedBusiness ? '#fff' : colors.primary} />
+          <Ionicons name="pricetag-outline" size={20} color={taggedItem ? '#fff' : colors.primary} />
         </Pressable>
         <TextInput
           style={styles.input}
@@ -134,13 +141,13 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
         </View>
       ) : null}
 
-      {taggedBusiness ? (
+      {taggedItem ? (
         <View style={styles.tagChip}>
-          <Ionicons name="pricetag" size={12} color={colors.primary} />
+          <Ionicons name={taggedItem.kind === 'business' ? 'storefront' : 'person'} size={12} color={colors.primary} />
           <Text numberOfLines={1} style={styles.tagChipText}>
-            {taggedBusiness.name}
+            {taggedItem.name}
           </Text>
-          <Pressable onPress={() => setTaggedBusiness(null)}>
+          <Pressable onPress={() => setTaggedItem(null)}>
             <Ionicons name="close" size={14} color={colors.textMuted} />
           </Pressable>
         </View>
@@ -148,17 +155,17 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
         <View style={styles.tagSearchWrap}>
           <TextInput
             style={styles.tagSearchInput}
-            placeholder="Buscar taller o tienda…"
+            placeholder="Buscar negocio o cliente…"
             placeholderTextColor={colors.textMuted}
             value={tagQuery}
             onChangeText={handleSearchTag}
             autoFocus
           />
           {searchingTag && <ActivityIndicator color={colors.primary} size="small" style={styles.tagSearchSpinner} />}
-          {tagResults.map((b) => (
-            <Pressable key={b.id} style={styles.tagResultItem} onPress={() => handleSelectTag(b)}>
-              <Ionicons name="storefront" size={14} color={colors.primary} />
-              <Text style={styles.tagResultText}>{b.name}</Text>
+          {tagResults.map((item) => (
+            <Pressable key={`${item.kind}-${item.id}`} style={styles.tagResultItem} onPress={() => handleSelectTag(item)}>
+              <Ionicons name={item.kind === 'business' ? 'storefront' : 'person'} size={14} color={colors.primary} />
+              <Text style={styles.tagResultText}>{item.name}</Text>
             </Pressable>
           ))}
           <Pressable onPress={() => setShowTagSearch(false)}>

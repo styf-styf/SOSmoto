@@ -7,6 +7,7 @@ export interface CreatePostParams {
   imageUrl?: string;
   caption?: string;
   tagBusinessId?: string;
+  tagClientId?: string;
   tagServiceId?: string;
   tagProductId?: string;
 }
@@ -20,6 +21,7 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
       image_url: params.imageUrl ?? null,
       caption: params.caption?.trim() || null,
       tag_business_id: params.tagBusinessId ?? null,
+      tag_client_id: params.tagClientId ?? null,
       tag_service_id: params.tagServiceId ?? null,
       tag_product_id: params.tagProductId ?? null,
     })
@@ -59,6 +61,7 @@ const FEED_SELECT = `
   author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified),
   author_client:users!posts_client_id_fkey(id, full_name, avatar_url),
   tag_business:businesses!posts_tag_business_id_fkey(id, name),
+  tag_client:users!posts_tag_client_id_fkey(id, full_name, avatar_url),
   tag_service:services!posts_tag_service_id_fkey(id, name),
   tag_product:products!posts_tag_product_id_fkey(id, name)
 `;
@@ -67,6 +70,7 @@ export interface PostWithAuthor extends Post {
   author_business: { id: string; name: string; logo_url: string | null; is_verified: boolean } | null;
   author_client: { id: string; full_name: string; avatar_url: string | null } | null;
   tag_business: { id: string; name: string } | null;
+  tag_client: { id: string; full_name: string; avatar_url: string | null } | null;
   tag_service: { id: string; name: string } | null;
   tag_product: { id: string; name: string } | null;
 }
@@ -153,11 +157,9 @@ export interface PostTag {
 // funciona igual sin importar si quien lo ve está en el home de cliente o
 // de negocio.
 export function getPostTag(post: PostWithAuthor, role: 'client' | 'business' = 'client'): PostTag | null {
-  if (post.tag_business) {
-    const prefix = role === 'business' ? '/(business)' : '/(client)';
-    return { label: post.tag_business.name, href: `${prefix}/business/${post.tag_business.id}` };
-  }
   const prefix = role === 'business' ? '/(business)' : '/(client)';
+  if (post.tag_business) return { label: post.tag_business.name, href: `${prefix}/business/${post.tag_business.id}` };
+  if (post.tag_client) return { label: post.tag_client.full_name, href: `${prefix}/usuario/${post.tag_client.id}` };
   if (post.tag_service) return { label: post.tag_service.name, href: `${prefix}/servicio/${post.tag_service.id}` };
   if (post.tag_product) return { label: post.tag_product.name, href: `${prefix}/producto/${post.tag_product.id}` };
   return null;

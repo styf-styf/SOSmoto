@@ -37,6 +37,20 @@ export async function getUsersByIds(
   return (data ?? []) as Array<{ id: string; full_name: string; avatar_url: string | null }>;
 }
 
+export async function searchClients(
+  query: string
+): Promise<Array<{ id: string; full_name: string; avatar_url: string | null }>> {
+  if (query.trim().length < 2) return [];
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, avatar_url')
+    .eq('role', 'client')
+    .ilike('full_name', `%${query.trim()}%`)
+    .limit(6);
+  if (error) throw error;
+  return (data ?? []) as Array<{ id: string; full_name: string; avatar_url: string | null }>;
+}
+
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
