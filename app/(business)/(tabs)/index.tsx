@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
+import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
@@ -416,6 +417,8 @@ const ECUADOR_PROVINCES = [
   'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe',
 ];
 
+const QUITO_DEFAULT = { latitude: -0.1807, longitude: -78.4678 };
+
 function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => void }) {
   const { profile } = useAuth();
   const { coords, getCoords } = useLocation();
@@ -428,6 +431,24 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
   const [saving, setSaving] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [gettingAddress, setGettingAddress] = useState(false);
+
+  // Mapa
+  const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [pendingRegion, setPendingRegion] = useState<Region | null>(null);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+
+  function openMapPicker() {
+    const center = selectedCoords ?? coords ?? QUITO_DEFAULT;
+    setPendingRegion({ ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 });
+    setShowMapPicker(true);
+  }
+
+  function confirmMapLocation() {
+    if (pendingRegion) {
+      setSelectedCoords({ latitude: pendingRegion.latitude, longitude: pendingRegion.longitude });
+    }
+    setShowMapPicker(false);
+  }
 
   async function handleFillAddressFromGPS() {
     setGettingAddress(true);
@@ -452,13 +473,12 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
       Alert.alert('Faltan datos', 'Completa todos los campos obligatorios.');
       return;
     }
-    if (!coords) {
-      Alert.alert('Ubicación requerida', 'Activa el permiso de ubicación para registrar tu negocio.');
+    if (!selectedCoords) {
+      Alert.alert('Ubicación requerida', 'Selecciona la ubicación de tu negocio en el mapa.');
       return;
     }
     setSaving(true);
     try {
-      const freshCoords = await getCoords().catch(() => coords);
       const business = await createBusiness({
         ownerId: profile.id,
         businessType,
@@ -466,8 +486,8 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         province,
         city: city.trim(),
         address: address.trim(),
-        latitude: freshCoords.latitude,
-        longitude: freshCoords.longitude,
+        latitude: selectedCoords.latitude,
+        longitude: selectedCoords.longitude,
         phone: phone.trim(),
       });
       onCreated(business);
@@ -518,12 +538,25 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         onChangeText={setPhone}
       />
 
-      <Text style={styles.locationNote}>
-        {coords ? 'Ubicación GPS detectada ✓' : 'Esperando permiso de ubicación…'}
-      </Text>
+      <Text style={styles.fieldLabel}>Ubicación en el mapa *</Text>
+      {selectedCoords ? (
+        <View style={styles.locationConfirmed}>
+          <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+          <Text style={styles.locationConfirmedText}>Ubicación seleccionada</Text>
+          <Pressable onPress={openMapPicker}>
+            <Text style={styles.locationChangeLink}>Cambiar</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
+          <Ionicons name="map-outline" size={18} color={colors.primary} />
+          <Text style={styles.mapPickerButtonText}>Seleccionar en mapa</Text>
+        </Pressable>
+      )}
 
-      <Button title="Crear negocio" onPress={handleCreate} loading={saving} />
+      <Button title="Crear negocio" onPress={handleCreate} loading={saving} style={styles.createButton} />
 
+      {/* Province picker */}
       <Modal visible={showProvincePicker} transparent animationType="slide" onRequestClose={() => setShowProvincePicker(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setShowProvincePicker(false)}>
           <View style={styles.modalSheet}>
@@ -543,6 +576,37 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
             />
           </View>
         </Pressable>
+      </Modal>
+
+      {/* Map picker */}
+      <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
+        <View style={styles.mapContainer}>
+          {pendingRegion && (
+            <MapView
+              style={StyleSheet.absoluteFill}
+              initialRegion={pendingRegion}
+              onRegionChangeComplete={(r) => setPendingRegion(r)}
+            />
+          )}
+          {/* Pin fijo en el centro */}
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <View style={styles.mapPinWrap}>
+              <Ionicons name="location-sharp" size={48} color={colors.primary} />
+              <View style={styles.mapPinShadow} />
+            </View>
+          </View>
+          {/* Header */}
+          <View style={styles.mapHeader}>
+            <Pressable style={styles.mapCloseBtn} onPress={() => setShowMapPicker(false)}>
+              <Ionicons name="close" size={22} color={colors.text} />
+            </Pressable>
+            <Text style={styles.mapInstructions}>Mueve el mapa para posicionar tu negocio</Text>
+          </View>
+          {/* Footer */}
+          <View style={styles.mapFooter}>
+            <Button title="Confirmar ubicación" onPress={confirmMapLocation} />
+          </View>
+        </View>
       </Modal>
     </ScrollView>
   );
@@ -829,5 +893,97 @@ const styles = StyleSheet.create({
   provinceTextSelected: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  createButton: {
+    marginTop: 24,
+  },
+  locationConfirmed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 50,
+    backgroundColor: '#F0FDF4',
+    marginBottom: 16,
+  },
+  locationConfirmedText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#166534',
+    fontWeight: '500',
+  },
+  locationChangeLink: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  mapPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    height: 50,
+    marginBottom: 16,
+    backgroundColor: '#FFF1E6',
+  },
+  mapPickerButtonText: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  mapContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  mapPinWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  mapPinShadow: {
+    width: 12,
+    height: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    marginTop: -8,
+  },
+  mapHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 52,
+    paddingBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+  },
+  mapCloseBtn: {
+    padding: 4,
+  },
+  mapInstructions: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  mapFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
   },
 });
