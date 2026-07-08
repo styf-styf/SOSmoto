@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -39,8 +39,9 @@ export default function DatosNegocioScreen() {
 
   // Map picker
   const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [pendingRegion, setPendingRegion] = useState<Region | null>(null);
+  const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const pendingRegionRef = useRef<Region | null>(null);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -75,13 +76,15 @@ export default function DatosNegocioScreen() {
 
   function openMapPicker() {
     const center = selectedCoords ?? { latitude: -0.1807, longitude: -78.4678 };
-    setPendingRegion({ ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 });
+    const region: Region = { ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 };
+    pendingRegionRef.current = region;
+    setMapInitialRegion(region);
     setShowMapPicker(true);
   }
 
   function confirmMapLocation() {
-    if (pendingRegion) {
-      setSelectedCoords({ latitude: pendingRegion.latitude, longitude: pendingRegion.longitude });
+    if (pendingRegionRef.current) {
+      setSelectedCoords({ latitude: pendingRegionRef.current.latitude, longitude: pendingRegionRef.current.longitude });
     }
     setShowMapPicker(false);
   }
@@ -230,11 +233,11 @@ export default function DatosNegocioScreen() {
       {/* Map picker */}
       <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
         <View style={styles.mapContainer}>
-          {pendingRegion && (
+          {mapInitialRegion && (
             <MapView
               style={StyleSheet.absoluteFill}
-              initialRegion={pendingRegion}
-              onRegionChangeComplete={(r) => setPendingRegion(r)}
+              initialRegion={mapInitialRegion}
+              onRegionChangeComplete={(r) => { pendingRegionRef.current = r; }}
             />
           )}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">

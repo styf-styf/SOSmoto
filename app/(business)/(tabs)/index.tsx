@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -150,9 +150,7 @@ export default function BusinessHomeScreen() {
       return (
         <RemovedNoticeScreen
           notice={removalNotice}
-          onDismissed={() => {
-            setRemovalNotice(null);
-          }}
+          onDismissed={() => { setRemovalNotice(null); }}
           onChangeToClient={async () => {
             await changeRoleToClient();
             await refreshProfile();
@@ -162,12 +160,7 @@ export default function BusinessHomeScreen() {
       );
     }
     if (pendingInvitations.length > 0) {
-      return (
-        <PendingInvitationsScreen
-          invitations={pendingInvitations}
-          onResponded={load}
-        />
-      );
+      return <PendingInvitationsScreen invitations={pendingInvitations} onResponded={load} />;
     }
     return <BusinessOnboarding onCreated={setBusiness} />;
   }
@@ -432,20 +425,31 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [gettingAddress, setGettingAddress] = useState(false);
 
+  // Teclado
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
   // Mapa
   const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [pendingRegion, setPendingRegion] = useState<Region | null>(null);
+  const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const pendingRegionRef = useRef<Region | null>(null);
 
   function openMapPicker() {
     const center = selectedCoords ?? coords ?? QUITO_DEFAULT;
-    setPendingRegion({ ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 });
+    const region: Region = { ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 };
+    pendingRegionRef.current = region;
+    setMapInitialRegion(region);
     setShowMapPicker(true);
   }
 
   function confirmMapLocation() {
-    if (pendingRegion) {
-      setSelectedCoords({ latitude: pendingRegion.latitude, longitude: pendingRegion.longitude });
+    if (pendingRegionRef.current) {
+      setSelectedCoords({ latitude: pendingRegionRef.current.latitude, longitude: pendingRegionRef.current.longitude });
     }
     setShowMapPicker(false);
   }
@@ -490,6 +494,7 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         longitude: selectedCoords.longitude,
         phone: phone.trim(),
       });
+      Keyboard.dismiss();
       onCreated(business);
     } catch (err) {
       console.error('create business error', err);
@@ -500,7 +505,10 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.onboardingContainer}>
+    <ScrollView
+      contentContainerStyle={[styles.onboardingContainer, { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 24 : 20 }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.title}>Crea tu negocio</Text>
       <Text style={styles.subtitle}>Completa estos datos para empezar a recibir clientes.</Text>
 
@@ -530,14 +538,6 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         rightIcon={{ name: gettingAddress ? 'reload-outline' : 'navigate-outline', onPress: handleFillAddressFromGPS }}
       />
 
-      <TextField
-        label="Teléfono *"
-        placeholder="09xxxxxxxx"
-        keyboardType="phone-pad"
-        value={phone}
-        onChangeText={setPhone}
-      />
-
       <Text style={styles.fieldLabel}>Ubicación en el mapa *</Text>
       {selectedCoords ? (
         <View style={styles.locationConfirmed}>
@@ -553,6 +553,14 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
           <Text style={styles.mapPickerButtonText}>Seleccionar en mapa</Text>
         </Pressable>
       )}
+
+      <TextField
+        label="Teléfono *"
+        placeholder="09xxxxxxxx"
+        keyboardType="phone-pad"
+        value={phone}
+        onChangeText={setPhone}
+      />
 
       <Button title="Crear negocio" onPress={handleCreate} loading={saving} style={styles.createButton} />
 
@@ -581,11 +589,11 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
       {/* Map picker */}
       <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
         <View style={styles.mapContainer}>
-          {pendingRegion && (
+          {mapInitialRegion && (
             <MapView
               style={StyleSheet.absoluteFill}
-              initialRegion={pendingRegion}
-              onRegionChangeComplete={(r) => setPendingRegion(r)}
+              initialRegion={mapInitialRegion}
+              onRegionChangeComplete={(r) => { pendingRegionRef.current = r; }}
             />
           )}
           {/* Pin fijo en el centro */}
