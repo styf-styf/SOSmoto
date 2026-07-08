@@ -244,6 +244,7 @@ export const HomeFeed = forwardRef<
             <FeedCatalogStrip
               items={item.items}
               listItems={item.listItems}
+              role={role}
               grayBackground={item.gray}
               showTopShadow={item.showTopShadow}
               showBottomShadow={item.showBottomShadow}

@@ -20,20 +20,14 @@ const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.65);
 export function FeedCatalogStrip({
   items,
   listItems,
+  role = 'client',
   grayBackground = false,
   showTopShadow = true,
   showBottomShadow = true,
 }: {
-  // Carrusel de fotos -- siempre items con imagen (el degradado + texto
-  // blanco necesita una foto debajo para verse bien).
   items: FeedCatalogItem[];
-  // Servicios/productos sin foto: en vez de forzar el mismo overlay sobre un
-  // fondo liso (se veía como una tarjeta rota), van aparte como una lista
-  // compacta debajo del carrusel.
   listItems: FeedCatalogItem[];
-  // Cuando el bloque queda pegado (arriba o abajo) a un post sin imagen,
-  // HomeFeed le pasa el mismo fondo gris y apaga la sombra del lado
-  // compartido, para que los dos se vean como un solo bloque de fondo.
+  role?: 'client' | 'business';
   grayBackground?: boolean;
   showTopShadow?: boolean;
   showBottomShadow?: boolean;
@@ -48,13 +42,13 @@ export function FeedCatalogStrip({
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => `${item.kind}-${item.id}`}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <CatalogCard item={item} />}
+          renderItem={({ item }) => <CatalogCard item={item} role={role} />}
         />
       )}
       {listItems.length > 0 && (
         <View style={[styles.listWrap, items.length > 0 && styles.listWrapWithCarousel]}>
           {listItems.map((item) => (
-            <CatalogListRow key={`${item.kind}-${item.id}`} item={item} />
+            <CatalogListRow key={`${item.kind}-${item.id}`} item={item} role={role} />
           ))}
         </View>
       )}
@@ -79,8 +73,9 @@ function BusinessAvatar({ logoUrl, size = 16 }: { logoUrl?: string; size?: numbe
   );
 }
 
-function CatalogCard({ item }: { item: FeedCatalogItem }) {
-  const href = item.kind === 'service' ? `/(client)/servicio/${item.id}` : `/(client)/producto/${item.id}`;
+function CatalogCard({ item, role = 'client' }: { item: FeedCatalogItem; role?: 'client' | 'business' }) {
+  const prefix = role === 'business' ? '/(business)' : '/(client)';
+  const href = item.kind === 'service' ? `${prefix}/servicio/${item.id}` : `${prefix}/producto/${item.id}`;
   return (
     <Pressable style={styles.card} onPress={() => router.push(href)}>
       <Image source={{ uri: item.photoUrl }} style={styles.cardImage} resizeMode="cover" />
@@ -99,8 +94,9 @@ function CatalogCard({ item }: { item: FeedCatalogItem }) {
   );
 }
 
-function CatalogListRow({ item }: { item: FeedCatalogItem }) {
-  const href = item.kind === 'service' ? `/(client)/servicio/${item.id}` : `/(client)/producto/${item.id}`;
+function CatalogListRow({ item, role = 'client' }: { item: FeedCatalogItem; role?: 'client' | 'business' }) {
+  const prefix = role === 'business' ? '/(business)' : '/(client)';
+  const href = item.kind === 'service' ? `${prefix}/servicio/${item.id}` : `${prefix}/producto/${item.id}`;
   return (
     <Pressable style={styles.listRow} onPress={() => router.push(href)}>
       <View style={styles.listIcon}>

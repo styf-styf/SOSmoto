@@ -157,8 +157,9 @@ export function getPostTag(post: PostWithAuthor, role: 'client' | 'business' = '
     const prefix = role === 'business' ? '/(business)' : '/(client)';
     return { label: post.tag_business.name, href: `${prefix}/business/${post.tag_business.id}` };
   }
-  if (post.tag_service) return { label: post.tag_service.name, href: `/(client)/servicio/${post.tag_service.id}` };
-  if (post.tag_product) return { label: post.tag_product.name, href: `/(client)/producto/${post.tag_product.id}` };
+  const prefix = role === 'business' ? '/(business)' : '/(client)';
+  if (post.tag_service) return { label: post.tag_service.name, href: `${prefix}/servicio/${post.tag_service.id}` };
+  if (post.tag_product) return { label: post.tag_product.name, href: `${prefix}/producto/${post.tag_product.id}` };
   return null;
 }
 
