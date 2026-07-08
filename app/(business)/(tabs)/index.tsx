@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
@@ -407,44 +408,72 @@ function PendingInvitationsScreen({
   );
 }
 
+const ECUADOR_PROVINCES = [
+  'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
+  'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
+  'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
+  'Pichincha', 'Santa Elena', 'Santo Domingo de los Tsáchilas',
+  'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe',
+];
+
 function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => void }) {
   const { profile } = useAuth();
-  const { coords } = useLocation();
+  const { coords, getCoords } = useLocation();
   const [businessType, setBusinessType] = useState<BusinessType>('workshop');
   const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
+  const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
+  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showProvincePicker, setShowProvincePicker] = useState(false);
+  const [gettingAddress, setGettingAddress] = useState(false);
+
+  async function handleFillAddressFromGPS() {
+    setGettingAddress(true);
+    try {
+      const freshCoords = await getCoords();
+      const results = await Location.reverseGeocodeAsync(freshCoords);
+      if (results.length > 0) {
+        const r = results[0];
+        const parts = [r.streetNumber, r.street].filter(Boolean).join(' ');
+        if (parts) setAddress(parts);
+      }
+    } catch {
+      Alert.alert('GPS', 'No se pudo obtener la dirección desde el GPS.');
+    } finally {
+      setGettingAddress(false);
+    }
+  }
 
   async function handleCreate() {
     if (!profile) return;
-    if (!name.trim() || !address.trim() || !city.trim()) {
-      Alert.alert('Faltan datos', 'Completa nombre, dirección y ciudad.');
+    if (!name.trim() || !province || !city.trim() || !address.trim() || !phone.trim()) {
+      Alert.alert('Faltan datos', 'Completa todos los campos obligatorios.');
       return;
     }
     if (!coords) {
       Alert.alert('Ubicación requerida', 'Activa el permiso de ubicación para registrar tu negocio.');
       return;
     }
-
     setSaving(true);
     try {
+      const freshCoords = await getCoords().catch(() => coords);
       const business = await createBusiness({
         ownerId: profile.id,
         businessType,
         name: name.trim(),
-        address: address.trim(),
+        province,
         city: city.trim(),
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        phone: phone.trim() || undefined,
+        address: address.trim(),
+        latitude: freshCoords.latitude,
+        longitude: freshCoords.longitude,
+        phone: phone.trim(),
       });
       onCreated(business);
     } catch (err) {
       console.error('create business error', err);
-      const message = err instanceof Error ? err.message : 'No se pudo crear el negocio.';
-      Alert.alert('Error', message);
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo crear el negocio.');
     } finally {
       setSaving(false);
     }
@@ -456,28 +485,33 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
       <Text style={styles.subtitle}>Completa estos datos para empezar a recibir clientes.</Text>
 
       <View style={styles.typeSelector}>
-        <TypeOption
-          label="Taller"
-          selected={businessType === 'workshop'}
-          onPress={() => setBusinessType('workshop')}
-        />
-        <TypeOption
-          label="Tienda"
-          selected={businessType === 'store'}
-          onPress={() => setBusinessType('store')}
-        />
-        <TypeOption
-          label="Marca"
-          selected={businessType === 'brand_advertiser'}
-          onPress={() => setBusinessType('brand_advertiser')}
-        />
+        <TypeOption label="Taller" selected={businessType === 'workshop'} onPress={() => setBusinessType('workshop')} />
+        <TypeOption label="Tienda" selected={businessType === 'store'} onPress={() => setBusinessType('store')} />
+        <TypeOption label="Marca" selected={businessType === 'brand_advertiser'} onPress={() => setBusinessType('brand_advertiser')} />
       </View>
 
-      <TextField label="Nombre del negocio" placeholder="Taller Mecánico XYZ" value={name} onChangeText={setName} />
-      <TextField label="Dirección" placeholder="Av. Principal 123" value={address} onChangeText={setAddress} />
-      <TextField label="Ciudad" placeholder="Quito" value={city} onChangeText={setCity} />
+      <TextField label="Nombre del negocio *" placeholder="Taller Mecánico XYZ" value={name} onChangeText={setName} />
+
+      <Text style={styles.fieldLabel}>Provincia *</Text>
+      <Pressable style={styles.pickerButton} onPress={() => setShowProvincePicker(true)}>
+        <Text style={[styles.pickerButtonText, !province && styles.pickerButtonPlaceholder]}>
+          {province || 'Selecciona una provincia'}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+      </Pressable>
+
+      <TextField label="Ciudad *" placeholder="Quito" value={city} onChangeText={setCity} />
+
       <TextField
-        label="Teléfono (opcional)"
+        label="Dirección *"
+        placeholder="Av. Principal 123, oficina 4"
+        value={address}
+        onChangeText={setAddress}
+        rightIcon={{ name: gettingAddress ? 'reload-outline' : 'navigate-outline', onPress: handleFillAddressFromGPS }}
+      />
+
+      <TextField
+        label="Teléfono *"
         placeholder="09xxxxxxxx"
         keyboardType="phone-pad"
         value={phone}
@@ -485,10 +519,31 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
       />
 
       <Text style={styles.locationNote}>
-        {coords ? 'Ubicación detectada ✓ (usaremos tu ubicación actual)' : 'Esperando permiso de ubicación…'}
+        {coords ? 'Ubicación GPS detectada ✓' : 'Esperando permiso de ubicación…'}
       </Text>
 
       <Button title="Crear negocio" onPress={handleCreate} loading={saving} />
+
+      <Modal visible={showProvincePicker} transparent animationType="slide" onRequestClose={() => setShowProvincePicker(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowProvincePicker(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Selecciona la provincia</Text>
+            <FlatList
+              data={ECUADOR_PROVINCES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.provinceItem, province === item && styles.provinceItemSelected]}
+                  onPress={() => { setProvince(item); setShowProvincePicker(false); }}
+                >
+                  <Text style={[styles.provinceText, province === item && styles.provinceTextSelected]}>{item}</Text>
+                  {province === item && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -707,5 +762,72 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 20,
     marginTop: -4,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 6,
+    marginTop: 0,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 50,
+    backgroundColor: colors.surface,
+    marginBottom: 16,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  pickerButtonPlaceholder: {
+    color: colors.textMuted,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingTop: 16,
+    paddingBottom: 28,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
+  provinceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  provinceItemSelected: {
+    backgroundColor: '#FFF1E6',
+  },
+  provinceText: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  provinceTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

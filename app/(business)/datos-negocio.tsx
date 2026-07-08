@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
@@ -8,6 +9,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
 import type { Business } from '../../types/database';
+
+const ECUADOR_PROVINCES_DN = [
+  'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
+  'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
+  'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
+  'Pichincha', 'Santa Elena', 'Santo Domingo de los Tsáchilas',
+  'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe',
+];
 
 export default function DatosNegocioScreen() {
   const { profile } = useAuth();
@@ -19,14 +28,16 @@ export default function DatosNegocioScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
+  const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
+  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [radius, setRadius] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [showProvincePicker, setShowProvincePicker] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -37,8 +48,9 @@ export default function DatosNegocioScreen() {
     if (!myBusiness) return;
     setName(myBusiness.name);
     setDescription(myBusiness.description ?? '');
-    setAddress(myBusiness.address);
+    setProvince(myBusiness.province ?? '');
     setCity(myBusiness.city);
+    setAddress(myBusiness.address);
     setPhone(myBusiness.phone ?? '');
     setWhatsapp(myBusiness.whatsapp ?? '');
     setRadius(myBusiness.aid_radius_km !== null ? String(myBusiness.aid_radius_km) : '');
@@ -95,8 +107,9 @@ export default function DatosNegocioScreen() {
       const updated = await updateBusiness(business.id, {
         name: name.trim(),
         description: description.trim() || null,
-        address: address.trim(),
+        province: province || null,
         city: city.trim(),
+        address: address.trim(),
         phone: phone.trim() || null,
         whatsapp: whatsapp.trim() || null,
         aid_radius_km: parsedRadius,
@@ -138,10 +151,44 @@ export default function DatosNegocioScreen() {
 
       <TextField label="Nombre" value={name} onChangeText={setName} editable={isOwner} />
       <TextField label="Descripción" value={description} onChangeText={setDescription} multiline editable={isOwner} />
-      <TextField label="Dirección" value={address} onChangeText={setAddress} editable={isOwner} />
+
+      <Text style={styles.fieldLabel}>Provincia</Text>
+      {isOwner ? (
+        <Pressable style={styles.pickerButton} onPress={() => setShowProvincePicker(true)}>
+          <Text style={[styles.pickerButtonText, !province && styles.pickerButtonPlaceholder]}>
+            {province || 'Selecciona una provincia'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+        </Pressable>
+      ) : (
+        <Text style={styles.readOnlyValue}>{province || '—'}</Text>
+      )}
+
       <TextField label="Ciudad" value={city} onChangeText={setCity} editable={isOwner} />
+      <TextField label="Dirección" value={address} onChangeText={setAddress} editable={isOwner} />
       <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={isOwner} />
       <TextField label="WhatsApp" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" editable={isOwner} />
+
+      <Modal visible={showProvincePicker} transparent animationType="slide" onRequestClose={() => setShowProvincePicker(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowProvincePicker(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Selecciona la provincia</Text>
+            <FlatList
+              data={ECUADOR_PROVINCES_DN}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.provinceItem, province === item && styles.provinceItemSelected]}
+                  onPress={() => { setProvince(item); setShowProvincePicker(false); }}
+                >
+                  <Text style={[styles.provinceText, province === item && styles.provinceTextSelected]}>{item}</Text>
+                  {province === item && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
 
       <Text style={styles.sectionTitle}>Ubicación</Text>
       <Text style={styles.helperText}>
@@ -224,5 +271,77 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 24,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 50,
+    backgroundColor: colors.surface,
+    marginBottom: 16,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  pickerButtonPlaceholder: {
+    color: colors.textMuted,
+  },
+  readOnlyValue: {
+    fontSize: 16,
+    color: colors.textMuted,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingTop: 16,
+    paddingBottom: 28,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
+  provinceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  provinceItemSelected: {
+    backgroundColor: '#FFF1E6',
+  },
+  provinceText: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  provinceTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

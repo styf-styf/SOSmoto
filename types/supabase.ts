@@ -97,6 +97,7 @@ export interface Database {
           logo_url: string | null;
           address: string;
           city: string;
+          province: string | null;
           latitude: number;
           longitude: number;
           phone: string | null;
@@ -122,6 +123,7 @@ export interface Database {
           logo_url?: string | null;
           address: string;
           city: string;
+          province?: string | null;
           latitude: number;
           longitude: number;
           phone?: string | null;
@@ -147,6 +149,7 @@ export interface Database {
           logo_url?: string | null;
           address?: string;
           city?: string;
+          province?: string | null;
           latitude?: number;
           longitude?: number;
           phone?: string | null;

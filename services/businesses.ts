@@ -175,6 +175,7 @@ export interface CreateBusinessParams {
   name: string;
   address: string;
   city: string;
+  province?: string;
   latitude: number;
   longitude: number;
   phone?: string;
@@ -197,6 +198,7 @@ export async function createBusiness(params: CreateBusinessParams): Promise<Busi
       name: params.name,
       address: params.address,
       city: params.city,
+      province: params.province ?? null,
       latitude: params.latitude,
       longitude: params.longitude,
       phone: params.phone ?? null,
@@ -216,6 +218,7 @@ export interface UpdateBusinessParams {
   description?: string | null;
   address?: string;
   city?: string;
+  province?: string | null;
   phone?: string | null;
   whatsapp?: string | null;
   latitude?: number;
