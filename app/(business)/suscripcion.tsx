@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -30,6 +30,7 @@ export default function SuscripcionScreen() {
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -53,6 +54,11 @@ export default function SuscripcionScreen() {
     });
     setExpiresAt(activeSub?.expires_at ?? null);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -147,7 +153,7 @@ export default function SuscripcionScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
         Los planes pagos se cobran y se gestionan desde el portal web de SOSmoto (Payphone). Te avisaremos antes de
         que venza tu suscripción para que renueves.

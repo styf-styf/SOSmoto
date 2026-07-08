@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '../../components/Button';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
@@ -44,6 +44,7 @@ export default function CitasScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [savingCounter, setSavingCounter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -64,6 +65,11 @@ export default function CitasScreen() {
       }))
     ).catch((err) => console.warn('sync reminders error', err));
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -173,7 +179,7 @@ export default function CitasScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <AppointmentCalendar
         appointments={appointments}
         selectedDate={selectedDate}

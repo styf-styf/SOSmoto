@@ -35,14 +35,18 @@ export function useLocation() {
     }
 
     try {
-      const position = await withTimeout(Location.getCurrentPositionAsync({}), 8000);
+      const position = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+        20000,
+      );
       const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
       coordsRef.current = next;
       setCoords(next);
       setError(null);
       return next;
     } catch {
-      const lastKnown = await Location.getLastKnownPositionAsync();
+      // Solo usar la última posición conocida si tiene menos de 2 minutos
+      const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 120_000 });
       if (lastKnown) {
         const next = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
         coordsRef.current = next;
@@ -73,5 +77,16 @@ export function useLocation() {
     return fetchCoords();
   }, [fetchCoords]);
 
-  return { coords, error, loading, getCoords };
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      await fetchCoords();
+    } catch (err: any) {
+      setError(err.message ?? 'No se pudo obtener tu ubicación.');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchCoords]);
+
+  return { coords, error, loading, getCoords, refresh };
 }

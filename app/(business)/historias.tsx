@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -37,6 +37,7 @@ export default function HistoriasScreen() {
   const [isPinned, setIsPinned] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -51,6 +52,11 @@ export default function HistoriasScreen() {
     setPlan(planLimits);
     setStories(businessStories);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -166,7 +172,7 @@ export default function HistoriasScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
         Foto visible 24h para tus clientes. {plan?.maxActiveStories === null ? 'Tu plan permite historias ilimitadas.' : `${activeCount}/${plan?.maxActiveStories ?? 0} historias activas según tu plan ${plan?.planName}.`}
       </Text>

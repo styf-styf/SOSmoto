@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -61,6 +62,7 @@ export default function HistorialScreen() {
   const [reportIds, setReportIds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -71,6 +73,11 @@ export default function HistorialScreen() {
     setItems(history);
     setReportIds(reportMap);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -90,7 +97,7 @@ export default function HistorialScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {/* Filtros */}
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (

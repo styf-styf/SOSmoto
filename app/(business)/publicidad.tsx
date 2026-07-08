@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -48,6 +48,7 @@ export default function PublicidadScreen() {
   const [durationDays, setDurationDays] = useState('7');
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -59,6 +60,11 @@ export default function PublicidadScreen() {
     setAds(businessAds);
     setPricing(adPricing);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -151,7 +157,7 @@ export default function PublicidadScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
         Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las
         aprueba. Una vez activa, se muestra automáticamente en inicio, búsqueda y perfiles relevantes — no eliges

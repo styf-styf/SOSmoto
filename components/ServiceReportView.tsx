@@ -6,6 +6,7 @@ import type { ServiceReportWithBusiness } from '../services/serviceReports';
 
 interface Props {
   report: ServiceReportWithBusiness;
+  footer?: React.ReactNode;
 }
 
 
@@ -39,7 +40,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function ServiceReportView({ report }: Props) {
+export function ServiceReportView({ report, footer }: Props) {
   const date = new Date(report.created_at).toLocaleDateString('es-EC', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
@@ -239,12 +240,15 @@ export function ServiceReportView({ report }: Props) {
           </View>
         </Section>
       )}
+
+      {footer && <View style={styles.footerSlot}>{footer}</View>}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+  footerSlot: { gap: 10, paddingTop: 8 },
   header: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 14,
     backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 12,

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
@@ -29,6 +29,7 @@ export default function ClienteDetailScreen() {
   const [clientVehicles, setClientVehicles] = useState<Vehicle[]>([]);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile || !id) return;
@@ -53,6 +54,11 @@ export default function ClienteDetailScreen() {
     setClientReports(reports);
     setClientVehicles(vehs);
   }, [profile, id]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -80,7 +86,7 @@ export default function ClienteDetailScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {/* Banner pendiente */}
       {isPending && (
         <View style={styles.pendingBanner}>

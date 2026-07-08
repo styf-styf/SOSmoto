@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
@@ -30,6 +30,7 @@ export default function EmpleadosScreen() {
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -48,6 +49,11 @@ export default function EmpleadosScreen() {
     setLimits(planLimits);
     setInvitations(pendingInvitations);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -87,7 +93,7 @@ export default function EmpleadosScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
         {allowedAdditional !== null
           ? `${employees.length}/${allowedAdditional} mecánicos adicionales (plan ${limits?.planName})`

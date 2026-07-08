@@ -68,6 +68,16 @@ export function PostCard({
     Share.share({ message }).catch(() => {});
   }
 
+  function handleAuthorPress(e: GestureResponderEvent) {
+    e.stopPropagation();
+    const prefix = userRole === 'business' ? '/(business)' : '/(client)';
+    if (isBusiness && post.author_business) {
+      router.push(`${prefix}/business/${post.author_business.id}`);
+    } else if (post.author_client) {
+      router.push(`${prefix}/usuario/${post.author_client.id}`);
+    }
+  }
+
   return (
     <Pressable
       style={[styles.card, !hasImage && styles.cardNoImage, !hasImage && !showBottomShadow && styles.cardNoBorder]}
@@ -79,12 +89,22 @@ export function PostCard({
       {!hasImage && !topFadeFromHeader && showTopShadow && (
         <GradientShade position="top" height={8} maxOpacity={0.12} />
       )}
-      <View style={[styles.authorRow, hasImage && expanded && styles.authorRowExpanded]}>
-        <View style={styles.avatar}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name={isBusiness ? 'storefront' : 'person'} size={18} color={colors.primary} />
+      <Pressable
+        style={[styles.authorRow, hasImage && expanded && styles.authorRowExpanded]}
+        onPress={handleAuthorPress}
+      >
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatar}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name={isBusiness ? 'storefront' : 'person'} size={18} color={colors.primary} />
+            )}
+          </View>
+          {isBusiness && post.author_business?.is_verified && (
+            <View style={styles.verifiedDot}>
+              <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
+            </View>
           )}
         </View>
         <View style={styles.authorTextRow}>
@@ -113,7 +133,7 @@ export function PostCard({
             </Pressable>
           )}
         </View>
-      </View>
+      </Pressable>
 
       {hasImage && (
         <View style={styles.imageWrap}>
@@ -188,6 +208,9 @@ const styles = StyleSheet.create({
   authorRowExpanded: {
     alignItems: 'flex-start',
   },
+  avatarWrap: {
+    position: 'relative',
+  },
   avatar: {
     width: 32,
     height: 32,
@@ -200,6 +223,13 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 32,
     height: 32,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   authorTextRow: {
     flex: 1,

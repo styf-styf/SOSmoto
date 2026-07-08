@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -60,6 +61,7 @@ export default function InventarioScreen() {
   const [reason, setReason] = useState<StockMovementReason>('entry');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -69,6 +71,11 @@ export default function InventarioScreen() {
     const inv = await getInventory(work.business.id);
     setProducts(inv);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -178,7 +185,7 @@ export default function InventarioScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {/* Resumen */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>

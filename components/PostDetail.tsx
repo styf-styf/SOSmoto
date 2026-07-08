@@ -76,11 +76,26 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const avatarUrl = getPostAuthorAvatar(post);
   const isBusiness = !!post.author_business;
   const tag = getPostTag(post, userRole);
+  const prefix = userRole === 'business' ? '/(business)' : '/(client)';
+
+  function handleAuthorPress() {
+    if (!post) return;
+    if (isBusiness && post.author_business) {
+      router.push(`${prefix}/business/${post.author_business.id}`);
+    } else if (post.author_client) {
+      router.push(`${prefix}/usuario/${post.author_client.id}`);
+    }
+  }
+
+  function handleCommentAuthorPress(comment: PostCommentWithAuthor) {
+    if (!comment.users) return;
+    router.push(`${prefix}/usuario/${comment.users.id}`);
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.authorRow}>
+        <Pressable style={styles.authorRow} onPress={handleAuthorPress}>
           <View style={styles.avatar}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
@@ -89,7 +104,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
             )}
           </View>
           <Text style={styles.authorName}>{authorName}</Text>
-        </View>
+        </Pressable>
 
         {post.image_url && <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />}
 
@@ -108,15 +123,19 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
         ) : (
           comments.map((comment) => (
             <View key={comment.id} style={styles.commentRow}>
-              <View style={styles.commentAvatar}>
-                {comment.users?.avatar_url ? (
-                  <Image source={{ uri: comment.users.avatar_url }} style={styles.commentAvatarImage} />
-                ) : (
-                  <Ionicons name="person" size={14} color={colors.primary} />
-                )}
-              </View>
+              <Pressable onPress={() => handleCommentAuthorPress(comment)}>
+                <View style={styles.commentAvatar}>
+                  {comment.users?.avatar_url ? (
+                    <Image source={{ uri: comment.users.avatar_url }} style={styles.commentAvatarImage} />
+                  ) : (
+                    <Ionicons name="person" size={14} color={colors.primary} />
+                  )}
+                </View>
+              </Pressable>
               <View style={styles.commentBubble}>
-                <Text style={styles.commentAuthor}>{comment.users?.full_name ?? 'Usuario'}</Text>
+                <Pressable onPress={() => handleCommentAuthorPress(comment)}>
+                  <Text style={styles.commentAuthor}>{comment.users?.full_name ?? 'Usuario'}</Text>
+                </Pressable>
                 <Text style={styles.commentBody}>{comment.body}</Text>
               </View>
             </View>

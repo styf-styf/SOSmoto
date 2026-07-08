@@ -17,7 +17,10 @@ export function BusinessListItem({
         <Ionicons name="storefront" size={20} color={colors.primary} />
       </View>
       <View style={styles.info}>
-        <Text style={styles.name}>{business.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{business.name}</Text>
+          {business.is_verified && <Ionicons name="checkmark-circle" size={14} color={colors.primary} />}
+        </View>
         <Text style={styles.meta}>
           {business.city}
           {typeof distanceKm === 'number' ? ` · ${distanceKm.toFixed(1)} km` : ''}
@@ -47,6 +50,11 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   name: {
     fontSize: 15,

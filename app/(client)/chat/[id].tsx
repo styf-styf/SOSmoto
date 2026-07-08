@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import type { ImagePickerAsset } from 'expo-image-picker';
 import { ChatHeader } from '../../../components/ChatHeader';
+import { ImageViewerModal } from '../../../components/ImageViewerModal';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
+import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
 import { cancelAppointmentRequest, getActiveAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
 import type { Business, Message } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
@@ -24,7 +27,9 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [showAttach, setShowAttach] = useState(false);
 
   // Banner de solicitud de cita
   const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
@@ -76,7 +81,6 @@ export default function ChatScreen() {
     autoSentRef.current = true;
     const body = prefill.trim();
     setText('');
-    setSending(true);
     sendMessage({ clientId, businessId, senderId: profile.id, body })
       .then((message) => {
         setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
@@ -84,15 +88,19 @@ export default function ChatScreen() {
       .catch((err) => {
         console.error('auto send error', err);
         setText(body);
-      })
-      .finally(() => setSending(false));
+      });
   }, [loading, clientId, businessId, autoSend, profile, prefill]);
 
   useEffect(() => {
     if (!businessId || !clientId) return;
     const unsubscribe = subscribeToMessages('client_id', clientId, (message) => {
       if (message.business_id !== businessId) return;
-      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
+        if (message.sender_id === profile?.id) return prev;
+        return [...prev, message];
+      });
       if (profile && message.sender_id !== profile.id) {
         markThreadRead(clientId, businessId, profile.id).catch((err) =>
           console.error('mark thread read error', err)
@@ -115,24 +123,71 @@ export default function ChatScreen() {
     return sub.remove;
   }, []);
 
-  async function handleSend() {
-    if (!profile || !clientId || !businessId || !text.trim()) return;
-    const body = text.trim();
-    setText('');
-    setSending(true);
+  async function handleCamera() {
+    setShowAttach(false);
     try {
+      const asset = await pickImageFromCamera();
+      if (asset) setPendingImage(asset);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      Alert.alert('Error', msg || 'No se pudo acceder a la cámara.');
+    }
+  }
+
+  async function handleGallery() {
+    setShowAttach(false);
+    try {
+      const asset = await pickImageFromLibrary();
+      if (asset) setPendingImage(asset);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      Alert.alert('Error', msg || 'No se pudo acceder a la galería.');
+    }
+  }
+
+  async function handleSend() {
+    if (!profile || !clientId || !businessId) return;
+    const body = text.trim();
+    if (!body && !pendingImage) return;
+
+    setText('');
+    const imageToSend = pendingImage;
+    setPendingImage(null);
+
+    const tempId = `temp_${Date.now()}`;
+    const optimistic: Message = {
+      id: tempId,
+      client_id: clientId,
+      business_id: businessId,
+      sender_id: profile.id,
+      body,
+      image_url: imageToSend ? imageToSend.uri : null,
+      created_at: new Date().toISOString(),
+      read_at: null,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+
+    try {
+      let imageUrl: string | undefined;
+      if (imageToSend) {
+        imageUrl = await uploadChatImage(imageToSend, profile.id);
+      }
       const message = await sendMessage({
         clientId,
         businessId,
         senderId: profile.id,
         body,
+        imageUrl,
       });
-      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      setMessages((prev) => {
+        const without = prev.filter((m) => m.id !== tempId);
+        return without.some((m) => m.id === message.id) ? without : [...without, message];
+      });
     } catch (err) {
       console.error('send message error', err);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setText(body);
-    } finally {
-      setSending(false);
+      if (imageToSend) setPendingImage(imageToSend);
     }
   }
 
@@ -169,6 +224,7 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
+      <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
       <ChatHeader
         name={business?.name ?? 'Negocio'}
         avatarUrl={business?.logo_url}
@@ -243,29 +299,70 @@ export default function ChatScreen() {
                         <Text style={styles.quoteValue}>{quote.time}</Text>
                       </View>
                     </View>
+                  ) : message.image_url ? (
+                    <Pressable
+                      style={[styles.imageBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+                      onPress={() => setViewingImage(message.image_url!)}
+                    >
+                      <Image source={{ uri: message.image_url }} style={styles.chatImage} resizeMode="cover" />
+                      {!!message.body && (
+                        <Text style={[styles.imageBubbleCaption, isMine ? styles.bubbleTextMine : styles.bubbleText]}>
+                          {message.body}
+                        </Text>
+                      )}
+                    </Pressable>
                   ) : (
                     <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
                       <Text style={isMine ? styles.bubbleTextMine : styles.bubbleText}>{message.body}</Text>
                     </View>
                   )}
-                  <Text style={[styles.messageTime, isMine ? styles.messageTimeMine : styles.messageTimeTheirs]}>
-                    {formatMessageTime(message.created_at)}
-                  </Text>
+                  <View style={[styles.messageTimeRow, isMine ? styles.messageTimeMine : styles.messageTimeTheirs]}>
+                    {message.id.startsWith('temp_') ? (
+                      <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+                    ) : (
+                      <Text style={styles.messageTime}>{formatMessageTime(message.created_at)}</Text>
+                    )}
+                  </View>
                 </View>
               );
             })
           )}
         </ScrollView>
 
+        {pendingImage && (
+          <View style={styles.pendingImageRow}>
+            <Image source={{ uri: pendingImage.uri }} style={styles.pendingImageThumb} resizeMode="cover" />
+            <Pressable style={styles.pendingImageRemove} onPress={() => setPendingImage(null)}>
+              <Ionicons name="close-circle" size={20} color={colors.danger} />
+            </Pressable>
+          </View>
+        )}
         <View style={styles.inputRow}>
+          <View style={{ position: 'relative' }}>
+            {showAttach && (
+              <View style={styles.attachBar}>
+                <Pressable style={styles.iconButton} onPress={handleCamera}>
+                  <Ionicons name="camera-outline" size={20} color={colors.textMuted} />
+                </Pressable>
+                <Pressable style={styles.iconButton} onPress={handleGallery}>
+                  <Ionicons name="images-outline" size={20} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            )}
+            <Pressable style={styles.iconButton} onPress={() => setShowAttach(v => !v)}>
+              <Ionicons name={showAttach ? 'close' : 'add'} size={24} color={showAttach ? colors.primary : colors.textMuted} />
+            </Pressable>
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Escribe un mensaje…"
             placeholderTextColor={colors.textMuted}
             value={text}
             onChangeText={setText}
+            multiline
+            blurOnSubmit={false}
           />
-          <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
+          <Pressable style={styles.sendButton} onPress={handleSend} disabled={!text.trim() && !pendingImage}>
             <Ionicons name="send" size={18} color="#fff" />
           </Pressable>
         </View>
@@ -375,11 +472,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
   },
+  messageTimeRow: {
+    marginTop: 2,
+    marginBottom: 4,
+    minHeight: 16,
+    justifyContent: 'center',
+  },
   messageTime: {
     fontSize: 11,
     color: colors.textMuted,
-    marginTop: 2,
-    marginBottom: 4,
   },
   messageTimeMine: {
     alignSelf: 'flex-end',
@@ -389,20 +490,28 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  iconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   input: {
     flex: 1,
-    height: 44,
+    minHeight: 44,
+    maxHeight: 120,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 16,
+    paddingVertical: 10,
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.surface,
@@ -414,6 +523,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  attachBar: {
+    position: 'absolute',
+    bottom: 38,
+    left: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingVertical: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 10,
+  },
+  pendingImageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pendingImageThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  pendingImageRemove: {
+    position: 'absolute',
+    top: 4,
+    left: 80,
+  },
+  imageBubble: {
+    maxWidth: '80%',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  chatImage: {
+    width: 200,
+    height: 200,
+  },
+  imageBubbleCaption: {
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   quoteCard: {
     maxWidth: '80%',

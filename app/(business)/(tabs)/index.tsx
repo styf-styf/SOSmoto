@@ -179,10 +179,11 @@ export default function BusinessHomeScreen() {
       ListHeaderComponent={
         <View>
           <View style={styles.headerWrap}>
-            <Text style={styles.title}>{business.name}</Text>
-            <Text style={styles.subtitle}>
-              {business.address}, {business.city}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title} numberOfLines={1}>{business.name}</Text>
+              <Text style={styles.titleSep}>|</Text>
+              <Text style={styles.subtitle} numberOfLines={1}>{business.city}{business.address ? `, ${business.address}` : ''}</Text>
+            </View>
             <Text style={styles.sectionTitle}>Historias</Text>
           </View>
           <View style={styles.storiesWrap}>
@@ -646,16 +647,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flexGrow: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
+    flexShrink: 1,
+  },
+  titleSep: {
+    fontSize: 16,
+    color: colors.border,
+    fontWeight: '300',
   },
   subtitle: {
     fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 20,
+    flexShrink: 1,
   },
   sectionTitle: {
     fontSize: 16,

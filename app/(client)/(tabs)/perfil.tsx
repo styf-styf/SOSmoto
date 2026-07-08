@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
@@ -26,6 +26,7 @@ export default function ClientPerfilScreen() {
   const [vehicleCount, setVehicleCount] = useState(0);
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const avatarUrl = avatarOverride ?? profile?.avatar_url ?? null;
   const postsWithImage = posts.filter((post) => post.image_url);
   const postsWithoutImage = posts.filter((post) => !post.image_url);
@@ -46,23 +47,28 @@ export default function ClientPerfilScreen() {
     }
   }
 
+  const load = useCallback(async () => {
+    if (!profile) return;
+    await Promise.all([
+      getFollowedBusinesses(profile.id).then(setFollowing).catch((err) => console.error('load followed businesses error', err)),
+      getMyClientPosts(profile.id).then(setPosts).catch((err) => console.error('load my posts error', err)),
+      getVehicles(profile.id).then((vehicles) => setVehicleCount(vehicles.length)).catch((err) => console.error('load vehicles error', err)),
+    ]);
+  }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
+
   useFocusEffect(
     useCallback(() => {
-      if (!profile) return;
-      getFollowedBusinesses(profile.id)
-        .then(setFollowing)
-        .catch((err) => console.error('load followed businesses error', err));
-      getMyClientPosts(profile.id)
-        .then(setPosts)
-        .catch((err) => console.error('load my posts error', err));
-      getVehicles(profile.id)
-        .then((vehicles) => setVehicleCount(vehicles.length))
-        .catch((err) => console.error('load vehicles error', err));
-    }, [profile])
+      load();
+    }, [load])
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.headerRow}>
         <Pressable style={styles.avatarWrap} onPress={handleChangeAvatar} disabled={uploadingAvatar}>
           <View style={styles.avatar}>

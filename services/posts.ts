@@ -56,7 +56,7 @@ export async function getMyClientPosts(clientId: string): Promise<Post[]> {
 
 const FEED_SELECT = `
   *,
-  author_business:businesses!posts_business_id_fkey(id, name, logo_url),
+  author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified),
   author_client:users!posts_client_id_fkey(id, full_name, avatar_url),
   tag_business:businesses!posts_tag_business_id_fkey(id, name),
   tag_service:services!posts_tag_service_id_fkey(id, name),
@@ -64,11 +64,22 @@ const FEED_SELECT = `
 `;
 
 export interface PostWithAuthor extends Post {
-  author_business: { id: string; name: string; logo_url: string | null } | null;
+  author_business: { id: string; name: string; logo_url: string | null; is_verified: boolean } | null;
   author_client: { id: string; full_name: string; avatar_url: string | null } | null;
   tag_business: { id: string; name: string } | null;
   tag_service: { id: string; name: string } | null;
   tag_product: { id: string; name: string } | null;
+}
+
+export async function getClientPublicPosts(clientId: string): Promise<PostWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(FEED_SELECT)
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []) as unknown as PostWithAuthor[];
 }
 
 export interface PublicFeedPageParams {

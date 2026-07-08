@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
@@ -38,6 +38,7 @@ export default function VerificacionScreen() {
   const [rucDoc, setRucDoc] = useState<DocState>(emptyDoc);
   const [storefrontPhoto, setStorefrontPhoto] = useState<DocState>(emptyDoc);
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -47,6 +48,11 @@ export default function VerificacionScreen() {
       setLatestRequest(await getLatestVerificationRequest(work.business.id));
     }
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -144,7 +150,7 @@ export default function VerificacionScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
         Sube tu cédula o RUC y una foto del local. Un admin revisará tu solicitud y, si todo está en orden, tu negocio
         recibirá la insignia de "verificado".

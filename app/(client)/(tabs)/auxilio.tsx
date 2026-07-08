@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import MapView from 'react-native-maps';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Button } from '../../../components/Button';
@@ -33,7 +33,7 @@ const statusLabel: Record<HelpRequest['status'], string> = {
 
 export default function AuxilioScreen() {
   const { profile } = useAuth();
-  const { coords, getCoords } = useLocation();
+  const { coords, getCoords, refresh: refreshLocation } = useLocation();
   const { activeRequest, setActiveRequest, completedRequest, clearCompletedRequest } =
     useActiveHelpRequestContext();
 
@@ -44,6 +44,16 @@ export default function AuxilioScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
   const [nearbyWorkshops, setNearbyWorkshops] = useState<Business[]>([]);
+
+  const mapRef = useRef<MapView>(null);
+  const isMounted = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      // Omitir el primer focus (el mount inicial ya carga la ubicación)
+      if (!isMounted.current) { isMounted.current = true; return; }
+      if (!activeRequest) refreshLocation();
+    }, [activeRequest, refreshLocation]),
+  );
 
   useEffect(() => {
     if (!coords) return;
@@ -65,6 +75,14 @@ export default function AuxilioScreen() {
       .catch((err) => console.error('load auxilio error', err))
       .finally(() => setLoading(false));
   }, [loadVehicles]);
+
+  function handleLocate() {
+    if (!coords || !mapRef.current) return;
+    mapRef.current.animateToRegion(
+      { latitude: coords.latitude, longitude: coords.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+      500,
+    );
+  }
 
   async function handleRequest() {
     if (!profile || !selectedVehicleId) {
@@ -147,27 +165,41 @@ export default function AuxilioScreen() {
   return (
     <View style={styles.screen}>
       {coords ? (
-        <MapView
-          style={styles.bigMap}
-          initialRegion={{
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
-        >
-          <MapNamedMarker coordinate={coords} label="Tú" color={colors.sos} />
-          {nearbyWorkshops.map((workshop) => (
+        <View style={styles.mapContainer}>
+          <MapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFill}
+            initialRegion={{
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+          >
             <MapNamedMarker
-              key={workshop.id}
-              coordinate={{ latitude: workshop.latitude, longitude: workshop.longitude }}
-              label={workshop.name}
-              color={colors.primary}
+              coordinate={coords}
+              label="Tú"
+              color={colors.sos}
+              avatarUrl={profile?.avatar_url}
+              fallbackIcon="person"
             />
-          ))}
-        </MapView>
+            {nearbyWorkshops.map((workshop) => (
+              <MapNamedMarker
+                key={workshop.id}
+                coordinate={{ latitude: workshop.latitude, longitude: workshop.longitude }}
+                label={workshop.name}
+                color={colors.primary}
+                avatarUrl={workshop.logo_url}
+                fallbackIcon="storefront"
+              />
+            ))}
+          </MapView>
+          <Pressable style={styles.locateBtn} onPress={handleLocate}>
+            <Ionicons name="locate" size={22} color={colors.primary} />
+          </Pressable>
+        </View>
       ) : (
-        <View style={[styles.bigMap, styles.center]}>
+        <View style={[styles.mapContainer, styles.center]}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.placeholder}>Obteniendo tu ubicación…</Text>
         </View>
@@ -221,6 +253,7 @@ export default function AuxilioScreen() {
 }
 
 function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCancel: () => void }) {
+  const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [notifiedCount, setNotifiedCount] = useState<number | null>(null);
   const [outOfRange, setOutOfRange] = useState(false);
@@ -306,12 +339,16 @@ function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCanc
             coordinate={{ latitude: request.latitude, longitude: request.longitude }}
             label="Tú"
             color={colors.sos}
+            avatarUrl={profile?.avatar_url}
+            fallbackIcon="person"
           />
           {businessCoords && (
             <MapNamedMarker
               coordinate={businessCoords}
               label={businessIsLive ? `${business?.name ?? 'Taller'} (en camino)` : business?.name ?? 'Taller'}
               color={colors.primary}
+              avatarUrl={business?.logo_url}
+              fallbackIcon="storefront"
             />
           )}
         </MapView>
@@ -413,9 +450,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  bigMap: {
+  mapContainer: {
     flex: 1,
     width: '100%',
+  },
+  locateBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   keyboardStickyWrap: {
     backgroundColor: colors.background,

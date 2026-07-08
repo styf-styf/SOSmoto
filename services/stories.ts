@@ -2,20 +2,24 @@ import { supabase } from './supabase';
 import type { Story, StoryActionType } from '../types/database';
 
 export async function getBusinessStories(businessId: string): Promise<Story[]> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
     .select('*')
     .eq('business_id', businessId)
+    .or(`is_pinned.eq.true,created_at.gt.${cutoff}`)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as Story[];
 }
 
 export async function getClientStories(clientId: string): Promise<Story[]> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
     .select('*')
     .eq('client_id', clientId)
+    .gt('created_at', cutoff)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as Story[];
@@ -114,7 +118,7 @@ export async function getVisibleClientStories(): Promise<ClientStoryWithAuthor[]
 }
 
 export interface BusinessStoryWithAuthor extends Story {
-  businesses: { id: string; name: string; logo_url: string | null } | null;
+  businesses: { id: string; name: string; logo_url: string | null; is_verified: boolean } | null;
 }
 
 // Historias activas de TODOS los negocios (no solo seguidos/cercanos) -- junto
@@ -124,7 +128,7 @@ export async function getVisibleBusinessStoriesGlobal(): Promise<BusinessStoryWi
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses(id, name, logo_url)')
+    .select('*, businesses(id, name, logo_url, is_verified)')
     .not('business_id', 'is', null)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });
@@ -139,6 +143,7 @@ export interface StoryFeedItem {
   avatarUrl: string | null;
   previewImageUrl: string;
   hasUnseen: boolean;
+  isVerified: boolean;
 }
 
 // Agrupa las historias de negocios y de clientes por autor (un ítem por
@@ -173,6 +178,7 @@ export function groupStoriesByAuthor(params: {
         avatarUrl: story.businesses.logo_url,
         previewImageUrl: story.image_url,
         hasUnseen: unseen,
+        isVerified: story.businesses.is_verified,
       });
     }
   }
@@ -193,6 +199,7 @@ export function groupStoriesByAuthor(params: {
         avatarUrl: story.users.avatar_url,
         previewImageUrl: story.image_url,
         hasUnseen: unseen,
+        isVerified: false,
       });
     }
   }
@@ -213,7 +220,7 @@ export async function getVisibleBusinessStoriesFollowed(clientId: string): Promi
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses(id, name, logo_url)')
+    .select('*, businesses(id, name, logo_url, is_verified)')
     .in('business_id', businessIds)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });

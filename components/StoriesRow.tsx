@@ -36,27 +36,37 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
           const { own: slot } = entry;
           return (
             <Pressable style={styles.card} onPress={slot.onPress}>
-              {slot.previewImageUrl ? (
-                <Image source={{ uri: slot.previewImageUrl }} style={styles.cardImage} resizeMode="cover" />
+              {slot.hasStory ? (
+                <>
+                  {slot.previewImageUrl ? (
+                    <Image source={{ uri: slot.previewImageUrl }} style={styles.cardImage} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
+                  )}
+                  <GradientShade height={60} />
+                  <View style={[styles.avatarBadge, styles.avatarBadgeSeen]}>
+                    {slot.avatarUrl ? (
+                      <Image source={{ uri: slot.avatarUrl }} style={styles.avatarImage} />
+                    ) : (
+                      <Ionicons name="person" size={14} color={colors.primary} />
+                    )}
+                  </View>
+                  <Text style={styles.cardName} numberOfLines={1}>Tu historia</Text>
+                </>
               ) : (
-                <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
+                <>
+                  {slot.avatarUrl ? (
+                    <Image source={{ uri: slot.avatarUrl }} style={styles.cardImage} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
+                  )}
+                  <View style={styles.cardOverlay} />
+                  <View style={styles.addCenter}>
+                    <Ionicons name="add" size={28} color="#fff" />
+                  </View>
+                  <Text style={[styles.cardName, styles.cardNameDark]} numberOfLines={1}>Añadir</Text>
+                </>
               )}
-              <GradientShade height={60} />
-              <View style={[styles.avatarBadge, styles.avatarBadgeSeen]}>
-                {slot.avatarUrl ? (
-                  <Image source={{ uri: slot.avatarUrl }} style={styles.avatarImage} />
-                ) : (
-                  <Ionicons name="person" size={14} color={colors.primary} />
-                )}
-              </View>
-              {!slot.hasStory && (
-                <View style={styles.addBadge}>
-                  <Ionicons name="add" size={14} color="#fff" />
-                </View>
-              )}
-              <Text style={styles.cardName} numberOfLines={1}>
-                {slot.hasStory ? 'Tu historia' : 'Añadir'}
-              </Text>
             </Pressable>
           );
         }
@@ -66,11 +76,18 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
           <Pressable style={styles.card} onPress={item.onPress}>
             <Image source={{ uri: item.previewImageUrl }} style={styles.cardImage} resizeMode="cover" />
             <GradientShade height={60} />
-            <View style={[styles.avatarBadge, item.hasUnseen ? styles.avatarBadgeUnseen : styles.avatarBadgeSeen]}>
-              {item.avatarUrl ? (
-                <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-              ) : (
-                <Ionicons name={item.kind === 'business' ? 'storefront' : 'person'} size={14} color={colors.primary} />
+            <View style={styles.avatarWrap}>
+              <View style={[styles.avatarBadge, item.hasUnseen ? styles.avatarBadgeUnseen : styles.avatarBadgeSeen]}>
+                {item.avatarUrl ? (
+                  <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name={item.kind === 'business' ? 'storefront' : 'person'} size={14} color={colors.primary} />
+                )}
+              </View>
+              {item.isVerified && (
+                <View style={styles.verifiedDot}>
+                  <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+                </View>
               )}
             </View>
             <Text style={styles.cardName} numberOfLines={1}>
@@ -110,10 +127,29 @@ const styles = StyleSheet.create({
   cardImagePlaceholder: {
     backgroundColor: colors.border,
   },
-  avatarBadge: {
+  cardOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  addCenter: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarWrap: {
     position: 'absolute',
     top: 8,
     left: 8,
+  },
+  avatarBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -122,6 +158,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surface,
     overflow: 'hidden',
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   avatarBadgeUnseen: {
     borderColor: colors.primary,
@@ -154,5 +197,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#fff',
+  },
+  cardNameDark: {
+    color: colors.text,
   },
 });

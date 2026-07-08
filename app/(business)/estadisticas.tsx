@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -18,6 +18,7 @@ export default function EstadisticasScreen() {
   const [planName, setPlanName] = useState('free');
   const [stats, setStats] = useState<BusinessDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -30,6 +31,11 @@ export default function EstadisticasScreen() {
     setPlanName(limits.planName);
     setStats(dashboardStats);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -59,7 +65,7 @@ export default function EstadisticasScreen() {
   const showAvanzado = planName === 'pro';
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.planBadge}>
         <Text style={styles.planBadgeText}>Dashboard {planLabel[planName] ?? planLabel.free}</Text>
       </View>

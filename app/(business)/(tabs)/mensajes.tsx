@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '../../../constants/colors';
@@ -23,6 +23,7 @@ export default function BusinessMensajesScreen() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -53,6 +54,11 @@ export default function BusinessMensajesScreen() {
     );
   }, [profile]);
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
+
   useEffect(() => {
     setLoading(true);
     load()
@@ -77,7 +83,7 @@ export default function BusinessMensajesScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {conversations.length === 0 ? (
         <Text style={styles.placeholder}>Tus chats con clientes aparecerán aquí.</Text>
       ) : (
@@ -104,12 +110,18 @@ export default function BusinessMensajesScreen() {
                 </Text>
               </View>
               <View style={styles.rowBottomLine}>
-                <Text
-                  style={[styles.rowMessage, row.unread && styles.rowMessageUnread]}
-                  numberOfLines={1}
-                >
-                  {row.lastMessage}
-                </Text>
+                {row.lastMessage === '[Imagen]' ? (
+                  <View style={styles.imagePreview}>
+                    <Ionicons name="image-outline" size={14} color={row.unread ? colors.text : colors.textMuted} />
+                    <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]}>
+                      Imagen
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]} numberOfLines={1}>
+                    {row.lastMessage}
+                  </Text>
+                )}
                 {row.unread && <View style={styles.unreadDot} />}
               </View>
             </View>
@@ -190,6 +202,12 @@ const styles = StyleSheet.create({
   rowTimeUnread: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  imagePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
   },
   rowMessage: {
     fontSize: 13,

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { GradientShade } from '../../../components/GradientShade';
 import { colors } from '../../../constants/colors';
 import { getBusinessById } from '../../../services/businesses';
@@ -36,6 +37,7 @@ export default function NegocioCatalogoScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -48,6 +50,11 @@ export default function NegocioCatalogoScreen() {
     setServices(servicesResult);
     setProducts(productsResult);
   }, [id]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -73,8 +80,28 @@ export default function NegocioCatalogoScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Stack.Screen options={{ title: business.name }} />
+
+      {/* Cabecera del negocio */}
+      <View style={styles.businessHeader}>
+        <View style={styles.businessLogoWrap}>
+          {business.logo_url ? (
+            <Image source={{ uri: business.logo_url }} style={styles.businessLogo} />
+          ) : (
+            <Ionicons name="storefront" size={28} color={colors.primary} />
+          )}
+        </View>
+        <View style={styles.businessInfo}>
+          <View style={styles.businessNameRow}>
+            <Text style={styles.businessName}>{business.name}</Text>
+            {business.is_verified && (
+              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+            )}
+          </View>
+          <Text style={styles.businessCity}>{business.city}</Text>
+        </View>
+      </View>
 
       <Section title="Servicios">
         {services.length === 0 ? (
@@ -151,6 +178,46 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 32,
     backgroundColor: colors.background,
+  },
+  businessHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  businessLogoWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  businessLogo: {
+    width: 48,
+    height: 48,
+  },
+  businessInfo: {
+    flex: 1,
+  },
+  businessNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  businessName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  businessCity: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   title: {
     fontSize: 20,

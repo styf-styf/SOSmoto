@@ -30,7 +30,7 @@ export default function InformeNegocioScreen() {
       await shareReportAsPdf(report);
     } catch (err) {
       console.error('share report error', err);
-      Alert.alert('Error', 'No se pudo generar el PDF del informe.');
+      Alert.alert('Error', 'No se pudo compartir el informe.');
     } finally {
       setSharing(false);
     }
@@ -47,33 +47,20 @@ export default function InformeNegocioScreen() {
   if (!report) return null;
 
   return (
-    <View style={styles.wrapper}>
-      <ServiceReportView report={report} />
-      <View style={styles.footer}>
+    <ServiceReportView
+      report={report}
+      footer={
         <Button
-          title={sharing ? 'Generando PDF…' : 'Compartir informe'}
+          title={sharing ? 'Compartiendo…' : 'Compartir PDF del informe'}
           onPress={handleShare}
           loading={sharing}
           variant="secondary"
         />
-      </View>
-    </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  footer: {
-    padding: 20,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 });

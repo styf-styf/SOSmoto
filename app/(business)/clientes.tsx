@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, Image, Pressable, ScrollView,
+  ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +32,7 @@ export default function ClientesScreen() {
   const [clients, setClients] = useState<CRMClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -40,6 +41,11 @@ export default function ClientesScreen() {
     const result = await getCRMClients(work.business.id);
     setClients(result);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -101,7 +107,7 @@ export default function ClientesScreen() {
           <Text style={styles.emptyHint}>Sin resultados para "{search}".</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.grid} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.grid} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
           <Text style={styles.countLabel}>
             {filtered.length} {filtered.length === 1 ? 'cliente' : 'clientes'}
           </Text>

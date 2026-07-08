@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -56,6 +56,7 @@ export default function AgendaNegocioScreen() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (id: string) => {
     const result = await getBusinessAppointments(id);
@@ -81,6 +82,12 @@ export default function AgendaNegocioScreen() {
     setReviewedAppointmentIds(appointmentIds);
     setReportIdsByAppointment(reportMap);
   }, [profile]);
+
+  async function handleRefresh() {
+    if (!businessId) return;
+    setRefreshing(true);
+    try { await load(businessId); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     if (!profile) return;
@@ -269,7 +276,7 @@ export default function AgendaNegocioScreen() {
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.topBtns}>
         <Pressable style={[styles.newCitaBtn, { flex: 1 }]} onPress={() => router.push('/(business)/nueva-cita')}>
           <Ionicons name="add-circle-outline" size={20} color="#fff" />

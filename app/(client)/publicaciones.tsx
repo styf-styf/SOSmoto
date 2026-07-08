@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
@@ -26,6 +26,7 @@ export default function ClientPublicacionesScreen() {
   const [tagResults, setTagResults] = useState<BusinessWithDistance[]>([]);
   const [searching, setSearching] = useState(false);
   const [taggedBusiness, setTaggedBusiness] = useState<BusinessWithDistance | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -33,6 +34,11 @@ export default function ClientPublicacionesScreen() {
     const myPosts = await getMyClientPosts(profile.id);
     setPosts(myPosts);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -133,7 +139,7 @@ export default function ClientPublicacionesScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>Foto y texto permanentes, visibles para toda la comunidad.</Text>
 
       {profile?.is_limited && (

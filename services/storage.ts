@@ -22,6 +22,21 @@ export async function pickImageFromLibrary(): Promise<ImagePicker.ImagePickerAss
   return result.assets[0];
 }
 
+export async function pickImageFromCamera(): Promise<ImagePicker.ImagePickerAsset | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    throw new Error('Necesitamos permiso para usar la cámara.');
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    quality: 1,
+  });
+  if (result.canceled || result.assets.length === 0) return null;
+  return result.assets[0];
+}
+
 // Redimensiona (solo si excede el ancho máximo, nunca agranda) y comprime a
 // JPEG antes de subir — reduce tamaño de archivo y consumo de bandwidth.
 async function optimizeImage(asset: ImagePicker.ImagePickerAsset): Promise<string> {
@@ -115,6 +130,27 @@ export async function pickAndUploadUserAvatar(userId: string): Promise<string | 
   const asset = await pickImageFromLibrary();
   if (!asset) return null;
   return uploadUserAvatar(asset, userId);
+}
+
+export async function uploadChatImage(asset: ImagePicker.ImagePickerAsset, senderId: string): Promise<string> {
+  const optimizedUri = await optimizeImage(asset);
+  const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
+  const path = `chat-images/${senderId}/${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage.from(BUCKET).upload(path, arrayBuffer, {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function pickAndUploadChatImage(senderId: string): Promise<string | null> {
+  const asset = await pickImageFromLibrary();
+  if (!asset) return null;
+  return uploadChatImage(asset, senderId);
 }
 
 // Bucket privado (kyc-documents, no kyc-images): documentos de identidad, no

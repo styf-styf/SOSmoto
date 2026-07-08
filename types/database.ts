@@ -367,6 +367,7 @@ export interface Message {
   business_id: string;
   sender_id: string;
   body: string;
+  image_url: string | null;
   created_at: string;
   read_at: string | null;
 }

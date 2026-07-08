@@ -266,7 +266,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         <View style={styles.profileActionsRow}>
           {showFollow && (
             <ProfileActionButton
-              icon={following ? 'checkmark-circle' : 'person-add-outline'}
+              icon={following ? 'people' : 'person-add-outline'}
               label={following ? 'Siguiendo' : 'Seguir'}
               onPress={toggleFollow}
               loading={followLoading}

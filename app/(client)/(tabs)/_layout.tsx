@@ -34,15 +34,12 @@ export default function ClientTabsLayout() {
         }}
       />
       <Tabs
+        {...({ sceneContainerStyle: { backgroundColor: colors.background, paddingTop: insets.top } } as object)}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarHideOnKeyboard: true,
-          sceneContainerStyle: {
-            backgroundColor: colors.background,
-            paddingTop: insets.top,
-          },
         }}
       >
       <Tabs.Screen

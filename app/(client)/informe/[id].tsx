@@ -18,19 +18,6 @@ export default function InformeClienteScreen() {
   const [confirming, setConfirming] = useState(false);
   const [sharing, setSharing] = useState(false);
 
-  async function handleShare() {
-    if (!report) return;
-    setSharing(true);
-    try {
-      await shareReportAsPdf(report);
-    } catch (err) {
-      console.error('share report error', err);
-      Alert.alert('Error', 'No se pudo generar el PDF del informe.');
-    } finally {
-      setSharing(false);
-    }
-  }
-
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -54,6 +41,19 @@ export default function InformeClienteScreen() {
     }
   }
 
+  async function handleShare() {
+    if (!report) return;
+    setSharing(true);
+    try {
+      await shareReportAsPdf(report);
+    } catch (err) {
+      console.error('share report error', err);
+      Alert.alert('Error', 'No se pudo compartir el informe.');
+    } finally {
+      setSharing(false);
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -65,32 +65,25 @@ export default function InformeClienteScreen() {
   if (!report) return null;
 
   return (
-    <View style={styles.wrapper}>
-      <ServiceReportView report={report} />
-      <View style={styles.footer}>
-        {report.client_id && !report.client_confirmed_at && (
-          <Button title="Confirmar recibido" onPress={handleConfirm} loading={confirming} />
-        )}
-        <Button
-          title={sharing ? 'Generando PDF…' : 'Compartir informe'}
-          onPress={handleShare}
-          loading={sharing}
-          variant="secondary"
-        />
-      </View>
-    </View>
+    <ServiceReportView
+      report={report}
+      footer={
+        <>
+          {report.client_id && !report.client_confirmed_at && (
+            <Button title="Confirmar recibido" onPress={handleConfirm} loading={confirming} />
+          )}
+          <Button
+            title={sharing ? 'Compartiendo…' : 'Compartir PDF del informe'}
+            onPress={handleShare}
+            loading={sharing}
+            variant="secondary"
+          />
+        </>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  footer: {
-    gap: 10,
-    padding: 20,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
 });

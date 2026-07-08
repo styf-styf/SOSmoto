@@ -20,6 +20,7 @@ export interface SendMessageParams {
   businessId: string;
   senderId: string;
   body: string;
+  imageUrl?: string;
 }
 
 export async function sendMessage(params: SendMessageParams): Promise<Message> {
@@ -30,6 +31,7 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
       business_id: params.businessId,
       sender_id: params.senderId,
       body: params.body,
+      image_url: params.imageUrl ?? null,
     })
     .select()
     .single();
@@ -141,7 +143,7 @@ export interface ConversationSummary {
 export async function getClientConversations(clientId: string): Promise<ConversationSummary[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('business_id, body, created_at, sender_id, read_at')
+    .select('business_id, body, image_url, created_at, sender_id, read_at')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -149,7 +151,7 @@ export async function getClientConversations(clientId: string): Promise<Conversa
   return dedupeByOtherId(
     (data ?? []).map((row) => ({
       otherId: row.business_id,
-      body: row.body,
+      body: row.body || (row.image_url ? '[Imagen]' : ''),
       created_at: row.created_at,
       sender_id: row.sender_id,
       read_at: row.read_at,
@@ -160,7 +162,7 @@ export async function getClientConversations(clientId: string): Promise<Conversa
 export async function getBusinessConversations(businessId: string): Promise<ConversationSummary[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('client_id, body, created_at, sender_id, read_at')
+    .select('client_id, body, image_url, created_at, sender_id, read_at')
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -168,7 +170,7 @@ export async function getBusinessConversations(businessId: string): Promise<Conv
   return dedupeByOtherId(
     (data ?? []).map((row) => ({
       otherId: row.client_id,
-      body: row.body,
+      body: row.body || (row.image_url ? '[Imagen]' : ''),
       created_at: row.created_at,
       sender_id: row.sender_id,
       read_at: row.read_at,

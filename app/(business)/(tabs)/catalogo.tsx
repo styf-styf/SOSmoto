@@ -6,6 +6,7 @@ import {
   Image,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -70,6 +71,7 @@ export default function CatalogoScreen() {
   const [limits, setLimits] = useState<PlanLimits | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
@@ -88,6 +90,11 @@ export default function CatalogoScreen() {
     setProducts(productList);
     setLimits(planLimits);
   }, [profile]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -214,7 +221,7 @@ export default function CatalogoScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
         {business.is_limited && (
           <Text style={styles.limitedNotice}>
             Tu negocio está limitado: no puedes crear, editar ni eliminar servicios o productos.
