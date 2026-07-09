@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
+import { QuantityStepper } from '../../../components/QuantityStepper';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getProductById, incrementProductViews } from '../../../services/catalog';
@@ -21,6 +22,7 @@ export default function ProductDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [intent, setIntent] = useState<ProductIntent | null>(null);
   const [apartando, setApartando] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -55,14 +57,16 @@ export default function ProductDetailScreen() {
       if (intent) {
         await cancelProductIntent(intent.id);
         setIntent(null);
+        setQuantity(1);
       } else {
-        const newIntent = await createProductIntent(profile.id, product.id, product.business_id);
+        const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity);
         setIntent(newIntent);
+        const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
         router.push({
           pathname: '/(client)/chat/[id]',
           params: {
             id: product.business_id,
-            prefill: `Hola, quiero apartar: ${product.name}${product.reference_price != null ? ` ($${product.reference_price.toFixed(2)})` : ''}`,
+            prefill: `Hola, quiero apartar: ${qtyPrefix}${product.name}${product.reference_price != null ? ` ($${(product.reference_price * quantity).toFixed(2)})` : ''}`,
             autoSend: 'true',
           },
         });
@@ -122,6 +126,12 @@ export default function ProductDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
+        {product.stock > 0 && profile?.role === 'client' && !intent && (
+          <View style={styles.quantityRow}>
+            <Text style={styles.quantityLabel}>Cantidad</Text>
+            <QuantityStepper value={quantity} onChange={setQuantity} max={product.stock} />
+          </View>
+        )}
         {product.stock > 0 && profile?.role === 'client' && intent?.status !== 'confirmed' && (
           <Button
             title={intent ? 'Cancelar apartado' : 'Apartar producto'}
@@ -132,12 +142,12 @@ export default function ProductDetailScreen() {
         )}
         {intent?.status === 'pending' && (
           <Text style={styles.intentBadge}>
-            Apartado — en espera de confirmación del negocio
+            Apartado ({intent.quantity}) — en espera de confirmación del negocio
           </Text>
         )}
         {intent?.status === 'confirmed' && (
           <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
-            ✓ Apartado confirmado por el negocio
+            ✓ Apartado ({intent.quantity}) confirmado por el negocio
           </Text>
         )}
         <Button
@@ -233,6 +243,16 @@ const styles = StyleSheet.create({
   buttonGroup: {
     marginTop: 32,
     gap: 10,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quantityLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
   button: {},
   buttonCancel: {

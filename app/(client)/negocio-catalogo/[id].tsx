@@ -103,13 +103,15 @@ export default function NegocioCatalogoScreen() {
         </View>
       </View>
 
-      <Section title="Servicios">
-        {services.length === 0 ? (
-          <Text style={styles.placeholder}>Este negocio aún no publicó servicios.</Text>
-        ) : (
-          <CatalogGrid items={services} hrefBase="/(client)/servicio" />
-        )}
-      </Section>
+      {business.business_type === 'workshop' && (
+        <Section title="Servicios">
+          {services.length === 0 ? (
+            <Text style={styles.placeholder}>Este negocio aún no publicó servicios.</Text>
+          ) : (
+            <CatalogGrid items={services} hrefBase="/(client)/servicio" />
+          )}
+        </Section>
+      )}
 
       <Section title="Productos">
         {products.length === 0 ? (

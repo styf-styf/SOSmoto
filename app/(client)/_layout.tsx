@@ -35,6 +35,7 @@ export default function ClientLayout() {
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="vehiculos" options={{ title: 'Vehículos' }} />
         <Stack.Screen name="historial" options={{ title: 'Historial' }} />
+        <Stack.Screen name="mis-compras" options={{ title: 'Mis compras' }} />
         <Stack.Screen name="servicio/[id]" options={{ title: 'Servicio' }} />
         <Stack.Screen name="producto/[id]" options={{ title: 'Producto' }} />
         <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />

@@ -116,7 +116,10 @@ export default function BusinessConfiguracionScreen() {
           last={business.business_type !== 'workshop'}
         />
         {business.business_type === 'workshop' && (
-          <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} last />
+          <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} />
+        )}
+        {business.business_type === 'workshop' && (
+          <MenuRow icon="bag-handle-outline" label="Mis compras" onPress={() => router.push('/(business)/mis-compras')} last />
         )}
       </View>
 

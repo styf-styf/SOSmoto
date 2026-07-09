@@ -1,12 +1,13 @@
 import { supabase } from './supabase';
 import { notifyUser } from './notifications';
-import type { Appointment, Business, HelpRequest, MaintenanceSuggestion, Review, Vehicle } from '../types/database';
+import type { Appointment, Business, HelpRequest, MaintenanceSuggestion, ProductIntent, Review, Vehicle } from '../types/database';
 
 export interface CreateReviewParams {
   reviewerId: string;
   businessId: string;
   helpRequestId?: string;
   appointmentId?: string;
+  productIntentId?: string;
   rating: number;
   comment?: string;
 }
@@ -19,6 +20,7 @@ export async function createReview(params: CreateReviewParams): Promise<Review> 
       reviewed_business_id: params.businessId,
       help_request_id: params.helpRequestId ?? null,
       appointment_id: params.appointmentId ?? null,
+      product_intent_id: params.productIntentId ?? null,
       rating: params.rating,
       comment: params.comment ?? null,
     })
@@ -107,7 +109,7 @@ export async function getBusinessReviews(businessId: string): Promise<Review[]> 
 
 export interface ServiceHistoryItem {
   id: string;
-  kind: 'help_request' | 'appointment' | 'maintenance' | 'report';
+  kind: 'help_request' | 'appointment' | 'maintenance' | 'report' | 'product_purchase';
   title: string;
   status: string;
   createdAt: string;
@@ -116,6 +118,7 @@ export interface ServiceHistoryItem {
   review: Review | null;
   helpRequestId?: string;
   appointmentId?: string;
+  productIntentId?: string;
 }
 
 type StandaloneReport = {
@@ -127,7 +130,7 @@ type StandaloneReport = {
 };
 
 export async function getServiceHistory(clientId: string): Promise<ServiceHistoryItem[]> {
-  const [helpRequestsResult, appointmentsResult, vehiclesResult, standaloneReportsResult] = await Promise.all([
+  const [helpRequestsResult, appointmentsResult, vehiclesResult, standaloneReportsResult, productIntentsResult] = await Promise.all([
     supabase
       .from('help_requests')
       .select('*')
@@ -147,12 +150,22 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
       .eq('status', 'sent')
       .is('appointment_id', null)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('product_intents')
+      .select('*, products(name)')
+      .eq('client_id', clientId)
+      .eq('status', 'sold')
+      .order('updated_at', { ascending: false }),
   ]);
   if (helpRequestsResult.error) throw helpRequestsResult.error;
   if (appointmentsResult.error) throw appointmentsResult.error;
   if (vehiclesResult.error) throw vehiclesResult.error;
   if (standaloneReportsResult.error) throw standaloneReportsResult.error;
+  if (productIntentsResult.error) throw productIntentsResult.error;
   const standaloneReports = ((standaloneReportsResult.data ?? []) as StandaloneReport[]);
+  const productIntentRows = ((productIntentsResult.data ?? []) as unknown as (ProductIntent & {
+    products: { name: string } | null;
+  })[]);
 
   const vehicles = (vehiclesResult.data ?? []) as Pick<Vehicle, 'id' | 'brand' | 'model'>[];
   const vehicleIds = vehicles.map((v) => v.id);
@@ -184,12 +197,14 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
       ...helpRequests.map((r) => r.accepted_business_id).filter((id): id is string => !!id),
       ...appointmentRows.map((a) => a.business_id),
       ...standaloneReports.map((r) => r.business_id),
+      ...productIntentRows.map((r) => r.business_id),
     ])
   );
   const helpRequestIds = helpRequests.map((r) => r.id);
   const appointmentIds = appointmentRows.map((a) => a.id);
+  const productIntentIds = productIntentRows.map((r) => r.id);
 
-  const [businessesResult, hrReviewsResult, apptReviewsResult] = await Promise.all([
+  const [businessesResult, hrReviewsResult, apptReviewsResult, intentReviewsResult] = await Promise.all([
     businessIds.length
       ? supabase.from('businesses').select('*').in('id', businessIds)
       : Promise.resolve({ data: [] as Business[], error: null }),
@@ -199,10 +214,14 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
     appointmentIds.length
       ? supabase.from('reviews').select('*').in('appointment_id', appointmentIds)
       : Promise.resolve({ data: [] as Review[], error: null }),
+    productIntentIds.length
+      ? supabase.from('reviews').select('*').in('product_intent_id', productIntentIds)
+      : Promise.resolve({ data: [] as Review[], error: null }),
   ]);
   if (businessesResult.error) throw businessesResult.error;
   if (hrReviewsResult.error) throw hrReviewsResult.error;
   if (apptReviewsResult.error) throw apptReviewsResult.error;
+  if (intentReviewsResult.error) throw intentReviewsResult.error;
 
   const businessById = new Map(((businessesResult.data ?? []) as Business[]).map((b) => [b.id, b]));
   const reviewByHelpRequestId = new Map(
@@ -214,6 +233,11 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
     ((apptReviewsResult.data ?? []) as Review[])
       .filter((r) => r.appointment_id)
       .map((r) => [r.appointment_id as string, r])
+  );
+  const reviewByProductIntentId = new Map(
+    ((intentReviewsResult.data ?? []) as Review[])
+      .filter((r) => r.product_intent_id)
+      .map((r) => [r.product_intent_id as string, r])
   );
 
   const helpRequestItems: ServiceHistoryItem[] = helpRequests.map((hr) => {
@@ -281,7 +305,24 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
     };
   });
 
-  return [...helpRequestItems, ...appointmentItems, ...maintenanceItems, ...reportItems].sort(
+  const productPurchaseItems: ServiceHistoryItem[] = productIntentRows.map((intent) => {
+    const business = businessById.get(intent.business_id) ?? null;
+    return {
+      id: intent.id,
+      kind: 'product_purchase',
+      title: business?.name ?? 'Tienda',
+      status: 'completed',
+      createdAt: intent.updated_at,
+      description: intent.products?.name
+        ? `${intent.quantity > 1 ? `${intent.quantity} × ` : ''}${intent.products.name}`
+        : null,
+      business,
+      review: reviewByProductIntentId.get(intent.id) ?? null,
+      productIntentId: intent.id,
+    };
+  });
+
+  return [...helpRequestItems, ...appointmentItems, ...maintenanceItems, ...reportItems, ...productPurchaseItems].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }

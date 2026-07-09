@@ -14,7 +14,6 @@ import { supabase } from '../../../services/supabase';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
 import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
-import { addStockMovement } from '../../../services/inventory';
 import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
 import { acceptAppointmentRequest, getActiveAppointmentRequest, rejectAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
 import { scheduleAppointmentReminder } from '../../../services/appointmentReminders';
@@ -43,7 +42,8 @@ function defaultApproveDate(suggestedAt?: string | null): Date {
 }
 
 export default function ChatScreen() {
-  const { id, initialMessage } = useLocalSearchParams<{ id: string; initialMessage?: string }>();
+  const { id, initialMessage, sellerBusinessId } = useLocalSearchParams<{ id: string; initialMessage?: string; sellerBusinessId?: string }>();
+  const isBuyerMode = !!sellerBusinessId;
   const { profile } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -81,10 +81,16 @@ export default function ChatScreen() {
     if (profile.role === 'client') {
       return { clientId: profile.id, businessId: id, isLimited: false };
     }
+    if (sellerBusinessId) {
+      // Estoy comprando como negocio (ej. taller apartando un producto de
+      // otra tienda) -- yo soy el lado "cliente" de este hilo específico,
+      // no el dueño del negocio destino.
+      return { clientId: profile.id, businessId: sellerBusinessId, isLimited: false };
+    }
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return null;
     return { clientId: id, businessId: work.business.id, isLimited: work.business.is_limited };
-  }, [profile, id]);
+  }, [profile, id, sellerBusinessId]);
 
   useEffect(() => {
     setLoading(true);
@@ -94,6 +100,30 @@ export default function ChatScreen() {
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
         setIsLimited(thread.isLimited);
+
+        if (isBuyerMode) {
+          // Estoy comprando como negocio: no hay acciones de vendedor (confirmar
+          // apartado, aprobar cita) que mostrar en este hilo, y el "otro lado"
+          // es directamente el negocio destino, no un cliente mío.
+          const [history] = await Promise.all([
+            getMessages(thread.clientId, thread.businessId),
+            supabase
+              .from('businesses')
+              .select('name, logo_url')
+              .eq('id', thread.businessId)
+              .maybeSingle()
+              .then(
+                ({ data }: { data: { name: string; logo_url: string | null } | null }) => { if (data) setOtherBusiness(data); },
+                () => {}
+              ),
+          ]);
+          setMessages(history);
+          if (profile) {
+            await markThreadRead(thread.clientId, thread.businessId, profile.id);
+          }
+          return;
+        }
+
         const [history, , , , activeRequest] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
@@ -138,9 +168,9 @@ export default function ChatScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, businessId, messages.length]);
 
-  // Suscripción a cambios en la solicitud de cita
+  // Suscripción a cambios en la solicitud de cita (no aplica cuando compro como negocio)
   useEffect(() => {
-    if (!clientId || !businessId) return;
+    if (!clientId || !businessId || isBuyerMode) return;
     const unsubscribe = subscribeToAppointmentRequest(clientId, businessId, 'business', (req) => {
       if (req.status === 'pending') {
         setAppointmentRequest(req);
@@ -187,21 +217,10 @@ export default function ChatScreen() {
     return sub.remove;
   }, []);
 
-  async function handleIntentAction(intentId: string, status: 'confirmed' | 'unavailable' | 'cancelled') {
+  async function handleIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
     setProcessingIntent(intentId);
     try {
       await updateIntentStatus(intentId, status);
-      if (status === 'confirmed' && businessId) {
-        const intent = intents.find((i) => i.id === intentId);
-        if (intent) {
-          addStockMovement({
-            businessId,
-            productId: intent.product_id,
-            delta: -1,
-            reason: 'sale',
-          }).catch((err) => console.warn('stock movement on sale error', err));
-        }
-      }
       setIntents((prev) => prev.filter((i) => i.id !== intentId));
     } catch (err) {
       console.error('update intent error', err);
@@ -463,38 +482,32 @@ export default function ChatScreen() {
                 <View style={styles.intentInfo}>
                   <Ionicons name="cube-outline" size={16} color={colors.primary} />
                   <Text style={styles.intentText} numberOfLines={1}>
-                    Quiere apartar: <Text style={styles.intentName}>{intent.product_name}</Text>
-                    {intent.product_price != null ? ` · $${intent.product_price.toFixed(2)}` : ''}
+                    Quiere apartar:{' '}
+                    <Text style={styles.intentName}>
+                      {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                    </Text>
+                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
                   </Text>
                 </View>
-                <View style={styles.intentActionsCol}>
+                <View style={styles.intentActions}>
                   <Pressable
-                    style={[styles.intentBtn, styles.intentBtnConfirm, { flex: undefined }]}
+                    style={[styles.intentBtn, styles.intentBtnConfirm]}
                     onPress={() => handleIntentAction(intent.id, 'confirmed')}
                     disabled={processingIntent === intent.id}
                   >
                     {processingIntent === intent.id ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.intentBtnText}>Confirmar venta</Text>
+                      <Text style={styles.intentBtnText}>Confirmar apartado</Text>
                     )}
                   </Pressable>
-                  <View style={styles.intentActions}>
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnReject]}
-                      onPress={() => handleIntentAction(intent.id, 'unavailable')}
-                      disabled={processingIntent === intent.id}
-                    >
-                      <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnReject]}
-                      onPress={() => handleIntentAction(intent.id, 'cancelled')}
-                      disabled={processingIntent === intent.id}
-                    >
-                      <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>Cancelar venta</Text>
-                    </Pressable>
-                  </View>
+                  <Pressable
+                    style={[styles.intentBtn, styles.intentBtnReject]}
+                    onPress={() => handleIntentAction(intent.id, 'unavailable')}
+                    disabled={processingIntent === intent.id}
+                  >
+                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
+                  </Pressable>
                 </View>
               </View>
             ))}
@@ -1199,9 +1212,6 @@ const styles = StyleSheet.create({
   intentActions: {
     flexDirection: 'row',
     gap: 8,
-  },
-  intentActionsCol: {
-    gap: 6,
   },
   intentBtn: {
     flex: 1,

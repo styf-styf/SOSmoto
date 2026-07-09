@@ -9,7 +9,7 @@ import { useFocusEffect } from 'expo-router';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
-import { getCRMClients, type CRMClient } from '../../services/history';
+import { getCRMClients, getCRMClientsForStore, type CRMClient } from '../../services/history';
 
 const PADDING = 16;
 const GAP = 10;
@@ -33,12 +33,17 @@ export default function ClientesScreen() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [isStore, setIsStore] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
-    const result = await getCRMClients(work.business.id);
+    const storeType = work.business.business_type === 'store';
+    setIsStore(storeType);
+    const result = storeType
+      ? await getCRMClientsForStore(work.business.id)
+      : await getCRMClients(work.business.id);
     setClients(result);
   }, [profile]);
 
@@ -167,7 +172,9 @@ export default function ClientesScreen() {
                       <View style={styles.visitBadge}>
                         <Text style={styles.visitCount}>{client.total_visits}</Text>
                         <Text style={styles.visitLabel}>
-                          {client.total_visits === 1 ? 'visita' : 'visitas'}
+                          {isStore
+                            ? (client.total_visits === 1 ? 'compra' : 'compras')
+                            : (client.total_visits === 1 ? 'visita' : 'visitas')}
                         </Text>
                       </View>
                       <Text style={styles.lastVisit} numberOfLines={1}>

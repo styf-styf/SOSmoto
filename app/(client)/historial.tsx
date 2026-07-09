@@ -18,13 +18,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { createReview, getServiceHistory, type ServiceHistoryItem } from '../../services/reviews';
 import { getClientReportIdsByAppointments } from '../../services/serviceReports';
 
-type FilterKey = 'all' | 'appointment' | 'help_request' | 'report';
+type FilterKey = 'all' | 'appointment' | 'help_request' | 'report' | 'product_purchase';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'Todos' },
   { key: 'appointment', label: 'Citas' },
   { key: 'help_request', label: 'Auxilios' },
   { key: 'report', label: 'Informes' },
+  { key: 'product_purchase', label: 'Compras' },
 ];
 
 const statusLabel: Record<string, string> = {
@@ -39,6 +40,7 @@ const kindLabel: Record<ServiceHistoryItem['kind'], string> = {
   appointment: 'Cita',
   maintenance: 'Mantenimiento',
   report: 'Informe',
+  product_purchase: 'Compra',
 };
 
 function matchesFilter(
@@ -165,6 +167,7 @@ function HistoryCard({
         businessId: item.business.id,
         helpRequestId: item.helpRequestId,
         appointmentId: item.appointmentId,
+        productIntentId: item.productIntentId,
         rating,
         comment: comment.trim() || undefined,
       });

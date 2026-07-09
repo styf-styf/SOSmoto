@@ -542,6 +542,7 @@ export interface Database {
           reviewed_client_id: string | null;
           help_request_id: string | null;
           appointment_id: string | null;
+          product_intent_id: string | null;
           rating: number;
           comment: string | null;
           is_public: boolean;
@@ -554,6 +555,7 @@ export interface Database {
           reviewed_client_id?: string | null;
           help_request_id?: string | null;
           appointment_id?: string | null;
+          product_intent_id?: string | null;
           rating: number;
           comment?: string | null;
           is_public?: boolean;
@@ -566,6 +568,7 @@ export interface Database {
           reviewed_client_id?: string | null;
           help_request_id?: string | null;
           appointment_id?: string | null;
+          product_intent_id?: string | null;
           rating?: number;
           comment?: string | null;
           is_public?: boolean;
@@ -972,7 +975,8 @@ export interface Database {
           client_id: string;
           product_id: string;
           business_id: string;
-          status: 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+          status: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
+          quantity: number;
           created_at: string;
           updated_at: string;
         };
@@ -981,7 +985,8 @@ export interface Database {
           client_id: string;
           product_id: string;
           business_id: string;
-          status?: 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+          status?: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
+          quantity?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -990,7 +995,8 @@ export interface Database {
           client_id?: string;
           product_id?: string;
           business_id?: string;
-          status?: 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+          status?: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
+          quantity?: number;
           created_at?: string;
           updated_at?: string;
         };

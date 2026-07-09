@@ -118,9 +118,9 @@ export default function ClientPerfilScreen() {
           <Ionicons name="calendar-outline" size={20} color={colors.text} />
           <Text style={styles.actionBtnLabel}>Mis citas</Text>
         </Pressable>
-        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/historial')}>
-          <Ionicons name="time-outline" size={20} color={colors.text} />
-          <Text style={styles.actionBtnLabel}>Historial</Text>
+        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/mis-compras')}>
+          <Ionicons name="bag-handle-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnLabel}>Mis compras</Text>
         </Pressable>
         <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/publicaciones')}>
           <Ionicons name="grid-outline" size={20} color={colors.text} />

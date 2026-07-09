@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { notifyUser } from './notifications';
-import type { ProductIntent, ProductIntentWithProduct, ProductIntentStatus } from '../types/database';
+import { addStockMovement } from './inventory';
+import type { ProductIntent, ProductIntentWithProduct, ProductIntentWithDetails, ProductIntentStatus, Review } from '../types/database';
 
 export async function getClientIntentForProduct(
   clientId: string,
@@ -22,11 +23,12 @@ export async function getClientIntentForProduct(
 export async function createProductIntent(
   clientId: string,
   productId: string,
-  businessId: string
+  businessId: string,
+  quantity: number = 1
 ): Promise<ProductIntent> {
   const { data, error } = await supabase
     .from('product_intents')
-    .insert({ client_id: clientId, product_id: productId, business_id: businessId })
+    .insert({ client_id: clientId, product_id: productId, business_id: businessId, quantity })
     .select()
     .single();
   if (error) throw error;
@@ -42,10 +44,11 @@ export async function createProductIntent(
     .eq('id', productId)
     .maybeSingle();
   if (business?.owner_id && product?.name) {
+    const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
     await notifyUser(
       business.owner_id,
       'Producto apartado',
-      `Un cliente quiere apartar: ${product.name}`,
+      `Un cliente quiere apartar: ${qtyPrefix}${product.name}`,
       { type: 'product_intent', productId, businessId }
     );
   }
@@ -56,7 +59,7 @@ export async function createProductIntent(
 export async function cancelProductIntent(intentId: string): Promise<void> {
   const { error } = await supabase
     .from('product_intents')
-    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .update({ status: 'cancelled_by_client', updated_at: new Date().toISOString() })
     .eq('id', intentId);
   if (error) throw error;
 }
@@ -67,7 +70,7 @@ export async function updateIntentStatus(
 ): Promise<void> {
   const { data: intent, error: fetchError } = await supabase
     .from('product_intents')
-    .select('client_id, product_id, business_id')
+    .select('client_id, product_id, business_id, quantity')
     .eq('id', intentId)
     .maybeSingle();
   if (fetchError) throw fetchError;
@@ -78,7 +81,16 @@ export async function updateIntentStatus(
     .eq('id', intentId);
   if (error) throw error;
 
-  if (intent && (status === 'confirmed' || status === 'unavailable' || status === 'cancelled')) {
+  if (intent && status === 'sold') {
+    await addStockMovement({
+      businessId: intent.business_id,
+      productId: intent.product_id,
+      delta: -intent.quantity,
+      reason: 'sale',
+    }).catch((err) => console.warn('stock movement on sale error', err));
+  }
+
+  if (intent && (status === 'confirmed' || status === 'sold' || status === 'unavailable' || status === 'cancelled_no_show')) {
     const { data: product } = await supabase
       .from('products')
       .select('name')
@@ -87,15 +99,27 @@ export async function updateIntentStatus(
     const productName = product?.name ?? 'tu producto';
     const title =
       status === 'confirmed' ? 'Apartado confirmado' :
+      status === 'sold' ? '¡Compra confirmada!' :
       status === 'unavailable' ? 'Producto no disponible' :
       'Venta cancelada';
     const body =
       status === 'confirmed'
         ? `Tu apartado de "${productName}" fue confirmado por el negocio`
+        : status === 'sold'
+        ? `Retiraste "${productName}". ¡Gracias por tu compra!`
         : status === 'unavailable'
         ? `El negocio indicó que "${productName}" no está disponible en este momento`
         : `La venta de "${productName}" fue cancelada por el negocio`;
     await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id });
+
+    if (status === 'sold') {
+      await notifyUser(
+        intent.client_id,
+        'Califica tu compra',
+        `Contanos cómo te fue con "${productName}" y calificá a la tienda.`,
+        { type: 'rate_business', businessId: intent.business_id }
+      );
+    }
   }
 }
 
@@ -150,6 +174,48 @@ export function subscribeToClientIntent(
   };
 }
 
+export async function getBusinessProductIntents(businessId: string): Promise<ProductIntentWithDetails[]> {
+  const { data, error } = await supabase
+    .from('product_intents')
+    .select('*, products(name, reference_price), users(full_name, phone, avatar_url)')
+    .eq('business_id', businessId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  return ((data ?? []) as unknown as (ProductIntent & {
+    products: { name: string; reference_price: number | null } | null;
+    users: { full_name: string; phone: string | null; avatar_url: string | null } | null;
+  })[]).map((row) => ({
+    ...row,
+    product_name: row.products?.name ?? 'Producto',
+    product_price: row.products?.reference_price ?? null,
+    client_name: row.users?.full_name ?? 'Cliente',
+    client_phone: row.users?.phone ?? null,
+    client_avatar_url: row.users?.avatar_url ?? null,
+  }));
+}
+
+export async function getClientProductIntents(
+  businessId: string,
+  clientId: string
+): Promise<ProductIntentWithProduct[]> {
+  const { data, error } = await supabase
+    .from('product_intents')
+    .select('*, products(name, reference_price)')
+    .eq('business_id', businessId)
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  return ((data ?? []) as unknown as (ProductIntent & { products: { name: string; reference_price: number | null } | null })[]).map(
+    (row) => ({
+      ...row,
+      product_name: row.products?.name ?? 'Producto',
+      product_price: row.products?.reference_price ?? null,
+    })
+  );
+}
+
 export async function getBusinessIntentStats(
   businessId: string
 ): Promise<{ pending: number; confirmed: number }> {
@@ -164,4 +230,64 @@ export async function getBusinessIntentStats(
     pending: rows.filter((r) => r.status === 'pending').length,
     confirmed: rows.filter((r) => r.status === 'confirmed').length,
   };
+}
+
+export interface MyProductPurchase {
+  id: string;
+  status: ProductIntentStatus;
+  createdAt: string;
+  updatedAt: string;
+  productId: string;
+  productName: string;
+  productPrice: number | null;
+  quantity: number;
+  businessId: string;
+  businessName: string;
+  review: Review | null;
+}
+
+// Compras hechas por el usuario actual como comprador (ej. un taller apartando
+// productos de una tienda) -- mismo mecanismo de product_intents, visto desde
+// el otro lado. Reusa reviews.product_intent_id para la calificación.
+export async function getMyProductPurchases(userId: string): Promise<MyProductPurchase[]> {
+  const { data, error } = await supabase
+    .from('product_intents')
+    .select('*, products(name, reference_price), businesses(name)')
+    .eq('client_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as (ProductIntent & {
+    products: { name: string; reference_price: number | null } | null;
+    businesses: { name: string } | null;
+  })[];
+
+  const soldIds = rows.filter((r) => r.status === 'sold').map((r) => r.id);
+  let reviewByIntentId = new Map<string, Review>();
+  if (soldIds.length > 0) {
+    const { data: reviews, error: reviewsError } = await supabase
+      .from('reviews')
+      .select('*')
+      .in('product_intent_id', soldIds);
+    if (reviewsError) throw reviewsError;
+    reviewByIntentId = new Map(
+      ((reviews ?? []) as Review[])
+        .filter((r) => r.product_intent_id)
+        .map((r) => [r.product_intent_id as string, r])
+    );
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    productId: r.product_id,
+    productName: r.products?.name ?? 'Producto',
+    productPrice: r.products?.reference_price ?? null,
+    quantity: r.quantity,
+    businessId: r.business_id,
+    businessName: r.businesses?.name ?? 'Negocio',
+    review: reviewByIntentId.get(r.id) ?? null,
+  }));
 }

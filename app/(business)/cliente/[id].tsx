@@ -11,7 +11,8 @@ import { getClientProfileForBusiness, getBusinessHistory, type HistoryItem, type
 import { getActiveClientAppointments, type ActiveClientAppointment } from '../../../services/appointments';
 import { getBusinessClientReports, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { getVehicles } from '../../../services/vehicles';
-import { formatVehicle, type Vehicle } from '../../../types/database';
+import { getClientProductIntents, updateIntentStatus } from '../../../services/productIntents';
+import { formatVehicle, type Vehicle, type ProductIntentWithProduct } from '../../../types/database';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -19,7 +20,7 @@ function formatDate(iso: string): string {
 }
 
 export default function ClienteDetailScreen() {
-  const { id, pending } = useLocalSearchParams<{ id: string; pending?: string }>();
+  const { id, pending, highlightIntentId } = useLocalSearchParams<{ id: string; pending?: string; highlightIntentId?: string }>();
   const isPending = pending === 'true';
   const { profile } = useAuth();
   const [client, setClient] = useState<ClientProfileForBusiness | null>(null);
@@ -27,9 +28,12 @@ export default function ClienteDetailScreen() {
   const [activeAppointments, setActiveAppointments] = useState<ActiveClientAppointment[]>([]);
   const [clientReports, setClientReports] = useState<ServiceReportWithBusiness[]>([]);
   const [clientVehicles, setClientVehicles] = useState<Vehicle[]>([]);
+  const [productIntents, setProductIntents] = useState<ProductIntentWithProduct[]>([]);
+  const [isStore, setIsStore] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [processingIntentId, setProcessingIntentId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!profile || !id) return;
@@ -40,6 +44,16 @@ export default function ClienteDetailScreen() {
     if (!work || !clientProfile) return;
     setBusinessId(work.business.id);
     setClient(clientProfile);
+    const storeType = work.business.business_type === 'store';
+    setIsStore(storeType);
+
+    // Los apartados/compras de producto no son exclusivos de tienda -- un
+    // taller también puede vender productos de su catálogo.
+    const intents = await getClientProductIntents(work.business.id, id);
+    setProductIntents(intents);
+
+    if (storeType) return;
+
     const [items, active, reports, vehs] = await Promise.all([
       getBusinessHistory(work.business.id, { clientId: id }),
       getActiveClientAppointments(work.business.id, id),
@@ -54,6 +68,18 @@ export default function ClienteDetailScreen() {
     setClientReports(reports);
     setClientVehicles(vehs);
   }, [profile, id]);
+
+  async function handleIntentAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
+    setProcessingIntentId(intentId);
+    try {
+      await updateIntentStatus(intentId, status);
+      setProductIntents((prev) => prev.map((i) => (i.id === intentId ? { ...i, status } : i)));
+    } catch (err) {
+      console.error('update intent status error', err);
+    } finally {
+      setProcessingIntentId(null);
+    }
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -114,7 +140,7 @@ export default function ClienteDetailScreen() {
       </View>
 
       {/* Vehículos del cliente */}
-      {clientVehicles.length > 0 && (
+      {!isStore && clientVehicles.length > 0 && (
         <View style={styles.vehiclesCard}>
           <Text style={styles.vehiclesLabel}>Vehículos</Text>
           {clientVehicles.map((v) => (
@@ -152,17 +178,19 @@ export default function ClienteDetailScreen() {
           <Ionicons name="chatbubble-outline" size={20} color={isPending ? colors.textMuted : colors.primary} />
           <Text style={[styles.actionLabel, isPending && styles.actionLabelDisabled]}>Chat</Text>
         </Pressable>
-        <Pressable
-          style={[styles.actionBtn, isPending && styles.actionBtnDisabled]}
-          onPress={() => !isPending && router.push(`/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}`)}
-        >
-          <Ionicons name="document-text-outline" size={20} color={isPending ? colors.textMuted : colors.primary} />
-          <Text style={[styles.actionLabel, isPending && styles.actionLabelDisabled]}>Informe</Text>
-        </Pressable>
+        {!isStore && (
+          <Pressable
+            style={[styles.actionBtn, isPending && styles.actionBtnDisabled]}
+            onPress={() => !isPending && router.push(`/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}`)}
+          >
+            <Ionicons name="document-text-outline" size={20} color={isPending ? colors.textMuted : colors.primary} />
+            <Text style={[styles.actionLabel, isPending && styles.actionLabelDisabled]}>Informe</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Próximas citas activas */}
-      {activeAppointments.length > 0 && (
+      {!isStore && activeAppointments.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Próximas citas</Text>
           {activeAppointments.map((apt) => (
@@ -198,7 +226,7 @@ export default function ClienteDetailScreen() {
       )}
 
       {/* Informes de servicio (standalone — sin cita ni auxilio vinculado) */}
-      {(() => {
+      {!isStore && (() => {
         const standalone = clientReports.filter((r) => !r.appointment_id && !r.help_request_id);
         if (standalone.length === 0) return null;
         return (
@@ -243,9 +271,88 @@ export default function ClienteDetailScreen() {
         );
       })()}
 
+      {/* Apartados e historial de compras -- siempre para tienda; para taller
+          solo si el cliente tiene al menos un apartado/compra de producto */}
+      {(isStore || productIntents.length > 0) && (() => {
+        const openIntents = productIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
+        const pastIntents = productIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
+        return (
+          <>
+            <Text style={styles.sectionTitle}>Apartados pendientes</Text>
+            {openIntents.length === 0 ? (
+              <Text style={styles.placeholder}>Sin apartados activos.</Text>
+            ) : (
+              openIntents.map((intent) => (
+                <View
+                  key={intent.id}
+                  style={[styles.historyCard, intent.id === highlightIntentId && styles.historyCardHighlight]}
+                >
+                  <View style={styles.historyHeader}>
+                    <View style={[styles.badge, styles.badgeAppt]}>
+                      <Text style={styles.badgeText}>
+                        {intent.status === 'confirmed' ? 'Apartado' : 'Pendiente'}
+                      </Text>
+                    </View>
+                    <Text style={styles.historyDate}>{formatDate(intent.created_at)}</Text>
+                  </View>
+                  <Text style={styles.historyDesc}>
+                    {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
+                  </Text>
+                  {intent.status === 'confirmed' && (
+                    <View style={styles.intentActionsRow}>
+                      <Button
+                        title="Marcar como vendido"
+                        onPress={() => handleIntentAction(intent.id, 'sold')}
+                        loading={processingIntentId === intent.id}
+                        style={styles.flexButton}
+                      />
+                      <Button
+                        title="Cancelar venta"
+                        variant="secondary"
+                        onPress={() => handleIntentAction(intent.id, 'cancelled_no_show')}
+                        loading={processingIntentId === intent.id}
+                        style={styles.flexButton}
+                      />
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+
+            <Text style={styles.sectionTitle}>Historial de compras</Text>
+            {pastIntents.length === 0 ? (
+              <Text style={styles.placeholder}>Sin compras registradas.</Text>
+            ) : (
+              pastIntents.map((intent) => (
+                <View
+                  key={intent.id}
+                  style={[styles.historyCard, intent.id === highlightIntentId && styles.historyCardHighlight]}
+                >
+                  <View style={styles.historyHeader}>
+                    <View style={[styles.badge, intent.status === 'sold' ? styles.badgeAppt : styles.badgeAid]}>
+                      <Text style={styles.badgeText}>
+                        {intent.status === 'sold' ? 'Vendido' :
+                          intent.status === 'unavailable' ? 'No disponible' :
+                          intent.status === 'cancelled_no_show' ? 'No retirado' : 'Cancelado'}
+                      </Text>
+                    </View>
+                    <Text style={styles.historyDate}>{formatDate(intent.updated_at)}</Text>
+                  </View>
+                  <Text style={styles.historyDesc}>
+                    {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
+                  </Text>
+                </View>
+              ))
+            )}
+          </>
+        );
+      })()}
+
       {/* Historial de interacciones */}
-      <Text style={styles.sectionTitle}>Historial contigo</Text>
-      {history.length === 0 ? (
+      {!isStore && <Text style={styles.sectionTitle}>Historial contigo</Text>}
+      {!isStore && (history.length === 0 ? (
         <Text style={styles.placeholder}>Sin interacciones registradas.</Text>
       ) : (
         history.map((item) => {
@@ -307,7 +414,7 @@ export default function ClienteDetailScreen() {
             </Pressable>
           );
         })
-      )}
+      ))}
     </ScrollView>
   );
 }
@@ -407,6 +514,14 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
+  flexButton: {
+    flex: 1,
+  },
+  intentActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
   actionBtn: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -432,6 +547,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+  },
+  historyCardHighlight: {
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   historyHeader: {
     flexDirection: 'row',

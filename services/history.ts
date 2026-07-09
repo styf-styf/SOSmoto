@@ -158,8 +158,8 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
     statusMap.set(r.id as string, r.status ?? 'accepted');
   }
 
-  // Paso 2: resumen de visitas reales (citas completadas + auxilios)
-  const [{ data: aids }, { data: apts }, { data: extApts }, { data: extReports }] = await Promise.all([
+  // Paso 2: resumen de visitas reales (citas completadas + auxilios + compras de producto)
+  const [{ data: aids }, { data: apts }, { data: extApts }, { data: extReports }, { data: sales }] = await Promise.all([
     supabase
       .from('help_requests')
       .select('client_id, completed_at, created_at')
@@ -182,6 +182,11 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
       .eq('business_id', businessId)
       .is('client_id', null)
       .not('external_client_name', 'is', null),
+    supabase
+      .from('product_intents')
+      .select('client_id, updated_at')
+      .eq('business_id', businessId)
+      .eq('status', 'sold'),
   ]);
 
   // Mapa de visitas por client_id
@@ -199,6 +204,13 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
     const prev = appVisits.get(r.client_id);
     appVisits.set(r.client_id, {
       lastVisit: prev ? (r.requested_at > prev.lastVisit ? r.requested_at : prev.lastVisit) : r.requested_at,
+      total: (prev?.total ?? 0) + 1,
+    });
+  }
+  for (const r of (sales ?? []) as any[]) {
+    const prev = appVisits.get(r.client_id);
+    appVisits.set(r.client_id, {
+      lastVisit: prev ? (r.updated_at > prev.lastVisit ? r.updated_at : prev.lastVisit) : r.updated_at,
       total: (prev?.total ?? 0) + 1,
     });
   }
@@ -311,6 +323,108 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
       total_visits: visits.total,
       is_external: true,
     });
+  }
+
+  return results.sort((a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime());
+}
+
+// Variante de getCRMClients para negocios tipo 'store': las "visitas" son
+// compras concretadas (product_intents en estado 'sold') en vez de citas/auxilios,
+// que no existen para tiendas. No hay equivalente de cliente externo con historial
+// (product_intents siempre requiere client_id de la app).
+export async function getCRMClientsForStore(businessId: string): Promise<CRMClient[]> {
+  const { data: bizClients } = await (supabase.from('business_clients') as any)
+    .select('id, client_id, external_name, external_phone, created_at')
+    .eq('business_id', businessId);
+
+  const statusMap = new Map<string, 'pending' | 'accepted' | 'rejected'>();
+  const { data: statusRows } = await (supabase.from('business_clients') as any)
+    .select('id, status')
+    .eq('business_id', businessId);
+  for (const r of (statusRows ?? []) as any[]) {
+    statusMap.set(r.id as string, r.status ?? 'accepted');
+  }
+
+  const { data: sales } = await supabase
+    .from('product_intents')
+    .select('client_id, updated_at')
+    .eq('business_id', businessId)
+    .eq('status', 'sold');
+
+  const purchaseVisits = new Map<string, { lastVisit: string; total: number }>();
+  for (const r of (sales ?? []) as any[]) {
+    const prev = purchaseVisits.get(r.client_id);
+    purchaseVisits.set(r.client_id, {
+      lastVisit: prev ? (r.updated_at > prev.lastVisit ? r.updated_at : prev.lastVisit) : r.updated_at,
+      total: (prev?.total ?? 0) + 1,
+    });
+  }
+
+  const addedAppIds = new Set<string>();
+  const results: CRMClient[] = [];
+
+  const appIdsToFetch = (bizClients ?? [])
+    .filter((c: any) => c.client_id)
+    .map((c: any) => c.client_id as string);
+
+  let userMap = new Map<string, any>();
+  if (appIdsToFetch.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, phone, avatar_url')
+      .in('id', appIdsToFetch);
+    userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
+  }
+
+  for (const bc of (bizClients ?? []) as any[]) {
+    if (bc.client_id) {
+      addedAppIds.add(bc.client_id);
+      const u = userMap.get(bc.client_id);
+      if (!u) continue;
+      const status: 'pending' | 'accepted' | 'rejected' = statusMap.get(bc.id) ?? 'accepted';
+      const visits = status === 'accepted' ? purchaseVisits.get(bc.client_id) : undefined;
+      results.push({
+        id: bc.client_id,
+        full_name: u.full_name,
+        phone: status === 'pending' ? null : (u.phone ?? null),
+        avatar_url: status === 'pending' ? null : (u.avatar_url ?? null),
+        last_visit: visits?.lastVisit ?? bc.created_at,
+        total_visits: visits?.total ?? 0,
+        is_external: false,
+        status,
+        crm_record_id: bc.id,
+      });
+    } else if (bc.external_name) {
+      results.push({
+        id: `ext:${encodeURIComponent(bc.external_name)}`,
+        full_name: bc.external_name,
+        phone: bc.external_phone ?? null,
+        avatar_url: null,
+        last_visit: bc.created_at,
+        total_visits: 0,
+        is_external: true,
+      });
+    }
+  }
+
+  const historicalAppIds = [...purchaseVisits.keys()].filter((id) => !addedAppIds.has(id));
+  if (historicalAppIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, phone, avatar_url')
+      .in('id', historicalAppIds);
+    for (const u of (users ?? []) as any[]) {
+      const visits = purchaseVisits.get(u.id)!;
+      results.push({
+        id: u.id,
+        full_name: u.full_name,
+        phone: u.phone ?? null,
+        avatar_url: u.avatar_url ?? null,
+        last_visit: visits.lastVisit,
+        total_visits: visits.total,
+        is_external: false,
+      });
+    }
   }
 
   return results.sort((a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime());

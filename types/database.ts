@@ -245,6 +245,7 @@ export interface Review {
   reviewed_client_id: string | null;
   help_request_id: string | null;
   appointment_id: string | null;
+  product_intent_id: string | null;
   rating: number;
   comment: string | null;
   is_public: boolean;
@@ -482,7 +483,13 @@ export interface AppointmentRequest {
   created_at: string;
 }
 
-export type ProductIntentStatus = 'pending' | 'confirmed' | 'unavailable' | 'cancelled';
+export type ProductIntentStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'sold'
+  | 'unavailable'
+  | 'cancelled_by_client'
+  | 'cancelled_no_show';
 
 export interface ProductIntent {
   id: string;
@@ -490,6 +497,7 @@ export interface ProductIntent {
   product_id: string;
   business_id: string;
   status: ProductIntentStatus;
+  quantity: number;
   created_at: string;
   updated_at: string;
 }
@@ -497,6 +505,12 @@ export interface ProductIntent {
 export interface ProductIntentWithProduct extends ProductIntent {
   product_name: string;
   product_price: number | null;
+}
+
+export interface ProductIntentWithDetails extends ProductIntentWithProduct {
+  client_name: string;
+  client_phone: string | null;
+  client_avatar_url: string | null;
 }
 
 export type ServiceIntentStatus = 'pending' | 'confirmed' | 'unavailable' | 'cancelled';

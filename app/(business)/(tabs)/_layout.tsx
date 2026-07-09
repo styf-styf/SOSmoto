@@ -9,9 +9,13 @@ import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import type { BusinessType } from '../../../types/database';
 
-// Solo las 5 pestañas reales viven en este navegador de Tabs -- el resto de
+// Solo las pestañas reales viven en este navegador de Tabs -- el resto de
 // pantallas se registran como Stack.Screen en app/(business)/_layout.tsx,
-// mismo motivo que en (client)/(tabs)/_layout.tsx.
+// mismo motivo que en (client)/(tabs)/_layout.tsx. "solicitudes" y "pedidos"
+// son mutuamente excluyentes según business_type (workshop vs. store); usar
+// href: null en vez de tabBarButton para que la pestaña oculta no deje hueco.
+// Para taller, "pedidos" ocupa el lugar de "catalogo" en la barra (que sigue
+// disponible desde Configuración) -- product_intents ya no es exclusivo de tienda.
 export default function BusinessTabsLayout() {
   const { profile } = useAuth();
   const hasUnreadMessages = useUnreadMessages(profile);
@@ -62,6 +66,14 @@ export default function BusinessTabsLayout() {
         options={{
           title: 'Catálogo',
           tabBarIcon: ({ color, size }) => <Ionicons name="cube" size={size} color={color} />,
+          href: isWorkshop ? null : undefined,
+        }}
+      />
+      <Tabs.Screen
+        name="pedidos"
+        options={{
+          title: 'Pedidos',
+          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -71,15 +83,7 @@ export default function BusinessTabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="alert-circle" size={size} color={color} />
           ),
-          tabBarButton: isWorkshop ? undefined : () => null,
-        }}
-      />
-      <Tabs.Screen
-        name="clientes"
-        options={{
-          title: 'Clientes',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
-          tabBarButton: isWorkshop ? () => null : undefined,
+          href: isWorkshop ? undefined : null,
         }}
       />
       <Tabs.Screen

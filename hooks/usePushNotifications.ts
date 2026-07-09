@@ -36,6 +36,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'service_intent':
         if (data.serviceId) router.push(`/(client)/servicio/${data.serviceId}`);
         break;
+      case 'rate_business':
+        router.push('/(client)/mis-compras');
+        break;
     }
     return;
   }
@@ -46,7 +49,13 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
         router.navigate('/(business)/(tabs)/solicitudes');
         break;
       case 'message':
-        if (data.clientId) router.push(`/(business)/chat/${data.clientId}`);
+        if (data.clientId) {
+          router.push(`/(business)/chat/${data.clientId}`);
+        } else if (data.businessId) {
+          // Sin clientId: soy el lado "cliente" de este hilo (compré como
+          // negocio) y me está respondiendo el negocio vendedor.
+          router.push(`/(business)/chat/${data.businessId}?sellerBusinessId=${data.businessId}`);
+        }
         break;
       case 'appointment_requested':
       case 'appointment_cancelled':
@@ -56,6 +65,12 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
         break;
       case 'kyc_review':
         router.push('/(business)/verificacion');
+        break;
+      case 'product_intent':
+        if (data.productId) router.push(`/(business)/producto/${data.productId}`);
+        break;
+      case 'rate_business':
+        router.push('/(business)/mis-compras');
         break;
     }
   }
