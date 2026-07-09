@@ -231,7 +231,7 @@ export default function InventarioScreen() {
             <Pressable style={styles.cardRow} onPress={() => selectProduct(product)}>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardName} numberOfLines={1}>{product.name}</Text>
-                {product.category && <Text style={styles.cardMeta}>{product.category}</Text>}
+                {product.category_name && <Text style={styles.cardMeta}>{product.category_name}</Text>}
                 {!product.is_active && <Text style={styles.inactiveTag}>Inactivo</Text>}
               </View>
               <View style={styles.stockBadge}>

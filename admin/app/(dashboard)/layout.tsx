@@ -7,6 +7,7 @@ const navItems = [
   { href: '/kyc', label: 'Verificación (KYC)' },
   { href: '/suscripciones', label: 'Suscripciones' },
   { href: '/publicidad', label: 'Publicidad' },
+  { href: '/categorias', label: 'Categorías' },
   { href: '/moderacion', label: 'Moderación' },
   { href: '/auxilio', label: 'Auxilio en carretera' },
   { href: '/metricas', label: 'Métricas' },

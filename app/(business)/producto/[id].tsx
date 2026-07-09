@@ -107,7 +107,7 @@ export default function BusinessProductDetailScreen() {
       )}
       <Text style={styles.name}>{product.name}</Text>
       <Text style={styles.business}>{product.business_name}</Text>
-      {product.category && <Text style={styles.category}>{product.category}</Text>}
+      {product.category_name && <Text style={styles.category}>{product.category_name}</Text>}
 
       <Text style={styles.price}>
         {product.reference_price !== null ? `$${product.reference_price.toFixed(2)}` : 'Precio a consultar'}

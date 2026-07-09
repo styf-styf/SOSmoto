@@ -16,6 +16,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
+import { CategoryPicker } from '../../../components/CategoryPicker';
 import { GradientShade } from '../../../components/GradientShade';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
@@ -451,6 +452,7 @@ function ServiceForm({
   const isEdit = !!service;
   const [name, setName] = useState(service?.name ?? '');
   const [description, setDescription] = useState(service?.description ?? '');
+  const [categoryId, setCategoryId] = useState(service?.category_id ?? '');
   const [price, setPrice] = useState(service?.reference_price !== null && service?.reference_price !== undefined ? String(service.reference_price) : '');
   const [photoUrl, setPhotoUrl] = useState(service?.photos[0] ?? '');
   const [isActive, setIsActive] = useState(service?.is_active ?? true);
@@ -475,6 +477,10 @@ function ServiceForm({
       Alert.alert('Falta el nombre', 'Ingresa el nombre del servicio.');
       return;
     }
+    if (!categoryId) {
+      Alert.alert('Falta la categoría', 'Elige o sugiere una categoría para el servicio.');
+      return;
+    }
     const parsedPrice = price.trim() ? Number(price) : null;
     if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
       Alert.alert('Precio inválido', 'Ingresa un número válido.');
@@ -486,6 +492,7 @@ function ServiceForm({
         ? await updateService(service!.id, {
             name: name.trim(),
             description: description.trim() || null,
+            category_id: categoryId,
             reference_price: parsedPrice,
             photos: photoUrl ? [photoUrl] : [],
             is_active: isActive,
@@ -494,6 +501,7 @@ function ServiceForm({
             businessId,
             name: name.trim(),
             description: description.trim() || undefined,
+            categoryId,
             referencePrice: parsedPrice ?? undefined,
             photos: photoUrl ? [photoUrl] : undefined,
           });
@@ -522,6 +530,7 @@ function ServiceForm({
         value={description}
         onChangeText={setDescription}
       />
+      <CategoryPicker kind="service" value={categoryId} onChange={setCategoryId} />
       <TextField
         label="Precio referencial (opcional)"
         placeholder="15.00"
@@ -574,7 +583,7 @@ function ProductForm({
   const isEdit = !!product;
   const [name, setName] = useState(product?.name ?? '');
   const [description, setDescription] = useState(product?.description ?? '');
-  const [category, setCategory] = useState(product?.category ?? '');
+  const [categoryId, setCategoryId] = useState(product?.category_id ?? '');
   const [price, setPrice] = useState(product?.reference_price !== null && product?.reference_price !== undefined ? String(product.reference_price) : '');
   const [stock, setStock] = useState(product ? String(product.stock) : '0');
   const [photoUrl, setPhotoUrl] = useState(product?.photos[0] ?? '');
@@ -600,6 +609,10 @@ function ProductForm({
       Alert.alert('Falta el nombre', 'Ingresa el nombre del producto.');
       return;
     }
+    if (!categoryId) {
+      Alert.alert('Falta la categoría', 'Elige o sugiere una categoría para el producto.');
+      return;
+    }
     const parsedPrice = price.trim() ? Number(price) : null;
     const parsedStock = Number(stock);
     if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
@@ -616,7 +629,7 @@ function ProductForm({
         ? await updateProduct(product!.id, {
             name: name.trim(),
             description: description.trim() || null,
-            category: category.trim() || null,
+            category_id: categoryId,
             reference_price: parsedPrice,
             stock: parsedStock,
             photos: photoUrl ? [photoUrl] : [],
@@ -626,7 +639,7 @@ function ProductForm({
             businessId,
             name: name.trim(),
             description: description.trim() || undefined,
-            category: category.trim() || undefined,
+            categoryId,
             referencePrice: parsedPrice ?? undefined,
             stock: parsedStock,
             photos: photoUrl ? [photoUrl] : undefined,
@@ -656,7 +669,7 @@ function ProductForm({
         value={description}
         onChangeText={setDescription}
       />
-      <TextField label="Categoría (opcional)" placeholder="Accesorios" value={category} onChangeText={setCategory} />
+      <CategoryPicker kind="product" value={categoryId} onChange={setCategoryId} />
       <TextField
         label="Precio referencial (opcional)"
         placeholder="45.00"

@@ -5,6 +5,7 @@ export type { StockMovementReason };
 
 export interface ProductWithMovements extends Product {
   stockLevel: 'out' | 'low' | 'ok';
+  category_name: string;
 }
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -19,11 +20,14 @@ function stockLevel(stock: number): 'out' | 'low' | 'ok' {
 export async function getInventory(businessId: string): Promise<ProductWithMovements[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select('*, categories(name)')
     .eq('business_id', businessId)
     .order('stock', { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((p: any) => ({ ...p, stockLevel: stockLevel(p.stock) })) as ProductWithMovements[];
+  return (data ?? []).map((p: any) => {
+    const { categories, ...product } = p;
+    return { ...product, stockLevel: stockLevel(p.stock), category_name: categories?.name ?? '' };
+  }) as ProductWithMovements[];
 }
 
 // Últimos movimientos de un producto.

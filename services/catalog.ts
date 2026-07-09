@@ -1,5 +1,25 @@
 import { supabase } from './supabase';
-import type { Product, Service } from '../types/database';
+import type { Category, CategoryKind, Product, Service } from '../types/database';
+
+export async function getCategories(kind: CategoryKind): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('kind', kind)
+    .order('name');
+  if (error) throw error;
+  return (data ?? []) as Category[];
+}
+
+export async function suggestCategory(name: string, kind: CategoryKind): Promise<Category> {
+  const { data, error } = await supabase
+    .from('categories')
+    .insert({ name: name.trim(), kind, status: 'pending' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Category;
+}
 
 export async function getActiveServices(businessId: string): Promise<Service[]> {
   const { data, error } = await supabase
@@ -51,12 +71,16 @@ export interface ServiceWithBusiness extends Service {
   business_name: string;
   business_owner_id: string;
   business_logo_url: string | null;
+  business_is_verified: boolean;
+  category_name: string;
 }
 
 export interface ProductWithBusiness extends Product {
   business_name: string;
   business_owner_id: string;
   business_logo_url: string | null;
+  business_is_verified: boolean;
+  category_name: string;
 }
 
 export async function incrementProductViews(id: string): Promise<void> {
@@ -70,19 +94,33 @@ export async function incrementServiceViews(id: string): Promise<void> {
 }
 
 export async function getServiceById(id: string): Promise<ServiceWithBusiness | null> {
-  const { data, error } = await supabase.from('services').select('*, businesses(name, owner_id, logo_url)').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('services').select('*, businesses(name, owner_id, logo_url, is_verified), categories(name)').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const { businesses, ...service } = data as any;
-  return { ...service, business_name: businesses?.name ?? '', business_owner_id: businesses?.owner_id ?? '', business_logo_url: businesses?.logo_url ?? null } as ServiceWithBusiness;
+  const { businesses, categories, ...service } = data as any;
+  return {
+    ...service,
+    business_name: businesses?.name ?? '',
+    business_owner_id: businesses?.owner_id ?? '',
+    business_logo_url: businesses?.logo_url ?? null,
+    business_is_verified: businesses?.is_verified ?? false,
+    category_name: categories?.name ?? '',
+  } as ServiceWithBusiness;
 }
 
 export async function getProductById(id: string): Promise<ProductWithBusiness | null> {
-  const { data, error } = await supabase.from('products').select('*, businesses(name, owner_id, logo_url)').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('products').select('*, businesses(name, owner_id, logo_url, is_verified), categories(name)').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const { businesses, ...product } = data as any;
-  return { ...product, business_name: businesses?.name ?? '', business_owner_id: businesses?.owner_id ?? '', business_logo_url: businesses?.logo_url ?? null } as ProductWithBusiness;
+  const { businesses, categories, ...product } = data as any;
+  return {
+    ...product,
+    business_name: businesses?.name ?? '',
+    business_owner_id: businesses?.owner_id ?? '',
+    business_logo_url: businesses?.logo_url ?? null,
+    business_is_verified: businesses?.is_verified ?? false,
+    category_name: categories?.name ?? '',
+  } as ProductWithBusiness;
 }
 
 export async function getServicesForBusinesses(businessIds: string[], limit = 20): Promise<ServiceWithBusiness[]> {
@@ -90,7 +128,7 @@ export async function getServicesForBusinesses(businessIds: string[], limit = 20
 
   const { data, error } = await supabase
     .from('services')
-    .select('*, businesses(name)')
+    .select('*, businesses(name), categories(name)')
     .in('business_id', businessIds)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
@@ -100,6 +138,7 @@ export async function getServicesForBusinesses(businessIds: string[], limit = 20
   return (data ?? []).map((row: any) => ({
     ...row,
     business_name: row.businesses?.name ?? '',
+    category_name: row.categories?.name ?? '',
   })) as ServiceWithBusiness[];
 }
 
@@ -108,7 +147,7 @@ export async function getProductsForBusinesses(businessIds: string[], limit = 20
 
   const { data, error } = await supabase
     .from('products')
-    .select('*, businesses(name)')
+    .select('*, businesses(name), categories(name)')
     .in('business_id', businessIds)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
@@ -118,7 +157,59 @@ export async function getProductsForBusinesses(businessIds: string[], limit = 20
   return (data ?? []).map((row: any) => ({
     ...row,
     business_name: row.businesses?.name ?? '',
+    category_name: row.categories?.name ?? '',
   })) as ProductWithBusiness[];
+}
+
+// Productos/servicios de otras tiendas en la misma categoría -- para el
+// carrusel "También te puede interesar" en producto/[id].tsx y servicio/[id].tsx.
+export async function getProductsByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, businesses(name, logo_url)')
+    .eq('category_id', categoryId)
+    .eq('is_active', true)
+    .neq('id', excludeId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    kind: 'product',
+    id: row.id,
+    businessId: row.business_id,
+    businessName: row.businesses?.name ?? '',
+    businessLogoUrl: row.businesses?.logo_url ?? undefined,
+    name: row.name,
+    referencePrice: row.reference_price,
+    meta: `Stock: ${row.stock}`,
+    photoUrl: row.photos?.[0],
+    createdAt: row.created_at,
+  }));
+}
+
+export async function getServicesByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, businesses(name, logo_url)')
+    .eq('category_id', categoryId)
+    .eq('is_active', true)
+    .neq('id', excludeId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    kind: 'service',
+    id: row.id,
+    businessId: row.business_id,
+    businessName: row.businesses?.name ?? '',
+    businessLogoUrl: row.businesses?.logo_url ?? undefined,
+    name: row.name,
+    referencePrice: row.reference_price,
+    photoUrl: row.photos?.[0],
+    createdAt: row.created_at,
+  }));
 }
 
 export interface FeedCatalogItem {
@@ -226,6 +317,7 @@ export interface CreateServiceParams {
   businessId: string;
   name: string;
   description?: string;
+  categoryId: string;
   referencePrice?: number;
   photos?: string[];
 }
@@ -248,6 +340,7 @@ export async function createService(params: CreateServiceParams): Promise<Servic
       business_id: params.businessId,
       name: params.name,
       description: params.description ?? null,
+      category_id: params.categoryId,
       reference_price: params.referencePrice ?? null,
       photos: params.photos ?? [],
     })
@@ -262,6 +355,7 @@ export async function updateService(
   updates: Partial<{
     name: string;
     description: string | null;
+    category_id: string;
     reference_price: number | null;
     is_active: boolean;
     photos: string[];
@@ -281,7 +375,7 @@ export interface CreateProductParams {
   businessId: string;
   name: string;
   description?: string;
-  category?: string;
+  categoryId: string;
   referencePrice?: number;
   stock?: number;
   photos?: string[];
@@ -305,7 +399,7 @@ export async function createProduct(params: CreateProductParams): Promise<Produc
       business_id: params.businessId,
       name: params.name,
       description: params.description ?? null,
-      category: params.category ?? null,
+      category_id: params.categoryId,
       reference_price: params.referencePrice ?? null,
       stock: params.stock ?? 0,
       photos: params.photos ?? [],
@@ -321,7 +415,7 @@ export async function updateProduct(
   updates: Partial<{
     name: string;
     description: string | null;
-    category: string | null;
+    category_id: string;
     reference_price: number | null;
     stock: number;
     is_active: boolean;

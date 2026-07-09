@@ -147,6 +147,17 @@ export interface AdminAdPricingRow {
   price_per_day_national: number;
 }
 
+export type CategoryKind = 'product' | 'service';
+export type CategoryStatus = 'approved' | 'pending';
+
+export interface AdminCategoryRow {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  status: CategoryStatus;
+  created_at: string;
+}
+
 export type KycStatus = 'pending_review' | 'approved' | 'rejected';
 
 export interface AdminVerificationRequestRow {

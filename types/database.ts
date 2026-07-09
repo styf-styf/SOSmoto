@@ -155,6 +155,7 @@ export interface Service {
   business_id: string;
   name: string;
   description: string | null;
+  category_id: string;
   reference_price: number | null;
   photos: string[];
   is_active: boolean;
@@ -167,12 +168,23 @@ export interface Product {
   business_id: string;
   name: string;
   description: string | null;
-  category: string | null;
+  category_id: string;
   reference_price: number | null;
   stock: number;
   photos: string[];
   is_active: boolean;
   views: number;
+  created_at: string;
+}
+
+export type CategoryKind = 'product' | 'service';
+export type CategoryStatus = 'approved' | 'pending';
+
+export interface Category {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  status: CategoryStatus;
   created_at: string;
 }
 

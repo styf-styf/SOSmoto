@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
 import { QuantityStepper } from '../../../components/QuantityStepper';
+import { FeedCatalogStrip } from '../../../components/FeedCatalogStrip';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
-import { getProductById, incrementProductViews } from '../../../services/catalog';
+import { getProductById, getProductsByCategory, incrementProductViews } from '../../../services/catalog';
 import {
   cancelProductIntent,
   createProductIntent,
   getClientIntentForProduct,
   subscribeToClientIntent,
 } from '../../../services/productIntents';
-import type { ProductWithBusiness } from '../../../services/catalog';
+import type { ProductWithBusiness, FeedCatalogItem } from '../../../services/catalog';
 import type { ProductIntent } from '../../../types/database';
 
 export default function ProductDetailScreen() {
@@ -23,12 +25,18 @@ export default function ProductDetailScreen() {
   const [intent, setIntent] = useState<ProductIntent | null>(null);
   const [apartando, setApartando] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
     const result = await getProductById(id);
     setProduct(result);
-    if (result) incrementProductViews(id).catch((err) => console.error('increment product views error', err));
+    if (result) {
+      incrementProductViews(id).catch((err) => console.error('increment product views error', err));
+      getProductsByCategory(result.category_id, id)
+        .then(setRelatedItems)
+        .catch((err) => console.error('load related products error', err));
+    }
     if (profile?.id) {
       getClientIntentForProduct(profile.id, id)
         .then(setIntent)
@@ -104,12 +112,31 @@ export default function ProductDetailScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Stack.Screen options={{ title: product.name }} />
+      <Pressable
+        style={styles.businessRow}
+        onPress={() => router.push(`/(client)/business/${product.business_id}`)}
+      >
+        <View style={styles.businessAvatarWrap}>
+          <View style={styles.businessAvatar}>
+            {product.business_logo_url ? (
+              <Image source={{ uri: product.business_logo_url }} style={styles.businessAvatarImage} />
+            ) : (
+              <Ionicons name="storefront" size={18} color={colors.primary} />
+            )}
+          </View>
+          {product.business_is_verified && (
+            <View style={styles.verifiedDot}>
+              <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
+            </View>
+          )}
+        </View>
+        <Text style={styles.businessName} numberOfLines={1}>{product.business_name}</Text>
+      </Pressable>
       {product.photos[0] && (
         <Image source={{ uri: product.photos[0] }} style={styles.photo} resizeMode="cover" />
       )}
       <Text style={styles.name}>{product.name}</Text>
-      <Text style={styles.business}>{product.business_name}</Text>
-      {product.category && <Text style={styles.category}>{product.category}</Text>}
+      {product.category_name && <Text style={styles.category}>{product.category_name}</Text>}
 
       <Text style={styles.price}>
         {product.reference_price !== null ? `$${product.reference_price.toFixed(2)}` : 'Precio a consultar'}
@@ -127,17 +154,22 @@ export default function ProductDetailScreen() {
 
       <View style={styles.buttonGroup}>
         {product.stock > 0 && profile?.role === 'client' && !intent && (
-          <View style={styles.quantityRow}>
-            <Text style={styles.quantityLabel}>Cantidad</Text>
+          <View style={styles.apartarRow}>
+            <Button
+              title="Apartar producto"
+              onPress={handleApartar}
+              loading={apartando}
+              style={styles.apartarButton}
+            />
             <QuantityStepper value={quantity} onChange={setQuantity} max={product.stock} />
           </View>
         )}
-        {product.stock > 0 && profile?.role === 'client' && intent?.status !== 'confirmed' && (
+        {product.stock > 0 && profile?.role === 'client' && intent && intent.status !== 'confirmed' && (
           <Button
-            title={intent ? 'Cancelar apartado' : 'Apartar producto'}
+            title="Cancelar apartado"
             onPress={handleApartar}
             loading={apartando}
-            style={intent ? styles.buttonCancel : styles.button}
+            style={styles.buttonCancel}
           />
         )}
         {intent?.status === 'pending' && (
@@ -150,32 +182,43 @@ export default function ProductDetailScreen() {
             ✓ Apartado ({intent.quantity}) confirmado por el negocio
           </Text>
         )}
-        <Button
-          title="Ver negocio"
-          variant="secondary"
-          onPress={() => router.push(`/(client)/business/${product.business_id}`)}
-          style={styles.button}
-        />
-        <Button
-          title="Ver catálogo"
-          variant="secondary"
-          onPress={() => router.push(`/(client)/negocio-catalogo/${product.business_id}`)}
-          style={styles.button}
-        />
-        {profile?.role === 'client' && (
-          <Button
-            title="Chatear"
-            variant="secondary"
-            onPress={() =>
-              router.push({
-                pathname: '/(client)/chat/[id]',
-                params: { id: product.business_id, prefill: `Hola, quería preguntar sobre: ${product.name}` },
-              })
-            }
-            style={styles.button}
-          />
-        )}
+
+        <View style={styles.actionsRow}>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(client)/business/${product.business_id}`)}>
+            <Ionicons name="storefront-outline" size={20} color={colors.text} />
+            <Text style={styles.actionBtnLabel}>Ver negocio</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(client)/negocio-catalogo/${product.business_id}`)}>
+            <Ionicons name="grid-outline" size={20} color={colors.text} />
+            <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
+          </Pressable>
+          {profile?.role === 'client' && (
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() =>
+                router.push({
+                  pathname: '/(client)/chat/[id]',
+                  params: { id: product.business_id, prefill: `Hola, quería preguntar sobre: ${product.name}` },
+                })
+              }
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Chatear</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
+
+      {relatedItems.length > 0 && (
+        <View style={styles.relatedSection}>
+          <Text style={[styles.sectionTitle, styles.relatedSectionTitle]}>También te puede interesar</Text>
+          <FeedCatalogStrip
+            items={relatedItems.filter((item) => item.photoUrl)}
+            listItems={relatedItems.filter((item) => !item.photoUrl)}
+            role="client"
+          />
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -204,11 +247,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  business: {
+  businessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  businessAvatarWrap: {
+    position: 'relative',
+  },
+  businessAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  businessAvatarImage: {
+    width: 28,
+    height: 28,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  businessName: {
     fontSize: 14,
-    color: colors.primary,
+    color: colors.text,
     fontWeight: '600',
-    marginTop: 4,
+    flexShrink: 1,
   },
   category: {
     fontSize: 13,
@@ -229,6 +301,13 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  relatedSection: {
+    marginTop: 28,
+    marginHorizontal: -20,
+  },
+  relatedSectionTitle: {
+    paddingHorizontal: 20,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -244,13 +323,28 @@ const styles = StyleSheet.create({
     marginTop: 32,
     gap: 10,
   },
-  quantityRow: {
+  apartarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  quantityLabel: {
-    fontSize: 14,
+  apartarButton: {
+    flex: 1,
+    height: 42,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 10,
+  },
+  actionBtnLabel: {
+    fontSize: 11,
     fontWeight: '600',
     color: colors.text,
   },

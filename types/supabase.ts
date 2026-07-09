@@ -351,6 +351,7 @@ export interface Database {
           business_id: string;
           name: string;
           description: string | null;
+          category_id: string;
           reference_price: number | null;
           photos: string[];
           is_active: boolean;
@@ -362,6 +363,7 @@ export interface Database {
           business_id: string;
           name: string;
           description?: string | null;
+          category_id: string;
           reference_price?: number | null;
           photos?: string[];
           is_active?: boolean;
@@ -373,6 +375,7 @@ export interface Database {
           business_id?: string;
           name?: string;
           description?: string | null;
+          category_id?: string;
           reference_price?: number | null;
           photos?: string[];
           is_active?: boolean;
@@ -387,7 +390,7 @@ export interface Database {
           business_id: string;
           name: string;
           description: string | null;
-          category: string | null;
+          category_id: string;
           reference_price: number | null;
           stock: number;
           photos: string[];
@@ -400,7 +403,7 @@ export interface Database {
           business_id: string;
           name: string;
           description?: string | null;
-          category?: string | null;
+          category_id: string;
           reference_price?: number | null;
           stock?: number;
           photos?: string[];
@@ -413,12 +416,36 @@ export interface Database {
           business_id?: string;
           name?: string;
           description?: string | null;
-          category?: string | null;
+          category_id?: string;
           reference_price?: number | null;
           stock?: number;
           photos?: string[];
           is_active?: boolean;
           views?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      categories: {
+        Row: {
+          id: string;
+          name: string;
+          kind: 'product' | 'service';
+          status: 'approved' | 'pending';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          kind: 'product' | 'service';
+          status?: 'approved' | 'pending';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          kind?: 'product' | 'service';
+          status?: 'approved' | 'pending';
           created_at?: string;
         };
         Relationships: [];
