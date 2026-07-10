@@ -14,6 +14,22 @@ export interface CreateAppointmentParams {
   requestedAt?: string;
 }
 
+// Estadísticas de un servicio puntual (para la vista del negocio en su
+// propia página de servicio: citas activas y citas completadas).
+export async function getServiceAppointmentStats(serviceId: string): Promise<{ reservations: number; completed: number }> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('status')
+    .eq('service_id', serviceId)
+    .in('status', ['pending', 'scheduled', 'confirmed', 'completed']);
+  if (error) throw error;
+  const rows = data ?? [];
+  return {
+    reservations: rows.filter((r) => r.status === 'pending' || r.status === 'scheduled' || r.status === 'confirmed').length,
+    completed: rows.filter((r) => r.status === 'completed').length,
+  };
+}
+
 export async function createAppointment(params: CreateAppointmentParams): Promise<Appointment> {
   const hasDate = Boolean(params.requestedAt);
   const { data, error } = await (supabase.from('appointments') as any)

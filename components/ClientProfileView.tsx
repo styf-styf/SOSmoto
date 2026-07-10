@@ -54,8 +54,8 @@ export function ClientProfileView({
   }
 
   const prefix = userRole === 'business' ? '/(business)' : '/(client)';
-  const postsWithImage = posts.filter((p) => p.image_url);
-  const postsWithoutImage = posts.filter((p) => !p.image_url);
+  const postsWithImage = posts.filter((p) => p.photos.length > 0);
+  const postsWithoutImage = posts.filter((p) => p.photos.length === 0);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -104,7 +104,7 @@ export function ClientProfileView({
                   style={styles.gridCell}
                   onPress={() => router.push(`${prefix}/publicacion/${post.id}`)}
                 >
-                  <Image source={{ uri: post.image_url! }} style={styles.gridImage} />
+                  <Image source={{ uri: post.photos[0] }} style={styles.gridImage} />
                 </Pressable>
               ))}
             </View>

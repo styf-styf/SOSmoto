@@ -426,6 +426,36 @@ export interface Database {
         };
         Relationships: [];
       };
+      product_variants: {
+        Row: {
+          id: string;
+          product_id: string;
+          label: string;
+          stock: number;
+          reference_price: number | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          label: string;
+          stock?: number;
+          reference_price?: number | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          label?: string;
+          stock?: number;
+          reference_price?: number | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           id: string;
@@ -743,7 +773,7 @@ export interface Database {
           id: string;
           business_id: string | null;
           client_id: string | null;
-          image_url: string | null;
+          photos: string[];
           caption: string | null;
           tag_business_id: string | null;
           tag_client_id: string | null;
@@ -756,7 +786,7 @@ export interface Database {
           id?: string;
           business_id?: string | null;
           client_id?: string | null;
-          image_url?: string | null;
+          photos?: string[];
           caption?: string | null;
           tag_business_id?: string | null;
           tag_client_id?: string | null;
@@ -769,7 +799,7 @@ export interface Database {
           id?: string;
           business_id?: string | null;
           client_id?: string | null;
-          image_url?: string | null;
+          photos?: string[];
           caption?: string | null;
           tag_business_id?: string | null;
           tag_client_id?: string | null;
@@ -1001,6 +1031,7 @@ export interface Database {
           id: string;
           client_id: string;
           product_id: string;
+          variant_id: string | null;
           business_id: string;
           status: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
           quantity: number;
@@ -1011,6 +1042,7 @@ export interface Database {
           id?: string;
           client_id: string;
           product_id: string;
+          variant_id?: string | null;
           business_id: string;
           status?: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
           quantity?: number;
@@ -1021,6 +1053,7 @@ export interface Database {
           id?: string;
           client_id?: string;
           product_id?: string;
+          variant_id?: string | null;
           business_id?: string;
           status?: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
           quantity?: number;

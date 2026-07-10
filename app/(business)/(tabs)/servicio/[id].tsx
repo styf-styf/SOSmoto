@@ -5,20 +5,30 @@ import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../constants/colors';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
+import { PhotoCarousel } from '../../../../components/PhotoCarousel';
+import { useAuth } from '../../../../hooks/useAuth';
+import { getServiceAppointmentStats } from '../../../../services/appointments';
+import { getMyWorkBusiness } from '../../../../services/businesses';
 import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 
 export default function BusinessServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { profile } = useAuth();
   const navigation = useNavigation();
   const [service, setService] = useState<ServiceWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
+  const [isOwnService, setIsOwnService] = useState(false);
+  const [stats, setStats] = useState<{ reservations: number; completed: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const result = await getServiceById(id);
+    const [result, work] = await Promise.all([
+      getServiceById(id),
+      profile ? getMyWorkBusiness(profile.id) : Promise.resolve(null),
+    ]);
     setService(result);
     if (result) {
       incrementServiceViews(id).catch((err) => console.error('increment service views error', err));
@@ -26,7 +36,15 @@ export default function BusinessServiceDetailScreen() {
         .then(setRelatedItems)
         .catch((err) => console.error('load related services error', err));
     }
-  }, [id]);
+
+    const owns = !!(work && result && work.business.id === result.business_id);
+    setIsOwnService(owns);
+    if (owns && result) {
+      getServiceAppointmentStats(result.id)
+        .then(setStats)
+        .catch((err) => console.error('load service stats error', err));
+    }
+  }, [id, profile]);
 
   useEffect(() => {
     setLoading(true);
@@ -65,7 +83,23 @@ export default function BusinessServiceDetailScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Stack.Screen options={{ title: service.name }} />
+      <Stack.Screen
+        options={{
+          title: service.name,
+          headerRight: isOwnService
+            ? () => (
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: '/(business)/(tabs)/catalogo', params: { editId: service.id, editKind: 'service' } })
+                  }
+                  hitSlop={8}
+                >
+                  <Ionicons name="create-outline" size={22} color={colors.text} />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <Pressable
         style={styles.businessRow}
         onPress={() => router.push(`/(business)/business/${service.business_id}`)}
@@ -86,9 +120,7 @@ export default function BusinessServiceDetailScreen() {
         </View>
         <Text style={styles.businessName} numberOfLines={1}>{service.business_name}</Text>
       </Pressable>
-      {service.photos[0] && (
-        <Image source={{ uri: service.photos[0] }} style={styles.photo} resizeMode="cover" />
-      )}
+      <PhotoCarousel photos={service.photos} />
       <Text style={styles.name}>{service.name}</Text>
       {service.category_name && <Text style={styles.category}>{service.category_name}</Text>}
 
@@ -103,35 +135,52 @@ export default function BusinessServiceDetailScreen() {
         </View>
       )}
 
-      <View style={styles.buttonGroup}>
-        <View style={styles.noticeBox}>
-          <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.noticeText}>
-            No puedes agendar citas con una cuenta de negocio. Cambia a una cuenta de cliente para solicitar este servicio.
-          </Text>
+      {isOwnService ? (
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{service.views}</Text>
+            <Text style={styles.statLabel}>Vistas</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{stats?.reservations ?? 0}</Text>
+            <Text style={styles.statLabel}>Citas</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{stats?.completed ?? 0}</Text>
+            <Text style={styles.statLabel}>Completadas</Text>
+          </View>
         </View>
+      ) : (
+        <View style={styles.buttonGroup}>
+          <View style={styles.noticeBox}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.noticeText}>
+              No puedes agendar citas con una cuenta de negocio. Cambia a una cuenta de cliente para solicitar este servicio.
+            </Text>
+          </View>
 
-        <View style={styles.actionsRow}>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/business/${service.business_id}`)}>
-            <Ionicons name="storefront-outline" size={20} color={colors.text} />
-            <Text style={styles.actionBtnLabel}>Ver negocio</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/negocio-catalogo/${service.business_id}`)}>
-            <Ionicons name="grid-outline" size={20} color={colors.text} />
-            <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
-          </Pressable>
-          <Pressable
-            style={styles.actionBtn}
-            onPress={() => {
-              const msg = encodeURIComponent(`Hola, estoy interesado en el servicio "${service.name}". ¿Podrían darme más información?`);
-              router.push(`/(business)/chat/${service.business_owner_id}?prefill=${msg}`);
-            }}
-          >
-            <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
-            <Text style={styles.actionBtnLabel}>Chatear</Text>
-          </Pressable>
+          <View style={styles.actionsRow}>
+            <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/business/${service.business_id}`)}>
+              <Ionicons name="storefront-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Ver negocio</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/negocio-catalogo/${service.business_id}`)}>
+              <Ionicons name="grid-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
+            </Pressable>
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => {
+                const msg = encodeURIComponent(`Hola, estoy interesado en el servicio "${service.name}". ¿Podrían darme más información?`);
+                router.push(`/(business)/chat/${service.business_owner_id}?prefill=${msg}`);
+              }}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Chatear</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
       {relatedItems.length > 0 && (
         <View style={styles.relatedSection}>
@@ -242,6 +291,27 @@ const styles = StyleSheet.create({
     marginTop: 32,
     gap: 10,
   },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 32,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
   noticeBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -271,11 +341,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.text,
-  },
-  photo: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 16,
   },
 });

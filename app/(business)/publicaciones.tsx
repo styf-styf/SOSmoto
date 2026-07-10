@@ -3,11 +3,12 @@ import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView,
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
+import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
-import { getActiveProducts, getActiveServices } from '../../services/catalog';
+import { getActiveProducts, getActiveServices, getPlanLimits } from '../../services/catalog';
 import { createPost, deletePost, getMyBusinessPosts } from '../../services/posts';
 import { pickAndUploadBusinessImage } from '../../services/storage';
 import type { Business, Post, Product, Service } from '../../types/database';
@@ -22,7 +23,7 @@ export default function BusinessPublicacionesScreen() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  const [imageUrl, setImageUrl] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
   const [tagKind, setTagKind] = useState<TagKind>('none');
   const [services, setServices] = useState<Service[]>([]);
@@ -31,6 +32,9 @@ export default function BusinessPublicacionesScreen() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Tope de fotos por publicación según el plan del negocio (mismo campo que
+  // products/services: Free 1, Estándar 3, Pro 5).
+  const [maxPhotos, setMaxPhotos] = useState(1);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -38,8 +42,12 @@ export default function BusinessPublicacionesScreen() {
     if (!work) return;
     setBusiness(work.business);
     setIsOwner(work.isOwner);
-    const myPosts = await getMyBusinessPosts(work.business.id);
+    const [myPosts, limits] = await Promise.all([
+      getMyBusinessPosts(work.business.id),
+      getPlanLimits(work.business.id),
+    ]);
     setPosts(myPosts);
+    setMaxPhotos(limits.maxPhotosPerItem ?? 5);
   }, [profile]);
 
   async function handleRefresh() {
@@ -65,7 +73,7 @@ export default function BusinessPublicacionesScreen() {
   }, [tagKind, business, services.length, products.length]);
 
   function resetForm() {
-    setImageUrl('');
+    setPhotos([]);
     setCaption('');
     setTagKind('none');
     setTargetId(null);
@@ -77,11 +85,11 @@ export default function BusinessPublicacionesScreen() {
   }
 
   async function handlePickImage() {
-    if (!business) return;
+    if (!business || photos.length >= maxPhotos) return;
     setUploadingImage(true);
     try {
       const url = await pickAndUploadBusinessImage(business.id);
-      if (url) setImageUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload post image error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la imagen.');
@@ -90,9 +98,13 @@ export default function BusinessPublicacionesScreen() {
     }
   }
 
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleCreate() {
     if (!business) return;
-    if (!imageUrl.trim() && !caption.trim()) {
+    if (photos.length === 0 && !caption.trim()) {
       Alert.alert('Falta contenido', 'Agrega una foto, un texto, o ambos.');
       return;
     }
@@ -104,7 +116,7 @@ export default function BusinessPublicacionesScreen() {
     try {
       const created = await createPost({
         businessId: business.id,
-        imageUrl: imageUrl.trim() || undefined,
+        photos,
         caption: caption.trim() || undefined,
         tagServiceId: tagKind === 'service' ? targetId ?? undefined : undefined,
         tagProductId: tagKind === 'product' ? targetId ?? undefined : undefined,
@@ -160,15 +172,16 @@ export default function BusinessPublicacionesScreen() {
 
       {isOwner && !business.is_limited && showForm && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Imagen</Text>
-          {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}
-          <Button
-            title={imageUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
-            variant="secondary"
-            onPress={handlePickImage}
-            loading={uploadingImage}
-            style={styles.imageButton}
-          />
+          <Text style={styles.fieldLabel}>Fotos ({photos.length}/{maxPhotos})</Text>
+          <View style={styles.imageButton}>
+            <MultiPhotoPicker
+              photos={photos}
+              onRemove={handleRemovePhoto}
+              onAdd={handlePickImage}
+              max={maxPhotos}
+              uploading={uploadingImage}
+            />
+          </View>
 
           <TextField label="Texto" placeholder="Cuéntale algo a tus clientes" value={caption} onChangeText={setCaption} />
 
@@ -243,8 +256,8 @@ export default function BusinessPublicacionesScreen() {
       ) : (
         posts.map((post) => (
           <Pressable key={post.id} style={styles.postCard} onPress={() => router.push(`/(business)/publicacion/${post.id}`)}>
-            {post.image_url ? (
-              <Image source={{ uri: post.image_url }} style={styles.thumb} resizeMode="cover" />
+            {post.photos[0] ? (
+              <Image source={{ uri: post.photos[0] }} style={styles.thumb} resizeMode="cover" />
             ) : (
               <View style={[styles.thumb, styles.thumbPlaceholder]}>
                 <Ionicons name="document-text-outline" size={22} color={colors.textMuted} />
@@ -337,13 +350,6 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: colors.primary,
-  },
-  preview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: colors.background,
   },
   imageButton: {
     marginBottom: 16,

@@ -76,7 +76,7 @@ type DecoratedRow = FeedRow & {
 };
 
 function isGrayPost(row: FeedRow | null): boolean {
-  return !!row && row.kind === 'post' && !row.post.image_url;
+  return !!row && row.kind === 'post' && row.post.photos.length === 0;
 }
 
 // Catálogo y posts sin imagen comparten la misma sensación de "fondo": si un
@@ -91,7 +91,7 @@ function decorateRows(rows: FeedRow[]): DecoratedRow[] {
     const next = i < rows.length - 1 ? rows[i + 1] : null;
 
     if (row.kind === 'post') {
-      const gray = !row.post.image_url;
+      const gray = row.post.photos.length === 0;
       if (!gray) return { ...row, gray: false, showTopShadow: true, showBottomShadow: true };
       const isFirst = i === 0;
       const prevGray = isGrayPost(prev) || prev?.kind === 'catalog';

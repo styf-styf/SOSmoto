@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { MultiPhotoPicker } from './MultiPhotoPicker';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { searchBusinesses, type BusinessWithDistance } from '../services/businesses';
-import { createPost } from '../services/posts';
+import { createPost, MAX_POST_PHOTOS_CLIENT } from '../services/posts';
 import { pickAndUploadClientPostImage } from '../services/storage';
 import { searchClients } from '../services/users';
 
@@ -15,7 +16,7 @@ type TagResult =
 export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
   const { profile } = useAuth();
   const [caption, setCaption] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [posting, setPosting] = useState(false);
 
@@ -26,17 +27,21 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
   const [searchingTag, setSearchingTag] = useState(false);
 
   async function handlePickImage() {
-    if (!profile) return;
+    if (!profile || photos.length >= MAX_POST_PHOTOS_CLIENT) return;
     setUploadingImage(true);
     try {
       const url = await pickAndUploadClientPostImage(profile.id);
-      if (url) setImageUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload post image error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la imagen.');
     } finally {
       setUploadingImage(false);
     }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSearchTag(text: string) {
@@ -77,7 +82,7 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
 
   async function handlePublish() {
     if (!profile) return;
-    if (!caption.trim() && !imageUrl) {
+    if (!caption.trim() && photos.length === 0) {
       Alert.alert('Falta contenido', 'Agrega una foto, un texto, o ambos.');
       return;
     }
@@ -86,12 +91,12 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
       await createPost({
         clientId: profile.id,
         caption: caption.trim() || undefined,
-        imageUrl: imageUrl || undefined,
+        photos,
         tagBusinessId: taggedItem?.kind === 'business' ? taggedItem.id : undefined,
         tagClientId: taggedItem?.kind === 'client' ? taggedItem.id : undefined,
       });
       setCaption('');
-      setImageUrl('');
+      setPhotos([]);
       resetTag();
       onCreated?.();
     } catch (err) {
@@ -102,7 +107,7 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
     }
   }
 
-  const canPublish = (caption.trim().length > 0 || !!imageUrl) && !posting && !uploadingImage;
+  const canPublish = (caption.trim().length > 0 || photos.length > 0) && !posting && !uploadingImage;
 
   return (
     <View style={styles.card}>
@@ -132,14 +137,17 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
         </Pressable>
       </View>
 
-      {imageUrl ? (
+      {photos.length > 0 && (
         <View style={styles.previewWrap}>
-          <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" />
-          <Pressable style={styles.removeImage} onPress={() => setImageUrl('')}>
-            <Ionicons name="close" size={14} color="#fff" />
-          </Pressable>
+          <MultiPhotoPicker
+            photos={photos}
+            onRemove={handleRemovePhoto}
+            onAdd={handlePickImage}
+            max={MAX_POST_PHOTOS_CLIENT}
+            uploading={uploadingImage}
+          />
         </View>
-      ) : null}
+      )}
 
       {taggedItem ? (
         <View style={styles.tagChip}>
@@ -223,23 +231,6 @@ const styles = StyleSheet.create({
   },
   previewWrap: {
     marginTop: 8,
-  },
-  preview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-  },
-  removeImage: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   tagChip: {
     flexDirection: 'row',

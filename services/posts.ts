@@ -1,10 +1,15 @@
 import { supabase } from './supabase';
 import type { Post, PostComment } from '../types/database';
 
+// Los negocios usan el límite de fotos de su plan (subscription_plans.max_photos_per_item,
+// mismo campo que products/services: Free 1, Estándar 3, Pro 5 -- ver getPlanLimits en
+// services/catalog.ts). Los clientes no tienen plan, así que usan un tope fijo.
+export const MAX_POST_PHOTOS_CLIENT = 3;
+
 export interface CreatePostParams {
   businessId?: string;
   clientId?: string;
-  imageUrl?: string;
+  photos?: string[];
   caption?: string;
   tagBusinessId?: string;
   tagClientId?: string;
@@ -18,7 +23,7 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
     .insert({
       business_id: params.businessId ?? null,
       client_id: params.clientId ?? null,
-      image_url: params.imageUrl ?? null,
+      photos: params.photos ?? [],
       caption: params.caption?.trim() || null,
       tag_business_id: params.tagBusinessId ?? null,
       tag_client_id: params.tagClientId ?? null,
@@ -34,6 +39,22 @@ export async function createPost(params: CreatePostParams): Promise<Post> {
 export async function deletePost(postId: string): Promise<void> {
   const { error } = await supabase.from('posts').delete().eq('id', postId);
   if (error) throw error;
+}
+
+export async function updatePost(
+  postId: string,
+  updates: Partial<{
+    caption: string | null;
+    photos: string[];
+    tag_business_id: string | null;
+    tag_client_id: string | null;
+    tag_service_id: string | null;
+    tag_product_id: string | null;
+  }>
+): Promise<Post> {
+  const { data, error } = await supabase.from('posts').update(updates).eq('id', postId).select().single();
+  if (error) throw error;
+  return data as Post;
 }
 
 export async function getMyBusinessPosts(businessId: string): Promise<Post[]> {

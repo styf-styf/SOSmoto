@@ -51,7 +51,7 @@ export interface AdminPostRow {
   id: string;
   business_id: string | null;
   client_id: string | null;
-  image_url: string | null;
+  photos: string[];
   caption: string | null;
   comments_count: number;
   created_at: string;

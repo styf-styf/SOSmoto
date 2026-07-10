@@ -52,8 +52,8 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [followLoading, setFollowLoading] = useState(false);
 
   const logoUrl = logoOverride ?? business?.logo_url ?? null;
-  const postsWithImage = posts.filter((post) => post.image_url);
-  const postsWithoutImage = posts.filter((post) => !post.image_url);
+  const postsWithImage = posts.filter((post) => post.photos.length > 0);
+  const postsWithoutImage = posts.filter((post) => post.photos.length === 0);
   const viewerPrefix = profile?.role === 'business' ? '/(business)' : '/(client)';
   const postHrefBase = mode === 'self' ? '/(business)/publicacion' : `${viewerPrefix}/publicacion`;
 
@@ -351,14 +351,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
 
       <View style={styles.divider} />
 
-      <View style={styles.postsHeaderRow}>
-        <Text style={styles.sectionTitle}>Publicaciones</Text>
-        {mode === 'self' && (
-          <Pressable onPress={() => router.push('/(business)/publicaciones')}>
-            <Text style={styles.manageLink}>Gestionar</Text>
-          </Pressable>
-        )}
-      </View>
+      <Text style={styles.sectionTitle}>Publicaciones</Text>
       {posts.length === 0 ? (
         <View>
           <Text style={styles.placeholderText}>
@@ -374,7 +367,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             <View style={styles.grid}>
               {postsWithImage.map((post) => (
                 <Pressable key={post.id} style={styles.gridCell} onPress={() => router.push(`${postHrefBase}/${post.id}`)}>
-                  <Image source={{ uri: post.image_url! }} style={styles.gridImage} />
+                  <Image source={{ uri: post.photos[0] }} style={styles.gridImage} />
                 </Pressable>
               ))}
             </View>
@@ -667,20 +660,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: 20,
   },
-  postsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   placeholderText: {
     color: colors.textMuted,
     fontSize: 14,
     marginBottom: 12,
-  },
-  manageLink: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
   },
   grid: {
     flexDirection: 'row',

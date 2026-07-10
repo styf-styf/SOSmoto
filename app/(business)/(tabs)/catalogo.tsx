@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -23,19 +24,24 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import {
   createProduct,
+  createProductVariant,
   createService,
   deleteProduct,
+  deleteProductVariant,
   deleteService,
   getAllProducts,
   getAllServices,
   getPlanLimits,
+  getProductVariants,
+  syncProductStockFromVariants,
   updateProduct,
+  updateProductVariant,
   updateService,
   type PlanLimits,
 } from '../../../services/catalog';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { pickAndUploadBusinessImage } from '../../../services/storage';
-import type { Business, Product, Service } from '../../../types/database';
+import type { Business, Product, ProductVariant, Service } from '../../../types/database';
 
 const SIDE_PADDING = 20;
 const GRID_GAP = 10;
@@ -58,13 +64,24 @@ function formatItemPrice(referencePrice: number | null): string {
 
 type FormState = { kind: 'service'; service: Service | null } | { kind: 'product'; product: Product | null };
 
+interface VariantRow {
+  id?: string;
+  label: string;
+  stock: string;
+  price: string;
+}
+
 // Mismo grid de foto + lista sin foto que ve el cliente en
 // negocio-catalogo/[id].tsx, pero acá cada tarjeta es pulsable para editar y
 // trae su propio ícono de eliminar -- así el negocio ve su catálogo "tal
 // cual" lo ve el cliente, con las acciones de gestión superpuestas.
 export default function CatalogoScreen() {
   const { profile } = useAuth();
-  const { highlightId } = useLocalSearchParams<{ highlightId?: string }>();
+  const { highlightId, editId, editKind } = useLocalSearchParams<{
+    highlightId?: string;
+    editId?: string;
+    editKind?: 'product' | 'service';
+  }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
@@ -123,6 +140,20 @@ export default function CatalogoScreen() {
     const clearTimer = setTimeout(() => setHighlightedId(null), 3500);
     return () => clearTimeout(clearTimer);
   }, [highlightId, products.length]);
+
+  // Llegada desde el botón "Editar" de la página de producto/servicio: abre
+  // el modal de edición directamente apenas carga el catálogo.
+  useEffect(() => {
+    if (!editId || !editKind) return;
+    if (editKind === 'product' && products.length) {
+      const product = products.find((p) => p.id === editId);
+      if (product) setForm({ kind: 'product', product });
+    }
+    if (editKind === 'service' && services.length) {
+      const service = services.find((s) => s.id === editId);
+      if (service) setForm({ kind: 'service', service });
+    }
+  }, [editId, editKind, products, services]);
 
   function handleHighlightLayout(y: number) {
     scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
@@ -308,6 +339,7 @@ export default function CatalogoScreen() {
           <ServiceForm
             businessId={business.id}
             service={form.service}
+            limits={limits}
             onCancel={() => setForm(null)}
             onSaved={applyService}
             onDelete={form.service ? () => confirmDeleteService(form.service!) : undefined}
@@ -317,6 +349,7 @@ export default function CatalogoScreen() {
           <ProductForm
             businessId={business.id}
             product={form.product}
+            limits={limits}
             onCancel={() => setForm(null)}
             onSaved={applyProduct}
             onDelete={form.product ? () => confirmDeleteProduct(form.product!) : undefined}
@@ -439,12 +472,14 @@ function CatalogGrid<T extends CatalogDisplayItem>({
 function ServiceForm({
   businessId,
   service,
+  limits,
   onCancel,
   onSaved,
   onDelete,
 }: {
   businessId: string;
   service: Service | null;
+  limits: PlanLimits | null;
   onCancel: () => void;
   onSaved: (service: Service) => void;
   onDelete?: () => void;
@@ -454,22 +489,29 @@ function ServiceForm({
   const [description, setDescription] = useState(service?.description ?? '');
   const [categoryId, setCategoryId] = useState(service?.category_id ?? '');
   const [price, setPrice] = useState(service?.reference_price !== null && service?.reference_price !== undefined ? String(service.reference_price) : '');
-  const [photoUrl, setPhotoUrl] = useState(service?.photos[0] ?? '');
+  const [photos, setPhotos] = useState<string[]>(service?.photos ?? []);
   const [isActive, setIsActive] = useState(service?.is_active ?? true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
+  const maxPhotos = limits?.maxPhotosPerItem ?? 1;
+  const atPhotoLimit = maxPhotos !== null && photos.length >= maxPhotos;
 
   async function handlePickPhoto() {
+    if (atPhotoLimit) return;
     setUploadingPhoto(true);
     try {
       const url = await pickAndUploadBusinessImage(businessId);
-      if (url) setPhotoUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload service photo error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la foto.');
     } finally {
       setUploadingPhoto(false);
     }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSave() {
@@ -498,7 +540,7 @@ function ServiceForm({
             description: description.trim() || null,
             category_id: categoryId,
             reference_price: parsedPrice,
-            photos: photoUrl ? [photoUrl] : [],
+            photos,
             is_active: isActive,
           })
         : await createService({
@@ -507,7 +549,7 @@ function ServiceForm({
             description: description.trim() || undefined,
             categoryId,
             referencePrice: parsedPrice,
-            photos: photoUrl ? [photoUrl] : undefined,
+            photos,
           });
       onSaved(result);
     } catch (err) {
@@ -542,15 +584,36 @@ function ServiceForm({
         value={price}
         onChangeText={setPrice}
       />
-      <Text style={styles.fieldLabel}>Foto (opcional)</Text>
-      {photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photoPreview} resizeMode="cover" /> : null}
-      <Button
-        title={photoUrl ? 'Cambiar foto' : 'Agregar foto'}
-        variant="secondary"
-        onPress={handlePickPhoto}
-        loading={uploadingPhoto}
-        style={styles.photoButton}
-      />
+      <Text style={styles.fieldLabel}>
+        Fotos ({photos.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photosRow}>
+        {photos.map((url, index) => (
+          <View key={`${url}-${index}`} style={styles.photoThumbWrap}>
+            <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+            <Pressable style={styles.photoRemoveBtn} onPress={() => handleRemovePhoto(index)}>
+              <Ionicons name="close-circle" size={20} color={colors.danger} />
+            </Pressable>
+          </View>
+        ))}
+        {!atPhotoLimit && (
+          <Pressable style={styles.photoAddTile} onPress={handlePickPhoto} disabled={uploadingPhoto}>
+            {uploadingPhoto ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="add" size={22} color={colors.primary} />
+                <Text style={styles.photoAddTileText}>Agregar</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+      </ScrollView>
+      {atPhotoLimit && (
+        <Text style={styles.photoLimitHint}>
+          Tu plan {limits?.planName ?? 'free'} permite hasta {maxPhotos} foto{maxPhotos === 1 ? '' : 's'}. Sube de plan para agregar más.
+        </Text>
+      )}
 
       {isEdit && (
         <View style={styles.toggleRow}>
@@ -574,12 +637,14 @@ function ServiceForm({
 function ProductForm({
   businessId,
   product,
+  limits,
   onCancel,
   onSaved,
   onDelete,
 }: {
   businessId: string;
   product: Product | null;
+  limits: PlanLimits | null;
   onCancel: () => void;
   onSaved: (product: Product) => void;
   onDelete?: () => void;
@@ -590,22 +655,82 @@ function ProductForm({
   const [categoryId, setCategoryId] = useState(product?.category_id ?? '');
   const [price, setPrice] = useState(product?.reference_price !== null && product?.reference_price !== undefined ? String(product.reference_price) : '');
   const [stock, setStock] = useState(product ? String(product.stock) : '0');
-  const [photoUrl, setPhotoUrl] = useState(product?.photos[0] ?? '');
+  const [photos, setPhotos] = useState<string[]>(product?.photos ?? []);
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
+  const maxPhotos = limits?.maxPhotosPerItem ?? 1;
+  const atPhotoLimit = maxPhotos !== null && photos.length >= maxPhotos;
+
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [initialVariants, setInitialVariants] = useState<ProductVariant[]>([]);
+
+  useEffect(() => {
+    if (!product) return;
+    getProductVariants(product.id)
+      .then((list) => {
+        setInitialVariants(list);
+        setVariants(
+          list.map((v) => ({
+            id: v.id,
+            label: v.label,
+            stock: String(v.stock),
+            price: v.reference_price !== null ? String(v.reference_price) : '',
+          }))
+        );
+      })
+      .catch((err) => console.error('load product variants error', err));
+  }, [product]);
+
+  function addVariantRow() {
+    setVariants((prev) => [...prev, { label: '', stock: '0', price: '' }]);
+  }
+
+  function removeVariantRow(index: number) {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateVariantRow(index: number, patch: Partial<VariantRow>) {
+    setVariants((prev) => prev.map((v, i) => (i === index ? { ...v, ...patch } : v)));
+  }
+
+  // Crea/actualiza/elimina las filas de variantes contra la BD y, si quedan
+  // variantes activas, resincroniza products.stock como la suma de todas.
+  async function syncVariants(productId: string) {
+    const currentIds = new Set(variants.filter((v) => v.id).map((v) => v.id));
+    for (const iv of initialVariants) {
+      if (!currentIds.has(iv.id)) await deleteProductVariant(iv.id);
+    }
+    for (const v of variants) {
+      const vStock = Number(v.stock) || 0;
+      const vPrice = v.price.trim() ? Number(v.price) : null;
+      if (v.id) {
+        await updateProductVariant(v.id, { label: v.label.trim(), stock: vStock, reference_price: vPrice });
+      } else {
+        await createProductVariant({ productId, label: v.label.trim(), stock: vStock, referencePrice: vPrice });
+      }
+    }
+    if (variants.length > 0) {
+      await syncProductStockFromVariants(productId);
+    }
+  }
 
   async function handlePickPhoto() {
+    if (atPhotoLimit) return;
     setUploadingPhoto(true);
     try {
       const url = await pickAndUploadBusinessImage(businessId);
-      if (url) setPhotoUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload product photo error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la foto.');
     } finally {
       setUploadingPhoto(false);
     }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSave() {
@@ -622,14 +747,33 @@ function ProductForm({
       return;
     }
     const parsedPrice = Number(price);
-    const parsedStock = Number(stock);
     if (Number.isNaN(parsedPrice)) {
       Alert.alert('Precio inválido', 'Ingresa un número válido.');
       return;
     }
-    if (Number.isNaN(parsedStock) || parsedStock < 0) {
-      Alert.alert('Stock inválido', 'Ingresa un número válido.');
-      return;
+    const hasVariantRows = variants.length > 0;
+    let parsedStock = 0;
+    if (!hasVariantRows) {
+      parsedStock = Number(stock);
+      if (Number.isNaN(parsedStock) || parsedStock < 0) {
+        Alert.alert('Stock inválido', 'Ingresa un número válido.');
+        return;
+      }
+    }
+    for (const v of variants) {
+      if (!v.label.trim()) {
+        Alert.alert('Falta la etiqueta', 'Ingresa un nombre para cada variante (ej. Talla M).');
+        return;
+      }
+      const vStock = Number(v.stock);
+      if (Number.isNaN(vStock) || vStock < 0) {
+        Alert.alert('Stock inválido', `Ingresa un stock válido para "${v.label}".`);
+        return;
+      }
+      if (v.price.trim() && Number.isNaN(Number(v.price))) {
+        Alert.alert('Precio inválido', `Ingresa un precio válido para "${v.label}" o déjalo vacío.`);
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -640,7 +784,7 @@ function ProductForm({
             category_id: categoryId,
             reference_price: parsedPrice,
             stock: parsedStock,
-            photos: photoUrl ? [photoUrl] : [],
+            photos,
             is_active: isActive,
           })
         : await createProduct({
@@ -650,9 +794,17 @@ function ProductForm({
             categoryId,
             referencePrice: parsedPrice,
             stock: parsedStock,
-            photos: photoUrl ? [photoUrl] : undefined,
+            photos,
           });
-      onSaved(result);
+
+      let finalProduct = result;
+      if (hasVariantRows || initialVariants.length > 0) {
+        await syncVariants(result.id);
+        if (hasVariantRows) {
+          finalProduct = { ...result, stock: variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) };
+        }
+      }
+      onSaved(finalProduct);
     } catch (err) {
       console.error('save product error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo guardar el producto.');
@@ -685,16 +837,96 @@ function ProductForm({
         value={price}
         onChangeText={setPrice}
       />
-      <TextField label="Stock" placeholder="0" keyboardType="numeric" value={stock} onChangeText={setStock} />
-      <Text style={styles.fieldLabel}>Foto (opcional)</Text>
-      {photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photoPreview} resizeMode="cover" /> : null}
-      <Button
-        title={photoUrl ? 'Cambiar foto' : 'Agregar foto'}
-        variant="secondary"
-        onPress={handlePickPhoto}
-        loading={uploadingPhoto}
-        style={styles.photoButton}
-      />
+      {variants.length === 0 ? (
+        <TextField label="Stock" placeholder="0" keyboardType="numeric" value={stock} onChangeText={setStock} />
+      ) : (
+        <View style={styles.stockComputedBox}>
+          <Text style={styles.fieldLabel}>Stock total</Text>
+          <Text style={styles.stockComputedValue}>
+            {variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)} uds (suma de variantes)
+          </Text>
+        </View>
+      )}
+
+      <Text style={styles.fieldLabel}>Variantes (opcional)</Text>
+      <Text style={styles.variantHint}>
+        Ej. tallas o colores, cada una con su propio stock. Deja el precio vacío para heredar el precio general.
+      </Text>
+      {variants.map((v, index) => (
+        <View key={v.id ?? `new-${index}`} style={styles.variantCard}>
+          <View style={styles.variantCardHeader}>
+            <TextInput
+              style={styles.variantLabelInput}
+              placeholder="Ej: Talla M"
+              placeholderTextColor={colors.textMuted}
+              value={v.label}
+              onChangeText={(text) => updateVariantRow(index, { label: text })}
+            />
+            <Pressable onPress={() => removeVariantRow(index)} hitSlop={8}>
+              <Ionicons name="close-circle" size={20} color={colors.danger} />
+            </Pressable>
+          </View>
+          <View style={styles.variantCardFieldsRow}>
+            <View style={styles.variantFieldCol}>
+              <Text style={styles.variantFieldLabel}>Stock</Text>
+              <TextInput
+                style={styles.variantSmallInput}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                value={v.stock}
+                onChangeText={(text) => updateVariantRow(index, { stock: text })}
+              />
+            </View>
+            <View style={styles.variantFieldCol}>
+              <Text style={styles.variantFieldLabel}>Precio (opcional)</Text>
+              <TextInput
+                style={styles.variantSmallInput}
+                placeholder={price.trim() ? `$${price}` : 'General'}
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                value={v.price}
+                onChangeText={(text) => updateVariantRow(index, { price: text })}
+              />
+            </View>
+          </View>
+        </View>
+      ))}
+      <Pressable style={styles.addVariantBtn} onPress={addVariantRow}>
+        <Ionicons name="add" size={18} color={colors.primary} />
+        <Text style={styles.addVariantBtnText}>Agregar variante</Text>
+      </Pressable>
+
+      <Text style={styles.fieldLabel}>
+        Fotos ({photos.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photosRow}>
+        {photos.map((url, index) => (
+          <View key={`${url}-${index}`} style={styles.photoThumbWrap}>
+            <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+            <Pressable style={styles.photoRemoveBtn} onPress={() => handleRemovePhoto(index)}>
+              <Ionicons name="close-circle" size={20} color={colors.danger} />
+            </Pressable>
+          </View>
+        ))}
+        {!atPhotoLimit && (
+          <Pressable style={styles.photoAddTile} onPress={handlePickPhoto} disabled={uploadingPhoto}>
+            {uploadingPhoto ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="add" size={22} color={colors.primary} />
+                <Text style={styles.photoAddTileText}>Agregar</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+      </ScrollView>
+      {atPhotoLimit && (
+        <Text style={styles.photoLimitHint}>
+          Tu plan {limits?.planName ?? 'free'} permite hasta {maxPhotos} foto{maxPhotos === 1 ? '' : 's'}. Sube de plan para agregar más.
+        </Text>
+      )}
 
       {isEdit && (
         <View style={styles.toggleRow}>
@@ -886,15 +1118,123 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 6,
   },
-  photoPreview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
+  stockComputedBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  stockComputedValue: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  variantHint: {
+    fontSize: 12,
+    color: colors.textMuted,
     marginBottom: 10,
+  },
+  variantCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  variantCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  variantLabelInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  variantCardFieldsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  variantFieldCol: {
+    flex: 1,
+  },
+  variantFieldLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  variantSmallInput: {
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.background,
+  },
+  addVariantBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  addVariantBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  photosRow: {
+    gap: 10,
+    marginBottom: 6,
+  },
+  photoThumbWrap: {
+    position: 'relative',
+  },
+  photoThumb: {
+    width: 90,
+    aspectRatio: 3 / 4,
+    borderRadius: 10,
     backgroundColor: colors.surface,
   },
-  photoButton: {
-    marginBottom: 16,
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  photoAddTile: {
+    width: 90,
+    aspectRatio: 3 / 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  photoAddTileText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  photoLimitHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 10,
   },
   toggleRow: {
     flexDirection: 'row',

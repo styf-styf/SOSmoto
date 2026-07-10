@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import type { GestureResponderEvent, NativeSyntheticEvent, TextLayoutEventData } from 'react-native';
+import { Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import type { GestureResponderEvent, NativeSyntheticEvent, NativeScrollEvent, TextLayoutEventData } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { GradientShade } from './GradientShade';
 import { getPostAuthorAvatar, getPostAuthorName, getPostTag, type PostWithAuthor } from '../services/posts';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export function PostCard({
   post,
@@ -34,9 +36,14 @@ export function PostCard({
   const avatarUrl = getPostAuthorAvatar(post);
   const tag = getPostTag(post, userRole);
   const isBusiness = !!post.author_business;
-  const hasImage = !!post.image_url;
+  const hasImage = post.photos.length > 0;
   const [expanded, setExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  function handlePhotoScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH));
+  }
 
   const caption = post.caption ?? '';
   const collapsed = hasImage && !expanded;
@@ -88,11 +95,16 @@ export function PostCard({
     }
   }
 
+  // El carrusel de fotos es un ScrollView horizontal -- si todo el card fuera
+  // un solo Pressable envolviéndolo (como antes), la negociación de gestos
+  // entre "tap para abrir el detalle" y "swipe para cambiar de foto" queda
+  // inconsistente (funciona para un lado sí y para el otro no, o requiere
+  // remount para destrabarse), y además hace más fácil que un scroll
+  // vertical leve dentro del feed se interprete como tap. En vez de un
+  // Pressable envolviendo todo, cada zona pulsable (foto, caption, etc.)
+  // tiene su propio Pressable puntual.
   return (
-    <Pressable
-      style={[styles.card, !hasImage && styles.cardNoImage, !hasImage && !showBottomShadow && styles.cardNoBorder]}
-      onPress={() => router.push(detailHref)}
-    >
+    <View style={[styles.card, !hasImage && styles.cardNoImage, !hasImage && !showBottomShadow && styles.cardNoBorder]}>
       {!hasImage && topFadeFromHeader && (
         <GradientShade position="top" height={24} maxOpacity={1} color={colors.background} />
       )}
@@ -147,8 +159,43 @@ export function PostCard({
 
       {hasImage && (
         <View style={styles.imageWrap}>
-          <Image source={{ uri: post.image_url! }} style={styles.image} resizeMode="cover" />
+          {post.photos.length > 1 ? (
+            <ScrollView
+              style={styles.imageScroll}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handlePhotoScroll}
+              scrollEventThrottle={16}
+            >
+              {post.photos.map((url, index) => (
+                <Pressable key={`${url}-${index}`} onPress={() => router.push(detailHref)}>
+                  <Image
+                    source={{ uri: url }}
+                    style={[styles.image, { width: SCREEN_WIDTH }]}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : (
+            <Pressable onPress={() => router.push(detailHref)}>
+              <Image source={{ uri: post.photos[0] }} style={styles.image} resizeMode="cover" />
+            </Pressable>
+          )}
           <GradientShade height={100} />
+          {post.photos.length > 1 && (
+            <>
+              <View style={styles.multiPhotoBadge}>
+                <Ionicons name="copy-outline" size={14} color="#fff" />
+              </View>
+              <View style={styles.dotsRowOverlay}>
+                {post.photos.map((_, i) => (
+                  <View key={i} style={[styles.dotOverlay, i === photoIndex && styles.dotOverlayActive]} />
+                ))}
+              </View>
+            </>
+          )}
           {tag && (
             <Pressable style={styles.tagChip} onPress={handleTagPress}>
               <Ionicons name="pricetag" size={12} color="#fff" />
@@ -167,7 +214,11 @@ export function PostCard({
         </View>
       )}
 
-      {!hasImage && caption && <Text style={styles.caption}>{caption}</Text>}
+      {!hasImage && caption && (
+        <Pressable onPress={() => router.push(detailHref)}>
+          <Text style={styles.caption}>{caption}</Text>
+        </Pressable>
+      )}
 
       {!hasImage && (
         <View style={styles.engagementRow}>
@@ -192,7 +243,7 @@ export function PostCard({
       )}
 
       {!hasImage && showBottomShadow && <GradientShade position="bottom" height={8} maxOpacity={0.12} />}
-    </Pressable>
+    </View>
   );
 }
 
@@ -275,10 +326,41 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
   },
+  imageScroll: {
+    width: '100%',
+    height: '100%',
+  },
   image: {
     width: '100%',
     height: '100%',
     backgroundColor: colors.background,
+  },
+  multiPhotoBadge: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    padding: 5,
+  },
+  dotsRowOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  dotOverlay: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  dotOverlayActive: {
+    backgroundColor: '#fff',
+    width: 16,
   },
   tagChip: {
     position: 'absolute',

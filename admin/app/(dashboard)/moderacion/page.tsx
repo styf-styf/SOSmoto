@@ -30,7 +30,7 @@ export default async function ModeracionPage({
     supabase
       .from('posts')
       .select(
-        'id, business_id, client_id, image_url, caption, comments_count, created_at, businesses!posts_business_id_fkey(name), users!posts_client_id_fkey(full_name)',
+        'id, business_id, client_id, photos, caption, comments_count, created_at, businesses!posts_business_id_fkey(name), users!posts_client_id_fkey(full_name)',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })
@@ -90,8 +90,8 @@ export default async function ModeracionPage({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {posts.map((post) => (
           <div key={post.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            {post.image_url ? (
-              <img src={post.image_url} alt="" className="h-48 w-full object-cover" />
+            {post.photos[0] ? (
+              <img src={post.photos[0]} alt="" className="h-48 w-full object-cover" />
             ) : (
               <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
                 Sin imagen

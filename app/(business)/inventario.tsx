@@ -16,12 +16,15 @@ import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import {
   addStockMovement,
+  addVariantStockMovement,
   getInventory,
   getStockMovements,
   type ProductWithMovements,
   type StockMovementReason,
 } from '../../services/inventory';
-import type { StockMovement } from '../../types/database';
+import type { ProductVariant, StockMovement } from '../../types/database';
+
+type VariantWithLevel = ProductVariant & { stockLevel: 'out' | 'low' | 'ok' };
 
 type FilterTab = 'all' | 'low' | 'out';
 type MovementType = 'entry' | 'exit' | 'adjustment';
@@ -44,15 +47,28 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// Para productos con variantes, el nivel "efectivo" para filtrar/alertar es
+// el peor de todas sus variantes -- así "Bajo stock"/"Sin stock" no se
+// esconden detrás de un total combinado que luce sano.
+function worstLevel(product: ProductWithMovements): 'out' | 'low' | 'ok' {
+  if (product.variants.length === 0) return product.stockLevel;
+  if (product.variants.some((v) => v.stockLevel === 'out')) return 'out';
+  if (product.variants.some((v) => v.stockLevel === 'low')) return 'low';
+  return 'ok';
+}
+
 export default function InventarioScreen() {
   const { profile } = useAuth();
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [products, setProducts] = useState<ProductWithMovements[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>('all');
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
-  // Panel de movimiento
+  // Panel de movimiento -- selected es el producto dueño del movimiento;
+  // selectedVariant, si existe, acota el movimiento a esa variante puntual.
   const [selected, setSelected] = useState<ProductWithMovements | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<VariantWithLevel | null>(null);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loadingMov, setLoadingMov] = useState(false);
   const [movType, setMovType] = useState<MovementType>('entry');
@@ -62,6 +78,8 @@ export default function InventarioScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const currentStock = selectedVariant ? selectedVariant.stock : selected?.stock ?? 0;
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -84,20 +102,17 @@ export default function InventarioScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  async function selectProduct(product: ProductWithMovements) {
-    if (selected?.id === product.id) {
-      setSelected(null);
-      return;
-    }
+  async function openMovementPanel(product: ProductWithMovements, variant: VariantWithLevel | null, stock: number) {
     setSelected(product);
+    setSelectedVariant(variant);
     setMovType('entry');
     setReason('entry');
     setQuantity('');
-    setNewTotal(String(product.stock));
+    setNewTotal(String(stock));
     setNotes('');
     setLoadingMov(true);
     try {
-      const movs = await getStockMovements(product.id);
+      const movs = await getStockMovements(product.id, variant?.id ?? null);
       setMovements(movs);
     } catch (err) {
       console.error('load movements error', err);
@@ -106,10 +121,33 @@ export default function InventarioScreen() {
     }
   }
 
+  async function selectProduct(product: ProductWithMovements) {
+    if (product.variants.length > 0) {
+      setExpandedProductId((prev) => (prev === product.id ? null : product.id));
+      setSelected(null);
+      setSelectedVariant(null);
+      return;
+    }
+    if (selected?.id === product.id && !selectedVariant) {
+      setSelected(null);
+      return;
+    }
+    await openMovementPanel(product, null, product.stock);
+  }
+
+  async function selectVariant(product: ProductWithMovements, variant: VariantWithLevel) {
+    if (selected?.id === product.id && selectedVariant?.id === variant.id) {
+      setSelected(null);
+      setSelectedVariant(null);
+      return;
+    }
+    await openMovementPanel(product, variant, variant.stock);
+  }
+
   function handleMovTypeChange(type: MovementType) {
     setMovType(type);
     setQuantity('');
-    setNewTotal(selected ? String(selected.stock) : '');
+    setNewTotal(String(currentStock));
     if (type === 'entry') setReason('entry');
     else if (type === 'exit') setReason('sale');
     else setReason('adjustment');
@@ -130,36 +168,69 @@ export default function InventarioScreen() {
     } else {
       const tot = parseInt(newTotal, 10);
       if (isNaN(tot) || tot < 0) { Alert.alert('Total inválido', 'Ingresa un valor mayor o igual a 0.'); return; }
-      delta = tot - selected.stock;
+      delta = tot - currentStock;
       if (delta === 0) { Alert.alert('Sin cambios', 'El stock nuevo es igual al actual.'); return; }
     }
 
     setSaving(true);
     try {
-      const updated = await addStockMovement({
-        businessId,
-        productId: selected.id,
-        delta,
-        reason,
-        notes: notes.trim() || undefined,
-        currentStock: selected.stock,
-      });
-      const newLevel: 'out' | 'low' | 'ok' = updated.stock <= 0 ? 'out' : updated.stock <= 5 ? 'low' : 'ok';
-      // Actualiza lista local
-      setProducts((prev) =>
-        prev
-          .map((p) =>
-            p.id === selected.id ? { ...p, stock: updated.stock, stockLevel: newLevel } : p
-          )
-          .sort((a, b) => a.stock - b.stock)
-      );
-      setSelected((prev) => prev ? { ...prev, stock: updated.stock, stockLevel: newLevel } : null);
-      // Recarga historial
-      const movs = await getStockMovements(selected.id);
-      setMovements(movs);
-      setQuantity('');
-      setNewTotal(String(updated.stock));
-      setNotes('');
+      if (selectedVariant) {
+        const updatedVariant = await addVariantStockMovement({
+          businessId,
+          productId: selected.id,
+          variantId: selectedVariant.id,
+          delta,
+          reason,
+          notes: notes.trim() || undefined,
+          currentStock: selectedVariant.stock,
+        });
+        const newLevel: 'out' | 'low' | 'ok' = updatedVariant.stock <= 0 ? 'out' : updatedVariant.stock <= 5 ? 'low' : 'ok';
+        const newVariant: VariantWithLevel = { ...updatedVariant, stockLevel: newLevel };
+        const newVariants = selected.variants.map((v) => (v.id === newVariant.id ? newVariant : v));
+        const newProductStock = newVariants.reduce((sum, v) => sum + v.stock, 0);
+        const newProductLevel: 'out' | 'low' | 'ok' = newProductStock <= 0 ? 'out' : newProductStock <= 5 ? 'low' : 'ok';
+
+        setProducts((prev) =>
+          prev
+            .map((p) =>
+              p.id === selected.id ? { ...p, variants: newVariants, stock: newProductStock, stockLevel: newProductLevel } : p
+            )
+            .sort((a, b) => a.stock - b.stock)
+        );
+        setSelected((prev) => (prev ? { ...prev, variants: newVariants, stock: newProductStock, stockLevel: newProductLevel } : null));
+        setSelectedVariant(newVariant);
+
+        const movs = await getStockMovements(selected.id, newVariant.id);
+        setMovements(movs);
+        setQuantity('');
+        setNewTotal(String(newVariant.stock));
+        setNotes('');
+      } else {
+        const updated = await addStockMovement({
+          businessId,
+          productId: selected.id,
+          delta,
+          reason,
+          notes: notes.trim() || undefined,
+          currentStock: selected.stock,
+        });
+        const newLevel: 'out' | 'low' | 'ok' = updated.stock <= 0 ? 'out' : updated.stock <= 5 ? 'low' : 'ok';
+        // Actualiza lista local
+        setProducts((prev) =>
+          prev
+            .map((p) =>
+              p.id === selected.id ? { ...p, stock: updated.stock, stockLevel: newLevel } : p
+            )
+            .sort((a, b) => a.stock - b.stock)
+        );
+        setSelected((prev) => prev ? { ...prev, stock: updated.stock, stockLevel: newLevel } : null);
+        // Recarga historial
+        const movs = await getStockMovements(selected.id, null);
+        setMovements(movs);
+        setQuantity('');
+        setNewTotal(String(updated.stock));
+        setNotes('');
+      }
     } catch (err: any) {
       Alert.alert('Error', err?.message ?? 'No se pudo registrar el movimiento.');
     } finally {
@@ -168,13 +239,13 @@ export default function InventarioScreen() {
   }
 
   const filtered = products.filter((p) => {
-    if (filter === 'out') return p.stockLevel === 'out';
-    if (filter === 'low') return p.stockLevel === 'low';
+    if (filter === 'out') return worstLevel(p) === 'out';
+    if (filter === 'low') return worstLevel(p) === 'low';
     return true;
   });
 
-  const totalOut = products.filter((p) => p.stockLevel === 'out').length;
-  const totalLow = products.filter((p) => p.stockLevel === 'low').length;
+  const totalOut = products.filter((p) => worstLevel(p) === 'out').length;
+  const totalLow = products.filter((p) => worstLevel(p) === 'low').length;
 
   if (loading) {
     return (
@@ -224,7 +295,10 @@ export default function InventarioScreen() {
       )}
 
       {filtered.map((product) => {
-        const isOpen = selected?.id === product.id;
+        const hasVariants = product.variants.length > 0;
+        const isExpanded = expandedProductId === product.id;
+        const isProductPanelOpen = !selectedVariant && selected?.id === product.id;
+        const displayLevel = hasVariants ? worstLevel(product) : product.stockLevel;
         return (
           <View key={product.id} style={styles.card}>
             {/* Fila principal */}
@@ -235,144 +309,178 @@ export default function InventarioScreen() {
                 {!product.is_active && <Text style={styles.inactiveTag}>Inactivo</Text>}
               </View>
               <View style={styles.stockBadge}>
-                <View style={[styles.stockDot, { backgroundColor: STOCK_COLORS[product.stockLevel] }]} />
-                <Text style={[styles.stockNum, { color: STOCK_COLORS[product.stockLevel] }]}>
+                <View style={[styles.stockDot, { backgroundColor: STOCK_COLORS[displayLevel] }]} />
+                <Text style={[styles.stockNum, { color: STOCK_COLORS[displayLevel] }]}>
                   {product.stock}
                 </Text>
-                <Text style={styles.stockUnit}>uds</Text>
+                <Text style={styles.stockUnit}>{hasVariants ? 'uds total' : 'uds'}</Text>
               </View>
               <Ionicons
-                name={isOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
+                name={(hasVariants ? isExpanded : isProductPanelOpen) ? 'chevron-up-outline' : 'chevron-down-outline'}
                 size={18}
                 color={colors.textMuted}
                 style={{ marginLeft: 8 }}
               />
             </Pressable>
 
-            {/* Panel de movimiento */}
-            {isOpen && (
-              <View style={styles.panel}>
-                {/* Tipo de movimiento */}
-                <View style={styles.movTypeTabs}>
-                  {(['entry', 'exit', 'adjustment'] as MovementType[]).map((t) => (
-                    <Pressable
-                      key={t}
-                      style={[styles.movTypeTab, movType === t && styles.movTypeTabActive]}
-                      onPress={() => handleMovTypeChange(t)}
-                    >
-                      <Ionicons
-                        name={t === 'entry' ? 'arrow-down-circle-outline' : t === 'exit' ? 'arrow-up-circle-outline' : 'create-outline'}
-                        size={15}
-                        color={movType === t ? '#fff' : colors.textMuted}
-                      />
-                      <Text style={[styles.movTypeText, movType === t && styles.movTypeTextActive]}>
-                        {t === 'entry' ? 'Entrada' : t === 'exit' ? 'Salida' : 'Ajuste'}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Cantidad o nuevo total */}
-                {movType !== 'adjustment' ? (
-                  <View style={styles.fieldRow}>
-                    <Text style={styles.fieldLabel}>Cantidad</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="0"
-                      placeholderTextColor={colors.textMuted}
-                      value={quantity}
-                      onChangeText={setQuantity}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                ) : (
-                  <View style={styles.fieldRow}>
-                    <Text style={styles.fieldLabel}>
-                      Nuevo total{' '}
-                      <Text style={styles.fieldHint}>(actual: {product.stock})</Text>
-                    </Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder={String(product.stock)}
-                      placeholderTextColor={colors.textMuted}
-                      value={newTotal}
-                      onChangeText={setNewTotal}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                )}
-
-                {/* Motivo */}
-                <Text style={styles.fieldLabel}>Motivo</Text>
-                <View style={styles.reasonRow}>
-                  {(movType === 'entry'
-                    ? ['entry', 'other']
-                    : movType === 'exit'
-                    ? ['sale', 'damage', 'other']
-                    : ['adjustment', 'other']
-                  ).map((r) => (
-                    <Pressable
-                      key={r}
-                      style={[styles.reasonChip, reason === r && styles.reasonChipActive]}
-                      onPress={() => setReason(r as StockMovementReason)}
-                    >
-                      <Text style={[styles.reasonChipText, reason === r && styles.reasonChipTextActive]}>
-                        {REASON_LABEL[r as StockMovementReason]}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Notas opcionales */}
-                <TextInput
-                  style={styles.notesInput}
-                  placeholder="Notas (opcional)"
-                  placeholderTextColor={colors.textMuted}
-                  value={notes}
-                  onChangeText={setNotes}
-                  multiline
-                  textAlignVertical="top"
-                />
-
-                <Pressable
-                  style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-                  onPress={handleSaveMovement}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.saveBtnText}>Registrar movimiento</Text>
-                  )}
-                </Pressable>
-
-                {/* Historial */}
-                <Text style={styles.histTitle}>Últimos movimientos</Text>
-                {loadingMov ? (
-                  <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
-                ) : movements.length === 0 ? (
-                  <Text style={styles.empty}>Sin movimientos registrados.</Text>
-                ) : (
-                  movements.map((m) => (
-                    <View key={m.id} style={styles.movRow}>
-                      <View style={[styles.movDot, { backgroundColor: m.delta >= 0 ? colors.success : colors.danger }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.movLabel}>
-                          {m.delta >= 0 ? `+${m.delta}` : m.delta} uds — {REASON_LABEL[m.reason]}
-                        </Text>
-                        {m.notes && <Text style={styles.movNotes}>{m.notes}</Text>}
-                        <Text style={styles.movDate}>{fmtDate(m.created_at)}</Text>
-                      </View>
+            {/* Sub-filas de variantes */}
+            {hasVariants && isExpanded && (
+              <View style={styles.variantListWrap}>
+                {product.variants.map((variant) => {
+                  const isVariantOpen = selectedVariant?.id === variant.id && selected?.id === product.id;
+                  return (
+                    <View key={variant.id}>
+                      <Pressable style={styles.variantListRow} onPress={() => selectVariant(product, variant)}>
+                        <Text style={styles.variantListLabel} numberOfLines={1}>{variant.label}</Text>
+                        <View style={styles.stockBadge}>
+                          <View style={[styles.stockDot, { backgroundColor: STOCK_COLORS[variant.stockLevel] }]} />
+                          <Text style={[styles.stockNum, styles.stockNumSmall, { color: STOCK_COLORS[variant.stockLevel] }]}>
+                            {variant.stock}
+                          </Text>
+                          <Text style={styles.stockUnit}>uds</Text>
+                        </View>
+                        <Ionicons
+                          name={isVariantOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
+                          size={16}
+                          color={colors.textMuted}
+                          style={{ marginLeft: 8 }}
+                        />
+                      </Pressable>
+                      {isVariantOpen && renderMovementPanel()}
                     </View>
-                  ))
-                )}
+                  );
+                })}
               </View>
             )}
+
+            {/* Panel de movimiento a nivel de producto (sin variantes) */}
+            {!hasVariants && isProductPanelOpen && renderMovementPanel()}
           </View>
         );
       })}
     </ScrollView>
   );
+
+  function renderMovementPanel() {
+    return (
+      <View style={styles.panel}>
+        {/* Tipo de movimiento */}
+        <View style={styles.movTypeTabs}>
+          {(['entry', 'exit', 'adjustment'] as MovementType[]).map((t) => (
+            <Pressable
+              key={t}
+              style={[styles.movTypeTab, movType === t && styles.movTypeTabActive]}
+              onPress={() => handleMovTypeChange(t)}
+            >
+              <Ionicons
+                name={t === 'entry' ? 'arrow-down-circle-outline' : t === 'exit' ? 'arrow-up-circle-outline' : 'create-outline'}
+                size={15}
+                color={movType === t ? '#fff' : colors.textMuted}
+              />
+              <Text style={[styles.movTypeText, movType === t && styles.movTypeTextActive]}>
+                {t === 'entry' ? 'Entrada' : t === 'exit' ? 'Salida' : 'Ajuste'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Cantidad o nuevo total */}
+        {movType !== 'adjustment' ? (
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Cantidad</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              placeholderTextColor={colors.textMuted}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="numeric"
+            />
+          </View>
+        ) : (
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>
+              Nuevo total{' '}
+              <Text style={styles.fieldHint}>(actual: {currentStock})</Text>
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder={String(currentStock)}
+              placeholderTextColor={colors.textMuted}
+              value={newTotal}
+              onChangeText={setNewTotal}
+              keyboardType="numeric"
+            />
+          </View>
+        )}
+
+        {/* Motivo */}
+        <Text style={styles.fieldLabel}>Motivo</Text>
+        <View style={styles.reasonRow}>
+          {(movType === 'entry'
+            ? ['entry', 'other']
+            : movType === 'exit'
+            ? ['sale', 'damage', 'other']
+            : ['adjustment', 'other']
+          ).map((r) => (
+            <Pressable
+              key={r}
+              style={[styles.reasonChip, reason === r && styles.reasonChipActive]}
+              onPress={() => setReason(r as StockMovementReason)}
+            >
+              <Text style={[styles.reasonChipText, reason === r && styles.reasonChipTextActive]}>
+                {REASON_LABEL[r as StockMovementReason]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Notas opcionales */}
+        <TextInput
+          style={styles.notesInput}
+          placeholder="Notas (opcional)"
+          placeholderTextColor={colors.textMuted}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          textAlignVertical="top"
+        />
+
+        <Pressable
+          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+          onPress={handleSaveMovement}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.saveBtnText}>Registrar movimiento</Text>
+          )}
+        </Pressable>
+
+        {/* Historial */}
+        <Text style={styles.histTitle}>Últimos movimientos</Text>
+        {loadingMov ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />
+        ) : movements.length === 0 ? (
+          <Text style={styles.empty}>Sin movimientos registrados.</Text>
+        ) : (
+          movements.map((m) => (
+            <View key={m.id} style={styles.movRow}>
+              <View style={[styles.movDot, { backgroundColor: m.delta >= 0 ? colors.success : colors.danger }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.movLabel}>
+                  {m.delta >= 0 ? `+${m.delta}` : m.delta} uds — {REASON_LABEL[m.reason]}
+                </Text>
+                {m.notes && <Text style={styles.movNotes}>{m.notes}</Text>}
+                <Text style={styles.movDate}>{fmtDate(m.created_at)}</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
@@ -416,7 +524,18 @@ const styles = StyleSheet.create({
   stockBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   stockDot: { width: 8, height: 8, borderRadius: 4 },
   stockNum: { fontSize: 20, fontWeight: '800' },
+  stockNumSmall: { fontSize: 15 },
   stockUnit: { fontSize: 11, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
+  variantListWrap: {
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  variantListRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12, gap: 12,
+    paddingLeft: 26,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  variantListLabel: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
   panel: {
     borderTopWidth: 1, borderTopColor: colors.border,
     paddingHorizontal: 14, paddingTop: 14, paddingBottom: 16,

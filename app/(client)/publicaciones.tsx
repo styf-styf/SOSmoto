@@ -3,11 +3,12 @@ import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView,
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
+import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
-import { createPost, deletePost, getMyClientPosts } from '../../services/posts';
+import { createPost, deletePost, getMyClientPosts, MAX_POST_PHOTOS_CLIENT } from '../../services/posts';
 import { pickAndUploadClientPostImage } from '../../services/storage';
 import type { Post } from '../../types/database';
 
@@ -17,7 +18,7 @@ export default function ClientPublicacionesScreen() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  const [imageUrl, setImageUrl] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -48,7 +49,7 @@ export default function ClientPublicacionesScreen() {
   }, [load]);
 
   function resetForm() {
-    setImageUrl('');
+    setPhotos([]);
     setCaption('');
     setTagQuery('');
     setTagResults([]);
@@ -61,17 +62,21 @@ export default function ClientPublicacionesScreen() {
   }
 
   async function handlePickImage() {
-    if (!profile) return;
+    if (!profile || photos.length >= MAX_POST_PHOTOS_CLIENT) return;
     setUploadingImage(true);
     try {
       const url = await pickAndUploadClientPostImage(profile.id);
-      if (url) setImageUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload post image error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la imagen.');
     } finally {
       setUploadingImage(false);
     }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleSearchBusiness(text: string) {
@@ -98,7 +103,7 @@ export default function ClientPublicacionesScreen() {
 
   async function handleCreate() {
     if (!profile) return;
-    if (!imageUrl.trim() && !caption.trim()) {
+    if (photos.length === 0 && !caption.trim()) {
       Alert.alert('Falta contenido', 'Agrega una foto, un texto, o ambos.');
       return;
     }
@@ -106,7 +111,7 @@ export default function ClientPublicacionesScreen() {
     try {
       const created = await createPost({
         clientId: profile.id,
-        imageUrl: imageUrl.trim() || undefined,
+        photos,
         caption: caption.trim() || undefined,
         tagBusinessId: taggedBusiness?.id,
       });
@@ -151,15 +156,16 @@ export default function ClientPublicacionesScreen() {
 
       {showForm && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Imagen</Text>
-          {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}
-          <Button
-            title={imageUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
-            variant="secondary"
-            onPress={handlePickImage}
-            loading={uploadingImage}
-            style={styles.imageButton}
-          />
+          <Text style={styles.fieldLabel}>Fotos ({photos.length}/{MAX_POST_PHOTOS_CLIENT})</Text>
+          <View style={styles.imageButton}>
+            <MultiPhotoPicker
+              photos={photos}
+              onRemove={handleRemovePhoto}
+              onAdd={handlePickImage}
+              max={MAX_POST_PHOTOS_CLIENT}
+              uploading={uploadingImage}
+            />
+          </View>
 
           <TextField label="Texto" placeholder="Cuéntanos qué pasó" value={caption} onChangeText={setCaption} />
 
@@ -197,8 +203,8 @@ export default function ClientPublicacionesScreen() {
       ) : (
         posts.map((post) => (
           <Pressable key={post.id} style={styles.postCard} onPress={() => router.push(`/(client)/publicacion/${post.id}`)}>
-            {post.image_url ? (
-              <Image source={{ uri: post.image_url }} style={styles.thumb} resizeMode="cover" />
+            {post.photos[0] ? (
+              <Image source={{ uri: post.photos[0] }} style={styles.thumb} resizeMode="cover" />
             ) : (
               <View style={[styles.thumb, styles.thumbPlaceholder]}>
                 <Ionicons name="document-text-outline" size={22} color={colors.textMuted} />
@@ -298,13 +304,6 @@ const styles = StyleSheet.create({
   },
   searchSpinner: {
     marginTop: 8,
-  },
-  preview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: colors.background,
   },
   imageButton: {
     marginBottom: 16,

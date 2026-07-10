@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../../components/Button';
 import { QuantityStepper } from '../../../../components/QuantityStepper';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
+import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getProductById, getProductsByCategory, incrementProductViews } from '../../../../services/catalog';
@@ -29,6 +30,13 @@ export default function ProductDetailScreen() {
   const [apartando, setApartando] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+  const hasVariants = !!product && product.variants.length > 0;
+  const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
+  const effectivePrice = selectedVariant?.reference_price ?? product?.reference_price ?? null;
+  const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : (product?.stock ?? 0);
+  const variantId = hasVariants ? selectedVariantId : null;
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -39,13 +47,12 @@ export default function ProductDetailScreen() {
       getProductsByCategory(result.category_id, id)
         .then(setRelatedItems)
         .catch((err) => console.error('load related products error', err));
+      if (result.variants.length > 0) {
+        const firstAvailable = result.variants.find((v) => v.stock > 0) ?? result.variants[0];
+        setSelectedVariantId(firstAvailable.id);
+      }
     }
-    if (profile?.id) {
-      getClientIntentForProduct(profile.id, id)
-        .then(setIntent)
-        .catch((err) => console.error('load intent error', err));
-    }
-  }, [id, profile?.id]);
+  }, [id]);
 
   useEffect(() => {
     setLoading(true);
@@ -66,12 +73,24 @@ export default function ProductDetailScreen() {
     }, [navigation])
   );
 
+  // El apartado activo depende de la variante elegida -- se vuelve a pedir
+  // cada vez que el usuario cambia de talla/color, y espera a que haya una
+  // variante seleccionada si el producto tiene variantes.
   useEffect(() => {
-    if (!profile?.id || !id) return;
-    return subscribeToClientIntent(profile.id, id, setIntent, () => {
+    if (!profile?.id || !id || !product) return;
+    if (hasVariants && !variantId) return;
+    getClientIntentForProduct(profile.id, id, variantId)
+      .then(setIntent)
+      .catch((err) => console.error('load intent error', err));
+  }, [profile?.id, id, product, hasVariants, variantId]);
+
+  useEffect(() => {
+    if (!profile?.id || !id || !product) return;
+    if (hasVariants && !variantId) return;
+    return subscribeToClientIntent(profile.id, id, variantId, setIntent, () => {
       Alert.alert('No disponible', 'El negocio indicó que este producto no está disponible en este momento.');
     });
-  }, [profile?.id, id]);
+  }, [profile?.id, id, product, hasVariants, variantId]);
 
   async function handleApartar() {
     if (!profile || !product) return;
@@ -82,14 +101,15 @@ export default function ProductDetailScreen() {
         setIntent(null);
         setQuantity(1);
       } else {
-        const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity);
+        const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity, variantId);
         setIntent(newIntent);
         const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
+        const itemLabel = selectedVariant ? `${product.name} (${selectedVariant.label})` : product.name;
         router.push({
           pathname: '/(client)/chat/[id]',
           params: {
             id: product.business_id,
-            prefill: `Hola, quiero apartar: ${qtyPrefix}${product.name}${product.reference_price != null ? ` ($${(product.reference_price * quantity).toFixed(2)})` : ''}`,
+            prefill: `Hola, quiero apartar: ${qtyPrefix}${itemLabel}${effectivePrice != null ? ` ($${(effectivePrice * quantity).toFixed(2)})` : ''}`,
             autoSend: 'true',
           },
         });
@@ -147,18 +167,44 @@ export default function ProductDetailScreen() {
         </View>
         <Text style={styles.businessName} numberOfLines={1}>{product.business_name}</Text>
       </Pressable>
-      {product.photos[0] && (
-        <Image source={{ uri: product.photos[0] }} style={styles.photo} resizeMode="cover" />
-      )}
+      <PhotoCarousel photos={product.photos} />
       <Text style={styles.name}>{product.name}</Text>
       {product.category_name && <Text style={styles.category}>{product.category_name}</Text>}
 
       <Text style={styles.price}>
-        {product.reference_price !== null ? `$${product.reference_price.toFixed(2)}` : 'Precio a consultar'}
+        {effectivePrice !== null ? `$${effectivePrice.toFixed(2)}` : 'Precio a consultar'}
       </Text>
       <Text style={styles.stock}>
-        {product.stock > 0 ? `Disponible · ${product.stock} en stock` : 'Sin stock disponible'}
+        {effectiveStock > 0 ? `Disponible · ${effectiveStock} en stock` : 'Sin stock disponible'}
       </Text>
+
+      {hasVariants && (
+        <View style={styles.variantRow}>
+          {product.variants.map((v) => {
+            const selected = v.id === selectedVariantId;
+            const outOfStock = v.stock <= 0;
+            return (
+              <Pressable
+                key={v.id}
+                disabled={outOfStock}
+                onPress={() => setSelectedVariantId(v.id)}
+                style={[styles.variantChip, selected && styles.variantChipSelected, outOfStock && styles.variantChipDisabled]}
+              >
+                <Text
+                  style={[
+                    styles.variantChipText,
+                    selected && styles.variantChipTextSelected,
+                    outOfStock && styles.variantChipTextDisabled,
+                  ]}
+                >
+                  {v.label}
+                  {outOfStock ? ' (agotado)' : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {product.description && (
         <View style={styles.section}>
@@ -168,7 +214,7 @@ export default function ProductDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        {product.stock > 0 && profile?.role === 'client' && !intent && (
+        {effectiveStock > 0 && profile?.role === 'client' && (!hasVariants || !!selectedVariantId) && !intent && (
           <View style={styles.apartarRow}>
             <Button
               title="Apartar producto"
@@ -176,10 +222,10 @@ export default function ProductDetailScreen() {
               loading={apartando}
               style={styles.apartarButton}
             />
-            <QuantityStepper value={quantity} onChange={setQuantity} max={product.stock} />
+            <QuantityStepper value={quantity} onChange={setQuantity} max={effectiveStock} />
           </View>
         )}
-        {product.stock > 0 && profile?.role === 'client' && intent && (
+        {effectiveStock > 0 && profile?.role === 'client' && intent && (
           <Button
             title="Cancelar apartado"
             onPress={handleApartar}
@@ -316,6 +362,37 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  variantRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  variantChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  variantChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF1E6',
+  },
+  variantChipDisabled: {
+    opacity: 0.5,
+  },
+  variantChipText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  variantChipTextSelected: {
+    color: colors.primary,
+  },
+  variantChipTextDisabled: {
+    color: colors.textMuted,
+  },
   relatedSection: {
     marginTop: 28,
     marginHorizontal: -20,
@@ -375,11 +452,5 @@ const styles = StyleSheet.create({
   },
   intentBadgeConfirmed: {
     color: colors.success,
-  },
-  photo: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 16,
   },
 });

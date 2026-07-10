@@ -5,6 +5,7 @@ import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../../components/Button';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
+import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
@@ -168,9 +169,7 @@ export default function ServiceDetailScreen() {
         </View>
         <Text style={styles.businessName} numberOfLines={1}>{service.business_name}</Text>
       </Pressable>
-      {service.photos[0] && (
-        <Image source={{ uri: service.photos[0] }} style={styles.photo} resizeMode="cover" />
-      )}
+      <PhotoCarousel photos={service.photos} />
       <Text style={styles.name}>{service.name}</Text>
 
       <Text style={styles.price}>
@@ -383,10 +382,4 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   button: {},
-  photo: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
 });

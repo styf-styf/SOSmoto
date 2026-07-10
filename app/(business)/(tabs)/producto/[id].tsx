@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../../components/Button';
 import { QuantityStepper } from '../../../../components/QuantityStepper';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
+import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../../services/businesses';
@@ -14,6 +15,7 @@ import {
   cancelProductIntent,
   createProductIntent,
   getClientIntentForProduct,
+  getProductIntentStats,
   subscribeToClientIntent,
 } from '../../../../services/productIntents';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
@@ -33,6 +35,14 @@ export default function BusinessProductDetailScreen() {
   const [apartando, setApartando] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
+  const [stats, setStats] = useState<{ reservations: number; sold: number } | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+  const hasVariants = !!product && product.variants.length > 0;
+  const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
+  const effectivePrice = selectedVariant?.reference_price ?? product?.reference_price ?? null;
+  const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : (product?.stock ?? 0);
+  const variantId = hasVariants ? selectedVariantId : null;
 
   const load = useCallback(async () => {
     if (!id || !profile) return;
@@ -46,24 +56,26 @@ export default function BusinessProductDetailScreen() {
       getProductsByCategory(result.category_id, id)
         .then(setRelatedItems)
         .catch((err) => console.error('load related products error', err));
-    }
-
-    if (work) {
-      setCanBuy(work.business.business_type === 'workshop' && work.business.id !== result?.business_id);
-      setViewerIsStore(work.business.business_type === 'store');
-      if (result && work.business.id === result.business_id) {
-        // Es su propio producto -- en vez de la vista de "ver como negocio
-        // ajeno" lo mandamos directo al catálogo de gestión, igual que el
-        // taller con sus propios servicios.
-        setIsOwnProduct(true);
-        router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
-        return;
+      if (result.variants.length > 0) {
+        const firstAvailable = result.variants.find((v) => v.stock > 0) ?? result.variants[0];
+        setSelectedVariantId(firstAvailable.id);
       }
     }
 
-    getClientIntentForProduct(profile.id, id)
-      .then(setIntent)
-      .catch((err) => console.error('load intent error', err));
+    const owns = !!(work && result && work.business.id === result.business_id);
+    setIsOwnProduct(owns);
+
+    if (owns && result) {
+      getProductIntentStats(result.id)
+        .then(setStats)
+        .catch((err) => console.error('load product stats error', err));
+      return;
+    }
+
+    if (work) {
+      setCanBuy(work.business.business_type === 'workshop');
+      setViewerIsStore(work.business.business_type === 'store');
+    }
   }, [id, profile]);
 
   useEffect(() => {
@@ -85,12 +97,24 @@ export default function BusinessProductDetailScreen() {
     }, [navigation])
   );
 
+  // El apartado activo depende de la variante elegida -- se vuelve a pedir
+  // cada vez que el usuario cambia de talla/color, y espera a que haya una
+  // variante seleccionada si el producto tiene variantes.
   useEffect(() => {
-    if (!profile?.id || !id) return;
-    return subscribeToClientIntent(profile.id, id, setIntent, () => {
+    if (isOwnProduct || !profile?.id || !id || !product) return;
+    if (hasVariants && !variantId) return;
+    getClientIntentForProduct(profile.id, id, variantId)
+      .then(setIntent)
+      .catch((err) => console.error('load intent error', err));
+  }, [isOwnProduct, profile?.id, id, product, hasVariants, variantId]);
+
+  useEffect(() => {
+    if (isOwnProduct || !profile?.id || !id || !product) return;
+    if (hasVariants && !variantId) return;
+    return subscribeToClientIntent(profile.id, id, variantId, setIntent, () => {
       Alert.alert('No disponible', 'El negocio indicó que este producto no está disponible en este momento.');
     });
-  }, [profile?.id, id]);
+  }, [isOwnProduct, profile?.id, id, product, hasVariants, variantId]);
 
   async function handleApartar() {
     if (!profile || !product) return;
@@ -101,11 +125,12 @@ export default function BusinessProductDetailScreen() {
         setIntent(null);
         setQuantity(1);
       } else {
-        const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity);
+        const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity, variantId);
         setIntent(newIntent);
         const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
+        const itemLabel = selectedVariant ? `${product.name} (${selectedVariant.label})` : product.name;
         const msg = encodeURIComponent(
-          `Hola, quiero apartar: ${qtyPrefix}${product.name}${product.reference_price != null ? ` ($${(product.reference_price * quantity).toFixed(2)})` : ''}`
+          `Hola, quiero apartar: ${qtyPrefix}${itemLabel}${effectivePrice != null ? ` ($${(effectivePrice * quantity).toFixed(2)})` : ''}`
         );
         router.push(`/(business)/chat/${product.business_owner_id}?initialMessage=${msg}&sellerBusinessId=${product.business_id}`);
       }
@@ -117,7 +142,7 @@ export default function BusinessProductDetailScreen() {
     }
   }
 
-  if (loading || isOwnProduct) {
+  if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
@@ -135,7 +160,23 @@ export default function BusinessProductDetailScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Stack.Screen options={{ title: product.name }} />
+      <Stack.Screen
+        options={{
+          title: product.name,
+          headerRight: isOwnProduct
+            ? () => (
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: '/(business)/(tabs)/catalogo', params: { editId: product.id, editKind: 'product' } })
+                  }
+                  hitSlop={8}
+                >
+                  <Ionicons name="create-outline" size={22} color={colors.text} />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <Pressable
         style={styles.businessRow}
         onPress={() => router.push(`/(business)/business/${product.business_id}`)}
@@ -156,18 +197,44 @@ export default function BusinessProductDetailScreen() {
         </View>
         <Text style={styles.businessName} numberOfLines={1}>{product.business_name}</Text>
       </Pressable>
-      {product.photos[0] && (
-        <Image source={{ uri: product.photos[0] }} style={styles.photo} resizeMode="cover" />
-      )}
+      <PhotoCarousel photos={product.photos} />
       <Text style={styles.name}>{product.name}</Text>
       {product.category_name && <Text style={styles.category}>{product.category_name}</Text>}
 
       <Text style={styles.price}>
-        {product.reference_price !== null ? `$${product.reference_price.toFixed(2)}` : 'Precio a consultar'}
+        {effectivePrice !== null ? `$${effectivePrice.toFixed(2)}` : 'Precio a consultar'}
       </Text>
       <Text style={styles.stock}>
-        {product.stock > 0 ? `Disponible · ${product.stock} en stock` : 'Sin stock disponible'}
+        {effectiveStock > 0 ? `Disponible · ${effectiveStock} en stock` : 'Sin stock disponible'}
       </Text>
+
+      {hasVariants && (
+        <View style={styles.variantRow}>
+          {product.variants.map((v) => {
+            const selected = v.id === selectedVariantId;
+            const outOfStock = v.stock <= 0;
+            return (
+              <Pressable
+                key={v.id}
+                disabled={outOfStock}
+                onPress={() => setSelectedVariantId(v.id)}
+                style={[styles.variantChip, selected && styles.variantChipSelected, outOfStock && styles.variantChipDisabled]}
+              >
+                <Text
+                  style={[
+                    styles.variantChipText,
+                    selected && styles.variantChipTextSelected,
+                    outOfStock && styles.variantChipTextDisabled,
+                  ]}
+                >
+                  {v.label}
+                  {outOfStock ? ' (agotado)' : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {product.description && (
         <View style={styles.section}>
@@ -176,66 +243,83 @@ export default function BusinessProductDetailScreen() {
         </View>
       )}
 
-      <View style={styles.buttonGroup}>
-        {!canBuy && viewerIsStore && (
-          <View style={styles.noticeBox}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
-            <Text style={styles.noticeText}>
-              No puedes apartar productos con una cuenta de tienda. Cambia a una cuenta de cliente para solicitar este producto.
-            </Text>
+      {isOwnProduct ? (
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{product.views}</Text>
+            <Text style={styles.statLabel}>Vistas</Text>
           </View>
-        )}
-        {product.stock > 0 && canBuy && !intent && (
-          <View style={styles.apartarRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{stats?.reservations ?? 0}</Text>
+            <Text style={styles.statLabel}>Reservas</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{stats?.sold ?? 0}</Text>
+            <Text style={styles.statLabel}>Vendidos</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.buttonGroup}>
+          {!canBuy && viewerIsStore && (
+            <View style={styles.noticeBox}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+              <Text style={styles.noticeText}>
+                No puedes apartar productos con una cuenta de tienda. Cambia a una cuenta de cliente para solicitar este producto.
+              </Text>
+            </View>
+          )}
+          {effectiveStock > 0 && canBuy && (!hasVariants || !!selectedVariantId) && !intent && (
+            <View style={styles.apartarRow}>
+              <Button
+                title="Apartar producto"
+                onPress={handleApartar}
+                loading={apartando}
+                style={styles.apartarButton}
+              />
+              <QuantityStepper value={quantity} onChange={setQuantity} max={effectiveStock} />
+            </View>
+          )}
+          {effectiveStock > 0 && canBuy && intent && (
             <Button
-              title="Apartar producto"
+              title="Cancelar apartado"
               onPress={handleApartar}
               loading={apartando}
-              style={styles.apartarButton}
+              style={styles.buttonCancel}
             />
-            <QuantityStepper value={quantity} onChange={setQuantity} max={product.stock} />
-          </View>
-        )}
-        {product.stock > 0 && canBuy && intent && (
-          <Button
-            title="Cancelar apartado"
-            onPress={handleApartar}
-            loading={apartando}
-            style={styles.buttonCancel}
-          />
-        )}
-        {intent?.status === 'pending' && (
-          <Text style={styles.intentBadge}>
-            Apartado ({intent.quantity}) — en espera de confirmación del negocio
-          </Text>
-        )}
-        {intent?.status === 'confirmed' && (
-          <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
-            ✓ Apartado ({intent.quantity}) confirmado por el negocio
-          </Text>
-        )}
+          )}
+          {intent?.status === 'pending' && (
+            <Text style={styles.intentBadge}>
+              Apartado ({intent.quantity}) — en espera de confirmación del negocio
+            </Text>
+          )}
+          {intent?.status === 'confirmed' && (
+            <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
+              ✓ Apartado ({intent.quantity}) confirmado por el negocio
+            </Text>
+          )}
 
-        <View style={styles.actionsRow}>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/business/${product.business_id}`)}>
-            <Ionicons name="storefront-outline" size={20} color={colors.text} />
-            <Text style={styles.actionBtnLabel}>Ver negocio</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/negocio-catalogo/${product.business_id}`)}>
-            <Ionicons name="grid-outline" size={20} color={colors.text} />
-            <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
-          </Pressable>
-          <Pressable
-            style={styles.actionBtn}
-            onPress={() => {
-              const msg = encodeURIComponent(`Hola, estoy interesado en el producto "${product.name}". ¿Podrían darme más información?`);
-              router.push(`/(business)/chat/${product.business_owner_id}?prefill=${msg}&sellerBusinessId=${product.business_id}`);
-            }}
-          >
-            <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
-            <Text style={styles.actionBtnLabel}>Chatear</Text>
-          </Pressable>
+          <View style={styles.actionsRow}>
+            <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/business/${product.business_id}`)}>
+              <Ionicons name="storefront-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Ver negocio</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/negocio-catalogo/${product.business_id}`)}>
+              <Ionicons name="grid-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
+            </Pressable>
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => {
+                const msg = encodeURIComponent(`Hola, estoy interesado en el producto "${product.name}". ¿Podrían darme más información?`);
+                router.push(`/(business)/chat/${product.business_owner_id}?prefill=${msg}&sellerBusinessId=${product.business_id}`);
+              }}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Chatear</Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
       {relatedItems.length > 0 && (
         <View style={styles.relatedSection}>
@@ -329,6 +413,37 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  variantRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  variantChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  variantChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF1E6',
+  },
+  variantChipDisabled: {
+    opacity: 0.5,
+  },
+  variantChipText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  variantChipTextSelected: {
+    color: colors.primary,
+  },
+  variantChipTextDisabled: {
+    color: colors.textMuted,
+  },
   relatedSection: {
     marginTop: 28,
     marginHorizontal: -20,
@@ -350,6 +465,27 @@ const styles = StyleSheet.create({
   buttonGroup: {
     marginTop: 32,
     gap: 10,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 32,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
   },
   noticeBox: {
     flexDirection: 'row',
@@ -402,11 +538,5 @@ const styles = StyleSheet.create({
   },
   intentBadgeConfirmed: {
     color: colors.success,
-  },
-  photo: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 16,
   },
 });

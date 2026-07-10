@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { MultiPhotoPicker } from './MultiPhotoPicker';
 import { colors } from '../constants/colors';
 import { searchBusinesses, type BusinessWithDistance } from '../services/businesses';
+import { getPlanLimits } from '../services/catalog';
 import { createPost } from '../services/posts';
 import { pickAndUploadBusinessImage } from '../services/storage';
 import { searchClients } from '../services/users';
@@ -13,9 +15,13 @@ type TagResult =
 
 export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: string; onCreated?: () => void }) {
   const [caption, setCaption] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [posting, setPosting] = useState(false);
+  // Tope de fotos por publicación según el plan del negocio -- mismo campo
+  // que products/services (Free 1, Estándar 3, Pro 5). Empieza en 1 (límite
+  // más conservador) mientras se carga, para no permitir de más por un instante.
+  const [maxPhotos, setMaxPhotos] = useState(1);
 
   const [taggedItem, setTaggedItem] = useState<TagResult | null>(null);
   const [showTagSearch, setShowTagSearch] = useState(false);
@@ -23,17 +29,28 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
   const [tagResults, setTagResults] = useState<TagResult[]>([]);
   const [searchingTag, setSearchingTag] = useState(false);
 
+  useEffect(() => {
+    getPlanLimits(businessId)
+      .then((limits) => setMaxPhotos(limits.maxPhotosPerItem ?? 5))
+      .catch((err) => console.error('load plan limits error', err));
+  }, [businessId]);
+
   async function handlePickImage() {
+    if (photos.length >= maxPhotos) return;
     setUploadingImage(true);
     try {
       const url = await pickAndUploadBusinessImage(businessId);
-      if (url) setImageUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload post image error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la imagen.');
     } finally {
       setUploadingImage(false);
     }
+  }
+
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSearchTag(text: string) {
@@ -73,7 +90,7 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
   }
 
   async function handlePublish() {
-    if (!caption.trim() && !imageUrl) {
+    if (!caption.trim() && photos.length === 0) {
       Alert.alert('Falta contenido', 'Agrega una foto, un texto, o ambos.');
       return;
     }
@@ -82,12 +99,12 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
       await createPost({
         businessId,
         caption: caption.trim() || undefined,
-        imageUrl: imageUrl || undefined,
+        photos,
         tagBusinessId: taggedItem?.kind === 'business' ? taggedItem.id : undefined,
         tagClientId: taggedItem?.kind === 'client' ? taggedItem.id : undefined,
       });
       setCaption('');
-      setImageUrl('');
+      setPhotos([]);
       resetTag();
       onCreated?.();
     } catch (err) {
@@ -98,7 +115,7 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
     }
   }
 
-  const canPublish = (caption.trim().length > 0 || !!imageUrl) && !posting && !uploadingImage;
+  const canPublish = (caption.trim().length > 0 || photos.length > 0) && !posting && !uploadingImage;
 
   return (
     <View style={styles.card}>
@@ -128,14 +145,17 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
         </Pressable>
       </View>
 
-      {imageUrl ? (
+      {photos.length > 0 && (
         <View style={styles.previewWrap}>
-          <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" />
-          <Pressable style={styles.removeImage} onPress={() => setImageUrl('')}>
-            <Ionicons name="close" size={14} color="#fff" />
-          </Pressable>
+          <MultiPhotoPicker
+            photos={photos}
+            onRemove={handleRemovePhoto}
+            onAdd={handlePickImage}
+            max={maxPhotos}
+            uploading={uploadingImage}
+          />
         </View>
-      ) : null}
+      )}
 
       {taggedItem ? (
         <View style={styles.tagChip}>
@@ -219,23 +239,6 @@ const styles = StyleSheet.create({
   },
   previewWrap: {
     marginTop: 8,
-  },
-  preview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-  },
-  removeImage: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   tagChip: {
     flexDirection: 'row',

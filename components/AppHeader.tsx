@@ -22,7 +22,9 @@ export function AppHeader({ navigation, options, back }: NativeStackHeaderProps)
         <Text style={styles.title} numberOfLines={1}>
           {options.title ?? ''}
         </Text>
-        <View style={styles.side} />
+        <View style={styles.side}>
+          {options.headerRight?.({ canGoBack: !!back })}
+        </View>
       </View>
     </View>
   );
@@ -48,6 +50,8 @@ const styles = StyleSheet.create({
   },
   side: {
     width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     flex: 1,

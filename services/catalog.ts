@@ -1,5 +1,62 @@
 import { supabase } from './supabase';
-import type { Category, CategoryKind, Product, Service } from '../types/database';
+import type { Category, CategoryKind, Product, ProductVariant, Service } from '../types/database';
+
+export async function getProductVariants(productId: string): Promise<ProductVariant[]> {
+  const { data, error } = await supabase
+    .from('product_variants')
+    .select('*')
+    .eq('product_id', productId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ProductVariant[];
+}
+
+export interface CreateProductVariantParams {
+  productId: string;
+  label: string;
+  stock: number;
+  referencePrice: number | null;
+}
+
+export async function createProductVariant(params: CreateProductVariantParams): Promise<ProductVariant> {
+  const { data, error } = await supabase
+    .from('product_variants')
+    .insert({
+      product_id: params.productId,
+      label: params.label,
+      stock: params.stock,
+      reference_price: params.referencePrice,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ProductVariant;
+}
+
+export async function updateProductVariant(
+  id: string,
+  updates: Partial<{ label: string; stock: number; reference_price: number | null }>
+): Promise<ProductVariant> {
+  const { data, error } = await supabase.from('product_variants').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data as ProductVariant;
+}
+
+export async function deleteProductVariant(id: string): Promise<void> {
+  const { error } = await supabase.from('product_variants').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Mantiene products.stock como la suma de sus variantes activas -- así el
+// resto de la app (búsqueda, feed, inventario, badges de "sin stock") sigue
+// leyendo un solo número sin tener que enterarse de que existen variantes.
+export async function syncProductStockFromVariants(productId: string): Promise<void> {
+  const variants = await getProductVariants(productId);
+  const total = variants.reduce((sum, v) => sum + v.stock, 0);
+  const { error } = await supabase.from('products').update({ stock: total }).eq('id', productId);
+  if (error) throw error;
+}
 
 export async function getCategories(kind: CategoryKind): Promise<Category[]> {
   const { data, error } = await supabase
@@ -81,6 +138,7 @@ export interface ProductWithBusiness extends Product {
   business_logo_url: string | null;
   business_is_verified: boolean;
   category_name: string;
+  variants: ProductVariant[];
 }
 
 export async function incrementProductViews(id: string): Promise<void> {
@@ -109,7 +167,10 @@ export async function getServiceById(id: string): Promise<ServiceWithBusiness | 
 }
 
 export async function getProductById(id: string): Promise<ProductWithBusiness | null> {
-  const { data, error } = await supabase.from('products').select('*, businesses(name, owner_id, logo_url, is_verified), categories(name)').eq('id', id).maybeSingle();
+  const [{ data, error }, variants] = await Promise.all([
+    supabase.from('products').select('*, businesses(name, owner_id, logo_url, is_verified), categories(name)').eq('id', id).maybeSingle(),
+    getProductVariants(id),
+  ]);
   if (error) throw error;
   if (!data) return null;
   const { businesses, categories, ...product } = data as any;
@@ -120,6 +181,7 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
     business_logo_url: businesses?.logo_url ?? null,
     business_is_verified: businesses?.is_verified ?? false,
     category_name: categories?.name ?? '',
+    variants,
   } as ProductWithBusiness;
 }
 
@@ -283,6 +345,7 @@ export interface PlanLimits {
   maxProducts: number | null;
   maxEmployees: number | null;
   maxActiveStories: number | null;
+  maxPhotosPerItem: number | null;
 }
 
 const FREE_PLAN_LIMITS: PlanLimits = {
@@ -291,12 +354,13 @@ const FREE_PLAN_LIMITS: PlanLimits = {
   maxProducts: 5,
   maxEmployees: 1,
   maxActiveStories: null,
+  maxPhotosPerItem: 1,
 };
 
 export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   const { data, error } = await supabase
     .from('businesses')
-    .select('subscription_plans(name, max_services, max_products, max_employees, max_active_stories)')
+    .select('subscription_plans(name, max_services, max_products, max_employees, max_active_stories, max_photos_per_item)')
     .eq('id', businessId)
     .maybeSingle();
   if (error) throw error;
@@ -310,7 +374,17 @@ export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
     maxProducts: plan.max_products ?? null,
     maxEmployees: plan.max_employees ?? null,
     maxActiveStories: plan.max_active_stories ?? null,
+    maxPhotosPerItem: plan.max_photos_per_item ?? null,
   };
+}
+
+function assertPhotoLimit(photos: string[] | undefined, limits: PlanLimits) {
+  if (!photos || limits.maxPhotosPerItem === null) return;
+  if (photos.length > limits.maxPhotosPerItem) {
+    throw new Error(
+      `Tu plan ${limits.planName} permite hasta ${limits.maxPhotosPerItem} foto${limits.maxPhotosPerItem === 1 ? '' : 's'} por producto/servicio. Sube de plan para agregar más.`
+    );
+  }
 }
 
 export interface CreateServiceParams {
@@ -333,6 +407,7 @@ export async function createService(params: CreateServiceParams): Promise<Servic
       );
     }
   }
+  assertPhotoLimit(params.photos, limits);
 
   const { data, error } = await supabase
     .from('services')
@@ -361,6 +436,11 @@ export async function updateService(
     photos: string[];
   }>
 ): Promise<Service> {
+  if (updates.photos) {
+    const { data: current } = await supabase.from('services').select('business_id').eq('id', id).maybeSingle();
+    if (current) assertPhotoLimit(updates.photos, await getPlanLimits(current.business_id));
+  }
+
   const { data, error } = await supabase.from('services').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data as Service;
@@ -392,6 +472,7 @@ export async function createProduct(params: CreateProductParams): Promise<Produc
       );
     }
   }
+  assertPhotoLimit(params.photos, limits);
 
   const { data, error } = await supabase
     .from('products')
@@ -422,6 +503,11 @@ export async function updateProduct(
     photos: string[];
   }>
 ): Promise<Product> {
+  if (updates.photos) {
+    const { data: current } = await supabase.from('products').select('business_id').eq('id', id).maybeSingle();
+    if (current) assertPhotoLimit(updates.photos, await getPlanLimits(current.business_id));
+  }
+
   const { data, error } = await supabase.from('products').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data as Product;

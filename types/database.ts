@@ -177,6 +177,16 @@ export interface Product {
   created_at: string;
 }
 
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  stock: number;
+  reference_price: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 export type CategoryKind = 'product' | 'service';
 export type CategoryStatus = 'approved' | 'pending';
 
@@ -193,6 +203,7 @@ export type StockMovementReason = 'entry' | 'sale' | 'adjustment' | 'damage' | '
 export interface StockMovement {
   id: string;
   product_id: string;
+  variant_id: string | null;
   business_id: string;
   delta: number;
   reason: StockMovementReason;
@@ -311,7 +322,7 @@ export interface Post {
   id: string;
   business_id: string | null;
   client_id: string | null;
-  image_url: string | null;
+  photos: string[];
   caption: string | null;
   tag_business_id: string | null;
   tag_client_id: string | null;
@@ -507,6 +518,7 @@ export interface ProductIntent {
   id: string;
   client_id: string;
   product_id: string;
+  variant_id: string | null;
   business_id: string;
   status: ProductIntentStatus;
   quantity: number;

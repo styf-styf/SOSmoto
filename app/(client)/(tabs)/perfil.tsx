@@ -28,8 +28,8 @@ export default function ClientPerfilScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const avatarUrl = avatarOverride ?? profile?.avatar_url ?? null;
-  const postsWithImage = posts.filter((post) => post.image_url);
-  const postsWithoutImage = posts.filter((post) => !post.image_url);
+  const postsWithImage = posts.filter((post) => post.photos.length > 0);
+  const postsWithoutImage = posts.filter((post) => post.photos.length === 0);
 
   async function handleChangeAvatar() {
     if (!profile) return;
@@ -171,12 +171,7 @@ export default function ClientPerfilScreen() {
 
       <View style={styles.divider} />
 
-      <View style={styles.postsHeaderRow}>
-        <Text style={styles.sectionTitle}>Mis publicaciones</Text>
-        <Pressable onPress={() => router.push('/(client)/publicaciones')}>
-          <Text style={styles.manageLink}>Gestionar</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.sectionTitle}>Mis publicaciones</Text>
       {posts.length === 0 ? (
         <View>
           <Text style={styles.placeholder}>Todavía no has publicado nada.</Text>
@@ -192,7 +187,7 @@ export default function ClientPerfilScreen() {
                   style={styles.gridCell}
                   onPress={() => router.push(`/(client)/publicacion/${post.id}`)}
                 >
-                  <Image source={{ uri: post.image_url! }} style={styles.gridImage} />
+                  <Image source={{ uri: post.photos[0] }} style={styles.gridImage} />
                 </Pressable>
               ))}
             </View>
@@ -375,16 +370,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text,
     textAlign: 'center',
-  },
-  postsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  manageLink: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
   },
   grid: {
     flexDirection: 'row',
