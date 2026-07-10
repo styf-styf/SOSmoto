@@ -1,6 +1,7 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
-import type { AdminHelpRequestRow, HelpRequestStatus } from '../../../lib/types';
+import type { AdminHelpRequestRow, DisputeStatus, HelpRequestStatus } from '../../../lib/types';
 import { Paginator } from '../../../components/Paginator';
+import { DisputeCell } from './DisputeCell';
 
 const PAGE_SIZE = 25;
 
@@ -20,23 +21,27 @@ const statusColor: Record<HelpRequestStatus, string> = {
   cancelled: 'text-red-600',
 };
 
-export default async function AuxilioPage({ searchParams }: { searchParams: { page?: string } }) {
+export default async function AuxilioPage({ searchParams }: { searchParams: { page?: string; dispute?: string } }) {
   const page = Math.max(1, Number(searchParams.page) || 1);
+  const dispute = searchParams.dispute ?? '';
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
   const supabase = createAdminClient();
 
+  let listQuery = supabase
+    .from('help_requests')
+    .select(
+      'id, client_id, status, accepted_business_id, estimated_arrival_minutes, created_at, accepted_at, completed_at, admin_notes, dispute_status, users(full_name), businesses(name, city)',
+      { count: 'exact' }
+    )
+    .order('created_at', { ascending: false })
+    .range(from, to);
+  if (dispute) listQuery = listQuery.eq('dispute_status', dispute);
+
   const [statsResult, listResult] = await Promise.all([
     supabase.from('help_requests').select('status, accepted_business_id, created_at, accepted_at'),
-    supabase
-      .from('help_requests')
-      .select(
-        'id, client_id, status, accepted_business_id, estimated_arrival_minutes, created_at, accepted_at, completed_at, users(full_name), businesses(name, city)',
-        { count: 'exact' }
-      )
-      .order('created_at', { ascending: false })
-      .range(from, to),
+    listQuery,
   ]);
 
   const statsRows = statsResult.data ?? [];
@@ -92,7 +97,24 @@ export default async function AuxilioPage({ searchParams }: { searchParams: { pa
         ))}
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold">Historial de solicitudes</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Historial de solicitudes</h2>
+        <form method="get" className="flex gap-2">
+          <select
+            name="dispute"
+            defaultValue={dispute}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+          >
+            <option value="">Todas las disputas</option>
+            <option value="none">Sin marcar</option>
+            <option value="flagged">Marcadas</option>
+            <option value="reviewed">Revisadas</option>
+          </select>
+          <button type="submit" className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white">
+            Filtrar
+          </button>
+        </form>
+      </div>
       {listResult.error && <p className="text-sm text-red-600">Error: {listResult.error.message}</p>}
 
       <table className="w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
@@ -105,13 +127,25 @@ export default async function AuxilioPage({ searchParams }: { searchParams: { pa
             <th className="px-4 py-3">Creada</th>
             <th className="px-4 py-3">Aceptada</th>
             <th className="px-4 py-3">Completada</th>
+            <th className="px-4 py-3">Disputa</th>
           </tr>
         </thead>
         <tbody>
           {requests.map((r) => (
             <tr key={r.id} className="border-b border-gray-100">
               <td className="px-4 py-3 font-medium">{r.users?.full_name ?? '—'}</td>
-              <td className="px-4 py-3">{r.businesses ? `${r.businesses.name} (${r.businesses.city})` : '—'}</td>
+              <td className="px-4 py-3">
+                {r.businesses ? (
+                  <>
+                    {r.businesses.name} ({r.businesses.city})
+                    <a href={`/negocios?q=${encodeURIComponent(r.businesses.name)}`} className="ml-2 text-xs text-primary underline">
+                      Ver
+                    </a>
+                  </>
+                ) : (
+                  '—'
+                )}
+              </td>
               <td className="px-4 py-3">
                 <span className={statusColor[r.status]}>{statusLabel[r.status]}</span>
               </td>
@@ -119,11 +153,14 @@ export default async function AuxilioPage({ searchParams }: { searchParams: { pa
               <td className="px-4 py-3">{new Date(r.created_at).toLocaleString('es-EC')}</td>
               <td className="px-4 py-3">{r.accepted_at ? new Date(r.accepted_at).toLocaleString('es-EC') : '—'}</td>
               <td className="px-4 py-3">{r.completed_at ? new Date(r.completed_at).toLocaleString('es-EC') : '—'}</td>
+              <td className="px-4 py-3">
+                <DisputeCell requestId={r.id} status={r.dispute_status as DisputeStatus} notes={r.admin_notes} />
+              </td>
             </tr>
           ))}
           {requests.length === 0 && !listResult.error && (
             <tr>
-              <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+              <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
                 No hay solicitudes de auxilio todavía.
               </td>
             </tr>
@@ -131,7 +168,7 @@ export default async function AuxilioPage({ searchParams }: { searchParams: { pa
         </tbody>
       </table>
 
-      <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?page=${p}`} />
+      <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?dispute=${dispute}&page=${p}`} />
     </div>
   );
 }

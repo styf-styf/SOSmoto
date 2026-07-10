@@ -497,6 +497,8 @@ export interface Database {
           created_at: string;
           accepted_at: string | null;
           completed_at: string | null;
+          admin_notes: string | null;
+          dispute_status: 'none' | 'flagged' | 'reviewed';
         };
         Insert: {
           id?: string;
@@ -514,6 +516,8 @@ export interface Database {
           created_at?: string;
           accepted_at?: string | null;
           completed_at?: string | null;
+          admin_notes?: string | null;
+          dispute_status?: 'none' | 'flagged' | 'reviewed';
         };
         Update: {
           id?: string;
@@ -531,6 +535,8 @@ export interface Database {
           created_at?: string;
           accepted_at?: string | null;
           completed_at?: string | null;
+          admin_notes?: string | null;
+          dispute_status?: 'none' | 'flagged' | 'reviewed';
         };
         Relationships: [];
       };

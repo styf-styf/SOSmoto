@@ -218,6 +218,8 @@ export type HelpRequestStatus =
   | 'completed'
   | 'cancelled';
 
+export type DisputeStatus = 'none' | 'flagged' | 'reviewed';
+
 export interface HelpRequest {
   id: string;
   client_id: string;
@@ -234,6 +236,21 @@ export interface HelpRequest {
   created_at: string;
   accepted_at: string | null;
   completed_at: string | null;
+  admin_notes: string | null;
+  dispute_status: DisputeStatus;
+}
+
+export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service';
+export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
+
+export interface Report {
+  id: string;
+  reporter_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  reason: string | null;
+  status: ReportStatus;
+  created_at: string;
 }
 
 export interface HelpRequestNotification {

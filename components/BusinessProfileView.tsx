@@ -3,12 +3,14 @@ import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, Sty
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
+import { ReportModal } from './ReportModal';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/auth';
 import { getBusinessById, getMyWorkBusiness, updateBusiness } from '../services/businesses';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../services/follows';
 import { getMyBusinessPosts } from '../services/posts';
+import { createReport } from '../services/reports';
 import { getBusinessReviews } from '../services/reviews';
 import { pickAndUploadBusinessImage } from '../services/storage';
 import type { Business, Post, Review } from '../types/database';
@@ -50,6 +52,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [logoOverride, setLogoOverride] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: 'business' | 'review'; id: string; label: string } | null>(null);
 
   const logoUrl = logoOverride ?? business?.logo_url ?? null;
   const postsWithImage = posts.filter((post) => post.photos.length > 0);
@@ -140,6 +143,18 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     }
   }
 
+  async function handleSubmitReport(reason: string) {
+    if (!reportTarget || !profile) return;
+    try {
+      await createReport(profile.id, reportTarget.type, reportTarget.id, reason);
+      setReportTarget(null);
+      Alert.alert('Gracias', 'Reportaste esto. Un admin lo va a revisar.');
+    } catch (err) {
+      console.error('report error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -177,7 +192,21 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
 
   return (
     <ScrollView contentContainerStyle={[styles.container, mode === 'public' && styles.containerWithHeader]}>
-      {mode === 'public' && <Stack.Screen options={{ title: business.name }} />}
+      {mode === 'public' && (
+        <Stack.Screen
+          options={{
+            title: business.name,
+            headerRight: () => (
+              <Pressable
+                onPress={() => setReportTarget({ type: 'business', id: business.id, label: 'este negocio' })}
+                hitSlop={8}
+              >
+                <Ionicons name="flag-outline" size={22} color={colors.text} />
+              </Pressable>
+            ),
+          }}
+        />
+      )}
       {mode === 'self' && business.is_limited && (
         <View style={styles.suspendedBanner}>
           <Ionicons name="alert-circle" size={18} color={colors.danger} />
@@ -399,15 +428,20 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
           ) : (
             reviews.map((review) => (
               <View key={review.id} style={styles.reviewRow}>
-                <View style={styles.reviewStars}>
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <Ionicons
-                      key={value}
-                      name={value <= review.rating ? 'star' : 'star-outline'}
-                      size={14}
-                      color={colors.warning}
-                    />
-                  ))}
+                <View style={styles.reviewRowTop}>
+                  <View style={styles.reviewStars}>
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <Ionicons
+                        key={value}
+                        name={value <= review.rating ? 'star' : 'star-outline'}
+                        size={14}
+                        color={colors.warning}
+                      />
+                    ))}
+                  </View>
+                  <Pressable onPress={() => setReportTarget({ type: 'review', id: review.id, label: 'esta reseña' })} hitSlop={8}>
+                    <Ionicons name="flag-outline" size={14} color={colors.textMuted} />
+                  </Pressable>
                 </View>
                 {review.comment && <Text style={styles.reviewComment}>{review.comment}</Text>}
               </View>
@@ -415,6 +449,13 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
           )}
         </>
       )}
+
+      <ReportModal
+        visible={!!reportTarget}
+        targetLabel={reportTarget?.label ?? ''}
+        onCancel={() => setReportTarget(null)}
+        onSubmit={handleSubmitReport}
+      />
     </ScrollView>
   );
 }
@@ -709,10 +750,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  reviewRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   reviewStars: {
     flexDirection: 'row',
     gap: 2,
-    marginBottom: 4,
   },
   reviewComment: {
     fontSize: 13,

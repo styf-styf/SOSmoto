@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
 import { MultiPhotoPicker } from './MultiPhotoPicker';
 import { PhotoCarousel } from './PhotoCarousel';
+import { ReportModal } from './ReportModal';
 import { TextField } from './TextField';
 import { colors } from '../constants/colors';
 import { useAccountLimited } from '../hooks/useAccountLimited';
@@ -25,6 +26,7 @@ import {
   type PostCommentWithAuthor,
   type PostWithAuthor,
 } from '../services/posts';
+import { createReport } from '../services/reports';
 import { pickAndUploadBusinessImage, pickAndUploadClientPostImage } from '../services/storage';
 import { searchClients } from '../services/users';
 import type { Product, Service } from '../types/database';
@@ -59,6 +61,8 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editCaption, setEditCaption] = useState('');
@@ -277,6 +281,18 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
     ]);
   }
 
+  async function handleReportPost(reason: string) {
+    if (!post || !profile) return;
+    try {
+      await createReport(profile.id, 'post', post.id, reason);
+      setShowReportModal(false);
+      Alert.alert('Gracias', 'Reportaste esta publicación. Un admin la va a revisar.');
+    } catch (err) {
+      console.error('report post error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   function handleAuthorPress() {
     if (!post) return;
     if (isBusiness && post.author_business) {
@@ -305,14 +321,19 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
 
   return (
     <View style={styles.container}>
-      {isOwner && (
+      {(isOwner || profile) && (
         <Stack.Screen
           options={{
-            headerRight: () => (
-              <Pressable onPress={openEditModal} hitSlop={8}>
-                <Ionicons name="create-outline" size={22} color={colors.text} />
-              </Pressable>
-            ),
+            headerRight: () =>
+              isOwner ? (
+                <Pressable onPress={openEditModal} hitSlop={8}>
+                  <Ionicons name="create-outline" size={22} color={colors.text} />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+                  <Ionicons name="flag-outline" size={22} color={colors.text} />
+                </Pressable>
+              ),
           }}
         />
       )}
@@ -533,6 +554,13 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           </Pressable>
         </ScrollView>
       </Modal>
+
+      <ReportModal
+        visible={showReportModal}
+        targetLabel="esta publicación"
+        onCancel={() => setShowReportModal(false)}
+        onSubmit={handleReportPost}
+      />
     </View>
   );
 }

@@ -1,22 +1,40 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
-import type { AdminPostRow, AdminProductRow, AdminReviewRow, AdminServiceRow, AdminStoryRow } from '../../../lib/types';
+import type { AdminPostRow, AdminProductRow, AdminReportRow, AdminReviewRow, AdminServiceRow, AdminStoryRow } from '../../../lib/types';
 import { Paginator } from '../../../components/Paginator';
 import { PostDeleteButton } from './PostDeleteButton';
 import { ProductDeleteButton } from './ProductDeleteButton';
+import { ReportActions } from './ReportActions';
 import { ReviewDeleteButton } from './ReviewDeleteButton';
 import { ServiceDeleteButton } from './ServiceDeleteButton';
 import { StoryDeleteButton } from './StoryDeleteButton';
 
 const PAGE_SIZE = 12;
 
-type Tab = 'stories' | 'posts' | 'products' | 'services' | 'reviews';
+type Tab = 'stories' | 'posts' | 'products' | 'services' | 'reviews' | 'reports';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'stories', label: 'Historias' },
   { value: 'posts', label: 'Publicaciones' },
   { value: 'products', label: 'Productos' },
   { value: 'services', label: 'Servicios' },
   { value: 'reviews', label: 'Reseñas' },
+  { value: 'reports', label: 'Reportes' },
 ];
+
+const TARGET_LABEL: Record<AdminReportRow['target_type'], string> = {
+  post: 'Publicación',
+  review: 'Reseña',
+  business: 'Negocio',
+  product: 'Producto',
+  service: 'Servicio',
+};
+
+const TARGET_HREF: Record<AdminReportRow['target_type'], string> = {
+  post: '?tab=posts',
+  review: '?tab=reviews',
+  business: '/negocios',
+  product: '?tab=products',
+  service: '?tab=services',
+};
 
 function stars(rating: number) {
   return '★'.repeat(rating) + '☆'.repeat(5 - rating);
@@ -62,6 +80,7 @@ export default async function ModeracionPage({
       {tab === 'products' && <ProductsTab supabase={supabase} from={from} to={to} page={page} />}
       {tab === 'services' && <ServicesTab supabase={supabase} from={from} to={to} page={page} />}
       {tab === 'reviews' && <ReviewsTab supabase={supabase} from={from} to={to} page={page} />}
+      {tab === 'reports' && <ReportsTab supabase={supabase} from={from} to={to} page={page} />}
     </div>
   );
 }
@@ -322,6 +341,107 @@ async function ReviewsTab({ supabase, from, to, page }: { supabase: any; from: n
         </tbody>
       </table>
       <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?tab=reviews&page=${p}`} />
+    </div>
+  );
+}
+
+const REPORT_STATUS_LABEL: Record<'pending' | 'reviewed' | 'dismissed', string> = {
+  pending: 'Pendiente',
+  reviewed: 'Revisado',
+  dismissed: 'Descartado',
+};
+
+async function ReportsTab({ supabase, from, to, page }: { supabase: any; from: number; to: number; page: number }) {
+  const { data, count, error } = await supabase
+    .from('reports')
+    .select('id, reporter_id, target_type, target_id, reason, status, created_at, users!reports_reporter_id_fkey(full_name)', {
+      count: 'exact',
+    })
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  const rows = (data ?? []) as unknown as (Omit<AdminReportRow, 'targetLabel'>)[];
+  const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1;
+
+  // target_id es polimórfico según target_type -- se resuelve a mano en un
+  // lote por tabla (una sola query por tipo presente en esta página).
+  const idsByType: Record<string, string[]> = {};
+  for (const r of rows) {
+    idsByType[r.target_type] = idsByType[r.target_type] ?? [];
+    idsByType[r.target_type].push(r.target_id);
+  }
+  const labelMap = new Map<string, string>();
+  const [postsRes, reviewsRes, businessesRes, productsRes, servicesRes] = await Promise.all([
+    idsByType.post?.length ? supabase.from('posts').select('id, caption').in('id', idsByType.post) : { data: [] },
+    idsByType.review?.length ? supabase.from('reviews').select('id, comment').in('id', idsByType.review) : { data: [] },
+    idsByType.business?.length ? supabase.from('businesses').select('id, name').in('id', idsByType.business) : { data: [] },
+    idsByType.product?.length ? supabase.from('products').select('id, name').in('id', idsByType.product) : { data: [] },
+    idsByType.service?.length ? supabase.from('services').select('id, name').in('id', idsByType.service) : { data: [] },
+  ]);
+  for (const p of postsRes.data ?? []) labelMap.set(`post:${p.id}`, p.caption || '(sin texto)');
+  for (const r of reviewsRes.data ?? []) labelMap.set(`review:${r.id}`, r.comment || '(sin comentario)');
+  for (const b of businessesRes.data ?? []) labelMap.set(`business:${b.id}`, b.name);
+  for (const p of productsRes.data ?? []) labelMap.set(`product:${p.id}`, p.name);
+  for (const s of servicesRes.data ?? []) labelMap.set(`service:${s.id}`, s.name);
+
+  const reports: AdminReportRow[] = rows.map((r) => ({
+    ...r,
+    targetLabel: labelMap.get(`${r.target_type}:${r.target_id}`) ?? '(eliminado)',
+  }));
+
+  return (
+    <div>
+      <p className="mb-4 text-sm text-gray-500">
+        Reportes de usuarios sobre publicaciones, reseñas o negocios. "Ver" te lleva a la pestaña correspondiente
+        para revisar y, si hace falta, eliminar el contenido.
+      </p>
+      {error && <p className="text-sm text-red-600">Error cargando reportes: {error.message}</p>}
+
+      <table className="mb-4 w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
+        <thead>
+          <tr className="border-b border-gray-200 text-left text-gray-500">
+            <th className="px-4 py-3">Reportado por</th>
+            <th className="px-4 py-3">Tipo</th>
+            <th className="px-4 py-3">Contenido</th>
+            <th className="px-4 py-3">Motivo</th>
+            <th className="px-4 py-3">Estado</th>
+            <th className="px-4 py-3">Fecha</th>
+            <th className="px-4 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reports.map((report) => (
+            <tr key={report.id} className="border-b border-gray-100">
+              <td className="px-4 py-3 font-medium">{report.users?.full_name ?? '—'}</td>
+              <td className="px-4 py-3">{TARGET_LABEL[report.target_type]}</td>
+              <td className="px-4 py-3 max-w-[220px] text-gray-600">
+                {report.targetLabel}
+                <a href={TARGET_HREF[report.target_type]} className="ml-2 text-xs text-primary underline">
+                  Ver
+                </a>
+              </td>
+              <td className="px-4 py-3 max-w-[200px] text-gray-600">{report.reason ?? '—'}</td>
+              <td className="px-4 py-3">{REPORT_STATUS_LABEL[report.status]}</td>
+              <td className="px-4 py-3">{new Date(report.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">
+                {report.status === 'pending' ? (
+                  <ReportActions reportId={report.id} />
+                ) : (
+                  <span className="text-xs text-gray-400">—</span>
+                )}
+              </td>
+            </tr>
+          ))}
+          {reports.length === 0 && !error && (
+            <tr>
+              <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                No hay reportes todavía.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?tab=reports&page=${p}`} />
     </div>
   );
 }

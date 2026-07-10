@@ -119,6 +119,8 @@ export interface AdminBusinessSubscriptionRow {
 
 export type HelpRequestStatus = 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
 
+export type DisputeStatus = 'none' | 'flagged' | 'reviewed';
+
 export interface AdminHelpRequestRow {
   id: string;
   client_id: string;
@@ -128,6 +130,8 @@ export interface AdminHelpRequestRow {
   created_at: string;
   accepted_at: string | null;
   completed_at: string | null;
+  admin_notes: string | null;
+  dispute_status: DisputeStatus;
   users: { full_name: string } | null;
   businesses: { name: string; city: string } | null;
 }
@@ -199,6 +203,21 @@ export interface AdminReviewRow {
 
 export interface AdminSystemSettingsRow {
   default_aid_radius_km: number;
+}
+
+export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service';
+export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
+
+export interface AdminReportRow {
+  id: string;
+  reporter_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  reason: string | null;
+  status: ReportStatus;
+  created_at: string;
+  users: { full_name: string } | null;
+  targetLabel: string;
 }
 
 export type KycStatus = 'pending_review' | 'approved' | 'rejected';
