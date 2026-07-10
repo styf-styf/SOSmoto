@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
-import { createBusiness, getMyWorkBusiness } from '../../../services/businesses';
+import { createBusiness, getMyWorkBusiness, getNewNearbyBusinesses, type BusinessWithDistance } from '../../../services/businesses';
 import {
   acceptInvitation,
   getMyPendingInvitations,
@@ -26,6 +26,7 @@ import { dismissGrowthSuggestion, getActiveGrowthSuggestion } from '../../../ser
 import {
   getBusinessStories,
   getSeenStoryIds,
+  getVisibleBusinessStoriesFollowed,
   getVisibleBusinessStoriesGlobal,
   getVisibleClientStories,
   groupStoriesByAuthor,
@@ -37,9 +38,14 @@ import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
 import type { Business, BusinessType, GrowthSuggestion } from '../../../types/database';
 import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
+import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function BusinessHomeScreen() {
   const { profile, refreshProfile } = useAuth();
+  const { coords } = useLocation();
+  const navigation = useNavigation();
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,10 +53,21 @@ export default function BusinessHomeScreen() {
   const [removalNotice, setRemovalNotice] = useState<EmployeeRemovalNotice | null>(null);
   const [activeStories, setActiveStories] = useState(0);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
+  const [feedItemsFollowing, setFeedItemsFollowing] = useState<StoryFeedItem[]>([]);
+  const [nearbyNewStores, setNearbyNewStores] = useState<BusinessWithDistance[]>([]);
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
   const [growthSuggestion, setGrowthSuggestion] = useState<GrowthSuggestion | null>(null);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
+
+  // Un taller puede seguir tiendas (relación B2B, ver BusinessProfileView) --
+  // por eso solo el home de un taller gana el toggle Para ti/Siguiendo y el
+  // descubrimiento "Nuevas tiendas cerca de ti", igual que el home del
+  // cliente. Una tienda no puede seguir a nadie, así que su home se queda
+  // como estaba.
+  const isWorkshop = business?.business_type === 'workshop';
+  const dragX = useRef(new Animated.Value(0)).current;
+  const siguiendoTranslateX = useRef(Animated.add(dragX, new Animated.Value(SCREEN_WIDTH))).current;
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -89,18 +106,28 @@ export default function BusinessHomeScreen() {
         }
       }
 
-      const [stories, businessStoriesGlobal, clientStoriesGlobal, suggestion] = await Promise.all([
-        getBusinessStories(result.id),
-        getVisibleBusinessStoriesGlobal(),
-        getVisibleClientStories(),
-        getActiveGrowthSuggestion(result.id),
-      ]);
+      const [stories, businessStoriesGlobal, clientStoriesGlobal, suggestion, businessStoriesFollowed, newNearbyStores] =
+        await Promise.all([
+          getBusinessStories(result.id),
+          getVisibleBusinessStoriesGlobal(),
+          getVisibleClientStories(),
+          getActiveGrowthSuggestion(result.id),
+          result.business_type === 'workshop' ? getVisibleBusinessStoriesFollowed(profile.id) : Promise.resolve([]),
+          result.business_type === 'workshop'
+            ? getNewNearbyBusinesses(coords, 6, { onlyType: 'store', excludeBusinessId: result.id })
+            : Promise.resolve([]),
+        ]);
       setGrowthSuggestion(suggestion);
+      setNearbyNewStores(newNearbyStores);
       const visibleOwnStories = stories.filter(isStoryVisible);
       setActiveStories(visibleOwnStories.length);
       setOwnPreviewImageUrl(visibleOwnStories[0]?.image_url ?? null);
 
-      const allStoryIds = [...businessStoriesGlobal.map((s) => s.id), ...clientStoriesGlobal.map((s) => s.id)];
+      const allStoryIds = [
+        ...businessStoriesGlobal.map((s) => s.id),
+        ...clientStoriesGlobal.map((s) => s.id),
+        ...businessStoriesFollowed.map((s) => s.id),
+      ];
       const seenIds = await getSeenStoryIds(profile.id, allStoryIds);
       setFeedItems(
         groupStoriesByAuthor({
@@ -110,21 +137,59 @@ export default function BusinessHomeScreen() {
           excludeBusinessId: result.id,
         })
       );
+      setFeedItemsFollowing(
+        groupStoriesByAuthor({
+          businessStories: businessStoriesFollowed,
+          clientStories: [],
+          seenStoryIds: seenIds,
+          excludeBusinessId: result.id,
+        })
+      );
     } catch (err) {
       console.error('load business error', err);
     }
-  }, [profile]);
+  }, [profile, coords]);
 
   useEffect(() => {
     setLoading(true);
     load().finally(() => setLoading(false));
   }, [load]);
 
+  function switchTab(mode: 'all' | 'following') {
+    Animated.spring(dragX, {
+      toValue: mode === 'all' ? 0 : -SCREEN_WIDTH,
+      useNativeDriver: true,
+      tension: 250,
+      friction: 28,
+      overshootClamping: true,
+    }).start();
+  }
+
   useFocusEffect(
     useCallback(() => {
+      // Reinicia la pila de producto/servicio cada vez que Inicio gana foco --
+      // cubre volver con el botón "atrás" del header, no solo tocando el
+      // ícono de la tab bar (ese caso ya lo maneja el listener de tabPress).
+      dragX.setValue(0);
+      markProductoServicioStacksForReset();
       load().catch((err) => console.error('refresh business home error', err));
     }, [load])
   );
+
+  // Reinicia el toggle Para ti/Siguiendo y la pila de producto/servicio
+  // (ver utils/productoServicioStackReset.ts) al presionar el tab "Inicio".
+  useEffect(() => {
+    return navigation.addListener('tabPress' as any, () => {
+      Animated.spring(dragX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 250,
+        friction: 28,
+        overshootClamping: true,
+      }).start();
+      markProductoServicioStacksForReset();
+    });
+  }, [navigation]);
 
   async function handleDismissSuggestion() {
     if (!growthSuggestion) return;
@@ -165,72 +230,190 @@ export default function BusinessHomeScreen() {
     return <BusinessOnboarding onCreated={setBusiness} />;
   }
 
-  return (
-    <HomeFeed
-      ref={homeFeedRef}
-      role="business"
-      city={business.city}
-      onRefresh={load}
-      ListHeaderComponent={
-        <View>
-          <View style={styles.headerWrap}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={1}>{business.name}</Text>
-              <Text style={styles.titleSep}>|</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>{business.city}{business.address ? `, ${business.address}` : ''}</Text>
-            </View>
-            <Text style={styles.sectionTitle}>Historias</Text>
-          </View>
-          <View style={styles.storiesWrap}>
-            <StoriesRow
-              own={{
-                hasStory: activeStories > 0,
-                avatarUrl: business.logo_url,
-                previewImageUrl: ownPreviewImageUrl,
-                onPress: () =>
-                  router.push(activeStories > 0 ? `/(business)/historia/${business.id}` : '/(business)/historias'),
-              }}
-              items={feedItems.map((item) => ({
-                ...item,
-                onPress: () =>
-                  router.push(
-                    item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
-                  ),
-              }))}
-            />
-          </View>
-          {growthSuggestion && (
-            <View style={styles.growthWrap}>
-              <View style={styles.growthCard}>
-                <Ionicons name="trending-up" size={20} color={colors.primary} />
-                <View style={styles.growthCardText}>
-                  <Text style={styles.growthCardTitle}>{growthSuggestion.title}</Text>
-                  <Text style={styles.growthCardBody}>{growthSuggestion.body}</Text>
-                </View>
-                <Pressable
-                  style={styles.growthCardAction}
-                  onPress={() => router.push('/(business)/crece-tu-negocio')}
-                >
-                  <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-                </Pressable>
-                <Pressable style={styles.growthCardAction} onPress={handleDismissSuggestion}>
-                  <Ionicons name="close" size={16} color={colors.textMuted} />
-                </Pressable>
-              </View>
-            </View>
-          )}
-          {isOwner && (
-            <View style={styles.createPostWrap}>
-              {business.is_limited ? (
-                <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
-              ) : (
-                <CreateBusinessPostBox businessId={business.id} onCreated={() => homeFeedRef.current?.refresh()} />
-              )}
-            </View>
-          )}
+  const storiesRowOwn = {
+    hasStory: activeStories > 0,
+    avatarUrl: business.logo_url,
+    previewImageUrl: ownPreviewImageUrl,
+    onPress: () => router.push(activeStories > 0 ? `/(business)/historia/${business.id}` : '/(business)/historias'),
+  };
+
+  const growthCard = growthSuggestion && (
+    <View style={styles.growthWrap}>
+      <View style={styles.growthCard}>
+        <Ionicons name="trending-up" size={20} color={colors.primary} />
+        <View style={styles.growthCardText}>
+          <Text style={styles.growthCardTitle}>{growthSuggestion.title}</Text>
+          <Text style={styles.growthCardBody}>{growthSuggestion.body}</Text>
         </View>
-      }
-    />
+        <Pressable style={styles.growthCardAction} onPress={() => router.push('/(business)/crece-tu-negocio')}>
+          <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+        </Pressable>
+        <Pressable style={styles.growthCardAction} onPress={handleDismissSuggestion}>
+          <Ionicons name="close" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const createPostBox = isOwner && (
+    <View style={styles.createPostWrap}>
+      {business.is_limited ? (
+        <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
+      ) : (
+        <CreateBusinessPostBox businessId={business.id} onCreated={() => homeFeedRef.current?.refresh()} />
+      )}
+    </View>
+  );
+
+  if (!isWorkshop) {
+    return (
+      <HomeFeed
+        ref={homeFeedRef}
+        role="business"
+        city={business.city}
+        onRefresh={load}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.headerWrap}>
+              <View style={styles.titleRow}>
+                <Text style={styles.title} numberOfLines={1}>{business.name}</Text>
+                <Text style={styles.titleSep}>|</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{business.city}{business.address ? `, ${business.address}` : ''}</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Historias</Text>
+            </View>
+            <View style={styles.storiesWrap}>
+              <StoriesRow
+                own={storiesRowOwn}
+                items={feedItems.map((item) => ({
+                  ...item,
+                  onPress: () =>
+                    router.push(
+                      item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
+                    ),
+                }))}
+              />
+            </View>
+            {growthCard}
+            {createPostBox}
+          </View>
+        }
+      />
+    );
+  }
+
+  // Taller: mismo toggle Para ti/Siguiendo + descubrimiento de tiendas
+  // nuevas cerca, igual que el home del cliente (ver app/(client)/(tabs)/index.tsx) --
+  // incluye el mismo header de marca "SOSmoto" con el botón "Siguiendo" en vez
+  // del nombre/ubicación del negocio.
+  const paraTiHeader = (
+    <View>
+      <View style={styles.brandHeaderRow}>
+        <View style={styles.brandHeaderSide} />
+        <Text style={styles.brandTitle}>SOSmoto</Text>
+        <Pressable style={[styles.brandHeaderSide, styles.brandHeaderSideRight]} onPress={() => switchTab('following')}>
+          <Text style={styles.siguiendoBtn}>Siguiendo</Text>
+          <Ionicons name="arrow-forward-outline" size={15} color={colors.primary} />
+        </Pressable>
+      </View>
+      <View style={styles.storiesWrap}>
+        <StoriesRow
+          own={storiesRowOwn}
+          items={feedItems.map((item) => ({
+            ...item,
+            onPress: () =>
+              router.push(
+                item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
+              ),
+          }))}
+        />
+      </View>
+      {growthCard}
+      {createPostBox}
+      {nearbyNewStores.length > 0 && (
+        <View style={styles.descubreWrap}>
+          <Text style={styles.sectionTitleInset}>Nuevas tiendas cerca de ti</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.descubreRow}>
+            {nearbyNewStores.map((biz) => (
+              <Pressable
+                key={biz.id}
+                style={styles.descubreCard}
+                onPress={() => router.push(`/(business)/business/${biz.id}`)}
+              >
+                <View style={styles.descubreAvatarWrap}>
+                  <View style={styles.descubreAvatar}>
+                    {biz.logo_url ? (
+                      <Image source={{ uri: biz.logo_url }} style={styles.descubreAvatarImage} />
+                    ) : (
+                      <Ionicons name="storefront" size={22} color={colors.primary} />
+                    )}
+                  </View>
+                  {biz.is_verified && (
+                    <View style={styles.descubreVerifiedDot}>
+                      <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+                    </View>
+                  )}
+                </View>
+                <Text numberOfLines={1} style={styles.descubreName}>{biz.name}</Text>
+                <Text numberOfLines={1} style={styles.descubreMeta}>
+                  Tienda{biz.distance_km !== null ? ` · ${biz.distance_km.toFixed(1)} km` : ''}
+                </Text>
+                {biz.rating_avg > 0 && <Text style={styles.descubreRating}>★ {biz.rating_avg.toFixed(1)}</Text>}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+
+  const siguiendoHeader = (
+    <View>
+      <View style={styles.brandHeaderRow}>
+        <Pressable style={[styles.brandHeaderSide, styles.brandHeaderSideLeft]} onPress={() => switchTab('all')}>
+          <Ionicons name="arrow-back-outline" size={15} color={colors.primary} />
+          <Text style={styles.siguiendoBtn}>Para ti</Text>
+        </Pressable>
+        <Text style={styles.brandTitle}>Siguiendo</Text>
+        <View style={styles.brandHeaderSide} />
+      </View>
+      <View style={styles.storiesWrap}>
+        <StoriesRow
+          own={storiesRowOwn}
+          items={feedItemsFollowing.map((item) => ({
+            ...item,
+            onPress: () => router.push(`/(business)/historia/${item.id}`),
+          }))}
+        />
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.flex}>
+      <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: dragX }] }]}>
+        <HomeFeed
+          ref={homeFeedRef}
+          role="business"
+          city={business.city}
+          feedMode="all"
+          clientId={profile?.id}
+          onRefresh={load}
+          ListHeaderComponent={paraTiHeader}
+        />
+      </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: siguiendoTranslateX }] }]}>
+        <HomeFeed
+          role="business"
+          city={business.city}
+          feedMode="following"
+          clientId={profile?.id}
+          emptyMessage="Las tiendas que sigues aún no han publicado nada."
+          onRefresh={load}
+          ListHeaderComponent={siguiendoHeader}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -637,6 +820,9 @@ function TypeOption({
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -647,8 +833,98 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 36,
   },
+  brandHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 36,
+    paddingBottom: 6,
+  },
+  brandHeaderSide: {
+    flex: 1,
+  },
+  brandHeaderSideRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 3,
+  },
+  brandHeaderSideLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 3,
+  },
+  brandTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  siguiendoBtn: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   storiesWrap: {
     paddingBottom: 16,
+  },
+  descubreWrap: {
+    marginBottom: 16,
+  },
+  descubreRow: {
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingBottom: 4,
+  },
+  descubreCard: {
+    width: 140,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+  },
+  descubreAvatarWrap: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  descubreAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  descubreAvatarImage: {
+    width: 52,
+    height: 52,
+  },
+  descubreVerifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  descubreName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  descubreMeta: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  descubreRating: {
+    fontSize: 11,
+    color: colors.warning,
+    fontWeight: '600',
+    marginTop: 4,
   },
   growthWrap: {
     paddingHorizontal: 20,
@@ -802,6 +1078,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
+  },
+  sectionTitleInset: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    paddingHorizontal: 20,
   },
   typeSelector: {
     flexDirection: 'row',

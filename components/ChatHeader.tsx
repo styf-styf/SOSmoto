@@ -9,9 +9,10 @@ interface ChatHeaderProps {
   avatarUrl?: string | null;
   fallbackIcon?: keyof typeof Ionicons.glyphMap;
   onPressName?: () => void;
+  isVerified?: boolean;
 }
 
-export function ChatHeader({ name, avatarUrl, fallbackIcon = 'person', onPressName }: ChatHeaderProps) {
+export function ChatHeader({ name, avatarUrl, fallbackIcon = 'person', onPressName, isVerified = false }: ChatHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -21,11 +22,18 @@ export function ChatHeader({ name, avatarUrl, fallbackIcon = 'person', onPressNa
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Pressable style={styles.identity} onPress={onPressName} disabled={!onPressName}>
-          <View style={styles.avatar}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <Ionicons name={fallbackIcon} size={18} color={colors.primary} />
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name={fallbackIcon} size={18} color={colors.primary} />
+              )}
+            </View>
+            {isVerified && (
+              <View style={styles.verifiedDot}>
+                <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+              </View>
             )}
           </View>
           <Text style={styles.name} numberOfLines={1}>
@@ -62,6 +70,9 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  avatarWrap: {
+    position: 'relative',
+  },
   avatar: {
     width: 28,
     height: 28,
@@ -74,6 +85,13 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 28,
     height: 28,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 7,
   },
   name: {
     fontSize: 16,

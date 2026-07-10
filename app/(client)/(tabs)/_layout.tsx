@@ -7,12 +7,20 @@ import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestCon
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
 
-// Solo las 5 pestañas reales viven en este navegador de Tabs -- las demás
-// pantallas ("servicio", "chat", "configuracion", etc.) se registran como
-// Stack.Screen en app/(client)/_layout.tsx para que el botón/gesto de
-// "atrás" funcione como una pila real en vez de saltar siempre a Inicio
-// (limitación de los navegadores de pestañas, que no llevan un historial
-// LIFO). El costo: la tab bar ya no se ve sobre esas pantallas secundarias.
+// Solo las 5 pestañas reales tienen botón en la tab bar -- las demás
+// pantallas ("chat", "configuracion", etc.) se registran como Stack.Screen en
+// app/(client)/_layout.tsx para que el botón/gesto de "atrás" funcione como
+// una pila real en vez de saltar siempre a Inicio (limitación de los
+// navegadores de pestañas, que no llevan un historial LIFO). El costo: la
+// tab bar ya no se ve sobre esas pantallas secundarias.
+// "producto" y "servicio" son la excepción: viven acá adentro con href: null
+// (sin botón propio) a propósito para que la tab bar SÍ siga visible al
+// entrar a un producto/servicio. Cada carpeta tiene su propio _layout.tsx
+// con un Stack anidado, así cada item visitado se apila (A -> B -> C, con
+// header y botón de atrás real) sin perder la tab bar de encima. Al tocar
+// "Inicio" en la tab bar, index.tsx llama resetProductoServicioStacks()
+// (ver utils/productoServicioStackReset.ts), que remonta esos dos Stacks
+// anidados con la pila vacía.
 export default function ClientTabsLayout() {
   const { profile } = useAuth();
   const { activeRequest } = useActiveHelpRequestContext();
@@ -115,6 +123,8 @@ export default function ClientTabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="producto" options={{ href: null }} />
+      <Tabs.Screen name="servicio" options={{ href: null }} />
       </Tabs>
     </View>
   );

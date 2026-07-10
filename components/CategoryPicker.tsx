@@ -81,13 +81,13 @@ export function CategoryPicker({ label = 'Categoría', kind, value, onChange, er
       {open && (
         <View style={styles.dropdown}>
           {filtered.map((category) => (
-            <Pressable key={category.id} style={styles.option} onPress={() => selectCategory(category)}>
+            <Pressable key={category.id} style={styles.option} onPressIn={() => selectCategory(category)}>
               <Text style={styles.optionText}>{category.name}</Text>
               {category.status === 'pending' && <Text style={styles.pendingTag}>pendiente</Text>}
             </Pressable>
           ))}
           {query.trim().length > 0 && !exactMatch && (
-            <Pressable style={styles.suggestOption} onPress={handleSuggest} disabled={suggesting}>
+            <Pressable style={styles.suggestOption} onPressIn={handleSuggest} disabled={suggesting}>
               {suggesting ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (

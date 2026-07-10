@@ -1,20 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../../components/Button';
-import { FeedCatalogStrip } from '../../../components/FeedCatalogStrip';
-import { colors } from '../../../constants/colors';
-import { useAuth } from '../../../hooks/useAuth';
-import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../services/catalog';
-import type { ServiceWithBusiness, FeedCatalogItem } from '../../../services/catalog';
+import { Button } from '../../../../components/Button';
+import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
+import { colors } from '../../../../constants/colors';
+import { useAuth } from '../../../../hooks/useAuth';
+import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
+import {
+  cancelAppointmentRequest,
+  getAppointmentRequestForService,
+  subscribeToAppointmentRequest,
+  type AppointmentRequest,
+} from '../../../../services/appointmentRequests';
+import { cancelAppointment, getActiveAppointmentForService } from '../../../../services/appointments';
+import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
+import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
+  const navigation = useNavigation();
   const [service, setService] = useState<ServiceWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
+  const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmedAppointmentId, setConfirmedAppointmentId] = useState<string | null>(null);
+  const [cancellingAppointment, setCancellingAppointment] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -25,8 +39,22 @@ export default function ServiceDetailScreen() {
       getServicesByCategory(result.category_id, id)
         .then(setRelatedItems)
         .catch((err) => console.error('load related services error', err));
+      if (profile?.id) {
+        const req = await getAppointmentRequestForService(profile.id, result.business_id, result.id).catch((err) => {
+          console.error('load appointment request error', err);
+          return null;
+        });
+        setAppointmentRequest(req);
+        if (req?.status === 'accepted') {
+          getActiveAppointmentForService(profile.id, result.business_id, result.id)
+            .then((appt) => setConfirmedAppointmentId(appt?.id ?? null))
+            .catch((err) => console.error('load confirmed appointment error', err));
+        } else {
+          setConfirmedAppointmentId(null);
+        }
+      }
     }
-  }, [id]);
+  }, [id, profile?.id]);
 
   useEffect(() => {
     setLoading(true);
@@ -34,6 +62,66 @@ export default function ServiceDetailScreen() {
       .catch((err) => console.error('load service detail error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Si el usuario volvió a Inicio antes de entrar acá, esta es la primera
+  // pantalla de servicio que gana foco después de eso: reinicia la pila
+  // anidada para que quede como única entrada (ver
+  // utils/productoServicioStackReset.ts).
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeProductoServicioResetFlag('servicio')) {
+        navigation.dispatch((state) => CommonActions.reset({ index: 0, routes: [state.routes[state.index]] } as any));
+      }
+    }, [navigation])
+  );
+
+  useEffect(() => {
+    if (!profile?.id || !service?.business_id) return;
+    return subscribeToAppointmentRequest(profile.id, service.business_id, 'client', (req) => {
+      if (req.service_id !== service.id) return;
+      if (req.status === 'accepted') {
+        setAppointmentRequest(req);
+        getActiveAppointmentForService(profile.id, service.business_id, service.id)
+          .then((appt) => setConfirmedAppointmentId(appt?.id ?? null))
+          .catch((err) => console.error('load confirmed appointment error', err));
+      } else if (req.status === 'pending') {
+        setAppointmentRequest(req);
+        setConfirmedAppointmentId(null);
+      } else {
+        setAppointmentRequest(null);
+        setConfirmedAppointmentId(null);
+      }
+    });
+  }, [profile?.id, service?.business_id, service?.id]);
+
+  async function handleCancelRequest() {
+    if (!appointmentRequest) return;
+    setCancelling(true);
+    try {
+      await cancelAppointmentRequest(appointmentRequest);
+      setAppointmentRequest(null);
+    } catch (err) {
+      console.error('cancel appointment request error', err);
+      Alert.alert('Error', 'No se pudo cancelar la solicitud. Intenta de nuevo.');
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function handleCancelAppointment() {
+    if (!confirmedAppointmentId) return;
+    setCancellingAppointment(true);
+    try {
+      await cancelAppointment(confirmedAppointmentId, 'client');
+      setAppointmentRequest(null);
+      setConfirmedAppointmentId(null);
+    } catch (err) {
+      console.error('cancel appointment error', err);
+      Alert.alert('Error', 'No se pudo cancelar la cita. Intenta de nuevo.');
+    } finally {
+      setCancellingAppointment(false);
+    }
+  }
 
   useEffect(() => {
     if (profile && profile.role !== 'client' && id) {
@@ -97,16 +185,43 @@ export default function ServiceDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        <Button
-          title="Solicitar cita"
-          onPress={() =>
-            router.push({
-              pathname: '/(client)/agendar',
-              params: { businessId: service.business_id, serviceId: service.id },
-            })
-          }
-          style={styles.apartarButton}
-        />
+        {!appointmentRequest ? (
+          <Button
+            title="Solicitar cita"
+            onPress={() =>
+              router.push({
+                pathname: '/(client)/agendar',
+                params: { businessId: service.business_id, serviceId: service.id },
+              })
+            }
+            style={styles.apartarButton}
+          />
+        ) : appointmentRequest.status === 'accepted' ? (
+          <>
+            <Button
+              title="Cancelar cita"
+              onPress={handleCancelAppointment}
+              loading={cancellingAppointment}
+              disabled={!confirmedAppointmentId}
+              style={styles.buttonCancel}
+            />
+            <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
+              ✓ Cita confirmada por el taller
+            </Text>
+          </>
+        ) : (
+          <>
+            <Button
+              title="Cancelar solicitud"
+              onPress={handleCancelRequest}
+              loading={cancelling}
+              style={styles.buttonCancel}
+            />
+            <Text style={styles.intentBadge}>
+              Solicitud enviada — en espera de respuesta del taller
+            </Text>
+          </>
+        )}
 
         <View style={styles.actionsRow}>
           <Pressable style={styles.actionBtn} onPress={() => router.push(`/(client)/business/${service.business_id}`)}>
@@ -122,7 +237,7 @@ export default function ServiceDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: '/(client)/chat/[id]',
-                params: { id: service.business_id, prefill: `Hola, quería preguntar sobre: ${service.name}` },
+                params: { id: service.business_id, prefill: `Hola, estoy interesado en el servicio "${service.name}". ¿Podrían darme más información?` },
               })
             }
           >
@@ -239,6 +354,18 @@ const styles = StyleSheet.create({
   apartarButton: {
     height: 42,
   },
+  buttonCancel: {
+    backgroundColor: colors.danger,
+  },
+  intentBadge: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  intentBadgeConfirmed: {
+    color: colors.success,
+  },
   actionsRow: {
     flexDirection: 'row',
     borderRadius: 12,
@@ -258,7 +385,7 @@ const styles = StyleSheet.create({
   button: {},
   photo: {
     width: '100%',
-    height: 200,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     marginBottom: 16,
   },

@@ -105,6 +105,29 @@ export async function getActiveAppointmentRequest(
   return data as unknown as AppointmentRequest | null;
 }
 
+// Para la página de servicio: a diferencia de getActiveAppointmentRequest
+// (solo 'pending', usada por el banner del chat), acá también incluimos
+// 'accepted' para poder mostrar el estado "Cita confirmada" igual que
+// product_intents muestra "Apartado confirmado".
+export async function getAppointmentRequestForService(
+  clientId: string,
+  businessId: string,
+  serviceId: string
+): Promise<AppointmentRequest | null> {
+  const { data, error } = await supabase
+    .from('appointment_requests' as any)
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('business_id', businessId)
+    .eq('service_id', serviceId)
+    .in('status', ['pending', 'accepted'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as AppointmentRequest | null;
+}
+
 export async function cancelAppointmentRequest(
   request: AppointmentRequest
 ): Promise<void> {

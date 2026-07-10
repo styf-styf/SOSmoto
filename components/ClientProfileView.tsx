@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   gridCell: {
     width: CELL_SIZE,
-    height: CELL_SIZE,
+    height: Math.round(CELL_SIZE * (4 / 3)),
   },
   gridImage: {
     width: '100%',

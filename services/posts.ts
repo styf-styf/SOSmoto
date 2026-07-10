@@ -58,7 +58,7 @@ export async function getMyClientPosts(clientId: string): Promise<Post[]> {
 
 const FEED_SELECT = `
   *,
-  author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified),
+  author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified, owner_id),
   author_client:users!posts_client_id_fkey(id, full_name, avatar_url),
   tag_business:businesses!posts_tag_business_id_fkey(id, name),
   tag_client:users!posts_tag_client_id_fkey(id, full_name, avatar_url),
@@ -67,7 +67,7 @@ const FEED_SELECT = `
 `;
 
 export interface PostWithAuthor extends Post {
-  author_business: { id: string; name: string; logo_url: string | null; is_verified: boolean } | null;
+  author_business: { id: string; name: string; logo_url: string | null; is_verified: boolean; owner_id: string } | null;
   author_client: { id: string; full_name: string; avatar_url: string | null } | null;
   tag_business: { id: string; name: string } | null;
   tag_client: { id: string; full_name: string; avatar_url: string | null } | null;

@@ -15,6 +15,7 @@ interface ConversationRow {
   clientName: string;
   clientAvatarUrl: string | null;
   isBusiness: boolean;
+  isVerified: boolean;
   lastMessage: string;
   lastMessageAt: string;
   unread: boolean;
@@ -44,13 +45,13 @@ export default function BusinessMensajesScreen() {
 
     // Para interlocutores B2B, buscamos si tienen un negocio como dueños.
     const otherIds = summaries.map((s) => s.otherId);
-    const businessByOwnerId = new Map<string, { name: string; logo_url: string | null }>();
+    const businessByOwnerId = new Map<string, { name: string; logo_url: string | null; is_verified: boolean }>();
     const { data: bizRows } = await supabase
       .from('businesses')
-      .select('owner_id, name, logo_url')
+      .select('owner_id, name, logo_url, is_verified')
       .in('owner_id', otherIds);
-    (bizRows ?? []).forEach((b: { owner_id: string; name: string; logo_url: string | null }) => {
-      businessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url });
+    (bizRows ?? []).forEach((b: { owner_id: string; name: string; logo_url: string | null; is_verified: boolean }) => {
+      businessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url, is_verified: b.is_verified });
     });
 
     setConversations(
@@ -62,6 +63,7 @@ export default function BusinessMensajesScreen() {
           clientName: biz?.name ?? client?.full_name ?? 'Cliente',
           clientAvatarUrl: biz?.logo_url ?? client?.avatar_url ?? null,
           isBusiness: !!biz,
+          isVerified: biz?.is_verified ?? false,
           lastMessage: s.lastMessage,
           lastMessageAt: s.lastMessageAt,
           unread: s.lastSenderId === s.otherId && s.lastReadAt === null,
@@ -109,11 +111,18 @@ export default function BusinessMensajesScreen() {
             style={styles.row}
             onPress={() => router.push(`/(business)/chat/${row.clientId}`)}
           >
-            <View style={styles.avatar}>
-              {row.clientAvatarUrl ? (
-                <Image source={{ uri: row.clientAvatarUrl }} style={styles.avatarImage} />
-              ) : (
-                <Ionicons name={row.isBusiness ? 'storefront' : 'person'} size={20} color={colors.primary} />
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatar}>
+                {row.clientAvatarUrl ? (
+                  <Image source={{ uri: row.clientAvatarUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name={row.isBusiness ? 'storefront' : 'person'} size={20} color={colors.primary} />
+                )}
+              </View>
+              {row.isVerified && (
+                <View style={styles.verifiedDot}>
+                  <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
+                </View>
               )}
             </View>
             <View style={styles.rowContent}>
@@ -173,6 +182,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  avatarWrap: {
+    position: 'relative',
+  },
   avatar: {
     width: 44,
     height: 44,
@@ -185,6 +197,13 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 44,
     height: 44,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   rowContent: {
     flex: 1,

@@ -4,6 +4,7 @@ import type { GestureResponderEvent, NativeSyntheticEvent, TextLayoutEventData }
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { useAuth } from '../hooks/useAuth';
 import { GradientShade } from './GradientShade';
 import { getPostAuthorAvatar, getPostAuthorName, getPostTag, type PostWithAuthor } from '../services/posts';
 
@@ -28,6 +29,7 @@ export function PostCard({
   // blanco), se funde de blanco a gris en vez de mostrar la sombra normal.
   topFadeFromHeader?: boolean;
 }) {
+  const { profile } = useAuth();
   const authorName = getPostAuthorName(post);
   const avatarUrl = getPostAuthorAvatar(post);
   const tag = getPostTag(post, userRole);
@@ -72,9 +74,17 @@ export function PostCard({
     e.stopPropagation();
     const prefix = userRole === 'business' ? '/(business)' : '/(client)';
     if (isBusiness && post.author_business) {
-      router.push(`${prefix}/business/${post.author_business.id}`);
+      if (post.author_business.owner_id === profile?.id) {
+        router.push(`${prefix}/(tabs)/perfil`);
+      } else {
+        router.push(`${prefix}/business/${post.author_business.id}`);
+      }
     } else if (post.author_client) {
-      router.push(`${prefix}/usuario/${post.author_client.id}`);
+      if (post.author_client.id === profile?.id) {
+        router.push(`${prefix}/(tabs)/perfil`);
+      } else {
+        router.push(`${prefix}/usuario/${post.author_client.id}`);
+      }
     }
   }
 
@@ -263,7 +273,7 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    height: 280,
+    aspectRatio: 3 / 4,
   },
   image: {
     width: '100%',

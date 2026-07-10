@@ -45,6 +45,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [posts, setPosts] = useState<Post[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [following, setFollowing] = useState(false);
+  const [viewerBusinessType, setViewerBusinessType] = useState<Business['business_type'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoOverride, setLogoOverride] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -80,6 +81,12 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       setReviews(reviewsResult);
       if (profile?.role === 'client') {
         setFollowing(await fetchIsFollowing(profile.id, resolvedBusiness.id));
+      } else if (profile?.role === 'business') {
+        const work = await getMyWorkBusiness(profile.id);
+        setViewerBusinessType(work?.business?.business_type ?? null);
+        if (work?.business && work.business.id !== resolvedBusiness.id) {
+          setFollowing(await fetchIsFollowing(profile.id, resolvedBusiness.id));
+        }
       }
     }
   }, [mode, businessId, profile]);
@@ -157,7 +164,16 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     );
   }
 
-  const showFollow = mode === 'public' && profile?.role === 'client';
+  const showFollowClient = mode === 'public' && profile?.role === 'client';
+  // Un taller puede seguir a una tienda (relación B2B), pero una tienda no
+  // puede seguir a un taller -- ver a-b-c-d en producto/servicio, la misma
+  // asimetría B2B ya aplicada al flujo de compra.
+  const canWorkshopFollowStore =
+    mode === 'public' &&
+    profile?.role === 'business' &&
+    viewerBusinessType === 'workshop' &&
+    business.business_type === 'store';
+  const showFollowButton = showFollowClient || canWorkshopFollowStore;
 
   return (
     <ScrollView contentContainerStyle={[styles.container, mode === 'public' && styles.containerWithHeader]}>
@@ -257,17 +273,25 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             label="Clientes"
             onPress={() => router.push('/(business)/clientes')}
           />
-          <ProfileActionButton
-            icon="stats-chart-outline"
-            label="Estadísticas"
-            onPress={() => router.push('/(business)/estadisticas')}
-          />
+          {business.business_type === 'workshop' ? (
+            <ProfileActionButton
+              icon="bag-handle-outline"
+              label="Mis compras"
+              onPress={() => router.push('/(business)/mis-compras')}
+            />
+          ) : (
+            <ProfileActionButton
+              icon="stats-chart-outline"
+              label="Estadísticas"
+              onPress={() => router.push('/(business)/estadisticas')}
+            />
+          )}
         </View>
       )}
 
       {mode === 'public' && (
         <View style={styles.profileActionsRow}>
-          {showFollow && (
+          {showFollowButton && (
             <ProfileActionButton
               icon={following ? 'people' : 'person-add-outline'}
               label={following ? 'Siguiendo' : 'Seguir'}
@@ -276,14 +300,14 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
               active={following}
             />
           )}
-          {showFollow && (
+          {showFollowClient && (
             <ProfileActionButton
               icon="chatbubble-outline"
               label="Mensaje"
               onPress={() => router.push(`${viewerPrefix}/chat/${business.id}`)}
             />
           )}
-          {showFollow && business.business_type === 'workshop' && (
+          {showFollowClient && business.business_type === 'workshop' && (
             <ProfileActionButton
               icon="calendar-outline"
               label="Agendar"
@@ -665,7 +689,7 @@ const styles = StyleSheet.create({
   },
   gridCell: {
     width: CELL_SIZE,
-    height: CELL_SIZE,
+    height: Math.round(CELL_SIZE * (4 / 3)),
   },
   gridImage: {
     width: '100%',

@@ -1,26 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../../components/Button';
-import { QuantityStepper } from '../../../components/QuantityStepper';
-import { FeedCatalogStrip } from '../../../components/FeedCatalogStrip';
-import { colors } from '../../../constants/colors';
-import { useAuth } from '../../../hooks/useAuth';
-import { getProductById, getProductsByCategory, incrementProductViews } from '../../../services/catalog';
+import { Button } from '../../../../components/Button';
+import { QuantityStepper } from '../../../../components/QuantityStepper';
+import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
+import { colors } from '../../../../constants/colors';
+import { useAuth } from '../../../../hooks/useAuth';
+import { getMyWorkBusiness } from '../../../../services/businesses';
+import { getProductById, getProductsByCategory, incrementProductViews } from '../../../../services/catalog';
 import {
   cancelProductIntent,
   createProductIntent,
   getClientIntentForProduct,
   subscribeToClientIntent,
-} from '../../../services/productIntents';
-import type { ProductWithBusiness, FeedCatalogItem } from '../../../services/catalog';
-import type { ProductIntent } from '../../../types/database';
+} from '../../../../services/productIntents';
+import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
+import type { ProductWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
+import type { ProductIntent } from '../../../../types/database';
 
-export default function ProductDetailScreen() {
+export default function BusinessProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
+  const navigation = useNavigation();
   const [product, setProduct] = useState<ProductWithBusiness | null>(null);
+  const [canBuy, setCanBuy] = useState(false);
+  const [viewerIsStore, setViewerIsStore] = useState(false);
+  const [isOwnProduct, setIsOwnProduct] = useState(false);
   const [loading, setLoading] = useState(true);
   const [intent, setIntent] = useState<ProductIntent | null>(null);
   const [apartando, setApartando] = useState(false);
@@ -28,8 +35,11 @@ export default function ProductDetailScreen() {
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
 
   const load = useCallback(async () => {
-    if (!id) return;
-    const result = await getProductById(id);
+    if (!id || !profile) return;
+    const [result, work] = await Promise.all([
+      getProductById(id),
+      getMyWorkBusiness(profile.id),
+    ]);
     setProduct(result);
     if (result) {
       incrementProductViews(id).catch((err) => console.error('increment product views error', err));
@@ -37,12 +47,24 @@ export default function ProductDetailScreen() {
         .then(setRelatedItems)
         .catch((err) => console.error('load related products error', err));
     }
-    if (profile?.id) {
-      getClientIntentForProduct(profile.id, id)
-        .then(setIntent)
-        .catch((err) => console.error('load intent error', err));
+
+    if (work) {
+      setCanBuy(work.business.business_type === 'workshop' && work.business.id !== result?.business_id);
+      setViewerIsStore(work.business.business_type === 'store');
+      if (result && work.business.id === result.business_id) {
+        // Es su propio producto -- en vez de la vista de "ver como negocio
+        // ajeno" lo mandamos directo al catálogo de gestión, igual que el
+        // taller con sus propios servicios.
+        setIsOwnProduct(true);
+        router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
+        return;
+      }
     }
-  }, [id, profile?.id]);
+
+    getClientIntentForProduct(profile.id, id)
+      .then(setIntent)
+      .catch((err) => console.error('load intent error', err));
+  }, [id, profile]);
 
   useEffect(() => {
     setLoading(true);
@@ -50,6 +72,18 @@ export default function ProductDetailScreen() {
       .catch((err) => console.error('load product detail error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Si el usuario volvió a Inicio antes de entrar acá, esta es la primera
+  // pantalla de producto que gana foco después de eso: reinicia la pila
+  // anidada para que quede como única entrada (ver
+  // utils/productoServicioStackReset.ts).
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeProductoServicioResetFlag('producto')) {
+        navigation.dispatch((state) => CommonActions.reset({ index: 0, routes: [state.routes[state.index]] } as any));
+      }
+    }, [navigation])
+  );
 
   useEffect(() => {
     if (!profile?.id || !id) return;
@@ -70,14 +104,10 @@ export default function ProductDetailScreen() {
         const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity);
         setIntent(newIntent);
         const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
-        router.push({
-          pathname: '/(client)/chat/[id]',
-          params: {
-            id: product.business_id,
-            prefill: `Hola, quiero apartar: ${qtyPrefix}${product.name}${product.reference_price != null ? ` ($${(product.reference_price * quantity).toFixed(2)})` : ''}`,
-            autoSend: 'true',
-          },
-        });
+        const msg = encodeURIComponent(
+          `Hola, quiero apartar: ${qtyPrefix}${product.name}${product.reference_price != null ? ` ($${(product.reference_price * quantity).toFixed(2)})` : ''}`
+        );
+        router.push(`/(business)/chat/${product.business_owner_id}?initialMessage=${msg}&sellerBusinessId=${product.business_id}`);
       }
     } catch (err) {
       console.error('apartar error', err);
@@ -87,13 +117,7 @@ export default function ProductDetailScreen() {
     }
   }
 
-  useEffect(() => {
-    if (profile && profile.role !== 'client' && id) {
-      router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
-    }
-  }, [profile?.role, id]);
-
-  if (loading || (profile && profile.role !== 'client')) {
+  if (loading || isOwnProduct) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
@@ -114,7 +138,7 @@ export default function ProductDetailScreen() {
       <Stack.Screen options={{ title: product.name }} />
       <Pressable
         style={styles.businessRow}
-        onPress={() => router.push(`/(client)/business/${product.business_id}`)}
+        onPress={() => router.push(`/(business)/business/${product.business_id}`)}
       >
         <View style={styles.businessAvatarWrap}>
           <View style={styles.businessAvatar}>
@@ -153,7 +177,15 @@ export default function ProductDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        {product.stock > 0 && profile?.role === 'client' && !intent && (
+        {!canBuy && viewerIsStore && (
+          <View style={styles.noticeBox}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.noticeText}>
+              No puedes apartar productos con una cuenta de tienda. Cambia a una cuenta de cliente para solicitar este producto.
+            </Text>
+          </View>
+        )}
+        {product.stock > 0 && canBuy && !intent && (
           <View style={styles.apartarRow}>
             <Button
               title="Apartar producto"
@@ -164,7 +196,7 @@ export default function ProductDetailScreen() {
             <QuantityStepper value={quantity} onChange={setQuantity} max={product.stock} />
           </View>
         )}
-        {product.stock > 0 && profile?.role === 'client' && intent && intent.status !== 'confirmed' && (
+        {product.stock > 0 && canBuy && intent && (
           <Button
             title="Cancelar apartado"
             onPress={handleApartar}
@@ -184,28 +216,24 @@ export default function ProductDetailScreen() {
         )}
 
         <View style={styles.actionsRow}>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(client)/business/${product.business_id}`)}>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/business/${product.business_id}`)}>
             <Ionicons name="storefront-outline" size={20} color={colors.text} />
             <Text style={styles.actionBtnLabel}>Ver negocio</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(client)/negocio-catalogo/${product.business_id}`)}>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/(business)/negocio-catalogo/${product.business_id}`)}>
             <Ionicons name="grid-outline" size={20} color={colors.text} />
             <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
           </Pressable>
-          {profile?.role === 'client' && (
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() =>
-                router.push({
-                  pathname: '/(client)/chat/[id]',
-                  params: { id: product.business_id, prefill: `Hola, quería preguntar sobre: ${product.name}` },
-                })
-              }
-            >
-              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
-              <Text style={styles.actionBtnLabel}>Chatear</Text>
-            </Pressable>
-          )}
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => {
+              const msg = encodeURIComponent(`Hola, estoy interesado en el producto "${product.name}". ¿Podrían darme más información?`);
+              router.push(`/(business)/chat/${product.business_owner_id}?prefill=${msg}&sellerBusinessId=${product.business_id}`);
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+            <Text style={styles.actionBtnLabel}>Chatear</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -215,7 +243,7 @@ export default function ProductDetailScreen() {
           <FeedCatalogStrip
             items={relatedItems.filter((item) => item.photoUrl)}
             listItems={relatedItems.filter((item) => !item.photoUrl)}
-            role="client"
+            role="business"
           />
         </View>
       )}
@@ -323,6 +351,20 @@ const styles = StyleSheet.create({
     marginTop: 32,
     gap: 10,
   },
+  noticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
+  },
   apartarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,7 +405,7 @@ const styles = StyleSheet.create({
   },
   photo: {
     width: '100%',
-    height: 200,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     marginBottom: 16,
   },

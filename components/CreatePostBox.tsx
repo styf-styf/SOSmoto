@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   preview: {
     width: '100%',
-    height: 160,
+    aspectRatio: 3 / 4,
     borderRadius: 10,
     backgroundColor: colors.background,
   },

@@ -92,6 +92,9 @@ export function AdDetail({ adId }: { adId: string }) {
             )}
           </View>
           <Text style={styles.authorName}>{businessName}</Text>
+          {ad.business?.is_verified && (
+            <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+          )}
         </View>
 
         <View style={styles.imageWrap}>
@@ -202,7 +205,7 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    height: 260,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     overflow: 'hidden',
   },

@@ -125,7 +125,7 @@ export function subscribeToClientServiceIntent(
   onUnavailable?: () => void
 ) {
   const channel = supabase
-    .channel(`service_intent_${clientId}_${serviceId}`)
+    .channel(`service_intent_${clientId}_${serviceId}_${Math.random().toString(36).slice(2)}`)
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'service_intents', filter: `client_id=eq.${clientId}` },

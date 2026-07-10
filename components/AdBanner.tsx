@@ -43,11 +43,18 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
   return (
     <Pressable style={styles.card} onPress={() => router.push(detailHref)}>
       <View style={[styles.authorRow, expanded && styles.authorRowExpanded]}>
-        <View style={styles.avatar}>
-          {ad.business?.logo_url ? (
-            <Image source={{ uri: ad.business.logo_url }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name="storefront" size={18} color={colors.primary} />
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatar}>
+            {ad.business?.logo_url ? (
+              <Image source={{ uri: ad.business.logo_url }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="storefront" size={18} color={colors.primary} />
+            )}
+          </View>
+          {ad.business?.is_verified && (
+            <View style={styles.verifiedDot}>
+              <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
+            </View>
           )}
         </View>
         <View style={styles.authorTextRow}>
@@ -115,6 +122,9 @@ const styles = StyleSheet.create({
   authorRowExpanded: {
     alignItems: 'flex-start',
   },
+  avatarWrap: {
+    position: 'relative',
+  },
   avatar: {
     width: 32,
     height: 32,
@@ -127,6 +137,13 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 32,
     height: 32,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   authorTextRow: {
     flex: 1,
@@ -160,7 +177,7 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    height: 280,
+    aspectRatio: 3 / 4,
   },
   image: {
     width: '100%',

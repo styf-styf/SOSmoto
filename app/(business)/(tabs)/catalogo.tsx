@@ -42,7 +42,7 @@ const GRID_GAP = 10;
 const GRID_COLUMNS = 2;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
-const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.1);
+const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
 
 interface CatalogDisplayItem {
   id: string;
@@ -481,8 +481,12 @@ function ServiceForm({
       Alert.alert('Falta la categoría', 'Elige o sugiere una categoría para el servicio.');
       return;
     }
-    const parsedPrice = price.trim() ? Number(price) : null;
-    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
+    if (!price.trim()) {
+      Alert.alert('Falta el precio', 'Ingresa el precio del servicio.');
+      return;
+    }
+    const parsedPrice = Number(price);
+    if (Number.isNaN(parsedPrice)) {
       Alert.alert('Precio inválido', 'Ingresa un número válido.');
       return;
     }
@@ -502,7 +506,7 @@ function ServiceForm({
             name: name.trim(),
             description: description.trim() || undefined,
             categoryId,
-            referencePrice: parsedPrice ?? undefined,
+            referencePrice: parsedPrice,
             photos: photoUrl ? [photoUrl] : undefined,
           });
       onSaved(result);
@@ -515,7 +519,7 @@ function ServiceForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.modalContainer}>
+    <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
       <View style={styles.modalHeader}>
         <Text style={styles.modalTitle}>{isEdit ? 'Editar servicio' : 'Nuevo servicio'}</Text>
         <Pressable onPress={onCancel}>
@@ -532,7 +536,7 @@ function ServiceForm({
       />
       <CategoryPicker kind="service" value={categoryId} onChange={setCategoryId} />
       <TextField
-        label="Precio referencial (opcional)"
+        label="Precio"
         placeholder="15.00"
         keyboardType="numeric"
         value={price}
@@ -613,9 +617,13 @@ function ProductForm({
       Alert.alert('Falta la categoría', 'Elige o sugiere una categoría para el producto.');
       return;
     }
-    const parsedPrice = price.trim() ? Number(price) : null;
+    if (!price.trim()) {
+      Alert.alert('Falta el precio', 'Ingresa el precio del producto.');
+      return;
+    }
+    const parsedPrice = Number(price);
     const parsedStock = Number(stock);
-    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
+    if (Number.isNaN(parsedPrice)) {
       Alert.alert('Precio inválido', 'Ingresa un número válido.');
       return;
     }
@@ -640,7 +648,7 @@ function ProductForm({
             name: name.trim(),
             description: description.trim() || undefined,
             categoryId,
-            referencePrice: parsedPrice ?? undefined,
+            referencePrice: parsedPrice,
             stock: parsedStock,
             photos: photoUrl ? [photoUrl] : undefined,
           });
@@ -654,7 +662,7 @@ function ProductForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.modalContainer}>
+    <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
       <View style={styles.modalHeader}>
         <Text style={styles.modalTitle}>{isEdit ? 'Editar producto' : 'Nuevo producto'}</Text>
         <Pressable onPress={onCancel}>
@@ -671,7 +679,7 @@ function ProductForm({
       />
       <CategoryPicker kind="product" value={categoryId} onChange={setCategoryId} />
       <TextField
-        label="Precio referencial (opcional)"
+        label="Precio"
         placeholder="45.00"
         keyboardType="numeric"
         value={price}
@@ -880,7 +888,7 @@ const styles = StyleSheet.create({
   },
   photoPreview: {
     width: '100%',
-    height: 140,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     marginBottom: 10,
     backgroundColor: colors.surface,

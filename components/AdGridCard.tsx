@@ -16,7 +16,7 @@ const GAP = 10;
 const SIDE_PADDING = 20;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GAP * (COLUMNS - 1)) / COLUMNS);
-const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.2);
+const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
 
 export function AdGridCard({ ad, detailHref }: { ad: AdWithBusiness; detailHref: string }) {
   useEffect(() => {

@@ -81,11 +81,18 @@ export default function MensajesScreen() {
             style={styles.row}
             onPress={() => router.push(`/(client)/chat/${row.business.id}`)}
           >
-            <View style={styles.avatar}>
-              {row.business.logo_url ? (
-                <Image source={{ uri: row.business.logo_url }} style={styles.avatarImage} />
-              ) : (
-                <Ionicons name="storefront" size={20} color={colors.primary} />
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatar}>
+                {row.business.logo_url ? (
+                  <Image source={{ uri: row.business.logo_url }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name="storefront" size={20} color={colors.primary} />
+                )}
+              </View>
+              {row.business.is_verified && (
+                <View style={styles.verifiedDot}>
+                  <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
+                </View>
               )}
             </View>
             <View style={styles.rowContent}>
@@ -145,6 +152,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  avatarWrap: {
+    position: 'relative',
+  },
   avatar: {
     width: 44,
     height: 44,
@@ -157,6 +167,13 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 44,
     height: 44,
+  },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   rowContent: {
     flex: 1,

@@ -81,15 +81,27 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   function handleAuthorPress() {
     if (!post) return;
     if (isBusiness && post.author_business) {
-      router.push(`${prefix}/business/${post.author_business.id}`);
+      if (post.author_business.owner_id === profile?.id) {
+        router.push(`${prefix}/(tabs)/perfil`);
+      } else {
+        router.push(`${prefix}/business/${post.author_business.id}`);
+      }
     } else if (post.author_client) {
-      router.push(`${prefix}/usuario/${post.author_client.id}`);
+      if (post.author_client.id === profile?.id) {
+        router.push(`${prefix}/(tabs)/perfil`);
+      } else {
+        router.push(`${prefix}/usuario/${post.author_client.id}`);
+      }
     }
   }
 
   function handleCommentAuthorPress(comment: PostCommentWithAuthor) {
     if (!comment.users) return;
-    router.push(`${prefix}/usuario/${comment.users.id}`);
+    if (comment.users.id === profile?.id) {
+      router.push(`${prefix}/(tabs)/perfil`);
+    } else {
+      router.push(`${prefix}/usuario/${comment.users.id}`);
+    }
   }
 
   return (
@@ -104,6 +116,9 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
             )}
           </View>
           <Text style={styles.authorName}>{authorName}</Text>
+          {post.author_business?.is_verified && (
+            <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+          )}
         </Pressable>
 
         {post.image_url && <Image source={{ uri: post.image_url }} style={styles.image} resizeMode="cover" />}
@@ -212,7 +227,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 260,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     backgroundColor: colors.surface,
   },

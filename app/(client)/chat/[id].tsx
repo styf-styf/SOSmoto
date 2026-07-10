@@ -12,7 +12,12 @@ import { getBusinessById, getMyBusiness } from '../../../services/businesses';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
 import { cancelAppointmentRequest, getActiveAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
-import type { Business, Message } from '../../../types/database';
+import {
+  cancelProductIntent,
+  getClientProductIntents,
+  subscribeToClientProductIntentsForBusiness,
+} from '../../../services/productIntents';
+import type { Business, Message, ProductIntentWithProduct } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
@@ -35,6 +40,17 @@ export default function ChatScreen() {
   const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
   const [cancellingRequest, setCancellingRequest] = useState(false);
 
+  // Banner de apartados de producto pendientes/confirmados
+  const [productIntents, setProductIntents] = useState<ProductIntentWithProduct[]>([]);
+  const [cancellingIntentId, setCancellingIntentId] = useState<string | null>(null);
+
+  // IDs de banners que el usuario cerró con la (X) -- solo oculta la tarjeta
+  // de la vista, no cancela nada; se resetea si se recarga el chat.
+  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
+  function dismissBanner(key: string) {
+    setDismissedBanners((prev) => new Set(prev).add(key));
+  }
+
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
     if (profile.role === 'client') {
@@ -44,6 +60,11 @@ export default function ChatScreen() {
     if (!myBusiness) return null;
     return { clientId: id, businessId: myBusiness.id };
   }, [profile, id]);
+
+  const loadProductIntents = useCallback(async (cId: string, bId: string) => {
+    const all = await getClientProductIntents(bId, cId);
+    setProductIntents(all.filter((i) => i.status === 'pending' || i.status === 'confirmed'));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -56,6 +77,7 @@ export default function ChatScreen() {
           getMessages(thread.clientId, thread.businessId),
           getBusinessById(thread.businessId).then(setBusiness),
           getActiveAppointmentRequest(thread.clientId, thread.businessId).then(setAppointmentRequest),
+          loadProductIntents(thread.clientId, thread.businessId),
         ]);
         setMessages(history);
         if (profile) {
@@ -64,7 +86,7 @@ export default function ChatScreen() {
       })
       .catch((err) => console.error('load chat error', err))
       .finally(() => setLoading(false));
-  }, [resolveThread]);
+  }, [resolveThread, loadProductIntents]);
 
   // Suscripción a cambios en la solicitud de cita
   useEffect(() => {
@@ -74,6 +96,14 @@ export default function ChatScreen() {
     });
     return unsubscribe;
   }, [clientId, businessId]);
+
+  // Suscripción a cambios en apartados de producto
+  useEffect(() => {
+    if (!clientId || !businessId) return;
+    return subscribeToClientProductIntentsForBusiness(clientId, businessId, () => {
+      loadProductIntents(clientId, businessId).catch((err) => console.error('reload product intents error', err));
+    });
+  }, [clientId, businessId, loadProductIntents]);
 
   useEffect(() => {
     if (loading || !autoSend || autoSentRef.current) return;
@@ -126,7 +156,7 @@ export default function ChatScreen() {
   async function handleCamera() {
     setShowAttach(false);
     try {
-      const asset = await pickImageFromCamera();
+      const asset = await pickImageFromCamera(null);
       if (asset) setPendingImage(asset);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -137,7 +167,7 @@ export default function ChatScreen() {
   async function handleGallery() {
     setShowAttach(false);
     try {
-      const asset = await pickImageFromLibrary();
+      const asset = await pickImageFromLibrary(null);
       if (asset) setPendingImage(asset);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -214,6 +244,29 @@ export default function ChatScreen() {
     ]);
   }
 
+  async function handleCancelIntent(intentId: string) {
+    if (cancellingIntentId) return;
+    Alert.alert('Cancelar apartado', '¿Seguro que quieres cancelar este apartado?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          setCancellingIntentId(intentId);
+          try {
+            await cancelProductIntent(intentId);
+            setProductIntents((prev) => prev.filter((i) => i.id !== intentId));
+          } catch (err) {
+            console.error('cancel intent error', err);
+            Alert.alert('Error', 'No se pudo cancelar el apartado.');
+          } finally {
+            setCancellingIntentId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -229,13 +282,20 @@ export default function ChatScreen() {
         name={business?.name ?? 'Negocio'}
         avatarUrl={business?.logo_url}
         fallbackIcon="storefront"
+        isVerified={business?.is_verified ?? false}
         onPressName={businessId ? () => router.push(`/(client)/business/${businessId}`) : undefined}
       />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {/* Banner: solicitud de cita pendiente (lado cliente) */}
-        {appointmentRequest && (
+        {appointmentRequest && !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
           <View style={styles.requestBanner}>
+            <Pressable
+              style={styles.dismissBannerBtn}
+              onPress={() => dismissBanner(`req:${appointmentRequest.id}`)}
+            >
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+            </Pressable>
             <View style={styles.requestBannerInfo}>
               <Ionicons name="calendar-outline" size={16} color={colors.primary} />
               <View style={styles.requestBannerText}>
@@ -263,6 +323,43 @@ export default function ChatScreen() {
             </Pressable>
           </View>
         )}
+
+        {/* Banner: apartados de producto pendientes/confirmados (lado cliente) */}
+        {productIntents
+          .filter((intent) => !dismissedBanners.has(`intent:${intent.id}`))
+          .map((intent) => (
+            <View key={intent.id} style={styles.requestBanner}>
+              <Pressable
+                style={styles.dismissBannerBtn}
+                onPress={() => dismissBanner(`intent:${intent.id}`)}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+              <View style={styles.requestBannerInfo}>
+                <Ionicons name="cube-outline" size={16} color={colors.primary} />
+                <View style={styles.requestBannerText}>
+                  <Text style={styles.requestBannerTitle}>
+                    {intent.status === 'confirmed' ? 'Apartado confirmado' : 'Apartado pendiente'}
+                  </Text>
+                  <Text style={styles.requestBannerSub} numberOfLines={1}>
+                    {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                style={styles.cancelRequestBtn}
+                onPress={() => handleCancelIntent(intent.id)}
+                disabled={cancellingIntentId === intent.id}
+              >
+                {cancellingIntentId === intent.id ? (
+                  <ActivityIndicator size="small" color={colors.danger} />
+                ) : (
+                  <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
+                )}
+              </Pressable>
+            </View>
+          ))}
 
         <ScrollView
           ref={scrollRef}
@@ -405,6 +502,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
+  },
+  dismissBannerBtn: {
+    padding: 2,
   },
   requestBannerInfo: {
     flexDirection: 'row',
@@ -551,7 +651,7 @@ const styles = StyleSheet.create({
   },
   pendingImageThumb: {
     width: 80,
-    height: 80,
+    aspectRatio: 3 / 4,
     borderRadius: 8,
   },
   pendingImageRemove: {
@@ -566,7 +666,7 @@ const styles = StyleSheet.create({
   },
   chatImage: {
     width: 200,
-    height: 200,
+    aspectRatio: 3 / 4,
   },
   imageBubbleCaption: {
     fontSize: 14,

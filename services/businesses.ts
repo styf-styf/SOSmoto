@@ -265,17 +265,23 @@ export async function updateBusinessPlan(businessId: string, planId: string): Pr
 
 export async function getNewNearbyBusinesses(
   coords: { latitude: number; longitude: number } | null,
-  limit = 6
+  limit = 6,
+  options?: { onlyType?: BusinessType; excludeBusinessId?: string }
 ): Promise<BusinessWithDistance[]> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('businesses')
     .select('*')
     .neq('business_type', 'brand_advertiser')
     .or(`created_at.gte.${thirtyDaysAgo.toISOString()},followers_count.lt.5`)
     .limit(30);
+
+  if (options?.onlyType) query = query.eq('business_type', options.onlyType);
+  if (options?.excludeBusinessId) query = query.neq('id', options.excludeBusinessId);
+
+  const { data, error } = await query;
 
   if (error) throw error;
 

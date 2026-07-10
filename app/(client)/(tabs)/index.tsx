@@ -19,6 +19,7 @@ import { CreatePostBox } from '../../../components/CreatePostBox';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
 import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
+import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const bizTypeLabel: Record<string, string> = { workshop: 'Taller', store: 'Tienda' };
@@ -117,13 +118,18 @@ export default function ClientHomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Volver a Para ti cada vez que el tab Inicio gana foco (desde otro tab o pantalla anidada)
+      // Volver a Para ti cada vez que el tab Inicio gana foco (desde otro tab o pantalla anidada).
+      // También reinicia la pila de producto/servicio -- esto cubre el caso de volver a Inicio
+      // con el botón "atrás" del header (no solo tocando el ícono de la tab bar, que ya se
+      // maneja aparte en el listener de tabPress más abajo).
       dragX.setValue(0);
+      markProductoServicioStacksForReset();
       load().catch((err) => console.error('refresh client home error', err));
     }, [load])
   );
 
-  // Mismo reset si el usuario ya está en Inicio y vuelve a presionar el botón del tab
+  // Mismo reset si el usuario ya está en Inicio y vuelve a presionar el botón del tab.
+  // También reinicia la pila de producto/servicio (ver utils/productoServicioStackReset.ts).
   useEffect(() => {
     return navigation.addListener('tabPress' as any, () => {
       Animated.spring(dragX, {
@@ -133,6 +139,7 @@ export default function ClientHomeScreen() {
         friction: 28,
         overshootClamping: true,
       }).start();
+      markProductoServicioStacksForReset();
     });
   }, [navigation]);
 
@@ -277,7 +284,7 @@ export default function ClientHomeScreen() {
                 </View>
                 {nearbyNew.length > 0 && (
                   <View style={styles.descubreWrap}>
-                    <Text style={styles.sectionTitle}>Nuevos cerca de ti</Text>
+                    <Text style={styles.sectionTitleInset}>Nuevos cerca de ti</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.descubreRow}>
                       {nearbyNew.map((biz) => (
                         <Pressable
@@ -285,11 +292,18 @@ export default function ClientHomeScreen() {
                           style={styles.descubreCard}
                           onPress={() => router.push(`/(client)/business/${biz.id}`)}
                         >
-                          <View style={styles.descubreAvatar}>
-                            {biz.logo_url ? (
-                              <Image source={{ uri: biz.logo_url }} style={styles.descubreAvatarImage} />
-                            ) : (
-                              <Ionicons name="storefront" size={22} color={colors.primary} />
+                          <View style={styles.descubreAvatarWrap}>
+                            <View style={styles.descubreAvatar}>
+                              {biz.logo_url ? (
+                                <Image source={{ uri: biz.logo_url }} style={styles.descubreAvatarImage} />
+                              ) : (
+                                <Ionicons name="storefront" size={22} color={colors.primary} />
+                              )}
+                            </View>
+                            {biz.is_verified && (
+                              <View style={styles.descubreVerifiedDot}>
+                                <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+                              </View>
                             )}
                           </View>
                           <Text numberOfLines={1} style={styles.descubreName}>{biz.name}</Text>
@@ -402,11 +416,11 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   descubreWrap: {
-    paddingHorizontal: 20,
     marginBottom: 12,
   },
   descubreRow: {
     gap: 10,
+    paddingHorizontal: 10,
     paddingBottom: 4,
   },
   descubreCard: {
@@ -416,6 +430,10 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
   },
+  descubreAvatarWrap: {
+    position: 'relative',
+    marginBottom: 8,
+  },
   descubreAvatar: {
     width: 52,
     height: 52,
@@ -423,12 +441,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF1E6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
     overflow: 'hidden',
   },
   descubreAvatarImage: {
     width: 52,
     height: 52,
+  },
+  descubreVerifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   descubreName: {
     fontSize: 13,
@@ -464,5 +488,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
+  },
+  sectionTitleInset: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    paddingHorizontal: 20,
   },
 });

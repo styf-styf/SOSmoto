@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type { Ad, AdComment, AdPricing } from '../types/database';
 
 export interface AdWithBusiness extends Ad {
-  business: { name: string; logo_url: string | null } | null;
+  business: { name: string; logo_url: string | null; is_verified: boolean } | null;
 }
 
 // El anuncio se ve y se comporta como una publicación del feed (con
@@ -11,7 +11,7 @@ export interface AdWithBusiness extends Ad {
 export async function getAdById(adId: string): Promise<AdWithBusiness | null> {
   const { data, error } = await supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url)')
+    .select('*, business:businesses(name, logo_url, is_verified)')
     .eq('id', adId)
     .maybeSingle();
   if (error) throw error;
@@ -108,7 +108,7 @@ async function getEligibleAds(city: string | null): Promise<AdWithBusiness[]> {
   const nowIso = new Date().toISOString();
   let query = supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url)')
+    .select('*, business:businesses(name, logo_url, is_verified)')
     .eq('status', 'active')
     .lte('starts_at', nowIso)
     .gte('ends_at', nowIso)

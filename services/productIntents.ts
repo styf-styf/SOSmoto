@@ -152,7 +152,7 @@ export function subscribeToClientIntent(
   onUnavailable?: () => void
 ) {
   const channel = supabase
-    .channel(`product_intent_${clientId}_${productId}`)
+    .channel(`product_intent_${clientId}_${productId}_${Math.random().toString(36).slice(2)}`)
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'product_intents', filter: `client_id=eq.${clientId}` },
@@ -165,6 +165,31 @@ export function subscribeToClientIntent(
           onUpdate(null);
           if (row.status === 'unavailable') onUnavailable?.();
         }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+// Avisa (sin payload propio, el caller vuelve a pedir la lista) cuando cambia
+// algún product_intent de este cliente con este negocio -- usado por el
+// banner de apartados pendientes en el chat.
+export function subscribeToClientProductIntentsForBusiness(
+  clientId: string,
+  businessId: string,
+  onChange: () => void
+) {
+  const channel = supabase
+    .channel(`product_intents_biz_${clientId}_${businessId}_${Math.random().toString(36).slice(2)}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'product_intents', filter: `client_id=eq.${clientId}` },
+      (payload) => {
+        const row = (payload.new ?? payload.old) as ProductIntent;
+        if (row.business_id === businessId) onChange();
       }
     )
     .subscribe();

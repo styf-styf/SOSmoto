@@ -15,7 +15,7 @@ const SIDE_PADDING = 6;
 const CARD_PEEK = 20; // franja de la 4ta tarjeta visible como pista de scroll
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING - GAP * VISIBLE_CARDS - CARD_PEEK) / VISIBLE_CARDS);
-const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.65);
+const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
 
 export function FeedCatalogStrip({
   items,

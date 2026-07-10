@@ -7,7 +7,14 @@ const KYC_BUCKET = 'kyc-documents';
 const MAX_WIDTH = 1280;
 const COMPRESSION_QUALITY = 0.7;
 
-export async function pickImageFromLibrary(): Promise<ImagePicker.ImagePickerAsset | null> {
+// Recorte 3:4 por defecto en todos los flujos de subir imagen de la app
+// (catálogo, logo, publicaciones, avatar, chat, anuncios, KYC) -- así todas
+// las fotos quedan con una proporción consistente. Las historias son la
+// excepción: usan recorte completo/libre (pasar `null` explícito) porque ahí
+// sí queremos que el usuario pueda subir la foto sin forzar 3:4.
+const DEFAULT_ASPECT: [number, number] = [3, 4];
+
+export async function pickImageFromLibrary(aspect?: [number, number] | null): Promise<ImagePicker.ImagePickerAsset | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     throw new Error('Necesitamos permiso para acceder a tus fotos.');
@@ -16,13 +23,14 @@ export async function pickImageFromLibrary(): Promise<ImagePicker.ImagePickerAss
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
+    aspect: aspect === null ? undefined : aspect ?? DEFAULT_ASPECT,
     quality: 1,
   });
   if (result.canceled || result.assets.length === 0) return null;
   return result.assets[0];
 }
 
-export async function pickImageFromCamera(): Promise<ImagePicker.ImagePickerAsset | null> {
+export async function pickImageFromCamera(aspect?: [number, number] | null): Promise<ImagePicker.ImagePickerAsset | null> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
     throw new Error('Necesitamos permiso para usar la cámara.');
@@ -31,6 +39,7 @@ export async function pickImageFromCamera(): Promise<ImagePicker.ImagePickerAsse
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
+    aspect: aspect === null ? undefined : aspect ?? DEFAULT_ASPECT,
     quality: 1,
   });
   if (result.canceled || result.assets.length === 0) return null;
@@ -69,6 +78,14 @@ export async function pickAndUploadBusinessImage(businessId: string): Promise<st
   return uploadBusinessImage(asset, businessId);
 }
 
+// Historias de negocio -- recorte completo/libre, sin forzar 3:4 (ver nota
+// junto a DEFAULT_ASPECT más arriba).
+export async function pickAndUploadBusinessStoryImage(businessId: string): Promise<string | null> {
+  const asset = await pickImageFromLibrary(null);
+  if (!asset) return null;
+  return uploadBusinessImage(asset, businessId);
+}
+
 export async function uploadClientStoryImage(asset: ImagePicker.ImagePickerAsset, clientId: string): Promise<string> {
   const optimizedUri = await optimizeImage(asset);
   const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
@@ -85,7 +102,7 @@ export async function uploadClientStoryImage(asset: ImagePicker.ImagePickerAsset
 }
 
 export async function pickAndUploadClientStoryImage(clientId: string): Promise<string | null> {
-  const asset = await pickImageFromLibrary();
+  const asset = await pickImageFromLibrary(null);
   if (!asset) return null;
   return uploadClientStoryImage(asset, clientId);
 }

@@ -14,7 +14,7 @@ const GRID_GAP = 10;
 const GRID_COLUMNS = 2;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
-const CARD_HEIGHT = Math.round(CARD_WIDTH * 1.1);
+const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
 
 interface CatalogDisplayItem {
   id: string;

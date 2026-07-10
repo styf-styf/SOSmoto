@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getActiveProducts, getActiveServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { createStory, deleteStory, getBusinessStories, isStoryVisible } from '../../services/stories';
-import { pickAndUploadBusinessImage } from '../../services/storage';
+import { pickAndUploadBusinessStoryImage } from '../../services/storage';
 import type { Business, Product, Service, Story, StoryActionType } from '../../types/database';
 
 const templates = ['Promo del día', 'Antes/Después', 'Nuevo producto', 'Cupo disponible hoy'];
@@ -105,7 +105,7 @@ export default function HistoriasScreen() {
     if (!business) return;
     setUploadingImage(true);
     try {
-      const url = await pickAndUploadBusinessImage(business.id);
+      const url = await pickAndUploadBusinessStoryImage(business.id);
       if (url) setImageUrl(url);
     } catch (err) {
       console.error('upload story image error', err);

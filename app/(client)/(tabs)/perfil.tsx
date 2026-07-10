@@ -147,11 +147,18 @@ export default function ClientPerfilScreen() {
               style={styles.followingItem}
               onPress={() => router.push(`/(client)/business/${business.id}`)}
             >
-              <View style={styles.followingAvatar}>
-                {business.logo_url ? (
-                  <Image source={{ uri: business.logo_url }} style={styles.followingAvatarImage} />
-                ) : (
-                  <Ionicons name="storefront" size={20} color={colors.primary} />
+              <View style={styles.followingAvatarWrap}>
+                <View style={styles.followingAvatar}>
+                  {business.logo_url ? (
+                    <Image source={{ uri: business.logo_url }} style={styles.followingAvatarImage} />
+                  ) : (
+                    <Ionicons name="storefront" size={20} color={colors.primary} />
+                  )}
+                </View>
+                {business.is_verified && (
+                  <View style={styles.followingVerifiedDot}>
+                    <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                  </View>
                 )}
               </View>
               <Text numberOfLines={1} style={styles.followingName}>
@@ -340,6 +347,10 @@ const styles = StyleSheet.create({
     width: 64,
     alignItems: 'center',
   },
+  followingAvatarWrap: {
+    position: 'relative',
+    marginBottom: 6,
+  },
   followingAvatar: {
     width: 56,
     height: 56,
@@ -348,11 +359,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    marginBottom: 6,
   },
   followingAvatarImage: {
     width: 56,
     height: 56,
+  },
+  followingVerifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
   },
   followingName: {
     fontSize: 12,
@@ -376,7 +393,7 @@ const styles = StyleSheet.create({
   },
   gridCell: {
     width: CELL_SIZE,
-    height: CELL_SIZE,
+    height: Math.round(CELL_SIZE * (4 / 3)),
   },
   gridImage: {
     width: '100%',

@@ -16,6 +16,13 @@ import type { BusinessType } from '../../../types/database';
 // href: null en vez de tabBarButton para que la pestaña oculta no deje hueco.
 // Para taller, "pedidos" ocupa el lugar de "catalogo" en la barra (que sigue
 // disponible desde Configuración) -- product_intents ya no es exclusivo de tienda.
+// "producto" y "servicio" viven acá con href: null a propósito (para que la
+// tab bar siga visible al entrar a un producto/servicio). Cada carpeta tiene
+// su propio _layout.tsx con un Stack anidado, así cada item visitado se
+// apila (A -> B -> C, con header y botón de atrás real) sin perder la tab
+// bar de encima. Al tocar "Inicio" en la tab bar, index.tsx llama
+// resetProductoServicioStacks() (ver utils/productoServicioStackReset.ts),
+// que remonta esos dos Stacks anidados con la pila vacía.
 export default function BusinessTabsLayout() {
   const { profile } = useAuth();
   const hasUnreadMessages = useUnreadMessages(profile);
@@ -119,6 +126,8 @@ export default function BusinessTabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="business" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="producto" options={{ href: null }} />
+      <Tabs.Screen name="servicio" options={{ href: null }} />
       </Tabs>
     </View>
   );

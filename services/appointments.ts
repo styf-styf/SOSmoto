@@ -213,6 +213,29 @@ export async function approveAppointment(id: string): Promise<void> {
   }
 }
 
+// Para la página de servicio: encuentra la cita real (tabla appointments,
+// creada por acceptAppointmentRequest) que corresponde a una solicitud ya
+// aceptada de este servicio, para poder cancelarla directo desde ahí sin
+// tener que ir a "Mis citas".
+export async function getActiveAppointmentForService(
+  clientId: string,
+  businessId: string,
+  serviceId: string
+): Promise<Appointment | null> {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('business_id', businessId)
+    .eq('service_id', serviceId)
+    .in('status', ['pending', 'scheduled', 'confirmed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Appointment | null;
+}
+
 export async function cancelAppointment(id: string, cancelledBy: 'client' | 'business'): Promise<void> {
   const { data, error } = await supabase
     .from('appointments')

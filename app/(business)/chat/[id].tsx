@@ -42,7 +42,7 @@ function defaultApproveDate(suggestedAt?: string | null): Date {
 }
 
 export default function ChatScreen() {
-  const { id, initialMessage, sellerBusinessId } = useLocalSearchParams<{ id: string; initialMessage?: string; sellerBusinessId?: string }>();
+  const { id, initialMessage, prefill, sellerBusinessId } = useLocalSearchParams<{ id: string; initialMessage?: string; prefill?: string; sellerBusinessId?: string }>();
   const isBuyerMode = !!sellerBusinessId;
   const { profile } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
@@ -51,9 +51,9 @@ export default function ChatScreen() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isLimited, setIsLimited] = useState(false);
   const [client, setClient] = useState<User | null>(null);
-  const [otherBusiness, setOtherBusiness] = useState<{ name: string; logo_url: string | null } | null>(null);
+  const [otherBusiness, setOtherBusiness] = useState<{ name: string; logo_url: string | null; is_verified: boolean } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
   const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -75,6 +75,13 @@ export default function ChatScreen() {
   const [approvePickerTime, setApprovePickerTime] = useState<Date>(new Date());
   const [showApproveDatePicker, setShowApproveDatePicker] = useState(false);
   const [showApproveTimePicker, setShowApproveTimePicker] = useState(false);
+
+  // IDs de banners que el negocio cerró con la (X) -- solo oculta la tarjeta
+  // de la vista, no confirma ni cancela nada; se resetea si se recarga el chat.
+  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
+  function dismissBanner(key: string) {
+    setDismissedBanners((prev) => new Set(prev).add(key));
+  }
 
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
@@ -109,11 +116,11 @@ export default function ChatScreen() {
             getMessages(thread.clientId, thread.businessId),
             supabase
               .from('businesses')
-              .select('name, logo_url')
+              .select('name, logo_url, is_verified')
               .eq('id', thread.businessId)
               .maybeSingle()
               .then(
-                ({ data }: { data: { name: string; logo_url: string | null } | null }) => { if (data) setOtherBusiness(data); },
+                ({ data }: { data: { name: string; logo_url: string | null; is_verified: boolean } | null }) => { if (data) setOtherBusiness(data); },
                 () => {}
               ),
           ]);
@@ -136,11 +143,11 @@ export default function ChatScreen() {
         // datos personales del usuario.
         supabase
           .from('businesses')
-          .select('name, logo_url')
+          .select('name, logo_url, is_verified')
           .eq('owner_id', thread.clientId)
           .maybeSingle()
           .then(
-            ({ data }: { data: { name: string; logo_url: string | null } | null }) => { if (data) setOtherBusiness(data); },
+            ({ data }: { data: { name: string; logo_url: string | null; is_verified: boolean } | null }) => { if (data) setOtherBusiness(data); },
             () => {}
           );
         setMessages(history);
@@ -158,7 +165,9 @@ export default function ChatScreen() {
       .finally(() => setLoading(false));
   }, [resolveThread]);
 
-  // Auto-envío del mensaje inicial (ej. al llegar desde detalle de servicio/producto)
+  // Auto-envío del mensaje inicial -- solo para "Reservar producto" (initialMessage).
+  // El botón "Chatear" usa `prefill` en cambio: solo llena el input de texto,
+  // el usuario decide si lo envía.
   const initialSentRef = useRef(false);
   useEffect(() => {
     if (!clientId || !businessId || !initialMessage || initialSentRef.current) return;
@@ -310,7 +319,7 @@ export default function ChatScreen() {
   async function handleCamera() {
     setShowAttach(false);
     try {
-      const asset = await pickImageFromCamera();
+      const asset = await pickImageFromCamera(null);
       if (asset) {
         setPendingImage(asset);
         setShowQuickReplies(false);
@@ -326,7 +335,7 @@ export default function ChatScreen() {
   async function handleGallery() {
     setShowAttach(false);
     try {
-      const asset = await pickImageFromLibrary();
+      const asset = await pickImageFromLibrary(null);
       if (asset) {
         setPendingImage(asset);
         setShowQuickReplies(false);
@@ -409,7 +418,10 @@ export default function ChatScreen() {
     );
   }
 
-  const hasBanner = intents.length > 0 || serviceIntents.length > 0 || appointmentRequest !== null;
+  const hasBanner =
+    intents.some((i) => !dismissedBanners.has(`intent:${i.id}`)) ||
+    serviceIntents.some((i) => !dismissedBanners.has(`svcintent:${i.id}`)) ||
+    (appointmentRequest !== null && !dismissedBanners.has(`req:${appointmentRequest.id}`));
   const approveDateTime = (() => {
     const dt = new Date(approvePickerDate);
     dt.setHours(approvePickerTime.getHours(), approvePickerTime.getMinutes(), 0, 0);
@@ -423,32 +435,41 @@ export default function ChatScreen() {
         name={otherBusiness?.name || client?.full_name || 'Cliente'}
         avatarUrl={otherBusiness ? otherBusiness.logo_url : client?.avatar_url}
         fallbackIcon={otherBusiness ? 'storefront' : 'person'}
+        isVerified={otherBusiness?.is_verified ?? false}
       />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
           <View style={styles.intentsBanner}>
             {/* Banner de solicitud de cita (lado taller) */}
-            {appointmentRequest && (
+            {appointmentRequest && !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
               <View style={styles.intentCard}>
-                <View style={styles.intentInfo}>
-                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                  <View style={styles.requestInfo}>
-                    <Text style={styles.intentText} numberOfLines={1}>
-                      Solicitud de cita:{' '}
-                      <Text style={styles.intentName}>
-                        {appointmentRequest.service_name ?? 'Sin servicio especificado'}
+                <View style={styles.intentCardTopRow}>
+                  <Pressable
+                    style={styles.dismissBannerBtn}
+                    onPress={() => dismissBanner(`req:${appointmentRequest.id}`)}
+                  >
+                    <Ionicons name="close" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <View style={styles.intentInfo}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                    <View style={styles.requestInfo}>
+                      <Text style={styles.intentText} numberOfLines={1}>
+                        Solicitud de cita:{' '}
+                        <Text style={styles.intentName}>
+                          {appointmentRequest.service_name ?? 'Sin servicio especificado'}
+                        </Text>
                       </Text>
-                    </Text>
-                    {appointmentRequest.suggested_at ? (
-                      <Text style={styles.requestSub}>
-                        Fecha sugerida:{' '}
-                        {new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
-                      </Text>
-                    ) : null}
+                      {appointmentRequest.suggested_at ? (
+                        <Text style={styles.requestSub}>
+                          Fecha sugerida:{' '}
+                          {new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
                 {!showApproveForm && (
@@ -477,17 +498,25 @@ export default function ChatScreen() {
             )}
 
             {/* Intents de producto */}
-            {intents.map((intent) => (
+            {intents.filter((intent) => !dismissedBanners.has(`intent:${intent.id}`)).map((intent) => (
               <View key={intent.id} style={styles.intentCard}>
-                <View style={styles.intentInfo}>
-                  <Ionicons name="cube-outline" size={16} color={colors.primary} />
-                  <Text style={styles.intentText} numberOfLines={1}>
-                    Quiere apartar:{' '}
-                    <Text style={styles.intentName}>
-                      {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                <View style={styles.intentCardTopRow}>
+                  <Pressable
+                    style={styles.dismissBannerBtn}
+                    onPress={() => dismissBanner(`intent:${intent.id}`)}
+                  >
+                    <Ionicons name="close" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <View style={styles.intentInfo}>
+                    <Ionicons name="cube-outline" size={16} color={colors.primary} />
+                    <Text style={styles.intentText} numberOfLines={1}>
+                      Quiere apartar:{' '}
+                      <Text style={styles.intentName}>
+                        {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                      </Text>
+                      {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
                     </Text>
-                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
-                  </Text>
+                  </View>
                 </View>
                 <View style={styles.intentActions}>
                   <Pressable
@@ -513,14 +542,22 @@ export default function ChatScreen() {
             ))}
 
             {/* Intents de servicio */}
-            {serviceIntents.map((intent) => (
+            {serviceIntents.filter((intent) => !dismissedBanners.has(`svcintent:${intent.id}`)).map((intent) => (
               <View key={intent.id} style={styles.intentCard}>
-                <View style={styles.intentInfo}>
-                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                  <Text style={styles.intentText} numberOfLines={1}>
-                    Quiere agendar: <Text style={styles.intentName}>{intent.service_name}</Text>
-                    {intent.service_price != null ? ` · $${intent.service_price.toFixed(2)}` : ''}
-                  </Text>
+                <View style={styles.intentCardTopRow}>
+                  <Pressable
+                    style={styles.dismissBannerBtn}
+                    onPress={() => dismissBanner(`svcintent:${intent.id}`)}
+                  >
+                    <Ionicons name="close" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <View style={styles.intentInfo}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                    <Text style={styles.intentText} numberOfLines={1}>
+                      Quiere agendar: <Text style={styles.intentName}>{intent.service_name}</Text>
+                      {intent.service_price != null ? ` · $${intent.service_price.toFixed(2)}` : ''}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.intentActions}>
                   <Pressable
@@ -1104,7 +1141,7 @@ const styles = StyleSheet.create({
   },
   pendingImageThumb: {
     width: 80,
-    height: 80,
+    aspectRatio: 3 / 4,
     borderRadius: 8,
   },
   pendingImageRemove: {
@@ -1119,7 +1156,7 @@ const styles = StyleSheet.create({
   },
   chatImage: {
     width: 200,
-    height: 200,
+    aspectRatio: 3 / 4,
   },
   imageBubbleCaption: {
     fontSize: 14,
@@ -1188,7 +1225,16 @@ const styles = StyleSheet.create({
   intentCard: {
     gap: 6,
   },
+  intentCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  dismissBannerBtn: {
+    padding: 2,
+  },
   intentInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,

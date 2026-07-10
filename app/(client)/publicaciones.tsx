@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   preview: {
     width: '100%',
-    height: 220,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     marginBottom: 10,
     backgroundColor: colors.background,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   },
   thumb: {
     width: 64,
-    height: 96,
+    aspectRatio: 3 / 4,
     borderRadius: 8,
     backgroundColor: colors.background,
   },
