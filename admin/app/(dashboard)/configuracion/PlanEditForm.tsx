@@ -39,6 +39,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
   const [priceMonthly, setPriceMonthly] = useState(plan.price_monthly);
   const [maxProducts, setMaxProducts] = useState<number | null>(plan.max_products);
   const [maxServices, setMaxServices] = useState<number | null>(plan.max_services);
+  const [maxPhotosPerItem, setMaxPhotosPerItem] = useState(plan.max_photos_per_item);
   const [maxEmployees, setMaxEmployees] = useState<number | null>(plan.max_employees);
   const [maxActiveStories, setMaxActiveStories] = useState<number | null>(plan.max_active_stories);
   const [saving, setSaving] = useState(false);
@@ -49,6 +50,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
     setPriceMonthly(plan.price_monthly);
     setMaxProducts(plan.max_products);
     setMaxServices(plan.max_services);
+    setMaxPhotosPerItem(plan.max_photos_per_item);
     setMaxEmployees(plan.max_employees);
     setMaxActiveStories(plan.max_active_stories);
     setError(null);
@@ -56,6 +58,10 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
   }
 
   async function handleSave() {
+    if (maxPhotosPerItem < 1) {
+      setError('Máx. fotos debe ser al menos 1.');
+      return;
+    }
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -66,6 +72,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
         price_monthly: priceMonthly,
         max_products: maxProducts,
         max_services: maxServices,
+        max_photos_per_item: maxPhotosPerItem,
         max_employees: maxEmployees,
         max_active_stories: maxActiveStories,
       }),
@@ -110,6 +117,10 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
             <dd className="font-medium">{displayVal(maxServices)}</dd>
           </div>
           <div>
+            <dt className="text-xs text-gray-400">Máx. fotos (producto/servicio/publicación)</dt>
+            <dd className="font-medium">{maxPhotosPerItem}</dd>
+          </div>
+          <div>
             <dt className="text-xs text-gray-400">Máx. empleados</dt>
             <dd className="font-medium">{displayVal(maxEmployees)}</dd>
           </div>
@@ -134,6 +145,16 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
             </label>
             <NumberField label="Máx. productos" value={maxProducts} onChange={setMaxProducts} />
             <NumberField label="Máx. servicios" value={maxServices} onChange={setMaxServices} />
+            <label className="flex flex-col gap-1 text-xs text-gray-500">
+              Máx. fotos (producto/servicio/publicación)
+              <input
+                type="number"
+                min={1}
+                value={maxPhotosPerItem}
+                onChange={(e) => setMaxPhotosPerItem(Number(e.target.value))}
+                className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
+              />
+            </label>
             <NumberField label="Máx. empleados" value={maxEmployees} onChange={setMaxEmployees} />
             <NumberField label="Máx. historias activas" value={maxActiveStories} onChange={setMaxActiveStories} />
           </div>

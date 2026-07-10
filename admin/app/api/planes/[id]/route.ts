@@ -8,7 +8,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const body = await req.json();
   const updates: Record<string, number | null> = {};
-  for (const key of ['price_monthly', 'max_products', 'max_services', 'max_employees', 'max_active_stories']) {
+  for (const key of ['price_monthly', 'max_products', 'max_services', 'max_photos_per_item', 'max_employees', 'max_active_stories']) {
     if (key in body) updates[key] = body[key] === null ? null : Number(body[key]);
   }
 
