@@ -182,12 +182,21 @@ export interface CreateBusinessParams {
   whatsapp?: string;
 }
 
+// Radio de auxilio (km) asignado por defecto a un taller nuevo -- editable
+// desde el admin (Configuración > Reglas del sistema, tabla system_settings).
+export async function getDefaultAidRadiusKm(): Promise<number> {
+  const { data } = await (supabase.from('system_settings') as any)
+    .select('default_aid_radius_km')
+    .eq('id', true)
+    .maybeSingle();
+  return data?.default_aid_radius_km ?? 5;
+}
+
 export async function createBusiness(params: CreateBusinessParams): Promise<Business> {
-  const { data: plan, error: planError } = await supabase
-    .from('subscription_plans')
-    .select('id')
-    .eq('name', 'free')
-    .single();
+  const [{ data: plan, error: planError }, defaultAidRadiusKm] = await Promise.all([
+    supabase.from('subscription_plans').select('id').eq('name', 'free').single(),
+    getDefaultAidRadiusKm(),
+  ]);
   if (planError) throw planError;
 
   const { data, error } = await supabase
@@ -204,7 +213,7 @@ export async function createBusiness(params: CreateBusinessParams): Promise<Busi
       phone: params.phone ?? null,
       whatsapp: params.whatsapp ?? null,
       plan_id: plan.id,
-      aid_radius_km: params.businessType === 'workshop' ? 5 : null,
+      aid_radius_km: params.businessType === 'workshop' ? defaultAidRadiusKm : null,
     })
     .select()
     .single();

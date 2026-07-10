@@ -158,6 +158,49 @@ export interface AdminCategoryRow {
   created_at: string;
 }
 
+export interface AdminProductRow {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string | null;
+  reference_price: number | null;
+  stock: number;
+  photos: string[];
+  is_active: boolean;
+  created_at: string;
+  businesses: { name: string } | null;
+}
+
+export interface AdminServiceRow {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string | null;
+  reference_price: number | null;
+  photos: string[];
+  is_active: boolean;
+  created_at: string;
+  businesses: { name: string } | null;
+}
+
+export interface AdminReviewRow {
+  id: string;
+  reviewer_id: string;
+  reviewed_business_id: string | null;
+  reviewed_client_id: string | null;
+  rating: number;
+  comment: string | null;
+  is_public: boolean;
+  created_at: string;
+  reviewer: { full_name: string } | null;
+  reviewed_business: { name: string } | null;
+  reviewed_client: { full_name: string } | null;
+}
+
+export interface AdminSystemSettingsRow {
+  default_aid_radius_km: number;
+}
+
 export type KycStatus = 'pending_review' | 'approved' | 'rejected';
 
 export interface AdminVerificationRequestRow {
