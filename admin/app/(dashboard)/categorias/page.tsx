@@ -3,18 +3,9 @@ import type { AdminCategoryRow, CategoryKind } from '../../../lib/types';
 import { CategoryCreateForm } from './CategoryCreateForm';
 import { CategoryRow } from './CategoryRow';
 
-function CategoryTable({ title, kind, categories }: { title: string; kind: CategoryKind; categories: AdminCategoryRow[] }) {
-  const pendingCount = categories.filter((c) => c.status === 'pending').length;
+function CategoryTable({ kind, categories }: { kind: CategoryKind; categories: AdminCategoryRow[] }) {
   return (
-    <div className="mb-10">
-      <h2 className="mb-3 text-lg font-semibold">
-        {title}
-        {pendingCount > 0 && (
-          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-            {pendingCount} pendiente{pendingCount === 1 ? '' : 's'}
-          </span>
-        )}
-      </h2>
+    <div>
       <table className="mb-4 w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-gray-500">
@@ -41,10 +32,15 @@ function CategoryTable({ title, kind, categories }: { title: string; kind: Categ
   );
 }
 
-export default async function CategoriasPage() {
+export default async function CategoriasPage({ searchParams }: { searchParams: { kind?: string } }) {
+  const kind: CategoryKind = searchParams.kind === 'service' ? 'service' : 'product';
+
   const supabase = createAdminClient();
   const { data, error } = await supabase.from('categories').select('*').order('status').order('name');
   const categories = (data ?? []) as AdminCategoryRow[];
+
+  const productPending = categories.filter((c) => c.kind === 'product' && c.status === 'pending').length;
+  const servicePending = categories.filter((c) => c.kind === 'service' && c.status === 'pending').length;
 
   return (
     <div>
@@ -53,10 +49,43 @@ export default async function CategoriasPage() {
         Lista curada de categorías de producto/servicio. Los negocios eligen entre estas al crear su catálogo; si
         sugieren una nueva queda "Pendiente" acá hasta que la apruebes (mientras tanto ya la pueden usar).
       </p>
+
+      <div className="mb-6 flex gap-4 border-b border-gray-200">
+        <a
+          href="?kind=product"
+          className={
+            kind === 'product'
+              ? 'border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary'
+              : 'px-1 pb-2 text-sm font-medium text-gray-500'
+          }
+        >
+          Producto
+          {productPending > 0 && (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+              {productPending}
+            </span>
+          )}
+        </a>
+        <a
+          href="?kind=service"
+          className={
+            kind === 'service'
+              ? 'border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary'
+              : 'px-1 pb-2 text-sm font-medium text-gray-500'
+          }
+        >
+          Servicio
+          {servicePending > 0 && (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+              {servicePending}
+            </span>
+          )}
+        </a>
+      </div>
+
       {error && <p className="mb-4 text-sm text-red-600">Error: {error.message}</p>}
 
-      <CategoryTable title="Categorías de producto" kind="product" categories={categories.filter((c) => c.kind === 'product')} />
-      <CategoryTable title="Categorías de servicio" kind="service" categories={categories.filter((c) => c.kind === 'service')} />
+      <CategoryTable kind={kind} categories={categories.filter((c) => c.kind === kind)} />
     </div>
   );
 }
