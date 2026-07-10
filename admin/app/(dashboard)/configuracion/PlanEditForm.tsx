@@ -109,7 +109,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 text-sm">
         <FieldRow label="Precio mensual (USD)">
           {editing ? (
             <input
