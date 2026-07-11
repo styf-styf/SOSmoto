@@ -196,7 +196,7 @@ module.exports = async (req, res) => {
               (price > 0 ? 'prorratean ni se reembolsan.' : 'reembolsan.')
           );
         }
-        if (!window.confirm((price > 0 ? 'Obtener plan ' : 'Cambiar a plan ') + planName + '\n\n' + lines.join('\n'))) {
+        if (!window.confirm((price > 0 ? 'Obtener plan ' : 'Cambiar a plan ') + planName + '\\n\\n' + lines.join('\\n'))) {
           return;
         }
 
