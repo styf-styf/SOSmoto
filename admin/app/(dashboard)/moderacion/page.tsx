@@ -175,13 +175,15 @@ async function PostsTab({ supabase, from, to, page }: { supabase: any; from: num
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {posts.map((post) => (
           <div key={post.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            {post.photos[0] ? (
-              <img src={post.photos[0]} alt="" className="h-48 w-full object-cover" />
-            ) : (
-              <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
-                Sin imagen
-              </div>
-            )}
+            <a href={`/moderacion/publicacion/${post.id}`}>
+              {post.photos[0] ? (
+                <img src={post.photos[0]} alt="" className="h-48 w-full object-cover" />
+              ) : (
+                <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
+                  Sin imagen
+                </div>
+              )}
+            </a>
             <div className="p-3">
               <p className="text-sm font-semibold">
                 {post.businesses?.name ?? post.users?.full_name ?? 'Usuario'}
@@ -189,7 +191,12 @@ async function PostsTab({ supabase, from, to, page }: { supabase: any; from: num
               </p>
               {post.caption && <p className="mt-1 text-sm text-gray-600">{post.caption}</p>}
               <p className="mt-1 text-xs text-gray-400">{post.comments_count} comentario(s)</p>
-              <PostDeleteButton postId={post.id} />
+              <div className="mt-2 flex items-center gap-3">
+                <a href={`/moderacion/publicacion/${post.id}`} className="text-xs text-primary underline">
+                  Ver detalle
+                </a>
+                <PostDeleteButton postId={post.id} />
+              </div>
             </div>
           </div>
         ))}
@@ -523,7 +530,7 @@ async function CommentsTab({
               <td className="px-4 py-3 font-medium">{comment.users?.full_name ?? '—'}</td>
               <td className="px-4 py-3 max-w-[360px] text-gray-600">
                 {comment.body}
-                <a href="?tab=posts" className="ml-2 text-xs text-primary underline">
+                <a href={`/moderacion/publicacion/${comment.post_id}`} className="ml-2 text-xs text-primary underline">
                   Ver publicación
                 </a>
               </td>
