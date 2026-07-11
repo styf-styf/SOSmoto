@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../../components/Button';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
+import { ReportModal } from '../../../../components/ReportModal';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
@@ -16,6 +17,7 @@ import {
   type AppointmentRequest,
 } from '../../../../services/appointmentRequests';
 import { cancelAppointment, getActiveAppointmentForService } from '../../../../services/appointments';
+import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 
@@ -30,6 +32,7 @@ export default function ServiceDetailScreen() {
   const [cancelling, setCancelling] = useState(false);
   const [confirmedAppointmentId, setConfirmedAppointmentId] = useState<string | null>(null);
   const [cancellingAppointment, setCancellingAppointment] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -40,22 +43,8 @@ export default function ServiceDetailScreen() {
       getServicesByCategory(result.category_id, id)
         .then(setRelatedItems)
         .catch((err) => console.error('load related services error', err));
-      if (profile?.id) {
-        const req = await getAppointmentRequestForService(profile.id, result.business_id, result.id).catch((err) => {
-          console.error('load appointment request error', err);
-          return null;
-        });
-        setAppointmentRequest(req);
-        if (req?.status === 'accepted') {
-          getActiveAppointmentForService(profile.id, result.business_id, result.id)
-            .then((appt) => setConfirmedAppointmentId(appt?.id ?? null))
-            .catch((err) => console.error('load confirmed appointment error', err));
-        } else {
-          setConfirmedAppointmentId(null);
-        }
-      }
     }
-  }, [id, profile?.id]);
+  }, [id]);
 
   useEffect(() => {
     setLoading(true);
@@ -63,6 +52,35 @@ export default function ServiceDetailScreen() {
       .catch((err) => console.error('load service detail error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Separado de `load`: profile arranca en null y se resuelve un instante
+  // después -- si esto viviera dentro de `load` (que depende de profile),
+  // cada resolución de profile volvía a disparar setLoading(true) sobre
+  // toda la pantalla, y además duplicaba el incremento de vistas.
+  useEffect(() => {
+    if (!profile?.id || !service) return;
+    let cancelled = false;
+    (async () => {
+      const req = await getAppointmentRequestForService(profile.id, service.business_id, service.id).catch((err) => {
+        console.error('load appointment request error', err);
+        return null;
+      });
+      if (cancelled) return;
+      setAppointmentRequest(req);
+      if (req?.status === 'accepted') {
+        getActiveAppointmentForService(profile.id, service.business_id, service.id)
+          .then((appt) => {
+            if (!cancelled) setConfirmedAppointmentId(appt?.id ?? null);
+          })
+          .catch((err) => console.error('load confirmed appointment error', err));
+      } else {
+        setConfirmedAppointmentId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, service]);
 
   // Si el usuario volvió a Inicio antes de entrar acá, esta es la primera
   // pantalla de servicio que gana foco después de eso: reinicia la pila
@@ -126,7 +144,7 @@ export default function ServiceDetailScreen() {
 
   useEffect(() => {
     if (profile && profile.role !== 'client' && id) {
-      router.replace('/(business)/(tabs)/catalogo');
+      router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
     }
   }, [profile?.role, id]);
 
@@ -146,9 +164,30 @@ export default function ServiceDetailScreen() {
     );
   }
 
+  async function handleReportService(reason: string) {
+    if (!service || !profile) return;
+    try {
+      await createReport(profile.id, 'service', service.id, reason);
+      setShowReportModal(false);
+      Alert.alert('Gracias', 'Reportaste este servicio. Un admin lo va a revisar.');
+    } catch (err) {
+      console.error('report service error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Stack.Screen options={{ title: service.name }} />
+      <Stack.Screen
+        options={{
+          title: service.name,
+          headerRight: () => (
+            <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+              <Ionicons name="flag-outline" size={22} color={colors.text} />
+            </Pressable>
+          ),
+        }}
+      />
       <Pressable
         style={styles.businessRow}
         onPress={() => router.push(`/(client)/business/${service.business_id}`)}
@@ -256,6 +295,13 @@ export default function ServiceDetailScreen() {
           />
         </View>
       )}
+
+      <ReportModal
+        visible={showReportModal}
+        targetLabel="este servicio"
+        onCancel={() => setShowReportModal(false)}
+        onSubmit={handleReportService}
+      />
     </ScrollView>
   );
 }

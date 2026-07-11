@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { Button } from '../../../../components/Button';
 import { QuantityStepper } from '../../../../components/QuantityStepper';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
+import { ReportModal } from '../../../../components/ReportModal';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../../services/businesses';
@@ -18,6 +19,7 @@ import {
   getProductIntentStats,
   subscribeToClientIntent,
 } from '../../../../services/productIntents';
+import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ProductWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 import type { ProductIntent } from '../../../../types/database';
@@ -37,6 +39,8 @@ export default function BusinessProductDetailScreen() {
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
   const [stats, setStats] = useState<{ reservations: number; sold: number } | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   const hasVariants = !!product && product.variants.length > 0;
   const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
@@ -45,10 +49,10 @@ export default function BusinessProductDetailScreen() {
   const variantId = hasVariants ? selectedVariantId : null;
 
   const load = useCallback(async () => {
-    if (!id || !profile) return;
+    if (!id) return;
     const [result, work] = await Promise.all([
       getProductById(id),
-      getMyWorkBusiness(profile.id),
+      profile ? getMyWorkBusiness(profile.id) : Promise.resolve(null),
     ]);
     setProduct(result);
     if (result) {
@@ -79,10 +83,15 @@ export default function BusinessProductDetailScreen() {
   }, [id, profile]);
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load product detail error', err))
-      .finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      load()
+        .catch((err) => console.error('load product detail error', err))
+        .finally(() => setLoading(false));
+    } else {
+      load().catch((err) => console.error('load product detail background refresh error', err));
+    }
   }, [load]);
 
   // Si el usuario volvió a Inicio antes de entrar acá, esta es la primera
@@ -142,6 +151,18 @@ export default function BusinessProductDetailScreen() {
     }
   }
 
+  async function handleReportProduct(reason: string) {
+    if (!product || !profile) return;
+    try {
+      await createReport(profile.id, 'product', product.id, reason);
+      setShowReportModal(false);
+      Alert.alert('Gracias', 'Reportaste este producto. Un admin lo va a revisar.');
+    } catch (err) {
+      console.error('report product error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -174,7 +195,11 @@ export default function BusinessProductDetailScreen() {
                   <Ionicons name="create-outline" size={22} color={colors.text} />
                 </Pressable>
               )
-            : undefined,
+            : () => (
+                <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+                  <Ionicons name="flag-outline" size={22} color={colors.text} />
+                </Pressable>
+              ),
         }}
       />
       <Pressable
@@ -279,7 +304,7 @@ export default function BusinessProductDetailScreen() {
               <QuantityStepper value={quantity} onChange={setQuantity} max={effectiveStock} />
             </View>
           )}
-          {effectiveStock > 0 && canBuy && intent && (
+          {canBuy && intent && (
             <Button
               title="Cancelar apartado"
               onPress={handleApartar}
@@ -331,6 +356,13 @@ export default function BusinessProductDetailScreen() {
           />
         </View>
       )}
+
+      <ReportModal
+        visible={showReportModal}
+        targetLabel="este producto"
+        onCancel={() => setShowReportModal(false)}
+        onSubmit={handleReportProduct}
+      />
     </ScrollView>
   );
 }
@@ -526,7 +558,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  button: {},
   buttonCancel: {
     backgroundColor: colors.danger,
   },

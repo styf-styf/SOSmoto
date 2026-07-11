@@ -230,9 +230,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
   },
-  dangerRowTop: {
-    marginTop: 12,
-  },
   dangerLabel: {
     fontSize: 14,
     fontWeight: '500',

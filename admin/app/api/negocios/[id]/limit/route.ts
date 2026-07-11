@@ -18,6 +18,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const supabase = createAdminClient();
+  const { data: existing } = await supabase.from('businesses').select('id').eq('id', params.id).maybeSingle();
+  if (!existing) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
+
   const { data: business, error } = await supabase
     .from('businesses')
     .update({ is_limited: true, limitation_reason: reason.trim() })

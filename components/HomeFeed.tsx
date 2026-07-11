@@ -137,8 +137,15 @@ export const HomeFeed = forwardRef<
     // refrescaba lo interno y las historias nuevas solo aparecían al cerrar y
     // reabrir la app.
     onRefresh?: () => Promise<void> | void;
+    // Negocio del propio usuario (dueño o empleado) -- se pasa a cada
+    // PostCard para que reconozca sus propias publicaciones aunque quien
+    // mira sea un mecánico, no el dueño (ver PostCard.tsx).
+    viewerBusinessId?: string;
   }
->(function HomeFeed({ role, city, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh }, ref) {
+>(function HomeFeed(
+  { role, city, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId },
+  ref
+) {
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [catalogPoolPhoto, setCatalogPoolPhoto] = useState<FeedCatalogItem[]>([]);
   const [catalogPoolNoPhoto, setCatalogPoolNoPhoto] = useState<FeedCatalogItem[]>([]);
@@ -149,6 +156,7 @@ export const HomeFeed = forwardRef<
   const [hasMore, setHasMore] = useState(true);
   const lastSeenCatalogAt = useRef<string | null>(null);
   const lastSeenAdAt = useRef<string | null>(null);
+  const didInitialLoadRef = useRef(false);
 
   const loadInitial = useCallback(async () => {
     const postsPage =
@@ -166,13 +174,25 @@ export const HomeFeed = forwardRef<
     setHasMore(postsPage.length === PAGE_SIZE);
   }, [city, feedMode, clientId]);
 
+  // loadInitial depende de city/clientId, que llegan como prop desde la
+  // pantalla padre y arrancan en null/undefined hasta que se resuelven
+  // ubicación/perfil -- eso cambia la identidad de loadInitial un instante
+  // después del mount. Antes esto vaciaba `posts` y mostraba el spinner de
+  // nuevo (la pantalla "se recargaba"). Ahora solo se hace ese reset la
+  // primera vez; las veces siguientes se refresca en silencio sobre el
+  // feed que ya está en pantalla.
   useEffect(() => {
-    setPosts([]);
-    setHasMore(true);
-    setLoading(true);
-    loadInitial()
-      .catch((err) => console.error('home feed load error', err))
-      .finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setPosts([]);
+      setHasMore(true);
+      setLoading(true);
+      loadInitial()
+        .catch((err) => console.error('home feed load error', err))
+        .finally(() => setLoading(false));
+    } else {
+      loadInitial().catch((err) => console.error('home feed background refresh error', err));
+    }
   }, [loadInitial]);
 
   async function handleRefresh() {
@@ -236,6 +256,7 @@ export const HomeFeed = forwardRef<
               showTopShadow={item.showTopShadow}
               showBottomShadow={item.showBottomShadow}
               topFadeFromHeader={item.topFadeFromHeader}
+              viewerBusinessId={viewerBusinessId}
             />
           );
         }

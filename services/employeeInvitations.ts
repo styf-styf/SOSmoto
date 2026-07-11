@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getPlanLimits } from './catalog';
 import { notifyUser } from './notifications';
 import type {
   EmployeeInvitation,
@@ -106,6 +107,23 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
     .maybeSingle();
 
   if (!existing) {
+    // El límite también se validó al enviar la invitación (sendEmployeeInvitation
+    // pasa por addEmployeeByEmail), pero puede haber cambiado desde entonces
+    // (otra persona se unió, o el negocio bajó de plan) -- se vuelve a validar acá.
+    const limits = await getPlanLimits(inv.business_id);
+    if (limits.maxEmployees !== null) {
+      const { count } = await supabase
+        .from('business_employees')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', inv.business_id);
+      const allowedAdditional = limits.maxEmployees - 1;
+      if ((count ?? 0) >= allowedAdditional) {
+        throw new Error(
+          `El negocio ya alcanzó el límite de personas de su plan (${limits.planName}, hasta ${limits.maxEmployees}). No se pudo aceptar la invitación.`
+        );
+      }
+    }
+
     const { error: empError } = await supabase.from('business_employees').insert({
       business_id: inv.business_id,
       user_id: inv.invitee_id,

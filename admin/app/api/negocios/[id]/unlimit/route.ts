@@ -8,6 +8,9 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const supabase = createAdminClient();
+  const { data: existing } = await supabase.from('businesses').select('id').eq('id', params.id).maybeSingle();
+  if (!existing) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
+
   const { data: business, error } = await supabase
     .from('businesses')
     .update({ is_limited: false })

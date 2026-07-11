@@ -7,9 +7,11 @@ import { Button } from '../../../../components/Button';
 import { QuantityStepper } from '../../../../components/QuantityStepper';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
+import { ReportModal } from '../../../../components/ReportModal';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getProductById, getProductsByCategory, incrementProductViews } from '../../../../services/catalog';
+import { createReport } from '../../../../services/reports';
 import {
   cancelProductIntent,
   createProductIntent,
@@ -31,6 +33,7 @@ export default function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const hasVariants = !!product && product.variants.length > 0;
   const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
@@ -122,6 +125,18 @@ export default function ProductDetailScreen() {
     }
   }
 
+  async function handleReportProduct(reason: string) {
+    if (!product || !profile) return;
+    try {
+      await createReport(profile.id, 'product', product.id, reason);
+      setShowReportModal(false);
+      Alert.alert('Gracias', 'Reportaste este producto. Un admin lo va a revisar.');
+    } catch (err) {
+      console.error('report product error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   useEffect(() => {
     if (profile && profile.role !== 'client' && id) {
       router.replace({ pathname: '/(business)/(tabs)/catalogo', params: { highlightId: id } });
@@ -146,7 +161,16 @@ export default function ProductDetailScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Stack.Screen options={{ title: product.name }} />
+      <Stack.Screen
+        options={{
+          title: product.name,
+          headerRight: () => (
+            <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+              <Ionicons name="flag-outline" size={22} color={colors.text} />
+            </Pressable>
+          ),
+        }}
+      />
       <Pressable
         style={styles.businessRow}
         onPress={() => router.push(`/(client)/business/${product.business_id}`)}
@@ -225,7 +249,7 @@ export default function ProductDetailScreen() {
             <QuantityStepper value={quantity} onChange={setQuantity} max={effectiveStock} />
           </View>
         )}
-        {effectiveStock > 0 && profile?.role === 'client' && intent && (
+        {profile?.role === 'client' && intent && (
           <Button
             title="Cancelar apartado"
             onPress={handleApartar}
@@ -280,6 +304,13 @@ export default function ProductDetailScreen() {
           />
         </View>
       )}
+
+      <ReportModal
+        visible={showReportModal}
+        targetLabel="este producto"
+        onCancel={() => setShowReportModal(false)}
+        onSubmit={handleReportProduct}
+      />
     </ScrollView>
   );
 }
@@ -440,7 +471,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  button: {},
   buttonCancel: {
     backgroundColor: colors.danger,
   },

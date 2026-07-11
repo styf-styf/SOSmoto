@@ -571,28 +571,28 @@ export interface Database {
         Row: {
           id: string;
           business_id: string;
-          type: string;
+          type: 'upgrade_plan_limit_reached' | 'upgrade_plan_near_limit' | 'advertise_low_visibility' | 'advertise_new_business';
           title: string;
           body: string;
-          status: string;
+          status: 'active' | 'dismissed';
           created_at: string;
         };
         Insert: {
           id?: string;
           business_id: string;
-          type: string;
+          type: 'upgrade_plan_limit_reached' | 'upgrade_plan_near_limit' | 'advertise_low_visibility' | 'advertise_new_business';
           title: string;
           body: string;
-          status?: string;
+          status?: 'active' | 'dismissed';
           created_at?: string;
         };
         Update: {
           id?: string;
           business_id?: string;
-          type?: string;
+          type?: 'upgrade_plan_limit_reached' | 'upgrade_plan_near_limit' | 'advertise_low_visibility' | 'advertise_new_business';
           title?: string;
           body?: string;
-          status?: string;
+          status?: 'active' | 'dismissed';
           created_at?: string;
         };
         Relationships: [];
@@ -978,35 +978,203 @@ export interface Database {
       appointments: {
         Row: {
           id: string;
-          client_id: string;
+          client_id: string | null;
           business_id: string;
           vehicle_id: string | null;
           service_id: string | null;
           requested_at: string | null;
+          proposed_by: 'client' | 'business' | null;
           notes: string | null;
           status: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          external_client_name: string | null;
+          external_client_phone: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id?: string | null;
+          business_id: string;
+          vehicle_id?: string | null;
+          service_id?: string | null;
+          requested_at?: string | null;
+          proposed_by?: 'client' | 'business' | null;
+          notes?: string | null;
+          status?: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          external_client_name?: string | null;
+          external_client_phone?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string | null;
+          business_id?: string;
+          vehicle_id?: string | null;
+          service_id?: string | null;
+          requested_at?: string | null;
+          proposed_by?: 'client' | 'business' | null;
+          notes?: string | null;
+          status?: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          external_client_name?: string | null;
+          external_client_phone?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      appointment_requests: {
+        Row: {
+          id: string;
+          client_id: string;
+          business_id: string;
+          service_id: string | null;
+          vehicle_id: string | null;
+          service_name: string | null;
+          vehicle_label: string | null;
+          notes: string | null;
+          suggested_at: string | null;
+          status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
           created_at: string;
         };
         Insert: {
           id?: string;
           client_id: string;
           business_id: string;
-          vehicle_id?: string | null;
           service_id?: string | null;
-          requested_at?: string | null;
+          vehicle_id?: string | null;
+          service_name?: string | null;
+          vehicle_label?: string | null;
           notes?: string | null;
-          status?: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          suggested_at?: string | null;
+          status?: 'pending' | 'accepted' | 'rejected' | 'cancelled';
           created_at?: string;
         };
         Update: {
           id?: string;
           client_id?: string;
           business_id?: string;
-          vehicle_id?: string | null;
           service_id?: string | null;
-          requested_at?: string | null;
+          vehicle_id?: string | null;
+          service_name?: string | null;
+          vehicle_label?: string | null;
           notes?: string | null;
-          status?: 'pending' | 'scheduled' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+          suggested_at?: string | null;
+          status?: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      business_clients: {
+        Row: {
+          id: string;
+          business_id: string;
+          client_id: string | null;
+          external_name: string | null;
+          external_phone: string | null;
+          external_email: string | null;
+          vehicles: unknown;
+          notes: string | null;
+          status: 'pending' | 'accepted' | 'rejected';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          client_id?: string | null;
+          external_name?: string | null;
+          external_phone?: string | null;
+          external_email?: string | null;
+          vehicles?: unknown;
+          notes?: string | null;
+          status?: 'pending' | 'accepted' | 'rejected';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          client_id?: string | null;
+          external_name?: string | null;
+          external_phone?: string | null;
+          external_email?: string | null;
+          vehicles?: unknown;
+          notes?: string | null;
+          status?: 'pending' | 'accepted' | 'rejected';
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      stock_movements: {
+        Row: {
+          id: string;
+          product_id: string;
+          variant_id: string | null;
+          business_id: string;
+          delta: number;
+          reason: 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          variant_id?: string | null;
+          business_id: string;
+          delta: number;
+          reason: 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          variant_id?: string | null;
+          business_id?: string;
+          delta?: number;
+          reason?: 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      system_settings: {
+        Row: {
+          id: boolean;
+          default_aid_radius_km: number;
+        };
+        Insert: {
+          id?: boolean;
+          default_aid_radius_km?: number;
+        };
+        Update: {
+          id?: boolean;
+          default_aid_radius_km?: number;
+        };
+        Relationships: [];
+      };
+      reports: {
+        Row: {
+          id: string;
+          reporter_id: string;
+          target_type: 'post' | 'review' | 'business' | 'product' | 'service';
+          target_id: string;
+          reason: string | null;
+          status: 'pending' | 'reviewed' | 'dismissed';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reporter_id: string;
+          target_type: 'post' | 'review' | 'business' | 'product' | 'service';
+          target_id: string;
+          reason?: string | null;
+          status?: 'pending' | 'reviewed' | 'dismissed';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          reporter_id?: string;
+          target_type?: 'post' | 'review' | 'business' | 'product' | 'service';
+          target_id?: string;
+          reason?: string | null;
+          status?: 'pending' | 'reviewed' | 'dismissed';
           created_at?: string;
         };
         Relationships: [];

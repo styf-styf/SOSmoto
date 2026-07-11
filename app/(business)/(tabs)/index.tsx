@@ -59,6 +59,7 @@ export default function BusinessHomeScreen() {
   const [growthSuggestion, setGrowthSuggestion] = useState<GrowthSuggestion | null>(null);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
+  const didInitialLoadRef = useRef(false);
 
   // Un taller puede seguir tiendas (relación B2B, ver BusinessProfileView) --
   // por eso solo el home de un taller gana el toggle Para ti/Siguiendo y el
@@ -150,9 +151,19 @@ export default function BusinessHomeScreen() {
     }
   }, [profile, coords]);
 
+  // `load` depende de `profile`/`coords`, que arrancan en null y se resuelven
+  // un instante después -- eso cambia la identidad de `load` y volvía a
+  // disparar este efecto con setLoading(true), dando la sensación de que la
+  // pantalla "carga dos veces". Solo mostramos el spinner de carga completa
+  // la primera vez; las veces siguientes se actualiza en silencio.
   useEffect(() => {
-    setLoading(true);
-    load().finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      load().finally(() => setLoading(false));
+    } else {
+      load().catch((err) => console.error('home background refresh error', err));
+    }
   }, [load]);
 
   function switchTab(mode: 'all' | 'following') {
@@ -271,6 +282,7 @@ export default function BusinessHomeScreen() {
         ref={homeFeedRef}
         role="business"
         city={business.city}
+        viewerBusinessId={business.id}
         onRefresh={load}
         ListHeaderComponent={
           <View>
@@ -398,6 +410,7 @@ export default function BusinessHomeScreen() {
           city={business.city}
           feedMode="all"
           clientId={profile?.id}
+          viewerBusinessId={business.id}
           onRefresh={load}
           ListHeaderComponent={paraTiHeader}
         />
@@ -408,6 +421,7 @@ export default function BusinessHomeScreen() {
           city={business.city}
           feedMode="following"
           clientId={profile?.id}
+          viewerBusinessId={business.id}
           emptyMessage="Las tiendas que sigues aún no han publicado nada."
           onRefresh={load}
           ListHeaderComponent={siguiendoHeader}
@@ -518,7 +532,7 @@ function PendingInvitationsScreen({
       onResponded();
     } catch (err) {
       console.error('accept invitation error', err);
-      Alert.alert('Error', 'No se pudo aceptar la invitación. Intenta de nuevo.');
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo aceptar la invitación. Intenta de nuevo.');
     } finally {
       setProcessingId(null);
     }
@@ -1111,12 +1125,6 @@ const styles = StyleSheet.create({
   },
   typeOptionTextSelected: {
     color: colors.primary,
-  },
-  locationNote: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 20,
-    marginTop: -4,
   },
   fieldLabel: {
     fontSize: 14,

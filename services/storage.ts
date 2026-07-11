@@ -164,12 +164,6 @@ export async function uploadChatImage(asset: ImagePicker.ImagePickerAsset, sende
   return data.publicUrl;
 }
 
-export async function pickAndUploadChatImage(senderId: string): Promise<string | null> {
-  const asset = await pickImageFromLibrary();
-  if (!asset) return null;
-  return uploadChatImage(asset, senderId);
-}
-
 // Bucket privado (kyc-documents, no kyc-images): documentos de identidad, no
 // se devuelve una URL pública -- se guarda solo la ruta, y el admin panel
 // genera URLs firmadas de corta duración con el service role para mostrarlos.

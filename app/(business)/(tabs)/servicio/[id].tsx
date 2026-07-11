@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../constants/colors';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
+import { ReportModal } from '../../../../components/ReportModal';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getServiceAppointmentStats } from '../../../../services/appointments';
 import { getMyWorkBusiness } from '../../../../services/businesses';
 import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
+import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 
@@ -22,6 +24,8 @@ export default function BusinessServiceDetailScreen() {
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
   const [isOwnService, setIsOwnService] = useState(false);
   const [stats, setStats] = useState<{ reservations: number; completed: number } | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -47,10 +51,15 @@ export default function BusinessServiceDetailScreen() {
   }, [id, profile]);
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load service detail error', err))
-      .finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      load()
+        .catch((err) => console.error('load service detail error', err))
+        .finally(() => setLoading(false));
+    } else {
+      load().catch((err) => console.error('load service detail background refresh error', err));
+    }
   }, [load]);
 
   // Si el usuario volvió a Inicio antes de entrar acá, esta es la primera
@@ -81,6 +90,18 @@ export default function BusinessServiceDetailScreen() {
     );
   }
 
+  async function handleReportService(reason: string) {
+    if (!service || !profile) return;
+    try {
+      await createReport(profile.id, 'service', service.id, reason);
+      setShowReportModal(false);
+      Alert.alert('Gracias', 'Reportaste este servicio. Un admin lo va a revisar.');
+    } catch (err) {
+      console.error('report service error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Stack.Screen
@@ -97,7 +118,11 @@ export default function BusinessServiceDetailScreen() {
                   <Ionicons name="create-outline" size={22} color={colors.text} />
                 </Pressable>
               )
-            : undefined,
+            : () => (
+                <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+                  <Ionicons name="flag-outline" size={22} color={colors.text} />
+                </Pressable>
+              ),
         }}
       />
       <Pressable
@@ -192,6 +217,13 @@ export default function BusinessServiceDetailScreen() {
           />
         </View>
       )}
+
+      <ReportModal
+        visible={showReportModal}
+        targetLabel="este servicio"
+        onCancel={() => setShowReportModal(false)}
+        onSubmit={handleReportService}
+      />
     </ScrollView>
   );
 }

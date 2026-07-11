@@ -17,6 +17,7 @@ export function PostCard({
   showTopShadow = true,
   showBottomShadow = true,
   topFadeFromHeader = false,
+  viewerBusinessId,
 }: {
   post: PostWithAuthor;
   detailHref: string;
@@ -30,6 +31,10 @@ export function PostCard({
   // Cuando este post es el primero del feed (nada arriba salvo el header
   // blanco), se funde de blanco a gris en vez de mostrar la sombra normal.
   topFadeFromHeader?: boolean;
+  // Negocio del propio usuario (dueño o empleado, ver getMyWorkBusiness) --
+  // sin esto, un mecánico que ve una publicación de su propio taller se
+  // trataba como un visitante cualquiera (solo se comparaba owner_id).
+  viewerBusinessId?: string;
 }) {
   const { profile } = useAuth();
   const authorName = getPostAuthorName(post);
@@ -81,7 +86,7 @@ export function PostCard({
     e.stopPropagation();
     const prefix = userRole === 'business' ? '/(business)' : '/(client)';
     if (isBusiness && post.author_business) {
-      if (post.author_business.owner_id === profile?.id) {
+      if (post.author_business.owner_id === profile?.id || post.author_business.id === viewerBusinessId) {
         router.push(`${prefix}/(tabs)/perfil`);
       } else {
         router.push(`${prefix}/business/${post.author_business.id}`);

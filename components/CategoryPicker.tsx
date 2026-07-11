@@ -19,12 +19,22 @@ export function CategoryPicker({ label = 'Categoría', kind, value, onChange, er
   const [open, setOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const initialized = useRef(false);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getCategories(kind)
       .then(setCategories)
       .catch((err) => console.error('load categories error', err));
   }, [kind]);
+
+  // Si el componente se desmonta (navegación) dentro de los 150ms del blur,
+  // sin este cleanup el setTimeout llamaba setOpen sobre un componente ya
+  // desmontado.
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    };
+  }, []);
 
   // Al cargar en modo edición, muestra el nombre de la categoría ya seleccionada.
   useEffect(() => {
@@ -76,7 +86,9 @@ export function CategoryPicker({ label = 'Categoría', kind, value, onChange, er
           if (!text.trim()) onChange('', '');
         }}
         onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => {
+          blurTimerRef.current = setTimeout(() => setOpen(false), 150);
+        }}
       />
       {open && (
         <View style={styles.dropdown}>

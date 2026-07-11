@@ -91,6 +91,7 @@ export default function CatalogoScreen() {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -115,10 +116,15 @@ export default function CatalogoScreen() {
   }
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load catalogo error', err))
-      .finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      load()
+        .catch((err) => console.error('load catalogo error', err))
+        .finally(() => setLoading(false));
+    } else {
+      load().catch((err) => console.error('load catalogo background refresh error', err));
+    }
   }, [load]);
 
   // Recarga productos al recuperar el foco (ej. al volver del inventario tras actualizar stock)
@@ -135,11 +141,11 @@ export default function CatalogoScreen() {
   );
 
   useEffect(() => {
-    if (!highlightId || !products.length) return;
+    if (!highlightId || (!products.length && !services.length)) return;
     setHighlightedId(highlightId);
     const clearTimer = setTimeout(() => setHighlightedId(null), 3500);
     return () => clearTimeout(clearTimer);
-  }, [highlightId, products.length]);
+  }, [highlightId, products.length, services.length]);
 
   // Llegada desde el botón "Editar" de la página de producto/servicio: abre
   // el modal de edición directamente apenas carga el catálogo.
@@ -302,6 +308,9 @@ export default function CatalogoScreen() {
                 readOnly={business.is_limited}
                 onEdit={(service) => setForm({ kind: 'service', service })}
                 onDelete={confirmDeleteService}
+                highlightId={highlightId}
+                highlightedId={highlightedId}
+                onHighlightLayout={handleHighlightLayout}
               />
             )}
           </>

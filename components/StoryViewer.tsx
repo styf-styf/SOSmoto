@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
@@ -49,6 +49,7 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryV
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadStories()
@@ -83,10 +84,21 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryV
     }
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(goNext, DURATION_MS);
+
+    progressAnim.setValue(0);
+    const animation = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: DURATION_MS,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    });
+    animation.start();
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      animation.stop();
     };
-  }, [current, profile, goNext]);
+  }, [current, profile, goNext, progressAnim]);
 
   function handleAction() {
     if (!current) return;
@@ -129,7 +141,16 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryV
       <View style={styles.progressRow}>
         {stories.map((s, i) => (
           <View key={s.id} style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: i <= index ? '100%' : '0%' }]} />
+            {i < index ? (
+              <View style={[styles.progressFill, { width: '100%' }]} />
+            ) : i === index ? (
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+                ]}
+              />
+            ) : null}
           </View>
         ))}
       </View>

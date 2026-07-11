@@ -11,7 +11,7 @@ import { TextField } from './TextField';
 import { colors } from '../constants/colors';
 import { useAccountLimited } from '../hooks/useAccountLimited';
 import { useAuth } from '../hooks/useAuth';
-import { searchBusinesses, type BusinessWithDistance } from '../services/businesses';
+import { getMyWorkBusiness, searchBusinesses, type BusinessWithDistance } from '../services/businesses';
 import { getActiveProducts, getActiveServices, getPlanLimits } from '../services/catalog';
 import {
   createComment,
@@ -78,6 +78,17 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const [searchingEditTag, setSearchingEditTag] = useState(false);
   const [editTagServices, setEditTagServices] = useState<Service[]>([]);
   const [editTagProducts, setEditTagProducts] = useState<Product[]>([]);
+  const [viewerBusinessId, setViewerBusinessId] = useState<string | null>(null);
+
+  // Un mecánico (empleado, no dueño) también debe reconocer las publicaciones
+  // de su propio negocio -- comparar solo owner_id dejaba a los empleados
+  // sin poder editar/reportar sus propias publicaciones.
+  useEffect(() => {
+    if (userRole !== 'business' || !profile) return;
+    getMyWorkBusiness(profile.id)
+      .then((work) => setViewerBusinessId(work?.business.id ?? null))
+      .catch((err) => console.error('load viewer business error', err));
+  }, [userRole, profile]);
 
   const load = useCallback(async () => {
     const [postResult, commentsResult] = await Promise.all([getPostById(postId), getComments(postId)]);
@@ -131,7 +142,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const tag = getPostTag(post, userRole);
   const prefix = userRole === 'business' ? '/(business)' : '/(client)';
   const isOwner =
-    (isBusiness && post.author_business?.owner_id === profile?.id) ||
+    (isBusiness && (post.author_business?.owner_id === profile?.id || post.author_business?.id === viewerBusinessId)) ||
     (!isBusiness && post.author_client?.id === profile?.id);
 
   async function openEditModal() {
@@ -296,7 +307,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   function handleAuthorPress() {
     if (!post) return;
     if (isBusiness && post.author_business) {
-      if (post.author_business.owner_id === profile?.id) {
+      if (post.author_business.owner_id === profile?.id || post.author_business.id === viewerBusinessId) {
         router.push(`${prefix}/(tabs)/perfil`);
       } else {
         router.push(`${prefix}/business/${post.author_business.id}`);

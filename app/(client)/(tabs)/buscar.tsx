@@ -48,6 +48,7 @@ export default function BuscarScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const lastSeenAdAt = useRef<string | null>(null);
+  const didInitialSearchRef = useRef(false);
 
   const loadAds = useCallback(async () => {
     try {
@@ -85,9 +86,19 @@ export default function BuscarScreen() {
     }
   }, [query, businessType, serviceFilter, coords, minRating, only24h]);
 
+  // search depende de coords, que arranca en null y se resuelve un instante
+  // después (permiso/GPS) -- eso cambiaba la identidad de search y volvía a
+  // tapar toda la pantalla (filtros incluidos) con el spinner. Solo se hace
+  // eso la primera vez; los cambios siguientes (coords resuelto, o el
+  // usuario cambiando un filtro) actualizan los resultados sin ocultar la UI.
   useEffect(() => {
-    setLoading(true);
-    search().finally(() => setLoading(false));
+    if (!didInitialSearchRef.current) {
+      didInitialSearchRef.current = true;
+      setLoading(true);
+      search().finally(() => setLoading(false));
+    } else {
+      search().catch((err) => console.error('search background refresh error', err));
+    }
   }, [search]);
 
   const hasActiveFilters = !!query || !!businessType || !!serviceFilter || !!minRating || only24h;

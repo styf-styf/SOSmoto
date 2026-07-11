@@ -11,11 +11,12 @@ import type { BusinessType } from '../../../types/database';
 
 // Solo las pestañas reales viven en este navegador de Tabs -- el resto de
 // pantallas se registran como Stack.Screen en app/(business)/_layout.tsx,
-// mismo motivo que en (client)/(tabs)/_layout.tsx. "solicitudes" y "pedidos"
-// son mutuamente excluyentes según business_type (workshop vs. store); usar
-// href: null en vez de tabBarButton para que la pestaña oculta no deje hueco.
-// Para taller, "pedidos" ocupa el lugar de "catalogo" en la barra (que sigue
-// disponible desde Configuración) -- product_intents ya no es exclusivo de tienda.
+// mismo motivo que en (client)/(tabs)/_layout.tsx. "solicitudes" es exclusiva
+// de taller (workshop) según business_type; usar href: null en vez de
+// tabBarButton para que la pestaña oculta no deje hueco. "pedidos" ya es
+// visible para ambos tipos (product_intents dejó de ser exclusivo de
+// tienda) -- para taller ocupa el lugar de "catalogo" en la barra (que
+// sigue disponible desde Configuración).
 // "producto" y "servicio" viven acá con href: null a propósito (para que la
 // tab bar siga visible al entrar a un producto/servicio). Cada carpeta tiene
 // su propio _layout.tsx con un Stack anidado, así cada item visitado se

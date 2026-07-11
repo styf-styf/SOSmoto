@@ -185,7 +185,8 @@ export interface CreateBusinessParams {
 // Radio de auxilio (km) asignado por defecto a un taller nuevo -- editable
 // desde el admin (Configuración > Reglas del sistema, tabla system_settings).
 export async function getDefaultAidRadiusKm(): Promise<number> {
-  const { data } = await (supabase.from('system_settings') as any)
+  const { data } = await supabase
+    .from('system_settings')
     .select('default_aid_radius_km')
     .eq('id', true)
     .maybeSingle();

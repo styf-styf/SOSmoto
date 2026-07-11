@@ -39,6 +39,7 @@ export default function ClientHomeScreen() {
   const [loading, setLoading] = useState(true);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
+  const didInitialLoadRef = useRef(false);
 
   const dragX = useRef(new Animated.Value(0)).current;
   const siguiendoTranslateX = useRef(Animated.add(dragX, new Animated.Value(SCREEN_WIDTH))).current;
@@ -111,9 +112,21 @@ export default function ClientHomeScreen() {
     }
   }, [profile, coords]);
 
+  // `load` depende de `profile`/`coords`, que arrancan en null y se resuelven
+  // un instante después (perfil de sesión, permiso de GPS) -- eso cambia la
+  // identidad de `load` y volvía a disparar este efecto con setLoading(true),
+  // dando la sensación de que la pantalla "carga dos veces". Solo mostramos
+  // el spinner de carga completa la primera vez; las veces siguientes (cuando
+  // profile/coords ya están listos) se actualiza en silencio sobre el
+  // contenido que ya está en pantalla.
   useEffect(() => {
-    setLoading(true);
-    load().finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      load().finally(() => setLoading(false));
+    } else {
+      load().catch((err) => console.error('home background refresh error', err));
+    }
   }, [load]);
 
   useFocusEffect(

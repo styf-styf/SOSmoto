@@ -30,7 +30,7 @@ export interface PendingInvitation {
   createdAt: string;
 }
 
-const bc = () => supabase.from('business_clients') as any;
+const bc = () => supabase.from('business_clients');
 
 export async function addAppClient(
   businessId: string,
@@ -177,7 +177,13 @@ export async function updateExternalClient(
   recordId: string,
   params: UpdateExternalClientParams
 ): Promise<BusinessClientRecord> {
-  const update: Record<string, any> = {};
+  const update: {
+    external_name?: string;
+    external_phone?: string | null;
+    external_email?: string | null;
+    vehicles?: ExternalVehicle[];
+    notes?: string | null;
+  } = {};
   if (params.name !== undefined) update.external_name = params.name.trim();
   if (params.phone !== undefined) update.external_phone = params.phone.trim() || null;
   if (params.email !== undefined) update.external_email = params.email.trim() || null;

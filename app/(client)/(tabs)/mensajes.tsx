@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -21,6 +21,7 @@ export default function MensajesScreen() {
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -48,10 +49,15 @@ export default function MensajesScreen() {
   }
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load conversations error', err))
-      .finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      load()
+        .catch((err) => console.error('load conversations error', err))
+        .finally(() => setLoading(false));
+    } else {
+      load().catch((err) => console.error('load conversations background refresh error', err));
+    }
   }, [load]);
 
   useEffect(() => {

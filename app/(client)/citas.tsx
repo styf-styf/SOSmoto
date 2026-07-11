@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '../../components/Button';
@@ -27,6 +28,29 @@ function defaultCounterTime(): Date {
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// Componente estable (definido una sola vez, no dentro del .map de la
+// pantalla) -- si se recreara por cada tarjeta en cada render, React lo
+// trataría como un tipo de componente distinto cada vez y desmontaría/
+// remontaría toda la tarjeta en cada interacción en vez de reconciliarla.
+function AppointmentCard({
+  pressable,
+  onPress,
+  children,
+}: {
+  pressable: boolean;
+  onPress?: () => void;
+  children: ReactNode;
+}) {
+  if (pressable) {
+    return (
+      <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
+        {children}
+      </Pressable>
+    );
+  }
+  return <View style={styles.card}>{children}</View>;
 }
 
 export default function CitasScreen() {
@@ -198,22 +222,14 @@ export default function CitasScreen() {
             appointment.status === 'scheduled' && appointment.proposed_by === 'client';
 
           const reportId = reportIds.get(appointment.id);
-          const CardWrapper = appointment.status === 'completed' && reportId
-            ? ({ children }: { children: React.ReactNode }) => (
-                <Pressable
-                  key={appointment.id}
-                  style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-                  onPress={() => router.push(`/(client)/informe/${reportId}`)}
-                >
-                  {children}
-                </Pressable>
-              )
-            : ({ children }: { children: React.ReactNode }) => (
-                <View key={appointment.id} style={styles.card}>{children}</View>
-              );
+          const canOpenReport = appointment.status === 'completed' && !!reportId;
 
           return (
-            <CardWrapper key={appointment.id}>
+            <AppointmentCard
+              key={appointment.id}
+              pressable={canOpenReport}
+              onPress={canOpenReport ? () => router.push(`/(client)/informe/${reportId}`) : undefined}
+            >
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{appointment.business_name}</Text>
                 <View style={[styles.statusBadge, statusBadgeStyle(appointment)]}>
@@ -393,7 +409,7 @@ export default function CitasScreen() {
                   />
                 </View>
               )}
-            </CardWrapper>
+            </AppointmentCard>
           );
         }))
       }

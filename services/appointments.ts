@@ -2,18 +2,6 @@ import { supabase } from './supabase';
 import { notifyUser } from './notifications';
 import type { Appointment, AppointmentStatus, VehicleInfo } from '../types/database';
 
-export interface CreateAppointmentParams {
-  clientId: string;
-  businessId: string;
-  vehicleId?: string;
-  vehicleLabel?: string;
-  serviceId?: string;
-  serviceName?: string;
-  notes?: string;
-  // Si el cliente sugiere una fecha al crear la cita
-  requestedAt?: string;
-}
-
 // Estadísticas de un servicio puntual (para la vista del negocio en su
 // propia página de servicio: citas activas y citas completadas).
 export async function getServiceAppointmentStats(serviceId: string): Promise<{ reservations: number; completed: number }> {
@@ -28,64 +16,6 @@ export async function getServiceAppointmentStats(serviceId: string): Promise<{ r
     reservations: rows.filter((r) => r.status === 'pending' || r.status === 'scheduled' || r.status === 'confirmed').length,
     completed: rows.filter((r) => r.status === 'completed').length,
   };
-}
-
-export async function createAppointment(params: CreateAppointmentParams): Promise<Appointment> {
-  const hasDate = Boolean(params.requestedAt);
-  const { data, error } = await (supabase.from('appointments') as any)
-    .insert({
-      client_id: params.clientId,
-      business_id: params.businessId,
-      vehicle_id: params.vehicleId ?? null,
-      service_id: params.serviceId ?? null,
-      notes: params.notes ?? null,
-      requested_at: params.requestedAt ?? null,
-      proposed_by: hasDate ? 'client' : null,
-      status: hasDate ? 'scheduled' : 'pending',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-
-  const appointment = data as Appointment;
-
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', params.businessId)
-    .maybeSingle();
-  if (business) {
-    const msg = hasDate
-      ? `Un cliente quiere agendar una cita y sugirió una fecha.`
-      : `Un cliente quiere agendar una cita.`;
-    await notifyUser(business.owner_id, 'Nueva solicitud de cita', msg, {
-      type: 'appointment_requested',
-      appointmentId: appointment.id,
-    });
-  }
-
-  // Mensaje automático en el chat con los detalles de la solicitud.
-  // Insert directo (sin sendMessage) para no duplicar la notificación push.
-  const lines: string[] = ['📅 Nueva solicitud de cita'];
-  if (params.serviceName) lines.push(`Servicio: ${params.serviceName}`);
-  if (params.vehicleLabel) lines.push(`Moto: ${params.vehicleLabel}`);
-  if (params.notes) lines.push(`Notas: ${params.notes}`);
-  if (params.requestedAt) {
-    const dtStr = new Date(params.requestedAt).toLocaleString('es-EC', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-    lines.push(`Fecha sugerida: ${dtStr}`);
-  }
-  lines.push('Coordina los detalles aquí.');
-  await supabase.from('messages').insert({
-    client_id: params.clientId,
-    business_id: params.businessId,
-    sender_id: params.clientId,
-    body: lines.join('\n'),
-  });
-
-  return appointment;
 }
 
 export interface ClientAppointment extends Appointment {
@@ -169,7 +99,8 @@ export async function proposeDate(
   requestedAt: string,
   proposedBy: 'client' | 'business'
 ): Promise<void> {
-  const { data, error } = await (supabase.from('appointments') as any)
+  const { data, error } = await supabase
+    .from('appointments')
     .update({ status: 'scheduled', requested_at: requestedAt, proposed_by: proposedBy })
     .eq('id', id)
     .select('*, businesses(owner_id)')
@@ -196,7 +127,8 @@ export async function proposeDate(
 
 // Reagenda una cita de cliente externo: confirma directamente sin esperar aprobación.
 export async function rescheduleDirect(id: string, requestedAt: string): Promise<void> {
-  const { error } = await (supabase.from('appointments') as any)
+  const { error } = await supabase
+    .from('appointments')
     .update({ status: 'confirmed', requested_at: requestedAt, proposed_by: null })
     .eq('id', id);
   if (error) throw error;
@@ -319,7 +251,8 @@ export async function createAppointmentByBusiness(
 ): Promise<Appointment> {
   const isExternal = !params.clientId;
 
-  const { data, error } = await (supabase.from('appointments') as any)
+  const { data, error } = await supabase
+    .from('appointments')
     .insert({
       business_id: params.businessId,
       client_id: params.clientId ?? null,
@@ -357,26 +290,6 @@ export async function createAppointmentByBusiness(
 }
 
 // Clientes que han chateado con el negocio (para búsqueda al crear cita)
-export async function getBusinessClients(businessId: string): Promise<
-  { id: string; full_name: string; phone: string | null; avatar_url: string | null }[]
-> {
-  const { data: msgs, error } = await supabase
-    .from('messages')
-    .select('client_id')
-    .eq('business_id', businessId);
-  if (error) throw error;
-  if (!msgs || msgs.length === 0) return [];
-
-  const ids = [...new Set((msgs as any[]).map((m) => m.client_id as string))];
-  const { data: users, error: usersError } = await supabase
-    .from('users')
-    .select('id, full_name, phone, avatar_url')
-    .in('id', ids)
-    .order('full_name');
-  if (usersError) throw usersError;
-  return (users ?? []) as any;
-}
-
 export interface ActiveClientAppointment {
   id: string;
   status: AppointmentStatus;

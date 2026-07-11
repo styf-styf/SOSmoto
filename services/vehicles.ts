@@ -43,38 +43,6 @@ export async function createVehicle(params: CreateVehicleParams): Promise<Vehicl
   return data as Vehicle;
 }
 
-export async function updateMileage(
-  vehicleId: string,
-  mileage: number,
-  avgMonthlyKm?: number | null
-): Promise<Vehicle> {
-  const { data, error } = await supabase
-    .from('vehicles')
-    .update({
-      current_mileage: mileage,
-      last_mileage_update: new Date().toISOString(),
-      last_mileage_reminder_at: null,
-      ...(avgMonthlyKm !== undefined ? { avg_monthly_km: avgMonthlyKm } : {}),
-    })
-    .eq('id', vehicleId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Vehicle;
-}
-
-export async function updatePlate(vehicleId: string, plate: string): Promise<Vehicle> {
-  const { data, error } = await supabase
-    .from('vehicles')
-    .update({ plate: plate.trim().toUpperCase() || null })
-    .eq('id', vehicleId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Vehicle;
-}
-
 export interface UpdateVehicleParams {
   brand: string;
   model: string;

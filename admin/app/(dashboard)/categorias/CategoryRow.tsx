@@ -63,7 +63,7 @@ export function CategoryRow({ category }: { category: AdminCategoryRow }) {
   }
 
   async function handleDelete() {
-    if (!window.confirm(`¿Eliminar la categoría "${category.name}"? Los productos/servicios que la usan quedarán con una referencia inválida.`)) return;
+    if (!window.confirm(`¿Eliminar la categoría "${category.name}"? Si hay productos o servicios usándola, no se podrá eliminar hasta que se les cambie de categoría.`)) return;
     setDeleting(true);
     setError(null);
     const res = await fetch(`/api/categorias/${category.id}`, { method: 'DELETE' });

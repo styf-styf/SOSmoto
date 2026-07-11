@@ -126,18 +126,20 @@ export async function updateIntentStatus(
 ): Promise<void> {
   const { data: intent, error: fetchError } = await supabase
     .from('product_intents')
-    .select('client_id, product_id, variant_id, business_id, quantity')
+    .select('client_id, product_id, variant_id, business_id, quantity, status')
     .eq('id', intentId)
     .maybeSingle();
   if (fetchError) throw fetchError;
+  if (!intent) return;
 
-  const { error } = await supabase
-    .from('product_intents')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', intentId);
-  if (error) throw error;
+  // Evita descontar stock dos veces para la misma venta (doble tap, o dos
+  // llamadas concurrentes) si el intent ya estaba marcado como vendido.
+  if (status === 'sold' && intent.status === 'sold') return;
 
-  if (intent && status === 'sold') {
+  if (status === 'sold') {
+    // El movimiento de stock va ANTES de marcar la venta -- si falla (ej. no
+    // hay stock suficiente), el intent se queda en su estado anterior en vez
+    // de quedar marcado "vendido" sin haber descontado nada del inventario.
     if (intent.variant_id) {
       await addVariantStockMovement({
         businessId: intent.business_id,
@@ -145,18 +147,24 @@ export async function updateIntentStatus(
         variantId: intent.variant_id,
         delta: -intent.quantity,
         reason: 'sale',
-      }).catch((err) => console.warn('variant stock movement on sale error', err));
+      });
     } else {
       await addStockMovement({
         businessId: intent.business_id,
         productId: intent.product_id,
         delta: -intent.quantity,
         reason: 'sale',
-      }).catch((err) => console.warn('stock movement on sale error', err));
+      });
     }
   }
 
-  if (intent && (status === 'confirmed' || status === 'sold' || status === 'unavailable' || status === 'cancelled_no_show')) {
+  const { error } = await supabase
+    .from('product_intents')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', intentId);
+  if (error) throw error;
+
+  if (status === 'confirmed' || status === 'sold' || status === 'unavailable' || status === 'cancelled_no_show') {
     const { data: product } = await supabase
       .from('products')
       .select('name')
@@ -337,21 +345,6 @@ export async function getProductIntentStats(productId: string): Promise<{ reserv
   };
 }
 
-export async function getBusinessIntentStats(
-  businessId: string
-): Promise<{ pending: number; confirmed: number }> {
-  const { data, error } = await supabase
-    .from('product_intents')
-    .select('status')
-    .eq('business_id', businessId)
-    .in('status', ['pending', 'confirmed']);
-  if (error) throw error;
-  const rows = data ?? [];
-  return {
-    pending: rows.filter((r) => r.status === 'pending').length,
-    confirmed: rows.filter((r) => r.status === 'confirmed').length,
-  };
-}
 
 export interface MyProductPurchase {
   id: string;

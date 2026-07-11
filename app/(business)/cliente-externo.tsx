@@ -492,14 +492,6 @@ const styles = StyleSheet.create({
   aptNotes: { fontSize: 13, color: colors.textMuted, marginBottom: 4 },
   aptLink: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 4 },
 
-  reportCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 8,
-  },
-  reportInfo: { flex: 1 },
-  reportDate: { fontSize: 13, fontWeight: '700', color: colors.text },
-  reportMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-
   historyCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10 },
   historyHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,

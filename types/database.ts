@@ -73,14 +73,6 @@ export interface Business {
   created_at: string;
 }
 
-export interface PortfolioPhoto {
-  id: string;
-  business_id: string;
-  image_url: string;
-  caption: string | null;
-  created_at: string;
-}
-
 export type EmployeeRole = 'owner' | 'mechanic';
 
 export interface BusinessEmployee {

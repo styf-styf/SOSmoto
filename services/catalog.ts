@@ -185,44 +185,6 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
   } as ProductWithBusiness;
 }
 
-export async function getServicesForBusinesses(businessIds: string[], limit = 20): Promise<ServiceWithBusiness[]> {
-  if (businessIds.length === 0) return [];
-
-  const { data, error } = await supabase
-    .from('services')
-    .select('*, businesses(name), categories(name)')
-    .in('business_id', businessIds)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    business_name: row.businesses?.name ?? '',
-    category_name: row.categories?.name ?? '',
-  })) as ServiceWithBusiness[];
-}
-
-export async function getProductsForBusinesses(businessIds: string[], limit = 20): Promise<ProductWithBusiness[]> {
-  if (businessIds.length === 0) return [];
-
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, businesses(name), categories(name)')
-    .in('business_id', businessIds)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    business_name: row.businesses?.name ?? '',
-    category_name: row.categories?.name ?? '',
-  })) as ProductWithBusiness[];
-}
-
 // Productos/servicios de otras tiendas en la misma categoría -- para el
 // carrusel "También te puede interesar" en producto/[id].tsx y servicio/[id].tsx.
 export async function getProductsByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {

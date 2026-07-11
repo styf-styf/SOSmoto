@@ -7,13 +7,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { interval_km, interval_months } = await req.json();
+  const km = interval_km !== null && interval_km !== undefined ? Number(interval_km) : null;
+  const months = interval_months !== null && interval_months !== undefined ? Number(interval_months) : null;
+  if (km !== null && (!Number.isFinite(km) || km <= 0)) {
+    return NextResponse.json({ error: 'El intervalo en km debe ser un número mayor a 0.' }, { status: 400 });
+  }
+  if (months !== null && (!Number.isFinite(months) || months <= 0)) {
+    return NextResponse.json({ error: 'El intervalo en meses debe ser un número mayor a 0.' }, { status: 400 });
+  }
+  if (km === null && months === null) {
+    return NextResponse.json({ error: 'Debes especificar al menos un intervalo (km o meses).' }, { status: 400 });
+  }
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from('maintenance_rules')
-    .update({
-      interval_km: interval_km !== null && interval_km !== undefined ? Number(interval_km) : null,
-      interval_months: interval_months !== null && interval_months !== undefined ? Number(interval_months) : null,
-    })
+    .update({ interval_km: km, interval_months: months })
     .eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

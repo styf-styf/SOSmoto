@@ -99,7 +99,7 @@ export default async function SuscripcionesPage({ searchParams }: { searchParams
               </td>
               <td className="px-4 py-3">{new Date(payment.created_at).toLocaleString('es-EC')}</td>
               <td className="px-4 py-3">
-                {payment.status !== 'refunded' && <PaymentRefundButton paymentId={payment.id} />}
+                {payment.status === 'completed' && <PaymentRefundButton paymentId={payment.id} />}
               </td>
             </tr>
           ))}

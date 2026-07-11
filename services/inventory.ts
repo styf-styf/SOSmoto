@@ -59,7 +59,7 @@ export async function getStockMovements(
   variantId: string | null = null,
   limit = 20
 ): Promise<StockMovement[]> {
-  let query = (supabase.from('stock_movements') as any).select('*').eq('product_id', productId);
+  let query = supabase.from('stock_movements').select('*').eq('product_id', productId);
   query = variantId ? query.eq('variant_id', variantId) : query.is('variant_id', null);
   const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
@@ -87,7 +87,7 @@ export async function addStockMovement(params: AddMovementParams): Promise<Produ
   const newStock = (current ?? 0) + params.delta;
   if (newStock < 0) throw new Error('El stock no puede quedar negativo.');
 
-  const { error: movErr } = await (supabase.from('stock_movements') as any).insert({
+  const { error: movErr } = await supabase.from('stock_movements').insert({
     product_id: params.productId,
     business_id: params.businessId,
     delta: params.delta,
@@ -127,7 +127,7 @@ export async function addVariantStockMovement(params: AddVariantMovementParams):
   const newStock = (current ?? 0) + params.delta;
   if (newStock < 0) throw new Error('El stock no puede quedar negativo.');
 
-  const { error: movErr } = await (supabase.from('stock_movements') as any).insert({
+  const { error: movErr } = await supabase.from('stock_movements').insert({
     product_id: params.productId,
     variant_id: params.variantId,
     business_id: params.businessId,

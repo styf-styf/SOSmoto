@@ -31,7 +31,7 @@ export async function createAppointmentRequest(
   params: CreateAppointmentRequestParams
 ): Promise<AppointmentRequest> {
   const { data, error } = await supabase
-    .from('appointment_requests' as any)
+    .from('appointment_requests')
     .insert({
       client_id: params.clientId,
       business_id: params.businessId,
@@ -93,7 +93,7 @@ export async function getActiveAppointmentRequest(
   businessId: string
 ): Promise<AppointmentRequest | null> {
   const { data, error } = await supabase
-    .from('appointment_requests' as any)
+    .from('appointment_requests')
     .select('*')
     .eq('client_id', clientId)
     .eq('business_id', businessId)
@@ -115,7 +115,7 @@ export async function getAppointmentRequestForService(
   serviceId: string
 ): Promise<AppointmentRequest | null> {
   const { data, error } = await supabase
-    .from('appointment_requests' as any)
+    .from('appointment_requests')
     .select('*')
     .eq('client_id', clientId)
     .eq('business_id', businessId)
@@ -132,7 +132,7 @@ export async function cancelAppointmentRequest(
   request: AppointmentRequest
 ): Promise<void> {
   const { error } = await supabase
-    .from('appointment_requests' as any)
+    .from('appointment_requests')
     .update({ status: 'cancelled' })
     .eq('id', request.id);
   if (error) throw error;
@@ -162,7 +162,7 @@ export async function rejectAppointmentRequest(
   request: AppointmentRequest
 ): Promise<void> {
   const { error } = await supabase
-    .from('appointment_requests' as any)
+    .from('appointment_requests')
     .update({ status: 'rejected' })
     .eq('id', request.id);
   if (error) throw error;
@@ -181,7 +181,7 @@ export async function acceptAppointmentRequest(
   confirmedAt: string
 ): Promise<Appointment> {
   // 1. Crear la cita confirmada directamente
-  const { data: apptData, error: apptError } = await (supabase.from('appointments') as any).insert({
+  const { data: apptData, error: apptError } = await supabase.from('appointments').insert({
     client_id: request.client_id,
     business_id: request.business_id,
     vehicle_id: request.vehicle_id ?? null,
@@ -196,7 +196,7 @@ export async function acceptAppointmentRequest(
 
   // 2. Marcar la solicitud como aceptada
   const { error } = await supabase
-    .from('appointment_requests' as any)
+    .from('appointment_requests')
     .update({ status: 'accepted' })
     .eq('id', request.id);
   if (error) throw error;

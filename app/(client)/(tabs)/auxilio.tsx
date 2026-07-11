@@ -47,6 +47,7 @@ export default function AuxilioScreen() {
 
   const mapRef = useRef<MapView>(null);
   const isMounted = useRef(false);
+  const didInitialLoadRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
       // Omitir el primer focus (el mount inicial ya carga la ubicación)
@@ -69,11 +70,19 @@ export default function AuxilioScreen() {
     setSelectedVehicleId((prev) => prev ?? vehicleList[0]?.id ?? null);
   }, [profile]);
 
+  // loadVehicles depende de profile, que arranca en null hasta que la sesión
+  // resuelve -- eso volvía a tapar toda la pantalla con el spinner apenas
+  // el perfil llegaba. Solo se hace la primera vez.
   useEffect(() => {
-    setLoading(true);
-    loadVehicles()
-      .catch((err) => console.error('load auxilio error', err))
-      .finally(() => setLoading(false));
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      setLoading(true);
+      loadVehicles()
+        .catch((err) => console.error('load auxilio error', err))
+        .finally(() => setLoading(false));
+    } else {
+      loadVehicles().catch((err) => console.error('load auxilio background refresh error', err));
+    }
   }, [loadVehicles]);
 
   function handleLocate() {

@@ -28,13 +28,20 @@ const TARGET_LABEL: Record<AdminReportRow['target_type'], string> = {
   service: 'Servicio',
 };
 
-const TARGET_HREF: Record<AdminReportRow['target_type'], string> = {
-  post: '?tab=posts',
-  review: '?tab=reviews',
-  business: '/negocios',
-  product: '?tab=products',
-  service: '?tab=services',
-};
+function targetHref(report: AdminReportRow): string {
+  switch (report.target_type) {
+    case 'post':
+      return '?tab=posts';
+    case 'review':
+      return '?tab=reviews';
+    case 'product':
+      return '?tab=products';
+    case 'service':
+      return '?tab=services';
+    case 'business':
+      return `/negocios?q=${encodeURIComponent(report.targetLabel)}`;
+  }
+}
 
 function stars(rating: number) {
   return '★'.repeat(rating) + '☆'.repeat(5 - rating);
@@ -416,7 +423,7 @@ async function ReportsTab({ supabase, from, to, page }: { supabase: any; from: n
               <td className="px-4 py-3">{TARGET_LABEL[report.target_type]}</td>
               <td className="px-4 py-3 max-w-[220px] text-gray-600">
                 {report.targetLabel}
-                <a href={TARGET_HREF[report.target_type]} className="ml-2 text-xs text-primary underline">
+                <a href={targetHref(report)} className="ml-2 text-xs text-primary underline">
                   Ver
                 </a>
               </td>
