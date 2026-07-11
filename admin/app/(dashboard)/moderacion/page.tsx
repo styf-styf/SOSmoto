@@ -1,6 +1,17 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
-import type { AdminPostRow, AdminProductRow, AdminReportRow, AdminReviewRow, AdminServiceRow, AdminStoryRow } from '../../../lib/types';
+import type {
+  AdminAdCommentRow,
+  AdminPostCommentRow,
+  AdminPostRow,
+  AdminProductRow,
+  AdminReportRow,
+  AdminReviewRow,
+  AdminServiceRow,
+  AdminStoryRow,
+} from '../../../lib/types';
 import { Paginator } from '../../../components/Paginator';
+import { AdCommentDeleteButton } from './AdCommentDeleteButton';
+import { PostCommentDeleteButton } from './PostCommentDeleteButton';
 import { PostDeleteButton } from './PostDeleteButton';
 import { ProductDeleteButton } from './ProductDeleteButton';
 import { ReportActions } from './ReportActions';
@@ -10,7 +21,7 @@ import { StoryDeleteButton } from './StoryDeleteButton';
 
 const PAGE_SIZE = 12;
 
-type Tab = 'stories' | 'posts' | 'products' | 'services' | 'reviews' | 'reports';
+type Tab = 'stories' | 'posts' | 'products' | 'services' | 'reviews' | 'reports' | 'comments';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'stories', label: 'Historias' },
   { value: 'posts', label: 'Publicaciones' },
@@ -18,6 +29,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'services', label: 'Servicios' },
   { value: 'reviews', label: 'Reseñas' },
   { value: 'reports', label: 'Reportes' },
+  { value: 'comments', label: 'Comentarios' },
 ];
 
 const TARGET_LABEL: Record<AdminReportRow['target_type'], string> = {
@@ -50,12 +62,14 @@ function stars(rating: number) {
 export default async function ModeracionPage({
   searchParams,
 }: {
-  searchParams: { tab?: string; page?: string };
+  searchParams: { tab?: string; page?: string; post_comments_page?: string; ad_comments_page?: string };
 }) {
   const tab: Tab = (TABS.find((t) => t.value === searchParams.tab)?.value ?? 'stories');
   const page = Math.max(1, Number(searchParams.page) || 1);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
+  const postCommentsPage = Math.max(1, Number(searchParams.post_comments_page) || 1);
+  const adCommentsPage = Math.max(1, Number(searchParams.ad_comments_page) || 1);
 
   const supabase = createAdminClient();
 
@@ -88,6 +102,9 @@ export default async function ModeracionPage({
       {tab === 'services' && <ServicesTab supabase={supabase} from={from} to={to} page={page} />}
       {tab === 'reviews' && <ReviewsTab supabase={supabase} from={from} to={to} page={page} />}
       {tab === 'reports' && <ReportsTab supabase={supabase} from={from} to={to} page={page} />}
+      {tab === 'comments' && (
+        <CommentsTab supabase={supabase} postCommentsPage={postCommentsPage} adCommentsPage={adCommentsPage} />
+      )}
     </div>
   );
 }
@@ -449,6 +466,128 @@ async function ReportsTab({ supabase, from, to, page }: { supabase: any; from: n
         </tbody>
       </table>
       <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?tab=reports&page=${p}`} />
+    </div>
+  );
+}
+
+async function CommentsTab({
+  supabase,
+  postCommentsPage,
+  adCommentsPage,
+}: {
+  supabase: any;
+  postCommentsPage: number;
+  adCommentsPage: number;
+}) {
+  const postFrom = (postCommentsPage - 1) * PAGE_SIZE;
+  const postTo = postFrom + PAGE_SIZE - 1;
+  const adFrom = (adCommentsPage - 1) * PAGE_SIZE;
+  const adTo = adFrom + PAGE_SIZE - 1;
+
+  const [postCommentsResult, adCommentsResult] = await Promise.all([
+    supabase
+      .from('post_comments')
+      .select('id, post_id, author_id, body, created_at, users(full_name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(postFrom, postTo),
+    supabase
+      .from('ad_comments')
+      .select('id, ad_id, author_id, body, created_at, users(full_name), ads(title)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(adFrom, adTo),
+  ]);
+
+  const postComments = (postCommentsResult.data ?? []) as unknown as AdminPostCommentRow[];
+  const adComments = (adCommentsResult.data ?? []) as unknown as AdminAdCommentRow[];
+  const postCommentsTotalPages = postCommentsResult.count ? Math.ceil(postCommentsResult.count / PAGE_SIZE) : 1;
+  const adCommentsTotalPages = adCommentsResult.count ? Math.ceil(adCommentsResult.count / PAGE_SIZE) : 1;
+
+  return (
+    <div>
+      <h2 className="mb-3 text-lg font-semibold">Comentarios en publicaciones</h2>
+      {postCommentsResult.error && (
+        <p className="mb-4 text-sm text-red-600">Error cargando comentarios: {postCommentsResult.error.message}</p>
+      )}
+      <table className="mb-4 w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
+        <thead>
+          <tr className="border-b border-gray-200 text-left text-gray-500">
+            <th className="px-4 py-3">Autor</th>
+            <th className="px-4 py-3">Comentario</th>
+            <th className="px-4 py-3">Fecha</th>
+            <th className="px-4 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {postComments.map((comment) => (
+            <tr key={comment.id} className="border-b border-gray-100">
+              <td className="px-4 py-3 font-medium">{comment.users?.full_name ?? '—'}</td>
+              <td className="px-4 py-3 max-w-[360px] text-gray-600">
+                {comment.body}
+                <a href="?tab=posts" className="ml-2 text-xs text-primary underline">
+                  Ver publicación
+                </a>
+              </td>
+              <td className="px-4 py-3">{new Date(comment.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">
+                <PostCommentDeleteButton commentId={comment.id} />
+              </td>
+            </tr>
+          ))}
+          {postComments.length === 0 && !postCommentsResult.error && (
+            <tr>
+              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                No hay comentarios en publicaciones todavía.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <Paginator
+        page={postCommentsPage}
+        totalPages={postCommentsTotalPages}
+        buildHref={(p) => `?tab=comments&post_comments_page=${p}&ad_comments_page=${adCommentsPage}`}
+      />
+
+      <h2 className="mb-3 mt-10 text-lg font-semibold">Comentarios en anuncios</h2>
+      {adCommentsResult.error && (
+        <p className="mb-4 text-sm text-red-600">Error cargando comentarios: {adCommentsResult.error.message}</p>
+      )}
+      <table className="mb-4 w-full border-collapse overflow-hidden rounded-xl bg-white text-sm shadow-sm">
+        <thead>
+          <tr className="border-b border-gray-200 text-left text-gray-500">
+            <th className="px-4 py-3">Autor</th>
+            <th className="px-4 py-3">Anuncio</th>
+            <th className="px-4 py-3">Comentario</th>
+            <th className="px-4 py-3">Fecha</th>
+            <th className="px-4 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {adComments.map((comment) => (
+            <tr key={comment.id} className="border-b border-gray-100">
+              <td className="px-4 py-3 font-medium">{comment.users?.full_name ?? '—'}</td>
+              <td className="px-4 py-3">{comment.ads?.title ?? '—'}</td>
+              <td className="px-4 py-3 max-w-[300px] text-gray-600">{comment.body}</td>
+              <td className="px-4 py-3">{new Date(comment.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">
+                <AdCommentDeleteButton commentId={comment.id} />
+              </td>
+            </tr>
+          ))}
+          {adComments.length === 0 && !adCommentsResult.error && (
+            <tr>
+              <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                No hay comentarios en anuncios todavía.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <Paginator
+        page={adCommentsPage}
+        totalPages={adCommentsTotalPages}
+        buildHref={(p) => `?tab=comments&post_comments_page=${postCommentsPage}&ad_comments_page=${p}`}
+      />
     </div>
   );
 }

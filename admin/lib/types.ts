@@ -59,6 +59,25 @@ export interface AdminPostRow {
   users: { full_name: string } | null;
 }
 
+export interface AdminPostCommentRow {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  users: { full_name: string } | null;
+}
+
+export interface AdminAdCommentRow {
+  id: string;
+  ad_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  users: { full_name: string } | null;
+  ads: { title: string } | null;
+}
+
 export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
 
 export interface AdminAdRow {
