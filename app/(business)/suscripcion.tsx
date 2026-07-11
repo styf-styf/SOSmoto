@@ -207,14 +207,9 @@ export default function SuscripcionScreen() {
             <View style={styles.featureList}>
               <Text style={styles.feature}>Productos: {limitLabel(plan.max_products)}</Text>
               <Text style={styles.feature}>Servicios: {limitLabel(plan.max_services)}</Text>
-              <Text style={styles.feature}>Fotos por ítem: {plan.max_photos_per_item}</Text>
+              <Text style={styles.feature}>Fotos por producto/servicio/publicación: {plan.max_photos_per_item}</Text>
               <Text style={styles.feature}>Personas en el equipo: {limitLabel(plan.max_employees)}</Text>
-              <Text style={styles.feature}>
-                Matching de auxilio: {plan.has_priority_matching ? 'con prioridad' : 'normal'}
-              </Text>
-              <Text style={styles.feature}>
-                Posición en búsqueda: {plan.has_featured_listing ? 'destacada' : 'normal'}
-              </Text>
+              <Text style={styles.feature}>Historias activas: {limitLabel(plan.max_active_stories)}</Text>
             </View>
 
             {isOwner && !isCurrent && (

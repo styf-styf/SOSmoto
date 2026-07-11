@@ -142,6 +142,17 @@ module.exports = async (req, res) => {
       .limit(1)
       .maybeSingle();
 
+    const [{ data: servicesData }, { data: productsData }, { data: employeesData }] = await Promise.all([
+      sb.from('services').select('is_active').eq('business_id', business.id),
+      sb.from('products').select('is_active').eq('business_id', business.id),
+      sb.rpc('get_business_employees', { target_business_id: business.id }),
+    ]);
+    const usage = {
+      services: (servicesData || []).filter((s) => s.is_active).length,
+      products: (productsData || []).filter((p) => p.is_active).length,
+      employees: (employeesData || []).length + 1,
+    };
+
     document.getElementById('status').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
@@ -167,7 +178,9 @@ module.exports = async (req, res) => {
         '<div class="price">' + (plan.price_monthly > 0 ? '$' + plan.price_monthly.toFixed(2) + '/mes' : 'Gratis') + '</div>' +
         '<div class="feature">Productos: ' + limitLabel(plan.max_products) + '</div>' +
         '<div class="feature">Servicios: ' + limitLabel(plan.max_services) + '</div>' +
+        '<div class="feature">Fotos por producto/servicio/publicación: ' + plan.max_photos_per_item + '</div>' +
         '<div class="feature">Personas en el equipo: ' + limitLabel(plan.max_employees) + '</div>' +
+        '<div class="feature">Historias activas: ' + limitLabel(plan.max_active_stories) + '</div>' +
         (!isCurrent ? '<button data-plan-id="' + plan.id + '" data-price="' + plan.price_monthly + '" data-plan-name="' + (planLabel[plan.name] || plan.name) + '" class="pay-btn">' +
           (plan.price_monthly > 0 ? 'Obtener plan ' + (planLabel[plan.name] || plan.name) : 'Cambiar a plan ' + (planLabel[plan.name] || plan.name)) +
           '</button>' : '') +
@@ -179,6 +192,7 @@ module.exports = async (req, res) => {
         const planId = btn.getAttribute('data-plan-id');
         const planName = btn.getAttribute('data-plan-name');
         const price = parseFloat(btn.getAttribute('data-price'));
+        const plan = (plans || []).find((p) => p.id === planId);
         const expiresLabel = activeSub && activeSub.expires_at
           ? new Date(activeSub.expires_at).toLocaleDateString('es-EC')
           : null;
@@ -189,6 +203,26 @@ module.exports = async (req, res) => {
               'El plan se activa de inmediato en cuanto se confirme el pago.',
             ]
           : ['Vas a cambiar a un plan gratuito.'];
+
+        if (price <= 0 && plan) {
+          const warnings = [];
+          if (plan.max_services !== null && usage.services > plan.max_services) {
+            warnings.push('tienes ' + usage.services + ' servicios activos (el plan permite ' + plan.max_services + ')');
+          }
+          if (plan.max_products !== null && usage.products > plan.max_products) {
+            warnings.push('tienes ' + usage.products + ' productos activos (el plan permite ' + plan.max_products + ')');
+          }
+          if (plan.max_employees !== null && usage.employees > plan.max_employees) {
+            warnings.push('tienes ' + usage.employees + ' personas en el equipo (el plan permite ' + plan.max_employees + ')');
+          }
+          if (warnings.length > 0) {
+            lines.push(
+              'Al cambiarte a ' + planName + ', ' + warnings.join('; ') +
+                '. No se eliminará nada, pero no podrás agregar más hasta bajar de esos números.'
+            );
+          }
+        }
+
         if (expiresLabel) {
           lines.push(
             (price > 0 ? 'Esto reemplaza' : 'Perderás') +
