@@ -84,13 +84,33 @@ export default function SuscripcionScreen() {
   async function handleSwitch(plan: SubscriptionPlan) {
     if (!business) return;
 
+    const expiresAtLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('es-EC') : null;
+
     if (plan.price_monthly > 0) {
-      setSwitching(plan.id);
-      try {
-        await openPortal();
-      } finally {
-        setSwitching(null);
+      const lines = [
+        `Pagarás $${plan.price_monthly.toFixed(2)}/mes vía Payphone en el portal web.`,
+        'El plan se activa de inmediato en cuanto se confirme el pago.',
+      ];
+      if (expiresAtLabel) {
+        lines.push(
+          `Esto reemplaza tu plan actual (vencía el ${expiresAtLabel}); los días que te quedaban no se prorratean ni se reembolsan.`
+        );
       }
+
+      Alert.alert(`Obtener plan ${planLabel[plan.name] ?? plan.name}`, lines.join('\n\n'), [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar al pago',
+          onPress: async () => {
+            setSwitching(plan.id);
+            try {
+              await openPortal();
+            } finally {
+              setSwitching(null);
+            }
+          },
+        },
+      ]);
       return;
     }
 
@@ -105,17 +125,25 @@ export default function SuscripcionScreen() {
       warnings.push(`tienes ${usage.employees} personas en el equipo (el plan permite ${plan.max_employees})`);
     }
 
+    const lines: string[] = [];
+    if (warnings.length > 0) {
+      lines.push(
+        `Al cambiarte a ${planLabel[plan.name]}, ${warnings.join('; ')}. No se eliminará nada, pero no podrás agregar más hasta bajar de esos números.`
+      );
+    }
+    if (expiresAtLabel) {
+      lines.push(
+        `Perderás el plan pago que tienes activo (vencía el ${expiresAtLabel}); los días que te quedaban no se reembolsan.`
+      );
+    }
+
     const proceed = () => doSwitch(plan.id);
 
-    if (warnings.length > 0) {
-      Alert.alert(
-        'Estás por encima del límite de este plan',
-        `Al cambiarte a ${planLabel[plan.name]}, ${warnings.join('; ')}. No se eliminará nada, pero no podrás agregar más hasta bajar de esos números. ¿Continuar?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Cambiar de todas formas', onPress: proceed },
-        ]
-      );
+    if (lines.length > 0) {
+      Alert.alert(`Cambiar a plan ${planLabel[plan.name]}`, lines.join('\n\n'), [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cambiar de todas formas', onPress: proceed },
+      ]);
     } else {
       proceed();
     }
@@ -191,7 +219,7 @@ export default function SuscripcionScreen() {
 
             {isOwner && !isCurrent && (
               <Button
-                title={plan.price_monthly > 0 ? 'Pagar desde el portal web' : 'Cambiar a este plan'}
+                title={plan.price_monthly > 0 ? `Obtener plan ${planLabel[plan.name] ?? plan.name}` : `Cambiar a plan ${planLabel[plan.name] ?? plan.name}`}
                 variant="secondary"
                 onPress={() => handleSwitch(plan)}
                 loading={switching === plan.id}

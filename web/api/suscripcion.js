@@ -168,8 +168,8 @@ module.exports = async (req, res) => {
         '<div class="feature">Productos: ' + limitLabel(plan.max_products) + '</div>' +
         '<div class="feature">Servicios: ' + limitLabel(plan.max_services) + '</div>' +
         '<div class="feature">Personas en el equipo: ' + limitLabel(plan.max_employees) + '</div>' +
-        (!isCurrent ? '<button data-plan-id="' + plan.id + '" data-price="' + plan.price_monthly + '" class="pay-btn">' +
-          (plan.price_monthly > 0 ? 'Pagar y cambiar a ' + (planLabel[plan.name] || plan.name) : 'Cambiar a este plan') +
+        (!isCurrent ? '<button data-plan-id="' + plan.id + '" data-price="' + plan.price_monthly + '" data-plan-name="' + (planLabel[plan.name] || plan.name) + '" class="pay-btn">' +
+          (plan.price_monthly > 0 ? 'Obtener plan ' + (planLabel[plan.name] || plan.name) : 'Cambiar a plan ' + (planLabel[plan.name] || plan.name)) +
           '</button>' : '') +
         '</div>';
     }).join('');
@@ -177,7 +177,29 @@ module.exports = async (req, res) => {
     document.querySelectorAll('.pay-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const planId = btn.getAttribute('data-plan-id');
+        const planName = btn.getAttribute('data-plan-name');
         const price = parseFloat(btn.getAttribute('data-price'));
+        const expiresLabel = activeSub && activeSub.expires_at
+          ? new Date(activeSub.expires_at).toLocaleDateString('es-EC')
+          : null;
+
+        const lines = price > 0
+          ? [
+              'Pagarás $' + price.toFixed(2) + '/mes vía Payphone.',
+              'El plan se activa de inmediato en cuanto se confirme el pago.',
+            ]
+          : ['Vas a cambiar a un plan gratuito.'];
+        if (expiresLabel) {
+          lines.push(
+            (price > 0 ? 'Esto reemplaza' : 'Perderás') +
+              ' tu plan actual (vencía el ' + expiresLabel + '); los días que te quedaban no se ' +
+              (price > 0 ? 'prorratean ni se reembolsan.' : 'reembolsan.')
+          );
+        }
+        if (!window.confirm((price > 0 ? 'Obtener plan ' : 'Cambiar a plan ') + planName + '\n\n' + lines.join('\n'))) {
+          return;
+        }
+
         btn.disabled = true;
         btn.textContent = 'Procesando...';
 
