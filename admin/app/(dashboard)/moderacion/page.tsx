@@ -167,41 +167,66 @@ async function PostsTab({ supabase, from, to, page }: { supabase: any; from: num
 
   const posts = (data ?? []) as unknown as AdminPostRow[];
   const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1;
+  const postsWithPhoto = posts.filter((post) => post.photos.length > 0);
+  const postsWithoutPhoto = posts.filter((post) => post.photos.length === 0);
 
   return (
     <div>
       <p className="mb-4 text-sm text-gray-500">Contenido permanente subido por clientes y negocios.</p>
       {error && <p className="text-sm text-red-600">Error cargando publicaciones: {error.message}</p>}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-        {posts.map((post) => (
-          <div key={post.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <a href={`/moderacion/publicacion/${post.id}`}>
-              {post.photos[0] ? (
+
+      {postsWithPhoto.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+          {postsWithPhoto.map((post) => (
+            <div key={post.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
+              <a href={`/moderacion/publicacion/${post.id}`}>
                 <img src={post.photos[0]} alt="" className="h-48 w-full object-cover" />
-              ) : (
-                <div className="flex h-48 w-full items-center justify-center bg-gray-100 text-sm text-gray-400">
-                  Sin imagen
+              </a>
+              <div className="p-3">
+                <p className="text-sm font-semibold">
+                  {post.businesses?.name ?? post.users?.full_name ?? 'Usuario'}
+                  {post.client_id ? ' (cliente)' : ''}
+                </p>
+                {post.caption && <p className="mt-1 text-sm text-gray-600">{post.caption}</p>}
+                <p className="mt-1 text-xs text-gray-400">{post.comments_count} comentario(s)</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <a href={`/moderacion/publicacion/${post.id}`} className="text-xs text-primary underline">
+                    Ver detalle
+                  </a>
+                  <PostDeleteButton postId={post.id} />
                 </div>
-              )}
-            </a>
-            <div className="p-3">
-              <p className="text-sm font-semibold">
-                {post.businesses?.name ?? post.users?.full_name ?? 'Usuario'}
-                {post.client_id ? ' (cliente)' : ''}
-              </p>
-              {post.caption && <p className="mt-1 text-sm text-gray-600">{post.caption}</p>}
-              <p className="mt-1 text-xs text-gray-400">{post.comments_count} comentario(s)</p>
-              <div className="mt-2 flex items-center gap-3">
-                <a href={`/moderacion/publicacion/${post.id}`} className="text-xs text-primary underline">
-                  Ver detalle
-                </a>
-                <PostDeleteButton postId={post.id} />
               </div>
             </div>
-          </div>
-        ))}
-        {posts.length === 0 && !error && <p className="text-sm text-gray-500">No hay publicaciones.</p>}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {postsWithoutPhoto.length > 0 && (
+        <div className={postsWithPhoto.length > 0 ? 'mt-6 space-y-3' : 'space-y-3'}>
+          {postsWithoutPhoto.map((post) => (
+            <div key={post.id} className="rounded-xl bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <a href={`/moderacion/publicacion/${post.id}`} className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">
+                    {post.businesses?.name ?? post.users?.full_name ?? 'Usuario'}
+                    {post.client_id ? ' (cliente)' : ''}
+                  </p>
+                  {post.caption && <p className="mt-1 text-sm text-gray-600">{post.caption}</p>}
+                  <p className="mt-1 text-xs text-gray-400">{post.comments_count} comentario(s)</p>
+                </a>
+                <div className="flex shrink-0 items-center gap-3">
+                  <a href={`/moderacion/publicacion/${post.id}`} className="text-xs text-primary underline">
+                    Ver detalle
+                  </a>
+                  <PostDeleteButton postId={post.id} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {posts.length === 0 && !error && <p className="text-sm text-gray-500">No hay publicaciones.</p>}
       <Paginator page={page} totalPages={totalPages} buildHref={(p) => `?tab=posts&page=${p}`} />
     </div>
   );
