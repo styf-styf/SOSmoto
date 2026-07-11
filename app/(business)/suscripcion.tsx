@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
@@ -15,6 +16,12 @@ const planLabel: Record<string, string> = {
   free: 'Free',
   standard: 'Estándar',
   pro: 'Pro',
+};
+
+const dashboardTierLabel: Record<string, string> = {
+  free: 'Básico',
+  standard: 'Intermedio',
+  pro: 'Avanzado',
 };
 
 function limitLabel(value: number | null): string {
@@ -194,28 +201,58 @@ export default function SuscripcionScreen() {
 
       {plans.map((plan) => {
         const isCurrent = plan.id === business.plan_id;
+        const features = [
+          { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
+          { label: `Servicios: ${limitLabel(plan.max_services)}`, available: true },
+          { label: `Fotos por producto/servicio/publicación: ${plan.max_photos_per_item}`, available: true },
+          { label: `Personas en el equipo: ${limitLabel(plan.max_employees)}`, available: true },
+          { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
+          { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
+          { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
+        ];
         return (
           <View key={plan.id} style={[styles.card, isCurrent && styles.cardCurrent]}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{planLabel[plan.name] ?? plan.name}</Text>
-              {isCurrent && <Text style={styles.currentBadge}>Tu plan actual</Text>}
+              {isCurrent && (
+                <View style={styles.currentBadge}>
+                  <Text style={styles.currentBadgeText}>Tu plan actual</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.cardPrice}>
-              {plan.price_monthly > 0 ? `$${plan.price_monthly.toFixed(2)}/mes` : 'Gratis'}
-            </Text>
+
+            <View style={styles.priceRow}>
+              {plan.price_monthly > 0 ? (
+                <>
+                  <Text style={styles.priceAmount}>${plan.price_monthly.toFixed(2)}</Text>
+                  <Text style={styles.pricePeriod}>/mes</Text>
+                </>
+              ) : (
+                <Text style={styles.priceAmount}>Gratis</Text>
+              )}
+            </View>
+
+            <View style={styles.divider} />
 
             <View style={styles.featureList}>
-              <Text style={styles.feature}>Productos: {limitLabel(plan.max_products)}</Text>
-              <Text style={styles.feature}>Servicios: {limitLabel(plan.max_services)}</Text>
-              <Text style={styles.feature}>Fotos por producto/servicio/publicación: {plan.max_photos_per_item}</Text>
-              <Text style={styles.feature}>Personas en el equipo: {limitLabel(plan.max_employees)}</Text>
-              <Text style={styles.feature}>Historias activas: {limitLabel(plan.max_active_stories)}</Text>
+              {features.map((feature) => (
+                <View key={feature.label} style={styles.featureRow}>
+                  <Ionicons
+                    name={feature.available ? 'checkmark-circle' : 'remove-circle-outline'}
+                    size={18}
+                    color={feature.available ? colors.primary : colors.border}
+                  />
+                  <Text style={[styles.feature, !feature.available && styles.featureUnavailable]}>
+                    {feature.label}
+                  </Text>
+                </View>
+              ))}
             </View>
 
             {isOwner && !isCurrent && (
               <Button
                 title={plan.price_monthly > 0 ? `Obtener plan ${planLabel[plan.name] ?? plan.name}` : `Cambiar a plan ${planLabel[plan.name] ?? plan.name}`}
-                variant="secondary"
+                variant={plan.price_monthly > 0 ? 'primary' : 'secondary'}
                 onPress={() => handleSwitch(plan)}
                 loading={switching === plan.id}
                 style={styles.switchButton}
@@ -262,16 +299,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
   cardCurrent: {
     borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
+    borderWidth: 2,
+    backgroundColor: '#FFF8F2',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -279,30 +322,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: colors.text,
   },
   currentBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  cardPrice: {
+  currentBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: 10,
+    marginBottom: 14,
+  },
+  priceAmount: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: colors.primary,
+    lineHeight: 42,
+  },
+  pricePeriod: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
-    marginTop: 4,
-    marginBottom: 10,
+    color: colors.textMuted,
+    marginLeft: 4,
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 14,
   },
   featureList: {
-    gap: 4,
+    gap: 12,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   feature: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 19,
+  },
+  featureUnavailable: {
     color: colors.textMuted,
   },
   switchButton: {
-    marginTop: 14,
+    marginTop: 20,
   },
 });

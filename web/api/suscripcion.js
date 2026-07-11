@@ -10,14 +10,21 @@ module.exports = async (req, res) => {
   .container { max-width: 480px; margin: 0 auto; }
   h1 { font-size: 22px; margin-bottom: 4px; }
   .helper { color: #666; font-size: 13px; margin-bottom: 20px; }
-  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid #e0e0e0; }
-  .card.current { border-color: #FF6B00; background: #FFF1E6; }
+  .card { background: #fff; border-radius: 20px; padding: 20px; margin-bottom: 16px; border: 1px solid #e0e0e0; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+  .card.current { border-color: #FF6B00; border-width: 2px; background: #FFF8F2; }
   .card-header { display: flex; justify-content: space-between; align-items: center; }
-  .card-title { font-size: 17px; font-weight: 700; }
-  .badge { font-size: 12px; font-weight: 600; color: #FF6B00; }
-  .price { font-size: 15px; font-weight: 600; margin: 4px 0 10px; }
-  .feature { font-size: 13px; color: #555; margin-bottom: 2px; }
-  button { width: 100%; padding: 12px; background: #FF6B00; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  .card-title { font-size: 20px; font-weight: 800; }
+  .badge { font-size: 11px; font-weight: 700; color: #fff; background: #FF6B00; border-radius: 999px; padding: 4px 10px; }
+  .price-row { display: flex; align-items: flex-end; margin: 10px 0 14px; }
+  .price-amount { font-size: 38px; font-weight: 800; color: #FF6B00; line-height: 1; }
+  .price-period { font-size: 15px; font-weight: 600; color: #666; margin-left: 4px; }
+  .divider { height: 1px; background: #e5e5ea; margin-bottom: 14px; }
+  .feature-list { display: flex; flex-direction: column; gap: 12px; }
+  .feature { font-size: 14px; color: #1a1a1a; display: flex; align-items: center; gap: 10px; }
+  .feature.unavailable { color: #999; }
+  .feature .check { color: #FF6B00; font-size: 16px; flex-shrink: 0; }
+  .feature .no-check { color: #e5e5ea; font-size: 16px; flex-shrink: 0; }
+  button { width: 100%; padding: 14px; background: #FF6B00; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px; }
   button:disabled { opacity: 0.6; }
   .top-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
   #logoutBtn { width: auto; background: none; color: #c0392b; font-weight: 600; font-size: 13px; padding: 6px 8px; margin-top: 0; }
@@ -65,6 +72,7 @@ module.exports = async (req, res) => {
   );
 
   const planLabel = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
+  const dashboardTierLabel = { free: 'Básico', standard: 'Intermedio', pro: 'Avanzado' };
   function limitLabel(v) { return v === null ? 'Ilimitado' : v; }
 
   async function init() {
@@ -208,15 +216,32 @@ module.exports = async (req, res) => {
     const plansEl = document.getElementById('plans');
     plansEl.innerHTML = (plans || []).map((plan) => {
       const isCurrent = plan.id === business.plan_id;
+      const features = [
+        { label: 'Productos: ' + limitLabel(plan.max_products), available: true },
+        { label: 'Servicios: ' + limitLabel(plan.max_services), available: true },
+        { label: 'Fotos por producto/servicio/publicación: ' + plan.max_photos_per_item, available: true },
+        { label: 'Personas en el equipo: ' + limitLabel(plan.max_employees), available: true },
+        { label: 'Historias activas: ' + limitLabel(plan.max_active_stories), available: true },
+        { label: 'Dashboard/métricas: ' + (dashboardTierLabel[plan.name] || plan.name), available: true },
+        { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
+      ];
       return '<div class="card ' + (isCurrent ? 'current' : '') + '">' +
         '<div class="card-header"><span class="card-title">' + (planLabel[plan.name] || plan.name) + '</span>' +
         (isCurrent ? '<span class="badge">Tu plan actual</span>' : '') + '</div>' +
-        '<div class="price">' + (plan.price_monthly > 0 ? '$' + plan.price_monthly.toFixed(2) + '/mes' : 'Gratis') + '</div>' +
-        '<div class="feature">Productos: ' + limitLabel(plan.max_products) + '</div>' +
-        '<div class="feature">Servicios: ' + limitLabel(plan.max_services) + '</div>' +
-        '<div class="feature">Fotos por producto/servicio/publicación: ' + plan.max_photos_per_item + '</div>' +
-        '<div class="feature">Personas en el equipo: ' + limitLabel(plan.max_employees) + '</div>' +
-        '<div class="feature">Historias activas: ' + limitLabel(plan.max_active_stories) + '</div>' +
+        '<div class="price-row">' +
+          (plan.price_monthly > 0
+            ? '<span class="price-amount">$' + plan.price_monthly.toFixed(2) + '</span><span class="price-period">/mes</span>'
+            : '<span class="price-amount">Gratis</span>') +
+        '</div>' +
+        '<div class="divider"></div>' +
+        '<div class="feature-list">' +
+        features.map((f) =>
+          '<div class="feature' + (f.available ? '' : ' unavailable') + '">' +
+            '<span class="' + (f.available ? 'check' : 'no-check') + '">' + (f.available ? '&#10003;' : '&#8854;') + '</span>' +
+            '<span>' + f.label + '</span>' +
+          '</div>'
+        ).join('') +
+        '</div>' +
         (!isCurrent ? '<button data-plan-id="' + plan.id + '" data-price="' + plan.price_monthly + '" data-plan-name="' + (planLabel[plan.name] || plan.name) + '" class="pay-btn">' +
           (plan.price_monthly > 0 ? 'Obtener plan ' + (planLabel[plan.name] || plan.name) : 'Cambiar a plan ' + (planLabel[plan.name] || plan.name)) +
           '</button>' : '') +

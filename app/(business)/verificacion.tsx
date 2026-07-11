@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
+import { getPlanLimits } from '../../services/catalog';
 import { pickImageFromLibrary, uploadKycDocument } from '../../services/storage';
 import { createVerificationRequest, getLatestVerificationRequest } from '../../services/verification';
 import type { Business, BusinessVerificationRequest } from '../../types/database';
@@ -32,6 +33,7 @@ export default function VerificacionScreen() {
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [latestRequest, setLatestRequest] = useState<BusinessVerificationRequest | null>(null);
+  const [planName, setPlanName] = useState('free');
   const [loading, setLoading] = useState(true);
 
   const [idDoc, setIdDoc] = useState<DocState>(emptyDoc);
@@ -45,7 +47,12 @@ export default function VerificacionScreen() {
     const work = await getMyWorkBusiness(profile.id);
     setBusiness(work?.business ?? null);
     if (work?.business) {
-      setLatestRequest(await getLatestVerificationRequest(work.business.id));
+      const [request, limits] = await Promise.all([
+        getLatestVerificationRequest(work.business.id),
+        getPlanLimits(work.business.id),
+      ]);
+      setLatestRequest(request);
+      setPlanName(limits.planName);
     }
   }, [profile]);
 
@@ -123,6 +130,24 @@ export default function VerificacionScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.placeholder}>Primero crea tu negocio.</Text>
+      </View>
+    );
+  }
+
+  if (planName === 'free' && !business.is_verified) {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="lock-closed-outline" size={48} color={colors.textMuted} />
+        <Text style={styles.statusTitle}>Verificación disponible en planes pagos</Text>
+        <Text style={styles.placeholder}>
+          La insignia de "verificado" está disponible para negocios en plan Estándar o Pro. Sube de plan para
+          solicitarla.
+        </Text>
+        <Button
+          title="Ver planes"
+          onPress={() => router.push('/(business)/suscripcion')}
+          style={styles.submitButton}
+        />
       </View>
     );
   }
