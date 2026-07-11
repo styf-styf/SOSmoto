@@ -79,6 +79,7 @@ module.exports = async (req, res) => {
   async function initInner() {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const targetPlanId = urlParams.get('planId');
     if (code) {
       // Codigo de un solo uso emitido por la app (servicio web-login-ticket)
       // para auto-loguear sin pedir email/contraseña de nuevo en el portal.
@@ -152,6 +153,41 @@ module.exports = async (req, res) => {
       products: (productsData || []).filter((p) => p.is_active).length,
       employees: (employeesData || []).length + 1,
     };
+
+    async function executeSwitch(planId) {
+      const targetPrice = ((plans || []).find((p) => p.id === planId) || {}).price_monthly || 0;
+      if (targetPrice <= 0) {
+        const { error } = await sb.from('businesses').update({ plan_id: planId }).eq('id', business.id);
+        if (error) { alert('No se pudo cambiar de plan.'); return false; }
+        window.location.reload();
+        return true;
+      }
+
+      const { data, error } = await sb.functions.invoke('payphone-prepare', {
+        body: { businessId: business.id, planId },
+      });
+      if (error || (data && data.error)) {
+        alert('No se pudo iniciar el pago: ' + ((data && data.error) || (error && error.message)));
+        return false;
+      }
+      window.location.href = data.checkoutUrl;
+      return true;
+    }
+
+    // Si la app mandó un plan preseleccionado (usuario ya confirmó ahí),
+    // saltamos la lista de planes e iniciamos el pago directamente.
+    const preselectedPlan = targetPlanId ? (plans || []).find((p) => p.id === targetPlanId) : null;
+    if (preselectedPlan && preselectedPlan.id !== business.plan_id) {
+      document.getElementById('status').textContent = 'Redirigiendo al pago...';
+      document.getElementById('status').style.display = 'block';
+      const ok = await executeSwitch(preselectedPlan.id);
+      if (!ok) {
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+      } else {
+        return;
+      }
+    }
 
     document.getElementById('status').style.display = 'none';
     document.getElementById('content').style.display = 'block';
@@ -237,23 +273,11 @@ module.exports = async (req, res) => {
         btn.disabled = true;
         btn.textContent = 'Procesando...';
 
-        if (price <= 0) {
-          const { error } = await sb.from('businesses').update({ plan_id: planId }).eq('id', business.id);
-          if (error) { alert('No se pudo cambiar de plan.'); btn.disabled = false; return; }
-          window.location.reload();
-          return;
-        }
-
-        const { data, error } = await sb.functions.invoke('payphone-prepare', {
-          body: { businessId: business.id, planId },
-        });
-        if (error || (data && data.error)) {
-          alert('No se pudo iniciar el pago: ' + ((data && data.error) || (error && error.message)));
+        const ok = await executeSwitch(planId);
+        if (!ok) {
           btn.disabled = false;
-          btn.textContent = 'Reintentar';
-          return;
+          btn.textContent = price > 0 ? 'Reintentar' : 'Cambiar a plan ' + planName;
         }
-        window.location.href = data.checkoutUrl;
       });
     });
   }

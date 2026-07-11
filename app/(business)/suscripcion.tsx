@@ -67,15 +67,15 @@ export default function SuscripcionScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  async function openPortal() {
+  async function openPortal(planId: string) {
     try {
       const code = await getWebLoginCode();
-      await Linking.openURL(`${SUBSCRIPTION_PORTAL_URL}?code=${code}`);
+      await Linking.openURL(`${SUBSCRIPTION_PORTAL_URL}?code=${code}&planId=${planId}`);
     } catch (err) {
       console.error('open portal error', err);
       // Si no se pudo generar el código de auto-login, igual lo dejamos
-      // entrar y que se loguee a mano en el portal.
-      Linking.openURL(SUBSCRIPTION_PORTAL_URL).catch(() =>
+      // entrar y que se loguee a mano en el portal (ya con el plan preseleccionado).
+      Linking.openURL(`${SUBSCRIPTION_PORTAL_URL}?planId=${planId}`).catch(() =>
         Alert.alert('Error', 'No se pudo abrir el portal de pagos.')
       );
     }
@@ -88,7 +88,7 @@ export default function SuscripcionScreen() {
 
     if (plan.price_monthly > 0) {
       const lines = [
-        `Pagarás $${plan.price_monthly.toFixed(2)}/mes vía Payphone en el portal web.`,
+        `Pagarás $${plan.price_monthly.toFixed(2)}/mes vía Payphone.`,
         'El plan se activa de inmediato en cuanto se confirme el pago.',
       ];
       if (expiresAtLabel) {
@@ -104,7 +104,7 @@ export default function SuscripcionScreen() {
           onPress: async () => {
             setSwitching(plan.id);
             try {
-              await openPortal();
+              await openPortal(plan.id);
             } finally {
               setSwitching(null);
             }
