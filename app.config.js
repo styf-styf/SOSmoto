@@ -7,6 +7,12 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
+    updates: {
+      url: 'https://u.expo.dev/ec5d68aa-d944-4fa3-80dc-0af8f3cddb9d',
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sosmoto.app',

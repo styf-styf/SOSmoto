@@ -263,7 +263,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         </View>
         {mode === 'self' && (
           <Pressable onPress={() => router.push('/(business)/configuracion')}>
-            <Ionicons name="settings-outline" size={24} color={colors.text} />
+            <Ionicons name="menu" size={26} color={colors.text} />
           </Pressable>
         )}
       </View>
