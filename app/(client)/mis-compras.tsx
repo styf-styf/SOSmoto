@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -43,6 +43,7 @@ export default function MisComprasScreen() {
   const [purchases, setPurchases] = useState<MyProductPurchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -57,10 +58,15 @@ export default function MisComprasScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      load()
-        .catch((err) => console.error('load mis compras error', err))
-        .finally(() => setLoading(false));
+      if (!didInitialLoadRef.current) {
+        didInitialLoadRef.current = true;
+        setLoading(true);
+        load()
+          .catch((err) => console.error('load mis compras error', err))
+          .finally(() => setLoading(false));
+      } else {
+        load().catch((err) => console.error('load mis compras error', err));
+      }
     }, [load])
   );
 

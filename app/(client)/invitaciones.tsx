@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, Pressable,
   ScrollView, StyleSheet, Text, View,
@@ -23,6 +23,7 @@ export default function InvitacionesScreen() {
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -32,10 +33,15 @@ export default function InvitacionesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      load()
-        .catch((err) => console.error('load invitations error', err))
-        .finally(() => setLoading(false));
+      if (!didInitialLoadRef.current) {
+        didInitialLoadRef.current = true;
+        setLoading(true);
+        load()
+          .catch((err) => console.error('load invitations error', err))
+          .finally(() => setLoading(false));
+      } else {
+        load().catch((err) => console.error('load invitations error', err));
+      }
     }, [load])
   );
 

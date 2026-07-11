@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +34,7 @@ export default function ClienteDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingIntentId, setProcessingIntentId] = useState<string | null>(null);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile || !id) return;
@@ -88,10 +89,15 @@ export default function ClienteDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      load()
-        .catch((err) => console.error('load cliente detail error', err))
-        .finally(() => setLoading(false));
+      if (!didInitialLoadRef.current) {
+        didInitialLoadRef.current = true;
+        setLoading(true);
+        load()
+          .catch((err) => console.error('load cliente detail error', err))
+          .finally(() => setLoading(false));
+      } else {
+        load().catch((err) => console.error('load cliente detail error', err));
+      }
     }, [load])
   );
 

@@ -39,6 +39,16 @@ module.exports = {
     },
     plugins: [
       'expo-router',
+      ['./plugins/withAndroidSplashIconBackground.js', { backgroundColor: '#FF6B00' }],
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/splash-icon-white.png',
+          imageWidth: 180,
+          resizeMode: 'contain',
+          backgroundColor: '#FF6B00',
+        },
+      ],
       [
         'expo-location',
         {
@@ -48,6 +58,7 @@ module.exports = {
       [
         'expo-notifications',
         {
+          icon: './assets/notification-icon.png',
           color: '#FF6B00',
         },
       ],

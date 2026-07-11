@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, View,
@@ -34,6 +34,7 @@ export default function ClientesScreen() {
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [isStore, setIsStore] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -54,10 +55,15 @@ export default function ClientesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      load()
-        .catch((err) => console.error('load crm clients error', err))
-        .finally(() => setLoading(false));
+      if (!didInitialLoadRef.current) {
+        didInitialLoadRef.current = true;
+        setLoading(true);
+        load()
+          .catch((err) => console.error('load crm clients error', err))
+          .finally(() => setLoading(false));
+      } else {
+        load().catch((err) => console.error('load crm clients error', err));
+      }
     }, [load])
   );
 

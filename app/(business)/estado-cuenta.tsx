@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ export default function EstadoCuentaScreen() {
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -20,10 +21,15 @@ export default function EstadoCuentaScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      load()
-        .catch((err) => console.error('load estado cuenta error', err))
-        .finally(() => setLoading(false));
+      if (!didInitialLoadRef.current) {
+        didInitialLoadRef.current = true;
+        setLoading(true);
+        load()
+          .catch((err) => console.error('load estado cuenta error', err))
+          .finally(() => setLoading(false));
+      } else {
+        load().catch((err) => console.error('load estado cuenta error', err));
+      }
     }, [load])
   );
 

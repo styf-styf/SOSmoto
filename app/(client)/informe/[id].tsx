@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../../components/Button';
@@ -17,14 +17,17 @@ export default function InformeClienteScreen() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      const isInitial = !didInitialLoadRef.current;
+      didInitialLoadRef.current = true;
+      if (isInitial) setLoading(true);
       getServiceReport(id)
         .then((r) => setReport(r))
         .catch((err) => console.error('load report error', err))
-        .finally(() => setLoading(false));
+        .finally(() => { if (isInitial) setLoading(false); });
     }, [id])
   );
 

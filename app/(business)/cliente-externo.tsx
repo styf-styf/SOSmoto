@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -70,11 +70,14 @@ export default function ClienteExternoScreen() {
   const [editEmail, setEditEmail] = useState('');
   const [editVehicles, setEditVehicles] = useState<VehicleForm[]>([]);
   const [saving, setSaving] = useState(false);
+  const didInitialLoadRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       if (!profile || !decodedName) return;
-      setLoading(true);
+      const isInitial = !didInitialLoadRef.current;
+      didInitialLoadRef.current = true;
+      if (isInitial) setLoading(true);
       getMyWorkBusiness(profile.id)
         .then(async (work) => {
           if (!work) return;
@@ -87,7 +90,7 @@ export default function ClienteExternoScreen() {
           setRecord(bcRecord);
         })
         .catch((err) => console.error('load ext client error', err))
-        .finally(() => setLoading(false));
+        .finally(() => { if (isInitial) setLoading(false); });
     }, [profile, decodedName])
   );
 
