@@ -33,12 +33,14 @@ function notFoundPage(message) {
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:${COLORS.surface};margin:0;padding:60px 24px;text-align:center;}
 h1{font-size:16px;color:${COLORS.text};font-weight:600;}
-.brand{color:${COLORS.primary};font-weight:700;font-size:14px;margin-bottom:20px;}
+.brand{color:${COLORS.primary};font-weight:700;font-size:14px;margin-bottom:20px;display:block;}
+.home-link{color:${COLORS.textMuted};font-size:13px;text-decoration:none;margin-top:16px;display:inline-block;}
 </style>
 </head>
 <body>
 <div class="brand">SOSmoto</div>
 <h1>${escapeHtml(message)}</h1>
+<a class="home-link" href="/">‹ Ir al inicio</a>
 </body>
 </html>`;
 }
@@ -210,6 +212,7 @@ body {
   box-shadow: 0 8px 28px rgba(26,26,46,0.12);
 }
 .brand-bar {
+  position: relative;
   padding: 14px 20px 0;
   text-align: center;
 }
@@ -218,6 +221,20 @@ body {
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.2px;
+}
+.home-link {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${COLORS.text};
+  font-size: 18px;
+  text-decoration: none;
 }
 .author-row {
   display: flex;
@@ -519,7 +536,10 @@ body {
 </head>
 <body>
 <div class="card">
-  <div class="brand-bar"><span class="brand">SOSmoto</span></div>
+  <div class="brand-bar">
+    <a class="home-link" href="/" aria-label="Ir al inicio">‹</a>
+    <span class="brand">SOSmoto</span>
+  </div>
   ${authorRowHtml}
   ${carouselHtml}
   <div class="content">
