@@ -18,6 +18,7 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
   const [selected, setSelected] = useState<BusinessResult | null>(null);
   const [planId, setPlanId] = useState(plans[0]?.id ?? '');
   const [expiresAt, setExpiresAt] = useState('');
+  const [unlimited, setUnlimited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,12 +52,12 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
   }
 
   async function handleAssign() {
-    if (!selected || !planId || !expiresAt) return;
+    if (!selected || !planId || (!unlimited && !expiresAt)) return;
     const planLabel = PLAN_LABELS[plans.find((p) => p.id === planId)?.name ?? ''] ?? 'seleccionado';
-    const formatted = new Date(expiresAt).toLocaleDateString('es-EC');
+    const whenLabel = unlimited ? 'sin fecha de corte (no vence nunca)' : `hasta el ${new Date(expiresAt).toLocaleDateString('es-EC')}`;
     if (
       !window.confirm(
-        `¿Asignar el plan ${planLabel} a "${selected.name}" hasta el ${formatted}? Esto reemplaza su plan actual sin pasar por pago ni por las restricciones normales de la promoción.`
+        `¿Asignar el plan ${planLabel} a "${selected.name}" ${whenLabel}? Esto reemplaza su plan actual sin pasar por pago ni por las restricciones normales de la promoción.`
       )
     ) {
       return;
@@ -67,7 +68,7 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
     const res = await fetch('/api/promociones/asignar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ businessId: selected.id, planId, expiresAt }),
+      body: JSON.stringify({ businessId: selected.id, planId, expiresAt: unlimited ? null : expiresAt }),
     });
     setSaving(false);
     if (!res.ok) {
@@ -78,6 +79,7 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
     setSelected(null);
     setQuery('');
     setExpiresAt('');
+    setUnlimited(false);
     router.refresh();
   }
 
@@ -144,14 +146,24 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
             type="date"
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
+            disabled={unlimited}
+            className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
           />
+          <label className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+            <input
+              type="checkbox"
+              checked={unlimited}
+              onChange={(e) => setUnlimited(e.target.checked)}
+              className="h-3.5 w-3.5"
+            />
+            Sin fecha de corte (ilimitado)
+          </label>
         </div>
       </div>
 
       <button
         onClick={handleAssign}
-        disabled={!selected || !planId || !expiresAt || saving}
+        disabled={!selected || !planId || (!unlimited && !expiresAt) || saving}
         className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
       >
         {saving ? 'Asignando...' : 'Asignar plan'}

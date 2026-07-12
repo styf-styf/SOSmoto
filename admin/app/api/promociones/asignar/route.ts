@@ -17,12 +17,19 @@ export async function POST(req: Request) {
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { businessId, planId, expiresAt } = await req.json().catch(() => ({}));
-  if (!businessId || !planId || !expiresAt) {
-    return NextResponse.json({ error: 'Faltan datos (businessId, planId, expiresAt)' }, { status: 400 });
+  if (!businessId || !planId) {
+    return NextResponse.json({ error: 'Faltan datos (businessId, planId)' }, { status: 400 });
   }
-  const expires = new Date(expiresAt);
-  if (Number.isNaN(expires.getTime())) {
-    return NextResponse.json({ error: 'Fecha de corte inválida' }, { status: 400 });
+  // expiresAt puede venir null a propósito (checkbox "Sin fecha de corte") --
+  // check-subscription-expiry ya excluye expires_at null de su revisión, así
+  // que una fila con null nunca vence ni se baja de plan sola.
+  let expiresIso: string | null = null;
+  if (expiresAt) {
+    const expires = new Date(expiresAt);
+    if (Number.isNaN(expires.getTime())) {
+      return NextResponse.json({ error: 'Fecha de corte inválida' }, { status: 400 });
+    }
+    expiresIso = expires.toISOString();
   }
 
   const supabase = createAdminClient();
@@ -51,7 +58,7 @@ export async function POST(req: Request) {
     plan_id: planId,
     status: 'active',
     started_at: now.toISOString(),
-    expires_at: expires.toISOString(),
+    expires_at: expiresIso,
     payment_id: null,
     promotion_id: promo?.id ?? null,
   });
