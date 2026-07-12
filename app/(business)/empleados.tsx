@@ -327,7 +327,9 @@ function EmployeeRow({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{employee.user?.full_name ?? 'Usuario'}</Text>
+        <Text style={styles.cardTitle}>
+          {employee.user?.full_name ?? 'Usuario'} | {employee.job_title || 'Sin cargo asignado'}
+        </Text>
         {isOwner && (
           <View style={styles.cardHeaderActions}>
             <Pressable
@@ -344,7 +346,6 @@ function EmployeeRow({
       </View>
       {employee.user?.email && <Text style={styles.cardMeta}>{employee.user.email}</Text>}
       {employee.user?.phone && <Text style={styles.cardMeta}>{employee.user.phone}</Text>}
-      <Text style={styles.jobTitleText}>{employee.job_title || 'Sin cargo asignado'}</Text>
 
       {!editing ? (
         // Solo informativo -- muestra lo que la persona SÍ tiene autorizado,
@@ -568,12 +569,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 10,
-  },
-  jobTitleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-    marginTop: 6,
   },
   permissionsList: {
     marginTop: 10,
