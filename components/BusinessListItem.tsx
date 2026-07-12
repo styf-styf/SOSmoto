@@ -7,12 +7,14 @@ import type { Business } from '../types/database';
 export function BusinessListItem({
   business,
   distanceKm,
+  hrefPrefix = '/(client)',
 }: {
   business: Business;
   distanceKm?: number | null;
+  hrefPrefix?: '/(client)' | '/(business)';
 }) {
   return (
-    <Pressable style={styles.row} onPress={() => router.push(`/(client)/business/${business.id}`)}>
+    <Pressable style={styles.row} onPress={() => router.push(`${hrefPrefix}/business/${business.id}`)}>
       <View style={styles.icon}>
         <Ionicons name="storefront" size={20} color={colors.primary} />
       </View>

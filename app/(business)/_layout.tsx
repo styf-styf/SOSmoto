@@ -40,7 +40,7 @@ export default function BusinessLayout() {
       <Stack.Screen name="suscripcion" options={{ title: 'Plan y suscripción' }} />
       <Stack.Screen name="agenda-negocio" options={{ title: 'Agenda' }} />
       <Stack.Screen name="mis-compras" options={{ title: 'Mis compras' }} />
-      <Stack.Screen name="tiendas-que-sigo" options={{ title: 'Tiendas que sigo' }} />
+      <Stack.Screen name="buscar" options={{ title: 'Buscar' }} />
       <Stack.Screen name="nueva-cita" options={{ title: 'Nueva cita' }} />
       <Stack.Screen name="nuevo-informe" options={{ title: 'Nuevo informe' }} />
       <Stack.Screen name="informe/[id]" options={{ title: 'Informe de servicio' }} />

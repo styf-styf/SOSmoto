@@ -7,7 +7,7 @@ import { ReportModal } from './ReportModal';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/auth';
-import { getBusinessById, getMyWorkBusiness, updateBusiness } from '../services/businesses';
+import { getBusinessById, getFollowedBusinesses, getMyWorkBusiness, updateBusiness } from '../services/businesses';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../services/follows';
 import { getMyBusinessPosts } from '../services/posts';
 import { createReport } from '../services/reports';
@@ -46,6 +46,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [isOwner, setIsOwner] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [followedStores, setFollowedStores] = useState<Business[]>([]);
   const [following, setFollowing] = useState(false);
   const [viewerBusinessType, setViewerBusinessType] = useState<Business['business_type'] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,12 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
 
     const myPosts = await getMyBusinessPosts(resolvedBusiness.id);
     setPosts(myPosts);
+
+    if (mode === 'self' && resolvedBusiness.business_type === 'workshop' && profile) {
+      getFollowedBusinesses(profile.id)
+        .then(setFollowedStores)
+        .catch((err) => console.error('load followed stores error', err));
+    }
 
     if (mode === 'public') {
       const reviewsResult = await getBusinessReviews(resolvedBusiness.id);
@@ -303,6 +310,11 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       {mode === 'self' && (
         <View style={styles.profileActionsRow}>
           <ProfileActionButton
+            icon="search-outline"
+            label="Buscar"
+            onPress={() => router.push('/(business)/buscar')}
+          />
+          <ProfileActionButton
             icon="grid-outline"
             label="Catálogo"
             onPress={() => router.push('/(business)/catalogo')}
@@ -320,18 +332,11 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             onPress={() => router.push('/(business)/clientes')}
           />
           {business.business_type === 'workshop' ? (
-            <>
-              <ProfileActionButton
-                icon="bag-handle-outline"
-                label="Mis compras"
-                onPress={() => router.push('/(business)/mis-compras')}
-              />
-              <ProfileActionButton
-                icon="heart-outline"
-                label="Tiendas que sigo"
-                onPress={() => router.push('/(business)/tiendas-que-sigo')}
-              />
-            </>
+            <ProfileActionButton
+              icon="bag-handle-outline"
+              label="Mis compras"
+              onPress={() => router.push('/(business)/mis-compras')}
+            />
           ) : (
             <ProfileActionButton
               icon="stats-chart-outline"
@@ -399,6 +404,45 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sobre el negocio</Text>
           <Text style={styles.description}>{business.description}</Text>
+        </View>
+      )}
+
+      {mode === 'self' && business.business_type === 'workshop' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Siguiendo</Text>
+          {followedStores.length === 0 ? (
+            <Text style={styles.placeholderText}>
+              Aún no sigues a ninguna tienda. Búscalas y síguelas para ver sus novedades aquí.
+            </Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followingRow}>
+              {followedStores.map((store) => (
+                <Pressable
+                  key={store.id}
+                  style={styles.followingItem}
+                  onPress={() => router.push(`/(business)/business/${store.id}`)}
+                >
+                  <View style={styles.followingAvatarWrap}>
+                    <View style={styles.followingAvatar}>
+                      {store.logo_url ? (
+                        <Image source={{ uri: store.logo_url }} style={styles.followingAvatarImage} />
+                      ) : (
+                        <Ionicons name="storefront" size={20} color={colors.primary} />
+                      )}
+                    </View>
+                    {store.is_verified && (
+                      <View style={styles.followingVerifiedDot}>
+                        <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                      </View>
+                    )}
+                  </View>
+                  <Text numberOfLines={1} style={styles.followingName}>
+                    {store.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
 
@@ -673,6 +717,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+  },
+  followingRow: {
+    gap: 16,
+  },
+  followingItem: {
+    width: 64,
+    alignItems: 'center',
+  },
+  followingAvatarWrap: {
+    position: 'relative',
+    marginBottom: 6,
+  },
+  followingAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  followingAvatarImage: {
+    width: 56,
+    height: 56,
+  },
+  followingVerifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  followingName: {
+    fontSize: 12,
+    color: colors.text,
+    textAlign: 'center',
   },
   description: {
     fontSize: 14,
