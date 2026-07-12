@@ -73,7 +73,7 @@ export default function SuscripcionScreen() {
       usage: {
         services: services.filter((s) => s.is_active).length,
         products: products.filter((p) => p.is_active).length,
-        employees: employees.length + 1,
+        employees: employees.length,
       },
       expiresAt: activeSub?.expires_at ?? null,
     };
@@ -153,7 +153,7 @@ export default function SuscripcionScreen() {
       warnings.push(`tienes ${usage.products} productos activos (el plan permite ${plan.max_products})`);
     }
     if (plan.max_employees !== null && usage.employees > plan.max_employees) {
-      warnings.push(`tienes ${usage.employees} personas en el equipo (el plan permite ${plan.max_employees})`);
+      warnings.push(`tienes ${usage.employees} personas adicionales en el equipo (el plan permite ${plan.max_employees}, sin contar al dueño)`);
     }
 
     const lines: string[] = [];
@@ -232,7 +232,10 @@ export default function SuscripcionScreen() {
           { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
           { label: `Servicios: ${limitLabel(plan.max_services)}`, available: true },
           { label: `Fotos por producto/servicio/publicación: ${plan.max_photos_per_item}`, available: true },
-          { label: `Personas en el equipo: ${limitLabel(plan.max_employees)}`, available: true },
+          {
+            label: `Personas en el equipo: ${plan.max_employees === 0 ? '(-)' : limitLabel(plan.max_employees)}`,
+            available: true,
+          },
           { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
           { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
           { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },

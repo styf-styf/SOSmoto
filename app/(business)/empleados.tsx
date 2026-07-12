@@ -117,14 +117,14 @@ export default function EmpleadosScreen() {
     );
   }
 
-  const allowedAdditional = limits?.maxEmployees !== null ? (limits?.maxEmployees ?? 0) - 1 : null;
+  const allowedAdditional = limits?.maxEmployees ?? null;
   const atLimit = allowedAdditional !== null && employees.length >= allowedAdditional;
 
   function handleAddPress() {
     if (atLimit) {
       Alert.alert(
         'Límite de plan alcanzado',
-        `Tu plan ${limits?.planName} permite hasta ${limits?.maxEmployees} personas en el negocio (incluyéndote a ti). Sube de plan para agregar más.`
+        `Tu plan ${limits?.planName} permite hasta ${limits?.maxEmployees} personas adicionales en el equipo (sin contar al dueño). Sube de plan para agregar más.`
       );
       return;
     }

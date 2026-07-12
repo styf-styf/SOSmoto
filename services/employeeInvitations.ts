@@ -127,10 +127,9 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
         .from('business_employees')
         .select('id', { count: 'exact', head: true })
         .eq('business_id', inv.business_id);
-      const allowedAdditional = limits.maxEmployees - 1;
-      if ((count ?? 0) >= allowedAdditional) {
+      if ((count ?? 0) >= limits.maxEmployees) {
         throw new Error(
-          `El negocio ya alcanzó el límite de personas de su plan (${limits.planName}, hasta ${limits.maxEmployees}). No se pudo aceptar la invitación.`
+          `El negocio ya alcanzó el límite de personas adicionales de su plan (${limits.planName}, hasta ${limits.maxEmployees}, sin contar al dueño). No se pudo aceptar la invitación.`
         );
       }
     }

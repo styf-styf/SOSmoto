@@ -48,10 +48,9 @@ export async function addEmployeeByEmail(
   const limits = await getPlanLimits(businessId);
   if (limits.maxEmployees !== null) {
     const current = await getEmployees(businessId);
-    const allowedAdditional = limits.maxEmployees - 1;
-    if (current.length >= allowedAdditional) {
+    if (current.length >= limits.maxEmployees) {
       throw new Error(
-        `Tu plan ${limits.planName} permite hasta ${limits.maxEmployees} personas en el negocio (incluyéndote a ti). Sube de plan para agregar más.`
+        `Tu plan ${limits.planName} permite hasta ${limits.maxEmployees} personas adicionales en el equipo (sin contar al dueño). Sube de plan para agregar más.`
       );
     }
   }
