@@ -13,11 +13,13 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AdGridCard } from '../../../components/AdGridCard';
 import { BusinessListItem } from '../../../components/BusinessListItem';
+import { FeedCatalogStrip } from '../../../components/FeedCatalogStrip';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import { getSearchAds, type AdWithBusiness } from '../../../services/ads';
 import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../../services/businesses';
+import { searchCatalog, type FeedCatalogItem } from '../../../services/catalog';
 import type { BusinessType } from '../../../types/database';
 import { applyFreshnessOrder } from '../../../utils/feedOrdering';
 
@@ -44,6 +46,7 @@ export default function BuscarScreen() {
   const [minRating, setMinRating] = useState<number | undefined>(undefined);
   const [only24h, setOnly24h] = useState(false);
   const [results, setResults] = useState<BusinessWithDistance[]>([]);
+  const [catalogResults, setCatalogResults] = useState<FeedCatalogItem[]>([]);
   const [featuredAds, setFeaturedAds] = useState<AdWithBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,15 +75,19 @@ export default function BuscarScreen() {
 
   const search = useCallback(async () => {
     try {
-      const result = await searchBusinesses({
-        query: query || undefined,
-        businessType,
-        serviceName: serviceFilter,
-        coords,
-        minRating,
-        only24h: only24h || undefined,
-      });
+      const [result, catalog] = await Promise.all([
+        searchBusinesses({
+          query: query || undefined,
+          businessType,
+          serviceName: serviceFilter,
+          coords,
+          minRating,
+          only24h: only24h || undefined,
+        }),
+        query.trim() ? searchCatalog({ query }) : Promise.resolve([]),
+      ]);
       setResults(result);
+      setCatalogResults(catalog);
     } catch (err) {
       console.error('search businesses error', err);
     }
@@ -203,6 +210,17 @@ export default function BuscarScreen() {
               <BusinessListItem key={business.id} business={business} distanceKm={business.distance_km} />
             ))
           )}
+
+          {query.trim().length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, styles.catalogSectionTitle]}>Productos y servicios</Text>
+              {catalogResults.length === 0 ? (
+                <Text style={styles.placeholder}>No encontramos productos ni servicios con ese nombre.</Text>
+              ) : (
+                <FeedCatalogStrip items={[]} listItems={catalogResults} role="client" />
+              )}
+            </>
+          )}
         </ScrollView>
       )}
     </View>
@@ -243,6 +261,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
+  },
+  catalogSectionTitle: {
+    marginTop: 20,
   },
   filterRow: {
     flexDirection: 'row',

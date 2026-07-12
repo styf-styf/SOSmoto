@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Category, CategoryKind, Product, ProductVariant, Service } from '../types/database';
+import type { BusinessType, Category, CategoryKind, Product, ProductVariant, Service } from '../types/database';
 
 export async function getProductVariants(productId: string): Promise<ProductVariant[]> {
   const { data, error } = await supabase
@@ -299,6 +299,88 @@ export async function getFeedCatalogPool(limit = 30): Promise<FeedCatalogItem[]>
 
   const merged = [...services, ...products].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return merged.slice(0, limit);
+}
+
+export interface SearchCatalogParams {
+  query: string;
+  // Por default busca productos y servicios -- el buscador del taller solo
+  // pide 'product' (no tiene sentido buscar "servicios" de una tienda).
+  kinds?: ('product' | 'service')[];
+  // Filtra por el tipo de negocio dueño del producto/servicio (ej. el
+  // buscador del taller solo quiere resultados de tiendas/marcas, nunca de
+  // otro taller). Se filtra en el cliente porque Supabase JS no filtra bien
+  // por columnas de una relación embebida sin usar !inner.
+  businessTypeIn?: BusinessType[];
+  limit?: number;
+}
+
+// Búsqueda por texto de productos/servicios a través de TODOS los negocios
+// -- a diferencia de getProductsByCategory/getServicesByCategory (que
+// buscan por categoría) o getFeedCatalogPool (muestra global sin filtro),
+// esta es la que alimenta el buscador de cliente/negocio.
+export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCatalogItem[]> {
+  const term = params.query.trim();
+  if (!term) return [];
+  const kinds = params.kinds ?? ['product', 'service'];
+  const limit = params.limit ?? 30;
+
+  function matchesType(businessType?: BusinessType): boolean {
+    return !params.businessTypeIn?.length || (!!businessType && params.businessTypeIn.includes(businessType));
+  }
+
+  const [productsResult, servicesResult] = await Promise.all([
+    kinds.includes('product')
+      ? supabase
+          .from('products')
+          .select('*, businesses(name, logo_url, business_type)')
+          .eq('is_active', true)
+          .ilike('name', `%${term}%`)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    kinds.includes('service')
+      ? supabase
+          .from('services')
+          .select('*, businesses(name, logo_url, business_type)')
+          .eq('is_active', true)
+          .ilike('name', `%${term}%`)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+      : Promise.resolve({ data: [] as any[], error: null }),
+  ]);
+  if (productsResult.error) throw productsResult.error;
+  if (servicesResult.error) throw servicesResult.error;
+
+  const products: FeedCatalogItem[] = (productsResult.data ?? [])
+    .filter((row: any) => matchesType(row.businesses?.business_type))
+    .map((row: any) => ({
+      kind: 'product',
+      id: row.id,
+      businessId: row.business_id,
+      businessName: row.businesses?.name ?? '',
+      businessLogoUrl: row.businesses?.logo_url ?? undefined,
+      name: row.name,
+      referencePrice: row.reference_price,
+      meta: `Stock: ${row.stock}`,
+      photoUrl: row.photos?.[0],
+      createdAt: row.created_at,
+    }));
+
+  const services: FeedCatalogItem[] = (servicesResult.data ?? [])
+    .filter((row: any) => matchesType(row.businesses?.business_type))
+    .map((row: any) => ({
+      kind: 'service',
+      id: row.id,
+      businessId: row.business_id,
+      businessName: row.businesses?.name ?? '',
+      businessLogoUrl: row.businesses?.logo_url ?? undefined,
+      name: row.name,
+      referencePrice: row.reference_price,
+      photoUrl: row.photos?.[0],
+      createdAt: row.created_at,
+    }));
+
+  return [...products, ...services].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export interface PlanLimits {
