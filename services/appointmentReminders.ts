@@ -29,7 +29,7 @@ export async function scheduleAppointmentReminder(params: {
       content: {
         title: `⏰ Cita en ${REMINDER_MINUTES_BEFORE} min`,
         body: `${params.clientLabel}${params.serviceName ? ` · ${params.serviceName}` : ''}`,
-        data: { appointmentId: params.appointmentId },
+        data: { type: 'appointment_reminder', appointmentId: params.appointmentId },
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
     });

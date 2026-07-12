@@ -274,9 +274,10 @@ function EmployeeRow({
   onRemoved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [editingJobTitle, setEditingJobTitle] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [jobTitle, setJobTitle] = useState(employee.job_title ?? '');
   const [savingJobTitle, setSavingJobTitle] = useState(false);
+  const activePermissions = PERMISSION_ROWS.filter((row) => Boolean(employee[row.field]));
 
   async function handleToggle(key: keyof EmployeePermissions, field: keyof EmployeeWithUser, value: boolean) {
     setBusy(true);
@@ -296,7 +297,7 @@ function EmployeeRow({
       const trimmed = jobTitle.trim() || null;
       await updateEmployeeJobTitle(employee.id, trimmed);
       onUpdated({ ...employee, job_title: trimmed });
-      setEditingJobTitle(false);
+      setEditing(false);
     } catch (err) {
       console.error('update employee job title error', err);
       Alert.alert('Error', 'No se pudo guardar el cargo.');
@@ -331,7 +332,7 @@ function EmployeeRow({
           <View style={styles.cardHeaderActions}>
             <Pressable
               style={styles.iconButtonBox}
-              onPress={() => { setJobTitle(employee.job_title ?? ''); setEditingJobTitle((v) => !v); }}
+              onPress={() => { setJobTitle(employee.job_title ?? ''); setEditing((v) => !v); }}
             >
               <Ionicons name="create-outline" size={16} color={colors.primary} />
             </Pressable>
@@ -343,29 +344,45 @@ function EmployeeRow({
       </View>
       {employee.user?.email && <Text style={styles.cardMeta}>{employee.user.email}</Text>}
       {employee.user?.phone && <Text style={styles.cardMeta}>{employee.user.phone}</Text>}
+      <Text style={styles.jobTitleText}>{employee.job_title || 'Sin cargo asignado'}</Text>
 
-      {!editingJobTitle ? (
-        <Text style={styles.jobTitleText}>{employee.job_title || 'Sin cargo asignado'}</Text>
+      {!editing ? (
+        // Solo informativo -- muestra lo que la persona SÍ tiene autorizado,
+        // no todos los permisos con su switch. Para cambiar algo hay que
+        // entrar a editar.
+        <View style={styles.permissionsList}>
+          {activePermissions.length === 0 ? (
+            <Text style={styles.noPermissionsText}>Sin privilegios activos.</Text>
+          ) : (
+            activePermissions.map((row) => (
+              <View key={row.key} style={styles.permissionRow}>
+                <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+                <Text style={styles.permissionText}>{row.label}</Text>
+              </View>
+            ))
+          )}
+        </View>
       ) : (
         <View style={styles.jobTitleEditBox}>
           <TextField label="Cargo" placeholder={getJobTitlePlaceholder(businessType)} value={jobTitle} onChangeText={setJobTitle} />
+
+          {PERMISSION_ROWS.map((row) => (
+            <View key={row.key} style={styles.cardFooter}>
+              <Text style={styles.cardMeta}>{row.label}</Text>
+              <Switch
+                value={Boolean(employee[row.field])}
+                onValueChange={(value) => handleToggle(row.key, row.field, value)}
+                disabled={busy || !isOwner}
+              />
+            </View>
+          ))}
+
           <View style={styles.editActions}>
             <Button title="Guardar" onPress={handleSaveJobTitle} loading={savingJobTitle} style={styles.flexButton} />
-            <Button title="Cancelar" variant="secondary" onPress={() => setEditingJobTitle(false)} style={styles.flexButton} />
+            <Button title="Cancelar" variant="secondary" onPress={() => setEditing(false)} style={styles.flexButton} />
           </View>
         </View>
       )}
-
-      {PERMISSION_ROWS.map((row) => (
-        <View key={row.key} style={styles.cardFooter}>
-          <Text style={styles.cardMeta}>{row.label}</Text>
-          <Switch
-            value={Boolean(employee[row.field])}
-            onValueChange={(value) => handleToggle(row.key, row.field, value)}
-            disabled={busy || !isOwner}
-          />
-        </View>
-      ))}
     </View>
   );
 }
@@ -557,6 +574,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
     marginTop: 6,
+  },
+  permissionsList: {
+    marginTop: 10,
+    gap: 6,
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  permissionText: {
+    fontSize: 13,
+    color: colors.text,
+  },
+  noPermissionsText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   jobTitleEditBox: {
     marginTop: 8,

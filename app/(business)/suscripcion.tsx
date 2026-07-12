@@ -12,6 +12,10 @@ import { getActiveSubscription, getWebLoginCode } from '../../services/payments'
 import type { Business, SubscriptionPlan } from '../../types/database';
 
 const SUBSCRIPTION_PORTAL_URL = 'https://so-smoto.vercel.app/api/suscripcion';
+// Mismo umbral que el aviso push de check-subscription-expiry -- así el botón
+// de renovar aparece justo cuando le llega esa notificación al dueño.
+const REMINDER_DAYS_BEFORE = 3;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const planLabel: Record<string, string> = {
   free: 'Free',
@@ -109,6 +113,7 @@ export default function SuscripcionScreen() {
     if (!business) return;
 
     const expiresAtLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('es-EC') : null;
+    const isRenewal = plan.id === business.plan_id;
 
     if (plan.price_monthly > 0) {
       const lines = [
@@ -117,11 +122,13 @@ export default function SuscripcionScreen() {
       ];
       if (expiresAtLabel) {
         lines.push(
-          `Esto reemplaza tu plan actual (vencía el ${expiresAtLabel}); los días que te quedaban no se prorratean ni se reembolsan.`
+          isRenewal
+            ? `Tu nueva fecha de vencimiento será 1 mes a partir de hoy; los días que te quedaban del plan actual (vencía el ${expiresAtLabel}) no se acumulan.`
+            : `Esto reemplaza tu plan actual (vencía el ${expiresAtLabel}); los días que te quedaban no se prorratean ni se reembolsan.`
         );
       }
 
-      Alert.alert(`Obtener plan ${planLabel[plan.name] ?? plan.name}`, lines.join('\n\n'), [
+      Alert.alert(isRenewal ? `Renovar plan ${planLabel[plan.name] ?? plan.name}` : `Obtener plan ${planLabel[plan.name] ?? plan.name}`, lines.join('\n\n'), [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Continuar al pago',
@@ -218,6 +225,9 @@ export default function SuscripcionScreen() {
 
       {plans.map((plan) => {
         const isCurrent = plan.id === business.plan_id;
+        const daysLeft = expiresAt ? (new Date(expiresAt).getTime() - Date.now()) / MS_PER_DAY : null;
+        const canRenewSoon =
+          isCurrent && plan.price_monthly > 0 && daysLeft !== null && daysLeft <= REMINDER_DAYS_BEFORE;
         const features = [
           { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
           { label: `Servicios: ${limitLabel(plan.max_services)}`, available: true },
@@ -274,6 +284,20 @@ export default function SuscripcionScreen() {
                 loading={switching === plan.id}
                 style={styles.switchButton}
               />
+            )}
+
+            {isOwner && canRenewSoon && (
+              <>
+                <Text style={styles.renewNotice}>
+                  Tu plan vence en {Math.max(0, Math.ceil(daysLeft!))} día(s). Renueva ahora para no perder tus beneficios.
+                </Text>
+                <Button
+                  title={`Renovar plan ${planLabel[plan.name] ?? plan.name}`}
+                  onPress={() => handleSwitch(plan)}
+                  loading={switching === plan.id}
+                  style={styles.switchButton}
+                />
+              </>
             )}
           </View>
         );
@@ -398,5 +422,11 @@ const styles = StyleSheet.create({
   },
   switchButton: {
     marginTop: 20,
+  },
+  renewNotice: {
+    fontSize: 13,
+    color: colors.warning,
+    fontWeight: '600',
+    marginTop: 16,
   },
 });

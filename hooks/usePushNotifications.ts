@@ -28,6 +28,8 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'appointment_scheduled':
       case 'appointment_cancelled':
       case 'appointment_rejected':
+      case 'appointment_approved':
+      case 'appointment_reminder':
         router.push('/(client)/citas');
         break;
       case 'product_intent':
@@ -38,6 +40,16 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
         break;
       case 'rate_business':
         router.push('/(client)/mis-compras');
+        break;
+      case 'service_report':
+        if (data.reportId) router.push(`/(client)/informe/${data.reportId}`);
+        break;
+      case 'business_invitation':
+        router.push('/(client)/invitaciones');
+        break;
+      case 'account_limited':
+      case 'account_restored':
+        router.push('/(client)/estado-cuenta');
         break;
     }
     return;
@@ -61,6 +73,7 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'appointment_cancelled':
       case 'appointment_reschedule_requested':
       case 'appointment_approved':
+      case 'appointment_reminder':
         router.push('/(business)/agenda-negocio');
         break;
       case 'kyc_review':
@@ -69,8 +82,39 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'product_intent':
         if (data.productId) router.push(`/(business)/producto/${data.productId}`);
         break;
+      case 'service_intent':
+        if (data.serviceId) router.push(`/(business)/servicio/${data.serviceId}`);
+        break;
       case 'rate_business':
         router.push('/(business)/mis-compras');
+        break;
+      case 'subscription_expiring':
+      case 'subscription_expired':
+      case 'plan_changed':
+        router.push('/(business)/suscripcion');
+        break;
+      case 'growth_suggestion':
+        router.push('/(business)/crece-tu-negocio');
+        break;
+      case 'new_review':
+        router.push('/(business)/(tabs)/perfil');
+        break;
+      case 'employee_invitation':
+        router.navigate('/(business)');
+        break;
+      case 'employee_invitation_accepted':
+      case 'employee_invitation_rejected':
+        router.push('/(business)/empleados');
+        break;
+      case 'ad_approved':
+      case 'ad_rejected':
+        router.push('/(business)/publicidad');
+        break;
+      case 'business_limited':
+      case 'business_restored':
+      case 'account_limited':
+      case 'account_restored':
+        router.push('/(business)/estado-cuenta');
         break;
     }
   }
