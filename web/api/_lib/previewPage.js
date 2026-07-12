@@ -93,6 +93,8 @@ function renderPreviewPage({
            <div class="carousel-track">
              ${imageList.map((src) => `<img src="${escapeHtml(src)}" alt="" />`).join('')}
            </div>
+           <button type="button" class="carousel-arrow carousel-arrow-left" data-dir="-1" aria-label="Anterior">‹</button>
+           <button type="button" class="carousel-arrow carousel-arrow-right" data-dir="1" aria-label="Siguiente">›</button>
            <div class="carousel-dots">
              ${imageList.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}
            </div>
@@ -138,16 +140,24 @@ function renderPreviewPage({
            <p class="related-title">También te puede interesar</p>
            ${
              relatedWithImage.length
-               ? `<div class="related-track">
-                    ${relatedWithImage
-                      .map(
-                        (r) => `<a class="related-card" href="${escapeHtml(r.href)}">
-                          <div class="related-image"><img src="${escapeHtml(r.image)}" alt="" /></div>
-                          <p class="related-name">${escapeHtml(r.name)}</p>
-                          ${r.price ? `<p class="related-price">${escapeHtml(r.price)}</p>` : ''}
-                        </a>`
-                      )
-                      .join('')}
+               ? `<div class="related-track-wrap">
+                    <div class="related-track">
+                      ${relatedWithImage
+                        .map(
+                          (r) => `<a class="related-card" href="${escapeHtml(r.href)}">
+                            <div class="related-image"><img src="${escapeHtml(r.image)}" alt="" /></div>
+                            <p class="related-name">${escapeHtml(r.name)}</p>
+                            ${r.price ? `<p class="related-price">${escapeHtml(r.price)}</p>` : ''}
+                          </a>`
+                        )
+                        .join('')}
+                    </div>
+                    ${
+                      relatedWithImage.length > 1
+                        ? `<button type="button" class="related-arrow related-arrow-left" data-dir="-1" aria-label="Anterior">‹</button>
+                           <button type="button" class="related-arrow related-arrow-right" data-dir="1" aria-label="Siguiente">›</button>`
+                        : ''
+                    }
                   </div>`
                : ''
            }
@@ -242,12 +252,28 @@ body {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  cursor: grab;
-}
-.carousel-track:active {
-  cursor: grabbing;
 }
 .carousel-track::-webkit-scrollbar { display: none; }
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: rgba(26,26,46,0.45);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.carousel-arrow-left { left: 8px; }
+.carousel-arrow-right { right: 8px; }
 .carousel-track img {
   flex: 0 0 100%;
   width: 100%;
@@ -369,6 +395,9 @@ body {
   color: ${COLORS.text};
   margin: 0 0 10px;
 }
+.related-track-wrap {
+  position: relative;
+}
 .related-track {
   display: flex;
   gap: 10px;
@@ -376,12 +405,29 @@ body {
   scrollbar-width: none;
   margin: 0 -20px;
   padding: 0 20px;
-  cursor: grab;
-}
-.related-track:active {
-  cursor: grabbing;
 }
 .related-track::-webkit-scrollbar { display: none; }
+.related-arrow {
+  position: absolute;
+  top: 44px;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  background: ${COLORS.background};
+  color: ${COLORS.text};
+  border: 1px solid ${COLORS.border};
+  box-shadow: 0 1px 4px rgba(26,26,46,0.15);
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.related-arrow-left { left: -6px; }
+.related-arrow-right { right: -6px; }
 .related-card {
   flex: 0 0 108px;
   display: block;
@@ -483,38 +529,25 @@ document.querySelectorAll('.carousel-track').forEach(function (track) {
     dots.forEach(function (d, i) { d.classList.toggle('active', i === idx); });
   });
 });
-// Touch/mobile ya puede deslizar solo (overflow-x + scroll-snap nativo),
-// pero un mouse de escritorio no arrastra por defecto -- esto agrega
-// "click y arrastra" para que también funcione con mouse.
-document.querySelectorAll('.carousel-track, .related-track').forEach(function (track) {
-  var isDown = false;
-  var startX = 0;
-  var startScroll = 0;
-  var moved = false;
-  track.addEventListener('mousedown', function (e) {
-    isDown = true;
-    moved = false;
-    startX = e.pageX;
-    startScroll = track.scrollLeft;
+// Touch/mobile ya desliza solo (overflow-x + scroll-snap nativo). Para
+// mouse de escritorio, en vez de arrastrar con clic, se usan flechas que
+// mueven el carrusel un "paso" por clic.
+function wireArrowButtons(containerSelector, trackSelector, step) {
+  document.querySelectorAll(containerSelector).forEach(function (container) {
+    var track = container.querySelector(trackSelector);
+    if (!track) return;
+    container.querySelectorAll('[data-dir]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var dir = parseInt(btn.getAttribute('data-dir'), 10);
+        var amount = typeof step === 'function' ? step(track) : step;
+        track.scrollBy({ left: dir * amount, behavior: 'smooth' });
+      });
+    });
   });
-  window.addEventListener('mouseup', function () { isDown = false; });
-  window.addEventListener('mousemove', function (e) {
-    if (!isDown) return;
-    e.preventDefault();
-    var delta = e.pageX - startX;
-    if (Math.abs(delta) > 3) moved = true;
-    track.scrollLeft = startScroll - delta;
-  });
-  // Si hubo arrastre real, cancela el click del link para no navegar
-  // sin querer al soltar el mouse encima de una tarjeta.
-  track.addEventListener(
-    'click',
-    function (e) {
-      if (moved) e.preventDefault();
-    },
-    true
-  );
-});
+}
+wireArrowButtons('.carousel', '.carousel-track', function (track) { return track.clientWidth; });
+wireArrowButtons('.related-track-wrap', '.related-track', 130);
 </script>
 </body>
 </html>`;
