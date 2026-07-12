@@ -136,6 +136,26 @@ export interface AdminBusinessSubscriptionRow {
   businesses: { name: string; subscription_plans: { name: PlanName } | null } | null;
 }
 
+export interface AdminPlanPromotionRow {
+  id: string;
+  plan_id: string;
+  duration_days: number;
+  is_active: boolean;
+  activated_at: string | null;
+  created_at: string;
+  subscription_plans: { name: PlanName } | null;
+}
+
+export interface AdminPromotionBeneficiaryRow {
+  id: string;
+  business_id: string;
+  plan_id: string;
+  started_at: string;
+  expires_at: string | null;
+  businesses: { name: string } | null;
+  subscription_plans: { name: PlanName } | null;
+}
+
 export type HelpRequestStatus = 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
 
 export type DisputeStatus = 'none' | 'flagged' | 'reviewed';

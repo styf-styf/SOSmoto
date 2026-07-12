@@ -70,6 +70,7 @@ export interface Business {
   is_24h: boolean;
   is_limited: boolean;
   limitation_reason: string | null;
+  promotion_claimed_at: string | null;
   created_at: string;
 }
 
@@ -149,7 +150,26 @@ export interface BusinessSubscription {
   started_at: string;
   expires_at: string | null;
   payment_id: string | null;
+  promotion_id: string | null;
   reminder_sent_at: string | null;
+}
+
+export interface PlanPromotion {
+  id: string;
+  plan_id: string;
+  duration_days: number;
+  is_active: boolean;
+  activated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivePlanPromotion {
+  id: string;
+  plan_id: string;
+  plan_name: PlanName;
+  duration_days: number;
+  activated_at: string;
 }
 
 export interface Service {

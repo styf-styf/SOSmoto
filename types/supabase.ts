@@ -112,6 +112,7 @@ export interface Database {
           is_24h: boolean;
           is_limited: boolean;
           limitation_reason: string | null;
+          promotion_claimed_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -138,6 +139,7 @@ export interface Database {
           is_24h?: boolean;
           is_limited?: boolean;
           limitation_reason?: string | null;
+          promotion_claimed_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -351,6 +353,7 @@ export interface Database {
           started_at: string;
           expires_at: string | null;
           payment_id: string | null;
+          promotion_id: string | null;
           reminder_sent_at: string | null;
         };
         Insert: {
@@ -361,6 +364,7 @@ export interface Database {
           started_at?: string;
           expires_at?: string | null;
           payment_id?: string | null;
+          promotion_id?: string | null;
           reminder_sent_at?: string | null;
         };
         Update: {
@@ -371,7 +375,38 @@ export interface Database {
           started_at?: string;
           expires_at?: string | null;
           payment_id?: string | null;
+          promotion_id?: string | null;
           reminder_sent_at?: string | null;
+        };
+        Relationships: [];
+      };
+      plan_promotions: {
+        Row: {
+          id: string;
+          plan_id: string;
+          duration_days: number;
+          is_active: boolean;
+          activated_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          plan_id: string;
+          duration_days: number;
+          is_active?: boolean;
+          activated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          plan_id?: string;
+          duration_days?: number;
+          is_active?: boolean;
+          activated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -1362,6 +1397,30 @@ export interface Database {
           full_name: string;
           email: string;
           phone: string | null;
+        }[];
+      };
+      claim_plan_promotion: {
+        Args: { target_business_id: string };
+        Returns: {
+          id: string;
+          business_id: string;
+          plan_id: string;
+          status: 'active' | 'expired' | 'cancelled';
+          started_at: string;
+          expires_at: string | null;
+          payment_id: string | null;
+          promotion_id: string | null;
+          reminder_sent_at: string | null;
+        };
+      };
+      get_active_plan_promotion: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          plan_id: string;
+          plan_name: 'free' | 'standard' | 'pro';
+          duration_days: number;
+          activated_at: string;
         }[];
       };
       increment_ad_metric: {

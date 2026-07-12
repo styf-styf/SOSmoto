@@ -9,7 +9,8 @@ import { getMyWorkBusiness, getSubscriptionPlans, updateBusinessPlan } from '../
 import { getAllProducts, getAllServices } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
 import { getActiveSubscription, getWebLoginCode } from '../../services/payments';
-import type { Business, SubscriptionPlan } from '../../types/database';
+import { claimPlanPromotion, getActivePlanPromotion, isEligibleForPromotion } from '../../services/promotions';
+import type { ActivePlanPromotion, Business, SubscriptionPlan } from '../../types/database';
 
 const SUBSCRIPTION_PORTAL_URL = 'https://so-smoto.vercel.app/api/suscripcion';
 // Mismo umbral que el aviso push de check-subscription-expiry -- así el botón
@@ -39,6 +40,7 @@ interface SuscripcionData {
   plans: SubscriptionPlan[];
   usage: { services: number; products: number; employees: number };
   expiresAt: string | null;
+  promotion: ActivePlanPromotion | null;
 }
 
 export default function SuscripcionScreen() {
@@ -54,17 +56,19 @@ export default function SuscripcionScreen() {
       plans: [],
       usage: { services: 0, products: 0, employees: 0 },
       expiresAt: null,
+      promotion: null,
     };
     if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return empty;
 
-    const [allPlans, services, products, employees, activeSub] = await Promise.all([
+    const [allPlans, services, products, employees, activeSub, promotion] = await Promise.all([
       getSubscriptionPlans(),
       getAllServices(work.business.id),
       getAllProducts(work.business.id),
       getEmployees(work.business.id),
       getActiveSubscription(work.business.id),
+      getActivePlanPromotion(),
     ]);
     return {
       business: work.business,
@@ -76,6 +80,7 @@ export default function SuscripcionScreen() {
         employees: employees.length,
       },
       expiresAt: activeSub?.expires_at ?? null,
+      promotion,
     };
   });
   const business = data?.business ?? null;
@@ -83,6 +88,8 @@ export default function SuscripcionScreen() {
   const plans = data?.plans ?? [];
   const usage = data?.usage ?? { services: 0, products: 0, employees: 0 };
   const expiresAt = data?.expiresAt ?? null;
+  const promotion = data?.promotion ?? null;
+  const canClaimPromotion = !!(business && promotion && isEligibleForPromotion(business, promotion));
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -195,6 +202,33 @@ export default function SuscripcionScreen() {
     }
   }
 
+  function handleClaimPromotion(plan: SubscriptionPlan) {
+    if (!business || !promotion) return;
+    Alert.alert(
+      `Obtener plan ${planLabel[plan.name] ?? plan.name} gratis`,
+      `Esta es una promoción de lanzamiento: tendrás el plan ${planLabel[plan.name] ?? plan.name} gratis por ${promotion.duration_days} días, sin pagar nada. Solo se puede reclamar una vez por negocio.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Reclamar gratis',
+          onPress: async () => {
+            setSwitching(plan.id);
+            try {
+              await claimPlanPromotion(business.id);
+              await reload();
+              Alert.alert('Listo', `Tu negocio ya tiene el plan ${planLabel[plan.name] ?? plan.name} por promoción.`);
+            } catch (err) {
+              console.error('claim promotion error', err);
+              Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo reclamar la promoción.');
+            } finally {
+              setSwitching(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -228,13 +262,15 @@ export default function SuscripcionScreen() {
         const daysLeft = expiresAt ? (new Date(expiresAt).getTime() - Date.now()) / MS_PER_DAY : null;
         const canRenewSoon =
           isCurrent && plan.price_monthly > 0 && daysLeft !== null && daysLeft <= REMINDER_DAYS_BEFORE;
+        const isPromoPlan = promotion?.plan_id === plan.id;
+        const showPromoButton = isOwner && !isCurrent && isPromoPlan && canClaimPromotion;
         const features = [
           { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
           { label: `Servicios: ${limitLabel(plan.max_services)}`, available: true },
           { label: `Fotos por producto/servicio/publicación: ${plan.max_photos_per_item}`, available: true },
           {
-            label: `Personas en el equipo: ${plan.max_employees === 0 ? '(-)' : limitLabel(plan.max_employees)}`,
-            available: true,
+            label: plan.max_employees === 0 ? 'Personas en el equipo' : `Personas en el equipo: ${limitLabel(plan.max_employees)}`,
+            available: plan.max_employees !== 0,
           },
           { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
           { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
@@ -247,6 +283,11 @@ export default function SuscripcionScreen() {
               {isCurrent && (
                 <View style={styles.currentBadge}>
                   <Text style={styles.currentBadgeText}>Tu plan actual</Text>
+                </View>
+              )}
+              {!isCurrent && isPromoPlan && (
+                <View style={styles.promoBadge}>
+                  <Text style={styles.promoBadgeText}>🎁 Promoción</Text>
                 </View>
               )}
             </View>
@@ -279,7 +320,21 @@ export default function SuscripcionScreen() {
               ))}
             </View>
 
-            {isOwner && !isCurrent && (
+            {showPromoButton && (
+              <>
+                <Text style={styles.promoNotice}>
+                  Promoción de lanzamiento: {promotion?.duration_days} días gratis, sin pagar. Solo una vez por negocio.
+                </Text>
+                <Button
+                  title={`Obtener plan ${planLabel[plan.name] ?? plan.name} gratis`}
+                  onPress={() => handleClaimPromotion(plan)}
+                  loading={switching === plan.id}
+                  style={styles.switchButton}
+                />
+              </>
+            )}
+
+            {isOwner && !isCurrent && !showPromoButton && (
               <Button
                 title={plan.price_monthly > 0 ? `Obtener plan ${planLabel[plan.name] ?? plan.name}` : `Cambiar a plan ${planLabel[plan.name] ?? plan.name}`}
                 variant={plan.price_monthly > 0 ? 'primary' : 'secondary'}
@@ -381,6 +436,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#fff',
+  },
+  promoBadge: {
+    backgroundColor: colors.warning,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  promoBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  promoNotice: {
+    fontSize: 13,
+    color: colors.warning,
+    fontWeight: '600',
+    marginTop: 16,
   },
   priceRow: {
     flexDirection: 'row',
