@@ -30,6 +30,7 @@ export default async function PromocionesPage() {
       .from('business_subscriptions')
       .select('id, business_id, plan_id, started_at, expires_at, businesses(name), subscription_plans(name)')
       .not('promotion_id', 'is', null)
+      .eq('status', 'active')
       .order('expires_at', { ascending: true }),
     supabase.from('promotion_settings').select('applies_to_all_businesses').eq('id', true).maybeSingle(),
   ]);
