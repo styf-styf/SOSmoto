@@ -14,11 +14,15 @@ import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 export default function PostLinkResolver() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile, loading } = useAuth();
-  const handledRef = useRef(false);
+  // Keyed por id (no un booleano suelto) -- si esta misma instancia llega a
+  // recibir un id nuevo (ej. un segundo link tocado mientras el primero
+  // seguia resolviendo), un booleano ya en true bloqueaba la navegacion al
+  // nuevo destino y dejaba al usuario varado en el spinner para siempre.
+  const handledRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (loading || handledRef.current || !id) return;
-    handledRef.current = true;
+    if (loading || handledRef.current === id || !id) return;
+    handledRef.current = id;
 
     if (!session || !profile) {
       setPendingDeepLink('post', id)

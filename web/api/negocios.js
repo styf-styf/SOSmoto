@@ -30,11 +30,17 @@ module.exports = async (req, res) => {
     .limit(isHome ? 8 : 30);
 
   if (q) {
-    const term = q.replace(/[%,]/g, '');
+    // El filtro or() de PostgREST usa "," "(" ")" "." como caracteres
+    // estructurales -- antes solo se sacaban "%" y "," dejando "(" ")" "."
+    // sin escapar, lo que podia romper el filtro con input raro (ej. un
+    // parentesis desbalanceado) sin que el usuario supiera por que la
+    // busqueda no devolvia nada.
+    const term = q.replace(/[%,().]/g, '');
     query = query.or(`name.ilike.%${term}%,city.ilike.%${term}%,address.ilike.%${term}%`);
   }
 
-  const { data: results } = await query;
+  const { data: results, error: searchError } = await query;
+  if (searchError) console.error('negocios search error', searchError);
 
   const resultsHtml = (results ?? [])
     .map(
@@ -56,7 +62,13 @@ ${isHome ? '<p class="tagline">Conectamos motociclistas con talleres y tiendas d
   <input class="search-input" type="text" name="q" value="${escapeHtml(q)}" placeholder="Buscar taller o tienda por nombre o ciudad" />
   <button class="search-button" type="submit">Buscar</button>
 </form>
-${resultsHtml ? `<p class="section-title">${sectionTitle}</p><div class="biz-list">${resultsHtml}</div>` : `<p class="placeholder">No encontramos negocios${q ? ' con ese nombre o ciudad' : ''}.</p>`}
+${
+  resultsHtml
+    ? `<p class="section-title">${sectionTitle}</p><div class="biz-list">${resultsHtml}</div>`
+    : searchError
+      ? '<p class="placeholder">Ocurrió un error al buscar. Probá con otro texto.</p>'
+      : `<p class="placeholder">No encontramos negocios${q ? ' con ese nombre o ciudad' : ''}.</p>`
+}
 ${isHome ? '<a class="button" href="sosmoto://">Abrir en SOSmoto</a>' : ''}
 `;
 

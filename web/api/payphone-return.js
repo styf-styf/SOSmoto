@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const { escapeHtml } = require('./_lib/webPage');
 
 // Recibe tanto el regreso del navegador (GET, con id/clientTransactionId en
 // la query) como el webhook servidor-a-servidor de Payphone (POST) cuando el
@@ -9,34 +10,6 @@ const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 function supabaseAdmin() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
-
-const PLAN_LABEL = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
-
-async function sendPush(token, title, body, data) {
-  await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: token, title, body, data }),
-  });
-}
-
-async function notifyPlanChanged(supabase, businessId, planId) {
-  const [{ data: business }, { data: plan }] = await Promise.all([
-    supabase.from('businesses').select('owner_id').eq('id', businessId).maybeSingle(),
-    supabase.from('subscription_plans').select('name').eq('id', planId).maybeSingle(),
-  ]);
-  if (!business || !business.owner_id || !plan || !plan.name) return;
-
-  const { data: owner } = await supabase.from('users').select('push_token').eq('id', business.owner_id).maybeSingle();
-  if (!owner || !owner.push_token) return;
-
-  await sendPush(
-    owner.push_token,
-    'Plan actualizado',
-    `Tu negocio ahora tiene el plan ${PLAN_LABEL[plan.name] || plan.name}.`,
-    { type: 'plan_changed', businessId }
-  );
 }
 
 // Payphone no siempre manda JSON estricto en el webhook; extraemos los
@@ -82,64 +55,6 @@ async function waitForPaymentStatus(clientTransactionId, { attempts = 6, delayMs
     await new Promise((r) => setTimeout(r, delayMs));
   }
   return { success: false, payment: null, timedOut: true };
-}
-
-// EcuaPred tampoco verifica nada con Payphone en su pagina de retorno: si el
-// navegador llega ahi con un `id` valido, confia en eso y acredita directo
-// (el webhook es secundario, no bloquea el camino feliz). Replicamos eso:
-// si el webhook no confirmo a tiempo, pero el pago que NOSOTROS creamos
-// (con un client_transaction_id que es un UUID propio, no adivinable) sigue
-// 'pending', confiamos en que Payphone solo redirige aqui tras un pago
-// exitoso y activamos el plan -- evita depender de V3/Confirm (con bug
-// confirmado) o del webhook (que no esta llegando).
-async function activateByTrust(clientTransactionId, gatewayId) {
-  const supabase = supabaseAdmin();
-  const { data: payment } = await supabase
-    .from('payments')
-    .select('id, business_id, plan_id, status, type, metadata')
-    .eq('client_transaction_id', clientTransactionId)
-    .maybeSingle();
-  if (!payment || payment.status !== 'pending') return { success: false, payment };
-
-  await supabase.from('payments').update({ status: 'completed', gateway_transaction_id: gatewayId }).eq('id', payment.id);
-
-  if (payment.type === 'advertising') {
-    const m = payment.metadata;
-    if (m) {
-      const startsAt = new Date();
-      const endsAt = new Date(startsAt);
-      endsAt.setDate(endsAt.getDate() + Number(m.durationDays));
-      await supabase.from('ads').insert({
-        business_id: payment.business_id,
-        title: m.title,
-        image_url: m.imageUrl,
-        link_url: m.linkUrl || null,
-        target_city: m.targetCity || null,
-        status: 'pending_review',
-        starts_at: startsAt.toISOString(),
-        ends_at: endsAt.toISOString(),
-        payment_id: payment.id,
-      });
-    }
-  } else if (payment.plan_id) {
-    const now = new Date();
-    const expiresAt = new Date(now);
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-    await supabase.from('business_subscriptions').update({ status: 'expired' }).eq('business_id', payment.business_id).eq('status', 'active');
-    await supabase.from('business_subscriptions').insert({
-      business_id: payment.business_id,
-      plan_id: payment.plan_id,
-      status: 'active',
-      started_at: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      payment_id: payment.id,
-    });
-    await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
-    await notifyPlanChanged(supabase, payment.business_id, payment.plan_id);
-  }
-
-  return { success: true, payment, trusted: true };
 }
 
 module.exports = async (req, res) => {
@@ -191,16 +106,32 @@ module.exports = async (req, res) => {
   const id = req.query.id;
   let wait = clientTransactionId ? await waitForPaymentStatus(clientTransactionId) : { success: false, payment: null };
   if (wait.timedOut && clientTransactionId && id) {
-    // El webhook nunca llego (status sigue 'pending', no es un rechazo
-    // explicito) -- confiamos en el retorno del navegador, igual que EcuaPred.
-    wait = await activateByTrust(clientTransactionId, id);
+    // El webhook no llego a tiempo -- ANTES esto confiaba a ciegas en que el
+    // navegador solo redirige aqui tras un pago real (activateByTrust marcaba
+    // el pago 'completed' sin verificar nada con Payphone). Eso permitia a
+    // cualquiera con su propio clientTransactionId -- visible ANTES de pagar,
+    // ver payphone-checkout.js -- activar un plan o campaña sin pagar. Ahora
+    // se pide la misma verificacion real con Payphone que usa el webhook
+    // (V3/Confirm, vía la función payphone-confirm): si el pago nunca se
+    // hizo, Payphone lo rechaza limpio y no se activa nada.
+    const confirmResult = await confirm(id, clientTransactionId, undefined);
+    if (confirmResult && confirmResult.success) {
+      const { data: payment } = await supabaseAdmin()
+        .from('payments')
+        .select('id, business_id, plan_id, status, type')
+        .eq('client_transaction_id', clientTransactionId)
+        .maybeSingle();
+      wait = { success: true, payment };
+    } else {
+      wait = { success: false, payment: null, confirmResult };
+    }
   }
 
   const debugLine = wait.success
     ? ''
-    : `<pre style="text-align:left;max-width:400px;margin:16px auto;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:12px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;">${
+    : `<pre style="text-align:left;max-width:400px;margin:16px auto;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:12px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;">${escapeHtml(
         JSON.stringify({ query: req.query, wait }, null, 2)
-      }</pre>`;
+      )}</pre>`;
 
   const html = `<!DOCTYPE html>
 <html lang="es">

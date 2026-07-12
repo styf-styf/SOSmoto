@@ -12,11 +12,12 @@ import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 export default function ProductLinkResolver() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile, loading } = useAuth();
-  const handledRef = useRef(false);
+  // Keyed por id -- ver app/post/[id].tsx para el motivo.
+  const handledRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (loading || handledRef.current || !id) return;
-    handledRef.current = true;
+    if (loading || handledRef.current === id || !id) return;
+    handledRef.current = id;
 
     if (!session || !profile) {
       setPendingDeepLink('product', id)

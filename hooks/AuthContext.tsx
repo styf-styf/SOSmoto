@@ -38,10 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setSessionLoaded(true);
-    });
+    supabase.auth.getSession().then(
+      ({ data }) => {
+        setSession(data.session);
+        setSessionLoaded(true);
+      },
+      (err: unknown) => {
+        console.error('getSession rejected', err);
+        setSessionLoaded(true);
+      }
+    );
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
@@ -68,16 +74,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', session.user.id)
       .single()
-      .then(({ data, error }) => {
-        if (!isCurrent) return;
-        if (error) {
-          console.error('profile fetch error', error);
+      .then(
+        ({ data, error }) => {
+          if (!isCurrent) return;
+          if (error) {
+            console.error('profile fetch error', error);
+            setProfile(null);
+          } else {
+            setProfile(data as User);
+          }
+          setProfileLoading(false);
+        },
+        (err: unknown) => {
+          // Si el thenable de Supabase llega a rechazar en vez de resolver
+          // {error} (poco común, pero no imposible con fallas de red de bajo
+          // nivel) -- sin este handler, profileLoading se quedaba en true
+          // para siempre y toda la app mostraba el spinner de carga sin fin.
+          if (!isCurrent) return;
+          console.error('profile fetch rejected', err);
           setProfile(null);
-        } else {
-          setProfile(data as User);
+          setProfileLoading(false);
         }
-        setProfileLoading(false);
-      });
+      );
 
     return () => {
       isCurrent = false;

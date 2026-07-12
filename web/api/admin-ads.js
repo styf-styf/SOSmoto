@@ -96,6 +96,12 @@ module.exports = async (req, res) => {
     await loadPending();
   }
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   async function loadPending() {
     const { data, error } = await sb.functions.invoke('admin-campaigns', { body: { action: 'list' } });
 
@@ -117,16 +123,16 @@ module.exports = async (req, res) => {
     }
 
     listEl.innerHTML = ads.map((ad) => (
-      '<div class="card" id="ad-' + ad.id + '">' +
-        '<div class="card-header"><span class="card-title">' + (ad.businesses ? ad.businesses.name : 'Negocio') + '</span></div>' +
-        '<p class="meta">' + ad.title + '</p>' +
-        '<p class="meta">Alcance: ' + (ad.target_city || 'Nacional') + '</p>' +
+      '<div class="card" id="ad-' + escapeHtml(ad.id) + '">' +
+        '<div class="card-header"><span class="card-title">' + escapeHtml(ad.businesses ? ad.businesses.name : 'Negocio') + '</span></div>' +
+        '<p class="meta">' + escapeHtml(ad.title) + '</p>' +
+        '<p class="meta">Alcance: ' + escapeHtml(ad.target_city || 'Nacional') + '</p>' +
         '<p class="meta">' + new Date(ad.starts_at).toLocaleDateString('es-EC') + ' – ' + new Date(ad.ends_at).toLocaleDateString('es-EC') + '</p>' +
-        (ad.link_url ? '<p class="meta">Link: ' + ad.link_url + '</p>' : '') +
-        '<img class="preview" src="' + ad.image_url + '" />' +
+        (ad.link_url ? '<p class="meta">Link: ' + escapeHtml(ad.link_url) + '</p>' : '') +
+        '<img class="preview" src="' + escapeHtml(ad.image_url) + '" />' +
         '<div class="actions">' +
-        '<button class="approve" data-id="' + ad.id + '" data-action="active">Aprobar</button>' +
-        '<button class="reject" data-id="' + ad.id + '" data-action="rejected">Rechazar</button>' +
+        '<button class="approve" data-id="' + escapeHtml(ad.id) + '" data-action="active">Aprobar</button>' +
+        '<button class="reject" data-id="' + escapeHtml(ad.id) + '" data-action="rejected">Rechazar</button>' +
         '</div>' +
       '</div>'
     )).join('');

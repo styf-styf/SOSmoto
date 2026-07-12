@@ -50,7 +50,10 @@ function isOpenNow(business) {
   if (business.is_24h) return true;
   const todayKey = DAY_KEY_BY_JS_INDEX[new Date().getDay()];
   const today = business.schedule?.[todayKey];
-  if (!today) return false;
+  // Un schedule mal formado (falta open/close para hoy) no debe tumbar la
+  // pagina de perfil del negocio -- se trata como "cerrado" en vez de
+  // lanzar una excepcion no capturada.
+  if (!today || !today.open || !today.close) return false;
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const [openH, openM] = today.open.split(':').map(Number);

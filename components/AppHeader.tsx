@@ -10,19 +10,26 @@ import { useAuth } from '../hooks/useAuth';
 // NativeStack, cuya altura no es configurable directamente desde JS.
 export function AppHeader({ navigation, options, back }: NativeStackHeaderProps) {
   const insets = useSafeAreaInsets();
-  const { profile } = useAuth();
+  const { session, profile } = useAuth();
 
   // Pantallas alcanzadas por un deep link (compartir publicación/anuncio/
   // producto/servicio) aterrizan directo sin Inicio debajo en la pila (ver
   // utils/deepLinkNavigate.ts) -- ahí `back` viene falso y antes no se
   // mostraba ningún botón, dejando al usuario sin forma de salir de la
-  // pantalla. En ese caso el botón manda a Inicio en vez de goBack().
+  // pantalla. En ese caso el botón manda a Inicio en vez de goBack() --
+  // pero solo si de verdad hay sesión: sin este chequeo, un tap durante un
+  // logout/cambio de cuenta en curso (session/profile momentáneamente
+  // null) mandaba igual a '/(client)' por el `?? client` implícito.
   function handleBack() {
     if (back) {
       navigation.goBack();
-    } else {
-      router.replace(profile?.role === 'business' ? '/(business)' : '/(client)');
+      return;
     }
+    if (!session || !profile) {
+      router.replace('/(auth)/login');
+      return;
+    }
+    router.replace(profile.role === 'business' ? '/(business)' : '/(client)');
   }
 
   return (

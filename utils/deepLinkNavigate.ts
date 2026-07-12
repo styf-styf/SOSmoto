@@ -27,5 +27,8 @@ export function navigateToDeepLinkTarget(prefix: '/(client)' | '/(business)', sc
     // ese Stack anidado podría conservar items visitados antes de este link.
     markProductoServicioStacksForReset();
   }
-  router.replace(`${prefix}/${screen}/${id}`);
+  // encodeURIComponent en el id -- sin esto, un id con "/" insertaria
+  // segmentos de ruta extra y navegaria en silencio a otra pantalla en vez
+  // de fallar limpio.
+  router.replace(`${prefix}/${screen}/${encodeURIComponent(id)}`);
 }
