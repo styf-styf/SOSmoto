@@ -36,6 +36,8 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(client)" />
             <Stack.Screen name="(business)" />
+            <Stack.Screen name="post/[id]" />
+            <Stack.Screen name="ad/[id]" />
           </Stack>
         </KeyboardProvider>
       </AuthProvider>

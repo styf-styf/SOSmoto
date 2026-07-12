@@ -16,6 +16,12 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sosmoto.app',
+      // associatedDomains (Universal Links) pendiente -- requiere Team ID
+      // real de una cuenta de Apple Developer Program, que todavía no existe
+      // para este proyecto. Por ahora en iOS el link siempre abre la página
+      // web (con su botón "Abrir en SOSmoto" al scheme). Agregar
+      // `associatedDomains: ['applinks:so-smoto.vercel.app']` aquí cuando
+      // haya cuenta.
     },
     android: {
       package: 'com.sosmoto.app',
@@ -32,6 +38,17 @@ module.exports = {
           apiKey: process.env.GOOGLE_MAPS_API_KEY,
         },
       },
+      intentFilters: [
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [
+            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/post' },
+            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/ad' },
+          ],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ],
     },
     web: {
       favicon: './assets/favicon.png',

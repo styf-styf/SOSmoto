@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { registerStoryClick, registerStoryView } from '../services/stories';
@@ -57,6 +57,20 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryV
       .catch((err) => console.error('load story viewer error', err))
       .finally(() => setLoading(false));
   }, [loadStories]);
+
+  // Al recuperar el foco (ej. volver de "Ver servicio"/"Ver producto") se
+  // refresca la lista en segundo plano -- se acota el índice al nuevo tamaño
+  // para no quedar apuntando a una historia que ya no existe.
+  useFocusEffect(
+    useCallback(() => {
+      loadStories()
+        .then((fresh) => {
+          setStories(fresh);
+          setIndex((i) => Math.min(i, Math.max(0, fresh.length - 1)));
+        })
+        .catch((err) => console.error('refresh story viewer on focus error', err));
+    }, [loadStories])
+  );
 
   const current = stories[index];
 

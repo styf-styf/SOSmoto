@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAccountLimited } from '../hooks/useAccountLimited';
@@ -35,6 +36,14 @@ export function AdDetail({ adId }: { adId: string }) {
       .catch((err) => console.error('load ad detail error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Al recuperar el foco (ej. volver de un enlace del anuncio) se refresca en
+  // segundo plano, sin spinner, para reflejar comentarios nuevos de otros usuarios.
+  useFocusEffect(
+    useCallback(() => {
+      load().catch((err) => console.error('refresh ad detail on focus error', err));
+    }, [load])
+  );
 
   async function handleSend() {
     if (!profile || !text.trim() || isLimited) return;

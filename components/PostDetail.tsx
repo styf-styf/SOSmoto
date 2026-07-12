@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
 import { MultiPhotoPicker } from './MultiPhotoPicker';
@@ -102,6 +102,14 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
       .catch((err) => console.error('load post detail error', err))
       .finally(() => setLoading(false));
   }, [load]);
+
+  // Al recuperar el foco (ej. volver del perfil de un autor de comentario) se
+  // refresca en segundo plano, sin spinner, para reflejar comentarios nuevos.
+  useFocusEffect(
+    useCallback(() => {
+      load().catch((err) => console.error('refresh post detail on focus error', err));
+    }, [load])
+  );
 
   async function handleSend() {
     if (!profile || !text.trim() || isLimited) return;

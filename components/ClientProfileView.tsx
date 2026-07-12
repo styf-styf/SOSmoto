@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { supabase } from '../services/supabase';
@@ -44,6 +44,14 @@ export function ClientProfileView({
     setLoading(true);
     load().catch(console.error).finally(() => setLoading(false));
   }, [load]);
+
+  // Al recuperar el foco (ej. volver de una publicación) se refresca en
+  // segundo plano, sin spinner, para reflejar publicaciones nuevas del usuario.
+  useFocusEffect(
+    useCallback(() => {
+      load().catch((err) => console.error('refresh client profile on focus error', err));
+    }, [load])
+  );
 
   if (loading) {
     return (

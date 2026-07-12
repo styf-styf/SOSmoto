@@ -78,8 +78,9 @@ export function PostCard({
   }
 
   function handleShare() {
-    const message = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
-    Share.share({ message }).catch(() => {});
+    const url = `https://so-smoto.vercel.app/post/${post.id}`;
+    const text = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
+    Share.share({ message: `${text}\n${url}`, url }).catch(() => {});
   }
 
   function handleAuthorPress(e: GestureResponderEvent) {
