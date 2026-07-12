@@ -430,6 +430,8 @@ body {
 .related-arrow-right { right: -6px; }
 .related-card {
   flex: 0 0 108px;
+  min-width: 0;
+  overflow: hidden;
   display: block;
   text-decoration: none;
 }
@@ -489,6 +491,7 @@ body {
 }
 .related-list-name {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
   color: ${COLORS.text};
