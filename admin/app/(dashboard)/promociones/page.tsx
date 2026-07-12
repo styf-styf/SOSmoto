@@ -4,6 +4,17 @@ import { PromotionToggleCard } from './PromotionToggleCard';
 import { BeneficiaryExpiryEditor } from './BeneficiaryExpiryEditor';
 
 const PLAN_LABELS: Record<PlanName, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+// Mientras está activa, remaining_days sigue "de referencia" desde
+// activated_at -- acá se calcula cuánto queda en este momento. Pausada, el
+// número guardado ya es el saldo congelado.
+function liveRemainingDays(promo: AdminPlanPromotionRow | undefined): number {
+  if (!promo) return 0;
+  if (!promo.is_active || !promo.activated_at) return Math.max(0, Math.round(promo.remaining_days));
+  const elapsedDays = (Date.now() - new Date(promo.activated_at).getTime()) / MS_PER_DAY;
+  return Math.max(0, Math.round(promo.remaining_days - elapsedDays));
+}
 
 export default async function PromocionesPage() {
   const supabase = createAdminClient();
@@ -12,8 +23,7 @@ export default async function PromocionesPage() {
     supabase.from('subscription_plans').select('id, name').in('name', ['standard', 'pro']),
     supabase
       .from('plan_promotions')
-      .select('id, plan_id, duration_days, is_active, activated_at, created_at, subscription_plans(name)')
-      .order('created_at', { ascending: false }),
+      .select('id, plan_id, duration_days, remaining_days, is_active, activated_at, created_at, subscription_plans(name)'),
     supabase
       .from('business_subscriptions')
       .select('id, business_id, plan_id, started_at, expires_at, businesses(name), subscription_plans(name)')
@@ -37,8 +47,8 @@ export default async function PromocionesPage() {
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {plans.map((plan) => {
-          const isActive = activePromotion?.plan_id === plan.id;
-          const lastForPlan = promotions.find((p) => p.plan_id === plan.id);
+          const promo = promotions.find((p) => p.plan_id === plan.id);
+          const isActive = !!promo?.is_active;
           return (
             <PromotionToggleCard
               key={plan.id}
@@ -46,7 +56,8 @@ export default async function PromocionesPage() {
               planName={plan.name}
               isActive={isActive}
               otherPlanIsActive={!!activePromotion && !isActive}
-              defaultDurationDays={isActive ? activePromotion!.duration_days : lastForPlan?.duration_days ?? null}
+              durationDays={promo?.duration_days ?? null}
+              remainingDays={promo ? liveRemainingDays(promo) : null}
             />
           );
         })}

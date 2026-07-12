@@ -10,16 +10,19 @@ export function PromotionToggleCard({
   planName,
   isActive,
   otherPlanIsActive,
-  defaultDurationDays,
+  durationDays,
+  remainingDays,
 }: {
   planId: string;
   planName: string;
   isActive: boolean;
   otherPlanIsActive: boolean;
-  defaultDurationDays: number | null;
+  durationDays: number | null;
+  remainingDays: number | null;
 }) {
   const router = useRouter();
-  const [durationDays, setDurationDays] = useState(defaultDurationDays ?? 90);
+  const hasCampaign = remainingDays !== null && remainingDays > 0;
+  const [newDurationDays, setNewDurationDays] = useState(durationDays ?? 90);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +34,7 @@ export function PromotionToggleCard({
       : await fetch('/api/promociones/activar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId, durationDays }),
+          body: JSON.stringify({ planId, durationDays: newDurationDays }),
         });
     setLoading(false);
     if (!res.ok) {
@@ -48,7 +51,7 @@ export function PromotionToggleCard({
         <p className="text-sm font-semibold">Plan {PLAN_LABELS[planName] ?? planName}</p>
         <button
           onClick={handleToggle}
-          disabled={loading || (otherPlanIsActive && !isActive)}
+          disabled={loading}
           className={`relative h-6 w-11 rounded-full transition-colors disabled:opacity-40 ${
             isActive ? 'bg-primary' : 'bg-gray-300'
           }`}
@@ -61,23 +64,29 @@ export function PromotionToggleCard({
         </button>
       </div>
 
-      <label className="mb-1 block text-xs text-gray-500">Días de duración de la oferta</label>
-      <input
-        type="number"
-        min={1}
-        value={durationDays}
-        onChange={(e) => setDurationDays(Number(e.target.value))}
-        disabled={isActive}
-        className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
-      />
-
-      {isActive && (
-        <p className="mt-2 text-xs text-gray-500">
-          Activa desde el registro -- los negocios nuevos verán el botón de reclamo gratis en la app.
-        </p>
+      {hasCampaign ? (
+        <>
+          <p className="text-2xl font-bold text-primary">{remainingDays} días</p>
+          <p className="text-xs text-gray-500">
+            {isActive ? 'restantes de la campaña (regalo: ' : 'pausada -- quedaban (regalo: '}
+            {durationDays} días por negocio)
+          </p>
+        </>
+      ) : (
+        <>
+          <label className="mb-1 block text-xs text-gray-500">Días de duración de la oferta</label>
+          <input
+            type="number"
+            min={1}
+            value={newDurationDays}
+            onChange={(e) => setNewDurationDays(Number(e.target.value))}
+            className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
+          />
+        </>
       )}
+
       {otherPlanIsActive && !isActive && (
-        <p className="mt-2 text-xs text-gray-500">Desactiva la otra promoción activa para poder activar esta.</p>
+        <p className="mt-2 text-xs text-gray-500">Activar esta pausará automáticamente la otra promoción activa.</p>
       )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
