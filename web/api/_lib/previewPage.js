@@ -62,7 +62,9 @@ function avatarHtml(url, name, size) {
 // authorName/authorAvatar: fila de autor con avatar circular (solo posts)
 // tag: { label } o null -- chip debajo de la descripción
 // comments: [{ authorName, avatarUrl, body }] o null/[]
-// related: [{ href, image, name, price }] o null/[] -- "También te puede interesar"
+// related: [{ href, image, name, price, kind }] o null/[] -- "También te puede
+//   interesar"; kind es 'product'|'service' (solo para el icono de respaldo
+//   en la lista de items sin foto)
 // appLink: sosmoto://... para el intento de apertura directa
 function renderPreviewPage({
   kicker,
@@ -124,21 +126,46 @@ function renderPreviewPage({
          </div>`
       : '';
 
+  // Mismo criterio que FeedCatalogStrip.tsx: los que tienen foto van en
+  // tarjetas deslizables, los que no, en una lista aparte debajo (nunca una
+  // tarjeta con la imagen vacía).
+  const relatedWithImage = (related ?? []).filter((r) => r.image);
+  const relatedWithoutImage = (related ?? []).filter((r) => !r.image);
+
   const relatedHtml =
-    related && related.length
+    relatedWithImage.length || relatedWithoutImage.length
       ? `<div class="related">
            <p class="related-title">También te puede interesar</p>
-           <div class="related-track">
-             ${related
-               .map(
-                 (r) => `<a class="related-card" href="${escapeHtml(r.href)}">
-                   <div class="related-image">${r.image ? `<img src="${escapeHtml(r.image)}" alt="" />` : ''}</div>
-                   <p class="related-name">${escapeHtml(r.name)}</p>
-                   ${r.price ? `<p class="related-price">${escapeHtml(r.price)}</p>` : ''}
-                 </a>`
-               )
-               .join('')}
-           </div>
+           ${
+             relatedWithImage.length
+               ? `<div class="related-track">
+                    ${relatedWithImage
+                      .map(
+                        (r) => `<a class="related-card" href="${escapeHtml(r.href)}">
+                          <div class="related-image"><img src="${escapeHtml(r.image)}" alt="" /></div>
+                          <p class="related-name">${escapeHtml(r.name)}</p>
+                          ${r.price ? `<p class="related-price">${escapeHtml(r.price)}</p>` : ''}
+                        </a>`
+                      )
+                      .join('')}
+                  </div>`
+               : ''
+           }
+           ${
+             relatedWithoutImage.length
+               ? `<div class="related-list">
+                    ${relatedWithoutImage
+                      .map(
+                        (r) => `<a class="related-list-row" href="${escapeHtml(r.href)}">
+                          <span class="related-list-icon">${r.kind === 'service' ? '🔧' : '📦'}</span>
+                          <span class="related-list-name">${escapeHtml(r.name)}</span>
+                          ${r.price ? `<span class="related-list-price">${escapeHtml(r.price)}</span>` : ''}
+                        </a>`
+                      )
+                      .join('')}
+                  </div>`
+               : ''
+           }
          </div>`
       : '';
 
@@ -378,6 +405,42 @@ body {
   font-weight: 700;
   color: ${COLORS.primary};
   margin: 2px 0 0;
+}
+.related-list {
+  margin-top: 4px;
+}
+.related-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  text-decoration: none;
+}
+.related-list-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: #FFF1E6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.related-list-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: ${COLORS.text};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.related-list-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: ${COLORS.primary};
+  flex-shrink: 0;
 }
 </style>
 </head>

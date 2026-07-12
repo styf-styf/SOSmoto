@@ -46,6 +46,7 @@ module.exports = async (req, res) => {
       image: Array.isArray(r.photos) ? r.photos[0] : null,
       name: r.name,
       price: r.reference_price != null ? `$${Number(r.reference_price).toFixed(2)}` : null,
+      kind: 'service',
     }));
   }
 
