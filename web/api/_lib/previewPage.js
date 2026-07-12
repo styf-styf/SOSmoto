@@ -3,25 +3,7 @@
 // Mismo lenguaje visual que la app (ver constants/colors.ts): tarjeta blanca
 // centrada sobre fondo gris claro, imagen arriba, acento naranja para precio
 // y boton de accion.
-const COLORS = {
-  primary: '#FF6B00',
-  secondary: '#1A1A2E',
-  background: '#FFFFFF',
-  surface: '#F5F5F7',
-  text: '#1A1A2E',
-  textMuted: '#6B6B7B',
-  border: '#E5E5EA',
-};
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  }[c]));
-}
+const { COLORS, escapeHtml, avatarHtml } = require('./webPage');
 
 function notFoundPage(message) {
   return `<!DOCTYPE html>
@@ -43,15 +25,6 @@ h1{font-size:16px;color:${COLORS.text};font-weight:600;}
 <a class="home-link" href="/">‹ Ir al inicio</a>
 </body>
 </html>`;
-}
-
-function avatarHtml(url, name, size) {
-  const initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase());
-  const style = `width:${size}px;height:${size}px;border-radius:${size / 2}px;`;
-  if (url) {
-    return `<img src="${escapeHtml(url)}" alt="" style="${style}object-fit:cover;display:block;" />`;
-  }
-  return `<div style="${style}background:${COLORS.surface};color:${COLORS.primary};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${Math.round(size * 0.45)}px;">${initial}</div>`;
 }
 
 // kicker: nombre del negocio/autor (texto pequeño arriba del título) -- se

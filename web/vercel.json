@@ -1,10 +1,13 @@
 {
   "rewrites": [
-    { "source": "/.well-known/apple-app-site-association", "destination": "/api/aasa" },
-    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" },
+    { "source": "/.well-known/apple-app-site-association", "destination": "/api/aasa?type=aasa" },
+    { "source": "/.well-known/assetlinks.json", "destination": "/api/aasa?type=assetlinks" },
     { "source": "/post/:id", "destination": "/api/post/:id" },
     { "source": "/ad/:id", "destination": "/api/ad/:id" },
     { "source": "/product/:id", "destination": "/api/product/:id" },
-    { "source": "/service/:id", "destination": "/api/service/:id" }
+    { "source": "/service/:id", "destination": "/api/service/:id" },
+    { "source": "/", "destination": "/api/negocios?home=1" },
+    { "source": "/negocios", "destination": "/api/negocios" },
+    { "source": "/negocio/:id", "destination": "/api/negocio/:id" }
   ]
 }
