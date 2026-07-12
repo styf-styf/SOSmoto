@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -125,6 +125,12 @@ export default function ProductDetailScreen() {
     }
   }
 
+  function handleShare() {
+    if (!product) return;
+    const url = `https://so-smoto.vercel.app/product/${product.id}`;
+    Share.share({ message: `${product.name}\n${url}`, url }).catch(() => {});
+  }
+
   async function handleReportProduct(reason: string) {
     if (!product || !profile) return;
     try {
@@ -165,9 +171,14 @@ export default function ProductDetailScreen() {
         options={{
           title: product.name,
           headerRight: () => (
-            <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
-              <Ionicons name="flag-outline" size={22} color={colors.text} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable onPress={handleShare} hitSlop={8}>
+                <Ionicons name="share-social-outline" size={22} color={colors.text} />
+              </Pressable>
+              <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+                <Ionicons name="flag-outline" size={22} color={colors.text} />
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -316,6 +327,11 @@ export default function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

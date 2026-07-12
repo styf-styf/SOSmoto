@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -163,6 +163,12 @@ export default function BusinessProductDetailScreen() {
     }
   }
 
+  function handleShare() {
+    if (!product) return;
+    const url = `https://so-smoto.vercel.app/product/${product.id}`;
+    Share.share({ message: `${product.name}\n${url}`, url }).catch(() => {});
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -184,8 +190,12 @@ export default function BusinessProductDetailScreen() {
       <Stack.Screen
         options={{
           title: product.name,
-          headerRight: isOwnProduct
-            ? () => (
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              <Pressable onPress={handleShare} hitSlop={8}>
+                <Ionicons name="share-social-outline" size={22} color={colors.text} />
+              </Pressable>
+              {isOwnProduct ? (
                 <Pressable
                   onPress={() =>
                     router.push({ pathname: '/(business)/(tabs)/catalogo', params: { editId: product.id, editKind: 'product' } })
@@ -194,12 +204,13 @@ export default function BusinessProductDetailScreen() {
                 >
                   <Ionicons name="create-outline" size={22} color={colors.text} />
                 </Pressable>
-              )
-            : () => (
+              ) : (
                 <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
                   <Ionicons name="flag-outline" size={22} color={colors.text} />
                 </Pressable>
-              ),
+              )}
+            </View>
+          ),
         }}
       />
       <Pressable
@@ -368,6 +379,11 @@ export default function BusinessProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

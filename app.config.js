@@ -45,6 +45,8 @@ module.exports = {
           data: [
             { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/post' },
             { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/ad' },
+            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/product' },
+            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/service' },
           ],
           category: ['BROWSABLE', 'DEFAULT'],
         },

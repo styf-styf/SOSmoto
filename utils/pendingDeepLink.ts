@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'pendingDeepLink';
 const MAX_AGE_MS = 30 * 60 * 1000;
 
-export type PendingDeepLinkKind = 'post' | 'ad';
+export type PendingDeepLinkKind = 'post' | 'ad' | 'product' | 'service';
 
 interface StoredPendingDeepLink {
   kind: PendingDeepLinkKind;
