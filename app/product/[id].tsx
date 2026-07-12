@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
+import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir producto" (https://so-smoto.vercel.app/product/:id).
 // Mismo patrón que app/post/[id].tsx, pero el destino real vive dentro de
@@ -25,7 +26,7 @@ export default function ProductLinkResolver() {
     }
 
     const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
-    router.replace(`${prefix}/(tabs)/producto/${id}`);
+    navigateToDeepLinkTarget(prefix, '(tabs)/producto', id);
   }, [loading, session, profile, id]);
 
   return (

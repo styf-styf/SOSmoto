@@ -192,9 +192,11 @@ export default function BusinessProductDetailScreen() {
           title: product.name,
           headerRight: () => (
             <View style={styles.headerActions}>
-              <Pressable onPress={handleShare} hitSlop={8}>
-                <Ionicons name="share-social-outline" size={22} color={colors.text} />
-              </Pressable>
+              {isOwnProduct && (
+                <Pressable onPress={handleShare} hitSlop={8}>
+                  <Ionicons name="share-social-outline" size={22} color={colors.text} />
+                </Pressable>
+              )}
               {isOwnProduct ? (
                 <Pressable
                   onPress={() =>
@@ -352,6 +354,10 @@ export default function BusinessProductDetailScreen() {
             >
               <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
               <Text style={styles.actionBtnLabel}>Chatear</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn} onPress={handleShare}>
+              <Ionicons name="share-social-outline" size={20} color={colors.text} />
+              <Text style={styles.actionBtnLabel}>Compartir</Text>
             </Pressable>
           </View>
         </View>

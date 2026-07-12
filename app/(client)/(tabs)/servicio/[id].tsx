@@ -188,14 +188,9 @@ export default function ServiceDetailScreen() {
         options={{
           title: service.name,
           headerRight: () => (
-            <View style={styles.headerActions}>
-              <Pressable onPress={handleShare} hitSlop={8}>
-                <Ionicons name="share-social-outline" size={22} color={colors.text} />
-              </Pressable>
-              <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
-                <Ionicons name="flag-outline" size={22} color={colors.text} />
-              </Pressable>
-            </View>
+            <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
+              <Ionicons name="flag-outline" size={22} color={colors.text} />
+            </Pressable>
           ),
         }}
       />
@@ -293,6 +288,10 @@ export default function ServiceDetailScreen() {
             <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
             <Text style={styles.actionBtnLabel}>Chatear</Text>
           </Pressable>
+          <Pressable style={styles.actionBtn} onPress={handleShare}>
+            <Ionicons name="share-social-outline" size={20} color={colors.text} />
+            <Text style={styles.actionBtnLabel}>Compartir</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -318,11 +317,6 @@ export default function ServiceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
   center: {
     flex: 1,
     alignItems: 'center',

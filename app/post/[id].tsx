@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
+import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir publicación" (https://so-smoto.vercel.app/post/:id,
 // vía Universal Links/App Links) -- ruta de nivel superior, fuera de
@@ -27,7 +28,7 @@ export default function PostLinkResolver() {
     }
 
     const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
-    router.replace(`${prefix}/publicacion/${id}`);
+    navigateToDeepLinkTarget(prefix, 'publicacion', id);
   }, [loading, session, profile, id]);
 
   return (

@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
+import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir anuncio" (https://so-smoto.vercel.app/ad/:id,
 // vía Universal Links/App Links) -- mismo patrón que app/post/[id].tsx.
@@ -24,7 +25,7 @@ export default function AdLinkResolver() {
     }
 
     const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
-    router.replace(`${prefix}/anuncio/${id}`);
+    navigateToDeepLinkTarget(prefix, 'anuncio', id);
   }, [loading, session, profile, id]);
 
   return (

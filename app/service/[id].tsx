@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
+import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir servicio" (https://so-smoto.vercel.app/service/:id).
 // Mismo patrón que app/product/[id].tsx.
@@ -24,7 +25,7 @@ export default function ServiceLinkResolver() {
     }
 
     const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
-    router.replace(`${prefix}/(tabs)/servicio/${id}`);
+    navigateToDeepLinkTarget(prefix, '(tabs)/servicio', id);
   }, [loading, session, profile, id]);
 
   return (
