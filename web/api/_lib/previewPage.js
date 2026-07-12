@@ -62,6 +62,7 @@ function avatarHtml(url, name, size) {
 // authorName/authorAvatar: fila de autor con avatar circular (solo posts)
 // tag: { label } o null -- chip debajo de la descripción
 // comments: [{ authorName, avatarUrl, body }] o null/[]
+// related: [{ href, image, name, price }] o null/[] -- "También te puede interesar"
 // appLink: sosmoto://... para el intento de apertura directa
 function renderPreviewPage({
   kicker,
@@ -74,6 +75,7 @@ function renderPreviewPage({
   authorAvatar,
   tag,
   comments,
+  related,
   appLink,
   og,
 }) {
@@ -119,6 +121,24 @@ function renderPreviewPage({
                </div>`
              )
              .join('')}
+         </div>`
+      : '';
+
+  const relatedHtml =
+    related && related.length
+      ? `<div class="related">
+           <p class="related-title">También te puede interesar</p>
+           <div class="related-track">
+             ${related
+               .map(
+                 (r) => `<a class="related-card" href="${escapeHtml(r.href)}">
+                   <div class="related-image">${r.image ? `<img src="${escapeHtml(r.image)}" alt="" />` : ''}</div>
+                   <p class="related-name">${escapeHtml(r.name)}</p>
+                   ${r.price ? `<p class="related-price">${escapeHtml(r.price)}</p>` : ''}
+                 </a>`
+               )
+               .join('')}
+           </div>
          </div>`
       : '';
 
@@ -307,6 +327,58 @@ body {
   color: ${COLORS.text};
   margin: 0;
 }
+.related {
+  margin-top: 24px;
+  border-top: 1px solid ${COLORS.border};
+  padding-top: 16px;
+}
+.related-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: ${COLORS.text};
+  margin: 0 0 10px;
+}
+.related-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+.related-track::-webkit-scrollbar { display: none; }
+.related-card {
+  flex: 0 0 108px;
+  text-decoration: none;
+}
+.related-image {
+  width: 108px;
+  height: 108px;
+  border-radius: 10px;
+  background: ${COLORS.surface};
+  overflow: hidden;
+}
+.related-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.related-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: ${COLORS.text};
+  margin: 6px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.related-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: ${COLORS.primary};
+  margin: 2px 0 0;
+}
 </style>
 </head>
 <body>
@@ -322,6 +394,7 @@ body {
     ${tagHtml}
     <a class="button" href="${appLink}">Abrir en SOSmoto</a>
     ${commentsHtml}
+    ${relatedHtml}
   </div>
 </div>
 <script>

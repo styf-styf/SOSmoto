@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
   const supabase = supabaseAdmin();
   const { data: service } = await supabase
     .from('services')
-    .select('id, name, description, photos, reference_price, is_active, business:businesses(name)')
+    .select('id, name, description, photos, reference_price, is_active, category_id, business:businesses(name)')
     .eq('id', id)
     .maybeSingle();
 
@@ -31,6 +31,24 @@ module.exports = async (req, res) => {
   const universalLink = `https://so-smoto.vercel.app/service/${service.id}`;
   const appLink = `sosmoto://service/${service.id}`;
 
+  let related = [];
+  if (service.category_id) {
+    const { data: relatedRows } = await supabase
+      .from('services')
+      .select('id, name, photos, reference_price')
+      .eq('category_id', service.category_id)
+      .eq('is_active', true)
+      .neq('id', service.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    related = (relatedRows ?? []).map((r) => ({
+      href: `https://so-smoto.vercel.app/service/${r.id}`,
+      image: Array.isArray(r.photos) ? r.photos[0] : null,
+      name: r.name,
+      price: r.reference_price != null ? `$${Number(r.reference_price).toFixed(2)}` : null,
+    }));
+  }
+
   res.status(200).send(
     renderPreviewPage({
       kicker: businessName,
@@ -38,6 +56,7 @@ module.exports = async (req, res) => {
       price,
       description: service.description || null,
       image,
+      related,
       appLink,
       og: {
         title: `${service.name}${price ? ` · ${price}` : ''}`,
