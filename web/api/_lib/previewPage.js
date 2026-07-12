@@ -280,6 +280,7 @@ body {
   aspect-ratio: 4 / 3;
   object-fit: cover;
   scroll-snap-align: start;
+  scroll-snap-stop: always;
   background: ${COLORS.surface};
 }
 .carousel-dots {
@@ -504,6 +505,15 @@ body {
   font-weight: 700;
   color: ${COLORS.primary};
   flex-shrink: 0;
+}
+/* En touch (celular) el deslizar con el dedo ya funciona nativo -- las
+   flechas son solo para mouse de escritorio, así que se ocultan cuando no
+   hay hover real (dispositivos táctiles). */
+@media (hover: none) {
+  .carousel-arrow,
+  .related-arrow {
+    display: none;
+  }
 }
 </style>
 </head>
