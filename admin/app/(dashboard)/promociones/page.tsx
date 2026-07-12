@@ -2,6 +2,7 @@ import { createAdminClient } from '../../../lib/supabase/admin';
 import type { AdminPlanPromotionRow, AdminPromotionBeneficiaryRow, PlanName } from '../../../lib/types';
 import { PromotionToggleCard } from './PromotionToggleCard';
 import { PromotionScopeToggle } from './PromotionScopeToggle';
+import { AssignPlanForm } from './AssignPlanForm';
 import { BeneficiaryExpiryEditor } from './BeneficiaryExpiryEditor';
 
 const PLAN_LABELS: Record<PlanName, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
@@ -67,6 +68,8 @@ export default async function PromocionesPage() {
           );
         })}
       </div>
+
+      <AssignPlanForm plans={plans} />
 
       <h2 className="mb-3 text-lg font-semibold">Negocios con beneficio de promoción</h2>
       {(plansResult.error || promotionsResult.error || beneficiariesResult.error || settingsResult.error) && (
