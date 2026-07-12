@@ -143,8 +143,14 @@ export default function ClientHomeScreen() {
 
   // Mismo reset si el usuario ya está en Inicio y vuelve a presionar el botón del tab.
   // También reinicia la pila de producto/servicio (ver utils/productoServicioStackReset.ts).
+  // "tabPress" se dispara tanto al re-tocar el tab ya activo como al venir de otro tab hacia
+  // este -- en ese segundo caso useFocusEffect (arriba) YA hace un dragX.setValue(0) instantáneo
+  // en el mismo instante, y como esta animación usa el native driver, las dos peleando por el
+  // mismo valor dejaban la pantalla a medio camino, partida en dos. Si todavía no tenemos el foco,
+  // es ese segundo caso -- se ignora acá porque useFocusEffect ya lo resuelve.
   useEffect(() => {
     return navigation.addListener('tabPress' as any, () => {
+      if (!navigation.isFocused()) return;
       Animated.spring(dragX, {
         toValue: 0,
         useNativeDriver: true,

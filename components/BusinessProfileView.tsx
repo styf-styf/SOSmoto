@@ -320,11 +320,18 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             onPress={() => router.push('/(business)/clientes')}
           />
           {business.business_type === 'workshop' ? (
-            <ProfileActionButton
-              icon="bag-handle-outline"
-              label="Mis compras"
-              onPress={() => router.push('/(business)/mis-compras')}
-            />
+            <>
+              <ProfileActionButton
+                icon="bag-handle-outline"
+                label="Mis compras"
+                onPress={() => router.push('/(business)/mis-compras')}
+              />
+              <ProfileActionButton
+                icon="heart-outline"
+                label="Tiendas que sigo"
+                onPress={() => router.push('/(business)/tiendas-que-sigo')}
+              />
+            </>
           ) : (
             <ProfileActionButton
               icon="stats-chart-outline"

@@ -197,8 +197,14 @@ export default function BusinessHomeScreen() {
 
   // Reinicia el toggle Para ti/Siguiendo y la pila de producto/servicio
   // (ver utils/productoServicioStackReset.ts) al presionar el tab "Inicio".
+  // "tabPress" tambien se dispara al venir de otro tab hacia este -- en ese
+  // caso useFocusEffect (arriba) ya hace un dragX.setValue(0) instantaneo en
+  // el mismo instante, y con el native driver las dos animaciones peleando
+  // por el mismo valor dejaban la pantalla a medio camino. Si todavia no
+  // tenemos el foco es ese caso -- se ignora porque useFocusEffect ya lo resuelve.
   useEffect(() => {
     return navigation.addListener('tabPress' as any, () => {
+      if (!navigation.isFocused()) return;
       Animated.spring(dragX, {
         toValue: 0,
         useNativeDriver: true,
