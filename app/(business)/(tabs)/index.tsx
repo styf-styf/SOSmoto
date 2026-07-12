@@ -577,7 +577,7 @@ function PendingInvitationsScreen({
       <Ionicons name="mail-outline" size={48} color={colors.primary} style={styles.invitationsIcon} />
       <Text style={styles.invitationsTitle}>Tienes invitaciones</Text>
       <Text style={styles.invitationsSubtitle}>
-        Un taller te invitó a unirte como mecánico. Acepta para empezar a trabajar.
+        Un negocio te invitó a unirte a su equipo. Acepta para empezar a trabajar.
       </Text>
       {invitations.map((inv) => (
         <View key={inv.id} style={styles.invitationCard}>

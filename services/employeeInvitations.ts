@@ -49,8 +49,8 @@ export async function sendEmployeeInvitation(
   if (business?.name) {
     await notifyUser(
       inviteeId,
-      'Invitación de taller',
-      `${business.name} te invitó a unirte como mecánico`,
+      'Invitación de equipo',
+      `${business.name} te invitó a unirte como ${jobTitle ?? 'parte del equipo'}`,
       { type: 'employee_invitation', invitationId: data.id, businessId }
     );
   }
@@ -163,7 +163,7 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
     await notifyUser(
       business.owner_id,
       'Invitación aceptada',
-      `${invitee?.full_name ?? 'El mecánico'} aceptó unirse a ${business.name ?? 'tu taller'}`,
+      `${invitee?.full_name ?? 'La persona'} aceptó unirse a ${business.name ?? 'tu negocio'}`,
       { type: 'employee_invitation_accepted', businessId: inv.business_id }
     );
   }
@@ -191,7 +191,7 @@ export async function rejectInvitation(invitationId: string): Promise<void> {
     await notifyUser(
       business.owner_id,
       'Invitación rechazada',
-      `${invitee?.full_name ?? 'El mecánico'} rechazó la invitación para ${business.name ?? 'tu taller'}`,
+      `${invitee?.full_name ?? 'La persona'} rechazó la invitación para ${business.name ?? 'tu negocio'}`,
       { type: 'employee_invitation_rejected', businessId: inv.business_id }
     );
   }

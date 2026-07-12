@@ -32,10 +32,10 @@ const PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof EmployeeWi
   { key: 'canCreatePosts', field: 'can_create_posts', label: 'Puede crear publicaciones' },
 ];
 
-function getJobTitleSuggestions(businessType: BusinessType | null): string[] {
-  if (businessType === 'workshop') return ['Mecánico', 'Administrador', 'Secretaria'];
-  if (businessType === 'store') return ['Administrador', 'Recepcionista', 'Bodega'];
-  return ['Administrador'];
+function getJobTitlePlaceholder(businessType: BusinessType | null): string {
+  if (businessType === 'workshop') return 'Ej. Mecánico, Secretaria, Administrador';
+  if (businessType === 'store') return 'Ej. Recepcionista, Bodega, Administrador';
+  return 'Ej. Administrador';
 }
 
 interface EmpleadosData {
@@ -135,8 +135,8 @@ export default function EmpleadosScreen() {
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
         {allowedAdditional !== null
-          ? `${employees.length}/${allowedAdditional} mecánicos adicionales (plan ${limits?.planName})`
-          : `${employees.length} mecánicos en el equipo (plan ${limits?.planName}, sin límite)`}
+          ? `${employees.length}/${allowedAdditional} personas adicionales en el equipo (plan ${limits?.planName})`
+          : `${employees.length} personas en el equipo (plan ${limits?.planName}, sin límite)`}
       </Text>
 
       {isOwner && isLimited && (
@@ -160,9 +160,9 @@ export default function EmpleadosScreen() {
         </View>
       )}
 
-      {/* Mecánicos activos */}
+      {/* Personal activo */}
       {employees.length === 0 ? (
-        <Text style={styles.placeholder}>Todavía no agregas mecánicos.</Text>
+        <Text style={styles.placeholder}>Todavía no agregas personal.</Text>
       ) : (
         employees.map((employee) => (
           <EmployeeRow
@@ -191,11 +191,11 @@ export default function EmpleadosScreen() {
             }}
           />
         ) : (
-          <Button title="+ Agregar mecánico" variant="secondary" onPress={handleAddPress} style={styles.addButton} />
+          <Button title="+ Agregar personal" variant="secondary" onPress={handleAddPress} style={styles.addButton} />
         ))}
 
       {!isOwner && (
-        <Text style={styles.helperText}>Solo el dueño del negocio puede agregar o quitar mecánicos.</Text>
+        <Text style={styles.helperText}>Solo el dueño del negocio puede agregar o quitar personal.</Text>
       )}
     </ScrollView>
   );
@@ -347,14 +347,7 @@ function EmployeeRow({
         </View>
       ) : (
         <View style={styles.jobTitleEditBox}>
-          <TextField label="Cargo" placeholder="Ej. Mecánico" value={jobTitle} onChangeText={setJobTitle} />
-          <View style={styles.chipRow}>
-            {getJobTitleSuggestions(businessType).map((s) => (
-              <Pressable key={s} onPress={() => setJobTitle(s)} style={[styles.chip, jobTitle === s && styles.chipSelected]}>
-                <Text style={[styles.chipText, jobTitle === s && styles.chipTextSelected]}>{s}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <TextField label="Cargo" placeholder={getJobTitlePlaceholder(businessType)} value={jobTitle} onChangeText={setJobTitle} />
           <View style={styles.editActions}>
             <Button title="Guardar" onPress={handleSaveJobTitle} loading={savingJobTitle} style={styles.flexButton} />
             <Button title="Cancelar" variant="secondary" onPress={() => setEditingJobTitle(false)} style={styles.flexButton} />
@@ -403,10 +396,14 @@ function AddEmployeeForm({
       Alert.alert('Falta el correo', 'Ingresa el correo con el que se registró en la app.');
       return;
     }
+    if (!jobTitle.trim()) {
+      Alert.alert('Falta el cargo', 'Ingresa el cargo de esta persona en el negocio (ej. Mecánico, Secretaria, Bodega).');
+      return;
+    }
     setSaving(true);
     try {
-      await addEmployeeByEmail(businessId, email.trim(), jobTitle.trim() || null, permissions);
-      Alert.alert('Invitación enviada', 'El mecánico recibirá una notificación para aceptar o rechazar la invitación.');
+      await addEmployeeByEmail(businessId, email.trim(), jobTitle.trim(), permissions);
+      Alert.alert('Invitación enviada', 'Recibirá una notificación para aceptar o rechazar la invitación.');
       onInvited();
     } catch (err) {
       console.error('add employee error', err);
@@ -419,8 +416,8 @@ function AddEmployeeForm({
   return (
     <View style={styles.card}>
       <TextField
-        label="Correo del mecánico"
-        placeholder="mecanico@correo.com"
+        label="Correo del nuevo integrante"
+        placeholder="correo@ejemplo.com"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -428,14 +425,7 @@ function AddEmployeeForm({
       />
       <Text style={styles.helperText}>Debe haberse registrado antes en la app.</Text>
 
-      <TextField label="Cargo (opcional)" placeholder="Ej. Mecánico" value={jobTitle} onChangeText={setJobTitle} />
-      <View style={styles.chipRow}>
-        {getJobTitleSuggestions(businessType).map((s) => (
-          <Pressable key={s} onPress={() => setJobTitle(s)} style={[styles.chip, jobTitle === s && styles.chipSelected]}>
-            <Text style={[styles.chipText, jobTitle === s && styles.chipTextSelected]}>{s}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <TextField label="Cargo *" placeholder={getJobTitlePlaceholder(businessType)} value={jobTitle} onChangeText={setJobTitle} />
 
       {PERMISSION_ROWS.map((row) => (
         <View key={row.key} style={styles.cardFooter}>
@@ -558,31 +548,6 @@ const styles = StyleSheet.create({
   },
   jobTitleEditBox: {
     marginTop: 8,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  chipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: colors.primary,
   },
   editActions: {
     flexDirection: 'row',
