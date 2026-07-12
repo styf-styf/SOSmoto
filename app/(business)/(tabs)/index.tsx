@@ -300,13 +300,10 @@ export default function BusinessHomeScreen() {
         onRefresh={load}
         ListHeaderComponent={
           <View>
-            <View style={styles.headerWrap}>
-              <View style={styles.titleRow}>
-                <Text style={styles.title} numberOfLines={1}>{business.name}</Text>
-                <Text style={styles.titleSep}>|</Text>
-                <Text style={styles.subtitle} numberOfLines={1}>{business.city}{business.address ? `, ${business.address}` : ''}</Text>
-              </View>
-              <Text style={styles.sectionTitle}>Historias</Text>
+            <View style={styles.brandHeaderRow}>
+              <View style={styles.brandHeaderSide} />
+              <Text style={styles.brandTitle}>SOSmoto</Text>
+              <View style={styles.brandHeaderSide} />
             </View>
             <View style={styles.storiesWrap}>
               <StoriesRow
@@ -858,10 +855,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  headerWrap: {
-    paddingHorizontal: 20,
-    paddingTop: 36,
-  },
   brandHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1079,34 +1072,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flexGrow: 1,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
     flexShrink: 1,
   },
-  titleSep: {
-    fontSize: 16,
-    color: colors.border,
-    fontWeight: '300',
-  },
   subtitle: {
     fontSize: 14,
     color: colors.textMuted,
     flexShrink: 1,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
   },
   sectionTitleInset: {
     fontSize: 16,
