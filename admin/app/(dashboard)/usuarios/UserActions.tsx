@@ -54,7 +54,9 @@ export function UserActions({
       <div className="flex gap-2">
         {isLimited ? (
           <button
-            onClick={() => call('unlimit')}
+            onClick={() => {
+              if (window.confirm('¿Quitar el límite a este usuario? Recuperará acceso completo de inmediato.')) call('unlimit');
+            }}
             disabled={loading !== null}
             className="rounded-lg bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
           >

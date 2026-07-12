@@ -17,6 +17,8 @@ export function BeneficiaryExpiryEditor({ subscriptionId, expiresAt }: { subscri
 
   async function handleSave() {
     if (!value) return;
+    const formatted = new Date(value).toLocaleDateString('es-EC');
+    if (!window.confirm(`¿Cambiar la fecha de corte de este negocio a ${formatted}?`)) return;
     setSaving(true);
     setError(null);
     const res = await fetch(`/api/promociones/beneficiarios/${subscriptionId}`, {

@@ -27,6 +27,14 @@ export function PromotionToggleCard({
   const [error, setError] = useState<string | null>(null);
 
   async function handleToggle() {
+    const planLabel = PLAN_LABELS[planName] ?? planName;
+    const message = isActive
+      ? `¿Pausar la promoción del plan ${planLabel}? Los negocios nuevos dejarán de ver el botón de reclamo gratis. Quienes ya la reclamaron no se ven afectados.`
+      : otherPlanIsActive
+        ? `¿Activar la promoción del plan ${planLabel}? Esto pausará automáticamente la otra promoción activa. Todo negocio nuevo que se registre a partir de ahora podrá reclamar el plan ${planLabel} gratis por ${hasCampaign ? remainingDays : newDurationDays} días.`
+        : `¿Activar la promoción del plan ${planLabel}? Todo negocio nuevo que se registre a partir de ahora podrá reclamar este plan gratis por ${newDurationDays} días.`;
+    if (!window.confirm(message)) return;
+
     setLoading(true);
     setError(null);
     const res = isActive

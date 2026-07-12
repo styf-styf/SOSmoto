@@ -41,7 +41,9 @@ export function BusinessActions({ businessId, isLimited }: { businessId: string;
     <div className="flex flex-col gap-1">
       {isLimited ? (
         <button
-          onClick={() => call('unlimit')}
+          onClick={() => {
+            if (window.confirm('¿Quitar el límite a este negocio? Recuperará todas sus funciones de inmediato.')) call('unlimit');
+          }}
           disabled={loading}
           className="rounded-lg bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
         >
