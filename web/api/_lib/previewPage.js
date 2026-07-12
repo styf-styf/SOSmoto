@@ -451,7 +451,7 @@ body {
   ${carouselHtml}
   <div class="content">
     ${!authorName && kicker ? `<p class="kicker">${escapeHtml(kicker)}</p>` : ''}
-    ${!authorName ? `<p class="title">${escapeHtml(title)}</p>` : ''}
+    ${title ? `<p class="title">${escapeHtml(title)}</p>` : ''}
     ${price ? `<p class="price">${escapeHtml(price)}</p>` : ''}
     ${description ? `<p class="description">${escapeHtml(description)}</p>` : ''}
     ${tagHtml}

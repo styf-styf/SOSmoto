@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
   const supabase = supabaseAdmin();
   const { data: service } = await supabase
     .from('services')
-    .select('id, name, description, photos, reference_price, is_active, category_id, business:businesses(name)')
+    .select('id, name, description, photos, reference_price, is_active, category_id, business:businesses(name, logo_url)')
     .eq('id', id)
     .maybeSingle();
 
@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
 
   const businessName = service.business?.name ?? 'SOSmoto';
   const description = service.description || `Servicio de ${businessName} en SOSmoto`;
-  const image = Array.isArray(service.photos) ? service.photos[0] : null;
+  const images = Array.isArray(service.photos) ? service.photos : [];
   const price = service.reference_price != null ? `$${Number(service.reference_price).toFixed(2)}` : null;
   const universalLink = `https://so-smoto.vercel.app/service/${service.id}`;
   const appLink = `sosmoto://service/${service.id}`;
@@ -52,11 +52,12 @@ module.exports = async (req, res) => {
 
   res.status(200).send(
     renderPreviewPage({
-      kicker: businessName,
+      authorName: businessName,
+      authorAvatar: service.business?.logo_url ?? null,
       title: service.name,
       price,
       description: service.description || null,
-      image,
+      images,
       related,
       appLink,
       og: {

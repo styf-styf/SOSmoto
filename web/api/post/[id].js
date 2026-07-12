@@ -66,7 +66,6 @@ module.exports = async (req, res) => {
     renderPreviewPage({
       authorName,
       authorAvatar,
-      title: authorName,
       description: post.caption || null,
       images,
       tag: resolveTag(post),
