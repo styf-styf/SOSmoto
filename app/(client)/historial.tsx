@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createReview, getServiceHistory, type ServiceHistoryItem } from '../../services/reviews';
 import { getClientReportIdsByAppointments } from '../../services/serviceReports';
 
@@ -58,35 +59,38 @@ function matchesFilter(
   return item.kind === filter;
 }
 
+interface HistorialData {
+  items: ServiceHistoryItem[];
+  reportIds: Map<string, string>;
+}
+
 export default function HistorialScreen() {
   const { profile } = useAuth();
-  const [items, setItems] = useState<ServiceHistoryItem[]>([]);
-  const [reportIds, setReportIds] = useState<Map<string, string>>(new Map());
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `historial-${profile.id}` : null;
+  const { data, loading, reload } = useCachedLoad<HistorialData>(cacheKey, async () => {
+    if (!profile) return { items: [], reportIds: new Map() };
     const [history, reportMap] = await Promise.all([
       getServiceHistory(profile.id),
       getClientReportIdsByAppointments(profile.id),
     ]);
-    setItems(history);
-    setReportIds(reportMap);
-  }, [profile]);
+    return { items: history, reportIds: reportMap };
+  });
+  const items = data?.items ?? [];
+  const reportIds = data?.reportIds ?? new Map<string, string>();
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load historial error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load historial error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   const filtered = items.filter((item) => matchesFilter(item, filter, reportIds));
 
@@ -134,7 +138,7 @@ export default function HistorialScreen() {
               key={`${item.kind}_${item.id}`}
               item={item}
               reportId={reportId}
-              onReviewed={load}
+              onReviewed={reload}
             />
           );
         })

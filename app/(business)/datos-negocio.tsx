@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
 import MapView, { type Region } from 'react-native-maps';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
 import type { Business } from '../../types/database';
 
@@ -18,61 +18,83 @@ const ECUADOR_PROVINCES_DN = [
   'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe',
 ];
 
+interface DatosNegocioData {
+  business: Business | null;
+  isOwner: boolean;
+}
+
 export default function DatosNegocioScreen() {
   const { profile } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = profile ? `datos-negocio-${profile.id}` : null;
+  const { data, loading, reload: reloadCache, setData } = useCachedLoad<DatosNegocioData>(cacheKey, async () => {
+    if (!profile) return { business: null, isOwner: false };
+    const work = await getMyWorkBusiness(profile.id);
+    return { business: work?.business ?? null, isOwner: work?.isOwner ?? false };
+  });
+  const business = data?.business ?? null;
+  const isOwner = data?.isOwner ?? false;
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [province, setProvince] = useState('');
-  const [city, setCity] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [radius, setRadius] = useState('');
+  const [name, setName] = useState(() => data?.business?.name ?? '');
+  const [description, setDescription] = useState(() => data?.business?.description ?? '');
+  const [province, setProvince] = useState(() => data?.business?.province ?? '');
+  const [city, setCity] = useState(() => data?.business?.city ?? '');
+  const [address, setAddress] = useState(() => data?.business?.address ?? '');
+  const [phone, setPhone] = useState(() => data?.business?.phone ?? '');
+  const [whatsapp, setWhatsapp] = useState(() => data?.business?.whatsapp ?? '');
+  const [radius, setRadius] = useState(() =>
+    data?.business?.aid_radius_km !== null && data?.business?.aid_radius_km !== undefined
+      ? String(data.business.aid_radius_km)
+      : ''
+  );
 
   const [saving, setSaving] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
 
   // Map picker
-  const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(
+    data?.business ? { latitude: data.business.latitude, longitude: data.business.longitude } : null
+  );
   const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const pendingRegionRef = useRef<Region | null>(null);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
-    const work = await getMyWorkBusiness(profile.id);
-    const myBusiness = work?.business ?? null;
-    setBusiness(myBusiness);
-    setIsOwner(work?.isOwner ?? false);
-    if (!myBusiness) return;
-    setName(myBusiness.name);
-    setDescription(myBusiness.description ?? '');
-    setProvince(myBusiness.province ?? '');
-    setCity(myBusiness.city);
-    setAddress(myBusiness.address);
-    setPhone(myBusiness.phone ?? '');
-    setWhatsapp(myBusiness.whatsapp ?? '');
-    setRadius(myBusiness.aid_radius_km !== null ? String(myBusiness.aid_radius_km) : '');
-    setSelectedCoords({ latitude: myBusiness.latitude, longitude: myBusiness.longitude });
-  }, [profile]);
+  const didPopulateRef = useRef(!!data?.business);
+
+  function populateForm(b: Business | null) {
+    if (!b) return;
+    setName(b.name);
+    setDescription(b.description ?? '');
+    setProvince(b.province ?? '');
+    setCity(b.city);
+    setAddress(b.address);
+    setPhone(b.phone ?? '');
+    setWhatsapp(b.whatsapp ?? '');
+    setRadius(b.aid_radius_km !== null ? String(b.aid_radius_km) : '');
+    setSelectedCoords({ latitude: b.latitude, longitude: b.longitude });
+  }
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load datos negocio error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
+    // Primera vez que `business` está disponible tras un fetch real (el
+    // cache-hit ya se maneja en los inicializadores de useState de arriba).
+    if (didPopulateRef.current || !business) return;
+    didPopulateRef.current = true;
+    populateForm(business);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load().catch((err) => console.error('refresh datos negocio error', err));
-    }, [load])
-  );
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const result = await reloadCache();
+      populateForm(result.business);
+    } catch (err) {
+      console.error('refresh datos negocio error', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function openMapPicker() {
     const center = selectedCoords ?? { latitude: -0.1807, longitude: -78.4678 };
@@ -116,7 +138,7 @@ export default function DatosNegocioScreen() {
         aid_radius_km: parsedRadius,
         ...(selectedCoords ? { latitude: selectedCoords.latitude, longitude: selectedCoords.longitude } : {}),
       });
-      setBusiness(updated);
+      setData((prev) => (prev ? { ...prev, business: updated } : prev));
       Alert.alert('Guardado', 'Los datos de tu negocio se actualizaron.');
     } catch (err) {
       console.error('update business error', err);
@@ -143,7 +165,10 @@ export default function DatosNegocioScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+    >
       {!isOwner && (
         <View style={styles.readOnlyBanner}>
           <Text style={styles.readOnlyText}>Solo el dueño del negocio puede editar estos datos.</Text>

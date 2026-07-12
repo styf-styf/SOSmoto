@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,20 +7,26 @@ import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getActiveProducts, getActiveServices, getPlanLimits } from '../../services/catalog';
+import { getMyEmployeeRecord } from '../../services/employees';
 import { createPost, deletePost, getMyBusinessPosts } from '../../services/posts';
 import { pickAndUploadBusinessImage } from '../../services/storage';
 import type { Business, Post, Product, Service } from '../../types/database';
 
 type TagKind = 'none' | 'service' | 'product';
 
+interface BusinessPublicacionesData {
+  business: Business | null;
+  isOwner: boolean;
+  canCreatePosts: boolean;
+  posts: Post[];
+  maxPhotos: number;
+}
+
 export default function BusinessPublicacionesScreen() {
   const { profile } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const [photos, setPhotos] = useState<string[]>([]);
@@ -32,35 +38,44 @@ export default function BusinessPublicacionesScreen() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  // Tope de fotos por publicación según el plan del negocio (mismo campo que
-  // products/services: Free 1, Estándar 3, Pro 5).
-  const [maxPhotos, setMaxPhotos] = useState(1);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `business-publicaciones-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<BusinessPublicacionesData>(cacheKey, async () => {
+    const empty: BusinessPublicacionesData = { business: null, isOwner: false, canCreatePosts: false, posts: [], maxPhotos: 1 };
+    if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusiness(work.business);
-    setIsOwner(work.isOwner);
-    const [myPosts, limits] = await Promise.all([
+    if (!work) return empty;
+    const [myPosts, limits, employeeRecord] = await Promise.all([
       getMyBusinessPosts(work.business.id),
       getPlanLimits(work.business.id),
+      work.isOwner ? Promise.resolve(null) : getMyEmployeeRecord(work.business.id, profile.id),
     ]);
-    setPosts(myPosts);
-    setMaxPhotos(limits.maxPhotosPerItem ?? 5);
-  }, [profile]);
+    return {
+      business: work.business,
+      isOwner: work.isOwner,
+      canCreatePosts: work.isOwner || (employeeRecord?.can_create_posts ?? false),
+      posts: myPosts,
+      maxPhotos: limits.maxPhotosPerItem ?? 5,
+    };
+  });
+  const business = data?.business ?? null;
+  const isOwner = data?.isOwner ?? false;
+  const canCreatePosts = data?.canCreatePosts ?? false;
+  const posts = data?.posts ?? [];
+  // Tope de fotos por publicación según el plan del negocio (mismo campo que
+  // products/services: Free 1, Estándar 3, Pro 5).
+  const maxPhotos = data?.maxPhotos ?? 1;
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load business posts error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load business posts error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   useEffect(() => {
     if (!business) return;
@@ -121,7 +136,7 @@ export default function BusinessPublicacionesScreen() {
         tagServiceId: tagKind === 'service' ? targetId ?? undefined : undefined,
         tagProductId: tagKind === 'product' ? targetId ?? undefined : undefined,
       });
-      setPosts((prev) => [created, ...prev]);
+      setData((prev) => (prev ? { ...prev, posts: [created, ...prev.posts] } : prev));
       setShowForm(false);
     } catch (err) {
       console.error('create post error', err);
@@ -134,7 +149,7 @@ export default function BusinessPublicacionesScreen() {
   async function handleDelete(post: Post) {
     try {
       await deletePost(post.id);
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      setData((prev) => (prev ? { ...prev, posts: prev.posts.filter((p) => p.id !== post.id) } : prev));
     } catch (err) {
       console.error('delete post error', err);
       Alert.alert('Error', 'No se pudo eliminar la publicación.');
@@ -161,16 +176,16 @@ export default function BusinessPublicacionesScreen() {
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>Foto y texto permanentes, visibles para toda la comunidad.</Text>
 
-      {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede publicar.</Text>}
-      {isOwner && business.is_limited && (
+      {!canCreatePosts && <Text style={styles.helperText}>No tienes permiso para publicar en este negocio.</Text>}
+      {canCreatePosts && business.is_limited && (
         <Text style={styles.limitedNotice}>Tu negocio está limitado: no puedes crear nuevas publicaciones.</Text>
       )}
 
-      {isOwner && !business.is_limited && !showForm && (
+      {canCreatePosts && !business.is_limited && !showForm && (
         <Button title="+ Nueva publicación" onPress={handleAddPress} style={styles.createButton} />
       )}
 
-      {isOwner && !business.is_limited && showForm && (
+      {canCreatePosts && !business.is_limited && showForm && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Fotos ({photos.length}/{maxPhotos})</Text>
           <View style={styles.imageButton}>

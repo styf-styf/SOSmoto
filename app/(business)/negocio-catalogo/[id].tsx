@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientShade } from '../../../components/GradientShade';
 import { colors } from '../../../constants/colors';
+import { useCachedLoad } from '../../../hooks/useCachedLoad';
 import { getBusinessById } from '../../../services/businesses';
 import { getActiveProducts, getActiveServices } from '../../../services/catalog';
 import type { Business, Product, Service } from '../../../types/database';
@@ -27,38 +28,40 @@ function formatItemPrice(referencePrice: number | null): string {
   return referencePrice !== null ? `$${Number(referencePrice).toFixed(2)}` : 'Consultar';
 }
 
+interface NegocioCatalogoData {
+  business: Business | null;
+  services: Service[];
+  products: Product[];
+}
+
 export default function NegocioCatalogoBusinessScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!id) return;
+  const cacheKey = id ? `negocio-catalogo-business-${id}` : null;
+  const { data, loading, reload } = useCachedLoad<NegocioCatalogoData>(cacheKey, async () => {
+    if (!id) return { business: null, services: [], products: [] };
     const [businessResult, servicesResult, productsResult] = await Promise.all([
       getBusinessById(id),
       getActiveServices(id),
       getActiveProducts(id),
     ]);
-    setBusiness(businessResult);
-    setServices(servicesResult);
-    setProducts(productsResult);
-  }, [id]);
+    return { business: businessResult, services: servicesResult, products: productsResult };
+  });
+  const business = data?.business ?? null;
+  const services = data?.services ?? [];
+  const products = data?.products ?? [];
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('negocio catalogo business load error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('negocio catalogo business load error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   if (loading) {
     return (

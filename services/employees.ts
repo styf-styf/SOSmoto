@@ -7,6 +7,14 @@ export interface EmployeeWithUser extends BusinessEmployee {
   user: { full_name: string; email: string; phone: string | null } | null;
 }
 
+export interface EmployeePermissions {
+  canAcceptAidRequests: boolean;
+  canManageCatalog: boolean;
+  canReplyChat: boolean;
+  canUploadStories: boolean;
+  canCreatePosts: boolean;
+}
+
 export async function getEmployees(businessId: string): Promise<EmployeeWithUser[]> {
   const { data, error } = await supabase.rpc('get_business_employees', {
     target_business_id: businessId,
@@ -19,7 +27,12 @@ export async function getEmployees(businessId: string): Promise<EmployeeWithUser
       business_id: row.business_id,
       user_id: row.user_id,
       role: row.role,
+      job_title: row.job_title,
       can_accept_aid_requests: row.can_accept_aid_requests,
+      can_manage_catalog: row.can_manage_catalog,
+      can_reply_chat: row.can_reply_chat,
+      can_upload_stories: row.can_upload_stories,
+      can_create_posts: row.can_create_posts,
       created_at: row.created_at,
       user: { full_name: row.full_name, email: row.email, phone: row.phone },
     }))
@@ -29,7 +42,8 @@ export async function getEmployees(businessId: string): Promise<EmployeeWithUser
 export async function addEmployeeByEmail(
   businessId: string,
   email: string,
-  canAcceptAidRequests: boolean
+  jobTitle: string | null,
+  permissions: EmployeePermissions
 ): Promise<void> {
   const limits = await getPlanLimits(businessId);
   if (limits.maxEmployees !== null) {
@@ -61,17 +75,35 @@ export async function addEmployeeByEmail(
     throw new Error('Esa persona ya es parte de tu equipo.');
   }
 
-  await sendEmployeeInvitation(businessId, userId, canAcceptAidRequests);
+  await sendEmployeeInvitation(businessId, userId, jobTitle, permissions);
 }
 
-export async function updateEmployeePermission(
-  employeeId: string,
-  canAcceptAidRequests: boolean
-): Promise<void> {
+export async function updateEmployeeJobTitle(employeeId: string, jobTitle: string | null): Promise<void> {
   const { error } = await supabase
     .from('business_employees')
-    .update({ can_accept_aid_requests: canAcceptAidRequests })
+    .update({ job_title: jobTitle })
     .eq('id', employeeId);
+  if (error) throw error;
+}
+
+export async function updateEmployeePermissions(
+  employeeId: string,
+  permissions: Partial<EmployeePermissions>
+): Promise<void> {
+  const update: {
+    can_accept_aid_requests?: boolean;
+    can_manage_catalog?: boolean;
+    can_reply_chat?: boolean;
+    can_upload_stories?: boolean;
+    can_create_posts?: boolean;
+  } = {};
+  if (permissions.canAcceptAidRequests !== undefined) update.can_accept_aid_requests = permissions.canAcceptAidRequests;
+  if (permissions.canManageCatalog !== undefined) update.can_manage_catalog = permissions.canManageCatalog;
+  if (permissions.canReplyChat !== undefined) update.can_reply_chat = permissions.canReplyChat;
+  if (permissions.canUploadStories !== undefined) update.can_upload_stories = permissions.canUploadStories;
+  if (permissions.canCreatePosts !== undefined) update.can_create_posts = permissions.canCreatePosts;
+
+  const { error } = await supabase.from('business_employees').update(update).eq('id', employeeId);
   if (error) throw error;
 }
 

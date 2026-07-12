@@ -60,6 +60,7 @@ export default function BusinessTabsLayout() {
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarHideOnKeyboard: true,
+          lazy: false,
         }}
       >
       <Tabs.Screen

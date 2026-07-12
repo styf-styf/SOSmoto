@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import {
   approveAppointment,
   cancelAppointment,
@@ -53,11 +54,13 @@ function AppointmentCard({
   return <View style={styles.card}>{children}</View>;
 }
 
+interface CitasData {
+  appointments: ClientAppointment[];
+  reportIds: Map<string, string>;
+}
+
 export default function CitasScreen() {
   const { profile } = useAuth();
-  const [appointments, setAppointments] = useState<ClientAppointment[]>([]);
-  const [reportIds, setReportIds] = useState<Map<string, string>>(new Map());
-  const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   // Contra-propuesta del cliente
@@ -70,14 +73,13 @@ export default function CitasScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `citas-${profile.id}` : null;
+  const { data, loading, reload, setData: setCitasData } = useCachedLoad<CitasData>(cacheKey, async () => {
+    if (!profile) return { appointments: [], reportIds: new Map() };
     const [result, reportMap] = await Promise.all([
       getClientAppointments(profile.id),
       getClientReportIdsByAppointments(profile.id),
     ]);
-    setAppointments(result);
-    setReportIds(reportMap);
     // Sincronizar recordatorios locales con las citas vigentes
     syncAppointmentReminders(
       result.map((a) => ({
@@ -88,27 +90,39 @@ export default function CitasScreen() {
         serviceName: a.service_name,
       }))
     ).catch((err) => console.warn('sync reminders error', err));
-  }, [profile]);
+    return { appointments: result, reportIds: reportMap };
+  });
+  const appointments = data?.appointments ?? [];
+  const reportIds = data?.reportIds ?? new Map<string, string>();
+
+  function setAppointments(updater: (prev: ClientAppointment[]) => ClientAppointment[]) {
+    setCitasData((prev) => ({
+      appointments: updater(prev?.appointments ?? []),
+      reportIds: prev?.reportIds ?? new Map(),
+    }));
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load citas error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load citas error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
-
-  useEffect(() => {
     if (!profile) return;
+    // Un cambio real notificado por el servidor SÍ amerita recargar (no es
+    // un "por si acaso" al revisitar la pantalla, es un cambio confirmado).
     const unsubscribe = subscribeToClientAppointments(profile.id, () => {
-      load().catch((err) => console.error('reload citas error', err));
+      reload().catch((err) => console.error('reload citas error', err));
     });
     return unsubscribe;
-  }, [profile, load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
 
   function startCounter(id: string) {
     setCounteringId(id);

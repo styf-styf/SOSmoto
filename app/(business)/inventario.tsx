@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
 import {
   addStockMovement,
@@ -57,11 +58,13 @@ function worstLevel(product: ProductWithMovements): 'out' | 'low' | 'ok' {
   return 'ok';
 }
 
+interface InventarioData {
+  businessId: string | null;
+  products: ProductWithMovements[];
+}
+
 export default function InventarioScreen() {
   const { profile } = useAuth();
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [products, setProducts] = useState<ProductWithMovements[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>('all');
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
 
@@ -81,26 +84,31 @@ export default function InventarioScreen() {
 
   const currentStock = selectedVariant ? selectedVariant.stock : selected?.stock ?? 0;
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `inventario-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<InventarioData>(cacheKey, async () => {
+    if (!profile) return { businessId: null, products: [] };
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusinessId(work.business.id);
+    if (!work) return { businessId: null, products: [] };
     const inv = await getInventory(work.business.id);
-    setProducts(inv);
-  }, [profile]);
+    return { businessId: work.business.id, products: inv };
+  });
+  const businessId = data?.businessId ?? null;
+  const products = data?.products ?? [];
+
+  function setProducts(updater: (prev: ProductWithMovements[]) => ProductWithMovements[]) {
+    setData((prev) => (prev ? { ...prev, products: updater(prev.products) } : prev));
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load inventory error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load inventory error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   async function openMovementPanel(product: ProductWithMovements, variant: VariantWithLevel | null, stock: number) {
     setSelected(product);

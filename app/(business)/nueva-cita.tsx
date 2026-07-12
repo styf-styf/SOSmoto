@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
@@ -10,6 +10,7 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getActiveServices } from '../../services/catalog';
 import { createAppointmentByBusiness } from '../../services/appointments';
 import { scheduleAppointmentReminder } from '../../services/appointmentReminders';
@@ -31,15 +32,18 @@ function defaultDate(): Date {
   return d;
 }
 
+interface NuevaCitaData {
+  businessId: string | null;
+  crmClients: CRMClient[];
+  services: Service[];
+}
+
 export default function NuevaCitaScreen() {
   const { profile } = useAuth();
   const { clientId: preselectedClientId } = useLocalSearchParams<{ clientId?: string }>();
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Buscador unificado
-  const [crmClients, setCrmClients] = useState<CRMClient[]>([]);
   const [search, setSearch] = useState('');
   const [globalResults, setGlobalResults] = useState<UserSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -47,7 +51,6 @@ export default function NuevaCitaScreen() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Servicio
-  const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
 
   // Fecha y hora
@@ -59,39 +62,36 @@ export default function NuevaCitaScreen() {
   // Notas
   const [notes, setNotes] = useState('');
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `nueva-cita-${profile.id}` : null;
+  const { data, loading } = useCachedLoad<NuevaCitaData>(cacheKey, async () => {
+    const empty: NuevaCitaData = { businessId: null, crmClients: [], services: [] };
+    if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    const bId = work.business.id;
-    setBusinessId(bId);
+    if (!work) return empty;
     const [crm, svcList] = await Promise.all([
-      getCRMClients(bId),
-      getActiveServices(bId),
+      getCRMClients(work.business.id),
+      getActiveServices(work.business.id),
     ]);
-    setCrmClients(crm);
-    setServices(svcList);
+    return { businessId: work.business.id, crmClients: crm, services: svcList };
+  });
+  const businessId = data?.businessId ?? null;
+  const crmClients = data?.crmClients ?? [];
+  const services = data?.services ?? [];
 
-    // Pre-seleccionar cliente si venimos del chat
-    if (preselectedClientId) {
-      const found = crm.find((c) => c.id === preselectedClientId);
-      if (found) {
-        setSelectedClient({
-          id: found.id,
-          full_name: found.full_name,
-          phone: found.phone,
-          isExternal: false,
-        });
-      }
-    }
-  }, [profile, preselectedClientId]);
-
+  const didPreselectRef = useRef(false);
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load nueva-cita error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
+    if (didPreselectRef.current || !preselectedClientId || crmClients.length === 0) return;
+    const found = crmClients.find((c) => c.id === preselectedClientId);
+    if (found) {
+      didPreselectRef.current = true;
+      setSelectedClient({
+        id: found.id,
+        full_name: found.full_name,
+        phone: found.phone,
+        isExternal: false,
+      });
+    }
+  }, [preselectedClientId, crmClients]);
 
   function handleSearchChange(text: string) {
     setSearch(text);

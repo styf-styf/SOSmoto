@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice } from '../../services/ads';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { pickAndUploadBusinessImage } from '../../services/storage';
@@ -32,13 +33,15 @@ const statusColor: Record<Ad['status'], string> = {
   expired: colors.textMuted,
 };
 
+interface PublicidadData {
+  business: Business | null;
+  isOwner: boolean;
+  ads: Ad[];
+  pricing: AdPricing | null;
+}
+
 export default function PublicidadScreen() {
   const { profile } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [ads, setAds] = useState<Ad[]>([]);
-  const [pricing, setPricing] = useState<AdPricing | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const [national, setNational] = useState(true);
@@ -50,28 +53,30 @@ export default function PublicidadScreen() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `publicidad-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<PublicidadData>(cacheKey, async () => {
+    const empty: PublicidadData = { business: null, isOwner: false, ads: [], pricing: null };
+    if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusiness(work.business);
-    setIsOwner(work.isOwner);
+    if (!work) return empty;
     const [businessAds, adPricing] = await Promise.all([getBusinessAds(work.business.id), getAdPricing()]);
-    setAds(businessAds);
-    setPricing(adPricing);
-  }, [profile]);
+    return { business: work.business, isOwner: work.isOwner, ads: businessAds, pricing: adPricing };
+  });
+  const business = data?.business ?? null;
+  const isOwner = data?.isOwner ?? false;
+  const ads = data?.ads ?? [];
+  const pricing = data?.pricing ?? null;
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load publicidad error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load publicidad error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   async function handlePickImage() {
     if (!business) return;
@@ -133,7 +138,7 @@ export default function PublicidadScreen() {
   async function handlePause(ad: Ad) {
     try {
       const updated = await pauseAd(ad.id);
-      setAds((prev) => prev.map((a) => (a.id === ad.id ? updated : a)));
+      setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? updated : a)) } : prev));
     } catch (err) {
       console.error('pause ad error', err);
       Alert.alert('Error', 'No se pudo pausar la campaña. Intenta de nuevo.');

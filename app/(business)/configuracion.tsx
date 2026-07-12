@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { signOut } from '../../services/auth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
@@ -17,41 +18,43 @@ const planLabel: Record<string, string> = {
   pro: 'Pro',
 };
 
+interface BusinessConfigData {
+  business: Business | null;
+  plan: PlanLimits | null;
+  pendingCount: number;
+}
+
 export default function BusinessConfiguracionScreen() {
   const { profile } = useAuth();
-
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [plan, setPlan] = useState<PlanLimits | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `business-config-${profile.id}` : null;
+  const { data, loading, reload } = useCachedLoad<BusinessConfigData>(cacheKey, async () => {
+    if (!profile) return { business: null, plan: null, pendingCount: 0 };
     const work = await getMyWorkBusiness(profile.id);
     const myBusiness = work?.business ?? null;
-    setBusiness(myBusiness);
-    if (!myBusiness) return;
+    if (!myBusiness) return { business: null, plan: null, pendingCount: 0 };
     const [planLimits, pending] = await Promise.all([
       getPlanLimits(myBusiness.id),
       getPendingRequests(myBusiness.id),
     ]);
-    setPlan(planLimits);
-    setPendingCount(pending.length);
-  }, [profile]);
+    return { business: myBusiness, plan: planLimits, pendingCount: pending.length };
+  });
+  const business = data?.business ?? null;
+  const plan = data?.plan ?? null;
+  const pendingCount = data?.pendingCount ?? 0;
 
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load business config error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load().catch((err) => console.error('refresh business config error', err));
-    }, [load])
-  );
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await reload();
+    } catch (err) {
+      console.error('refresh business config error', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -82,7 +85,10 @@ export default function BusinessConfiguracionScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+    >
       <View style={styles.planBadge}>
         <Text style={styles.planBadgeText}>
           Plan {plan ? planLabel[plan.planName] ?? plan.planName : '...'}

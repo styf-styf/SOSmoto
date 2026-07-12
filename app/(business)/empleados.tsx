@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import {
   addEmployeeByEmail,
   getEmployees,
   removeEmployee,
-  updateEmployeePermission,
+  updateEmployeeJobTitle,
+  updateEmployeePermissions,
+  type EmployeePermissions,
   type EmployeeWithUser,
 } from '../../services/employees';
 import {
@@ -19,48 +22,84 @@ import {
   getPendingInvitationsForBusiness,
   type EmployeeInvitationWithInvitee,
 } from '../../services/employeeInvitations';
+import type { BusinessType } from '../../types/database';
+
+const PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof EmployeeWithUser; label: string }[] = [
+  { key: 'canAcceptAidRequests', field: 'can_accept_aid_requests', label: 'Puede aceptar auxilios' },
+  { key: 'canManageCatalog', field: 'can_manage_catalog', label: 'Puede editar catálogo (productos/servicios)' },
+  { key: 'canReplyChat', field: 'can_reply_chat', label: 'Puede responder chats' },
+  { key: 'canUploadStories', field: 'can_upload_stories', label: 'Puede subir historias' },
+  { key: 'canCreatePosts', field: 'can_create_posts', label: 'Puede crear publicaciones' },
+];
+
+function getJobTitleSuggestions(businessType: BusinessType | null): string[] {
+  if (businessType === 'workshop') return ['Mecánico', 'Administrador', 'Secretaria'];
+  if (businessType === 'store') return ['Administrador', 'Recepcionista', 'Bodega'];
+  return ['Administrador'];
+}
+
+interface EmpleadosData {
+  businessId: string | null;
+  businessType: BusinessType | null;
+  isOwner: boolean;
+  isLimited: boolean;
+  employees: EmployeeWithUser[];
+  invitations: EmployeeInvitationWithInvitee[];
+  limits: PlanLimits | null;
+}
 
 export default function EmpleadosScreen() {
   const { profile } = useAuth();
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [isLimited, setIsLimited] = useState(false);
-  const [employees, setEmployees] = useState<EmployeeWithUser[]>([]);
-  const [invitations, setInvitations] = useState<EmployeeInvitationWithInvitee[]>([]);
-  const [limits, setLimits] = useState<PlanLimits | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `empleados-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<EmpleadosData>(cacheKey, async () => {
+    const empty: EmpleadosData = { businessId: null, businessType: null, isOwner: false, isLimited: false, employees: [], invitations: [], limits: null };
+    if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusinessId(work.business.id);
-    setIsOwner(work.isOwner);
-    setIsLimited(work.business.is_limited);
-
+    if (!work) return empty;
     const [employeeList, planLimits, pendingInvitations] = await Promise.all([
       getEmployees(work.business.id),
       getPlanLimits(work.business.id),
       getPendingInvitationsForBusiness(work.business.id),
     ]);
-    setEmployees(employeeList);
-    setLimits(planLimits);
-    setInvitations(pendingInvitations);
-  }, [profile]);
+    return {
+      businessId: work.business.id,
+      businessType: work.business.business_type,
+      isOwner: work.isOwner,
+      isLimited: work.business.is_limited,
+      employees: employeeList,
+      invitations: pendingInvitations,
+      limits: planLimits,
+    };
+  });
+  const businessId = data?.businessId ?? null;
+  const businessType = data?.businessType ?? null;
+  const isOwner = data?.isOwner ?? false;
+  const isLimited = data?.isLimited ?? false;
+  const employees = data?.employees ?? [];
+  const invitations = data?.invitations ?? [];
+  const limits = data?.limits ?? null;
+
+  function setEmployees(updater: (prev: EmployeeWithUser[]) => EmployeeWithUser[]) {
+    setData((prev) => (prev ? { ...prev, employees: updater(prev.employees) } : prev));
+  }
+
+  function setInvitations(updater: (prev: EmployeeInvitationWithInvitee[]) => EmployeeInvitationWithInvitee[]) {
+    setData((prev) => (prev ? { ...prev, invitations: updater(prev.invitations) } : prev));
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load empleados error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load empleados error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   if (loading) {
     return (
@@ -129,6 +168,7 @@ export default function EmpleadosScreen() {
           <EmployeeRow
             key={employee.id}
             employee={employee}
+            businessType={businessType}
             isOwner={isOwner && !isLimited}
             onUpdated={(updated) =>
               setEmployees((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
@@ -143,10 +183,11 @@ export default function EmpleadosScreen() {
         (showForm ? (
           <AddEmployeeForm
             businessId={businessId}
+            businessType={businessType}
             onCancel={() => setShowForm(false)}
             onInvited={() => {
               setShowForm(false);
-              load().catch((err) => console.error('reload empleados error', err));
+              reload().catch((err) => console.error('reload empleados error', err));
             }}
           />
         ) : (
@@ -201,6 +242,7 @@ function InvitationRow({
           <View style={{ flex: 1 }}>
             <Text style={styles.cardTitle}>{invitation.invitee_name}</Text>
             <Text style={styles.cardMeta}>{invitation.invitee_email}</Text>
+            {invitation.job_title && <Text style={styles.cardMeta}>Cargo: {invitation.job_title}</Text>}
           </View>
         </View>
         {isOwner && (
@@ -220,26 +262,46 @@ function InvitationRow({
 
 function EmployeeRow({
   employee,
+  businessType,
   isOwner,
   onUpdated,
   onRemoved,
 }: {
   employee: EmployeeWithUser;
+  businessType: BusinessType | null;
   isOwner: boolean;
   onUpdated: (employee: EmployeeWithUser) => void;
   onRemoved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [editingJobTitle, setEditingJobTitle] = useState(false);
+  const [jobTitle, setJobTitle] = useState(employee.job_title ?? '');
+  const [savingJobTitle, setSavingJobTitle] = useState(false);
 
-  async function handleToggle(value: boolean) {
+  async function handleToggle(key: keyof EmployeePermissions, field: keyof EmployeeWithUser, value: boolean) {
     setBusy(true);
     try {
-      await updateEmployeePermission(employee.id, value);
-      onUpdated({ ...employee, can_accept_aid_requests: value });
+      await updateEmployeePermissions(employee.id, { [key]: value });
+      onUpdated({ ...employee, [field]: value });
     } catch (err) {
       console.error('update employee permission error', err);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleSaveJobTitle() {
+    setSavingJobTitle(true);
+    try {
+      const trimmed = jobTitle.trim() || null;
+      await updateEmployeeJobTitle(employee.id, trimmed);
+      onUpdated({ ...employee, job_title: trimmed });
+      setEditingJobTitle(false);
+    } catch (err) {
+      console.error('update employee job title error', err);
+      Alert.alert('Error', 'No se pudo guardar el cargo.');
+    } finally {
+      setSavingJobTitle(false);
     }
   }
 
@@ -274,25 +336,66 @@ function EmployeeRow({
       {employee.user?.email && <Text style={styles.cardMeta}>{employee.user.email}</Text>}
       {employee.user?.phone && <Text style={styles.cardMeta}>{employee.user.phone}</Text>}
 
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardMeta}>Puede aceptar auxilios</Text>
-        <Switch value={employee.can_accept_aid_requests} onValueChange={handleToggle} disabled={busy || !isOwner} />
-      </View>
+      {!editingJobTitle ? (
+        <View style={styles.jobTitleRow}>
+          <Text style={styles.jobTitleText}>{employee.job_title || 'Sin cargo asignado'}</Text>
+          {isOwner && (
+            <Pressable onPress={() => { setJobTitle(employee.job_title ?? ''); setEditingJobTitle(true); }} hitSlop={8}>
+              <Ionicons name="pencil-outline" size={16} color={colors.primary} />
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        <View style={styles.jobTitleEditBox}>
+          <TextField label="Cargo" placeholder="Ej. Mecánico" value={jobTitle} onChangeText={setJobTitle} />
+          <View style={styles.chipRow}>
+            {getJobTitleSuggestions(businessType).map((s) => (
+              <Pressable key={s} onPress={() => setJobTitle(s)} style={[styles.chip, jobTitle === s && styles.chipSelected]}>
+                <Text style={[styles.chipText, jobTitle === s && styles.chipTextSelected]}>{s}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.editActions}>
+            <Button title="Guardar" onPress={handleSaveJobTitle} loading={savingJobTitle} style={styles.flexButton} />
+            <Button title="Cancelar" variant="secondary" onPress={() => setEditingJobTitle(false)} style={styles.flexButton} />
+          </View>
+        </View>
+      )}
+
+      {PERMISSION_ROWS.map((row) => (
+        <View key={row.key} style={styles.cardFooter}>
+          <Text style={styles.cardMeta}>{row.label}</Text>
+          <Switch
+            value={Boolean(employee[row.field])}
+            onValueChange={(value) => handleToggle(row.key, row.field, value)}
+            disabled={busy || !isOwner}
+          />
+        </View>
+      ))}
     </View>
   );
 }
 
 function AddEmployeeForm({
   businessId,
+  businessType,
   onCancel,
   onInvited,
 }: {
   businessId: string;
+  businessType: BusinessType | null;
   onCancel: () => void;
   onInvited: () => void;
 }) {
   const [email, setEmail] = useState('');
-  const [canAccept, setCanAccept] = useState(true);
+  const [jobTitle, setJobTitle] = useState('');
+  const [permissions, setPermissions] = useState<EmployeePermissions>({
+    canAcceptAidRequests: true,
+    canManageCatalog: true,
+    canReplyChat: true,
+    canUploadStories: false,
+    canCreatePosts: false,
+  });
   const [saving, setSaving] = useState(false);
 
   async function handleAdd() {
@@ -302,7 +405,7 @@ function AddEmployeeForm({
     }
     setSaving(true);
     try {
-      await addEmployeeByEmail(businessId, email.trim(), canAccept);
+      await addEmployeeByEmail(businessId, email.trim(), jobTitle.trim() || null, permissions);
       Alert.alert('Invitación enviada', 'El mecánico recibirá una notificación para aceptar o rechazar la invitación.');
       onInvited();
     } catch (err) {
@@ -324,10 +427,25 @@ function AddEmployeeForm({
         onChangeText={setEmail}
       />
       <Text style={styles.helperText}>Debe haberse registrado antes en la app.</Text>
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardMeta}>Puede aceptar auxilios</Text>
-        <Switch value={canAccept} onValueChange={setCanAccept} />
+
+      <TextField label="Cargo (opcional)" placeholder="Ej. Mecánico" value={jobTitle} onChangeText={setJobTitle} />
+      <View style={styles.chipRow}>
+        {getJobTitleSuggestions(businessType).map((s) => (
+          <Pressable key={s} onPress={() => setJobTitle(s)} style={[styles.chip, jobTitle === s && styles.chipSelected]}>
+            <Text style={[styles.chipText, jobTitle === s && styles.chipTextSelected]}>{s}</Text>
+          </Pressable>
+        ))}
       </View>
+
+      {PERMISSION_ROWS.map((row) => (
+        <View key={row.key} style={styles.cardFooter}>
+          <Text style={styles.cardMeta}>{row.label}</Text>
+          <Switch
+            value={permissions[row.key]}
+            onValueChange={(value) => setPermissions((prev) => ({ ...prev, [row.key]: value }))}
+          />
+        </View>
+      ))}
       <View style={styles.editActions}>
         <Button title="Enviar invitación" onPress={handleAdd} loading={saving} style={styles.flexButton} />
         <Button title="Cancelar" variant="secondary" onPress={onCancel} style={styles.flexButton} />
@@ -426,6 +544,45 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 10,
+  },
+  jobTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  jobTitleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  jobTitleEditBox: {
+    marginTop: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF1E6',
+  },
+  chipText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  chipTextSelected: {
+    color: colors.primary,
   },
   editActions: {
     flexDirection: 'row',

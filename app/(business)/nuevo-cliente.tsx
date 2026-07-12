@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { addAppClient, addExternalClient, isAppClientAdded, type ExternalVehicle } from '../../services/businessClients';
 import { searchUsers, type UserSearchResult } from '../../services/history';
@@ -22,11 +23,23 @@ interface VehicleForm {
   plate: string;
 }
 
+interface NuevoClienteData {
+  businessId: string | null;
+  businessName: string;
+}
+
 export default function NuevoClienteScreen() {
   const { profile } = useAuth();
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [businessName, setBusinessName] = useState('');
-  const [loadingBiz, setLoadingBiz] = useState(true);
+
+  const cacheKey = profile ? `nuevo-cliente-${profile.id}` : null;
+  const { data, loading: loadingBiz } = useCachedLoad<NuevoClienteData>(cacheKey, async () => {
+    if (!profile) return { businessId: null, businessName: '' };
+    const work = await getMyWorkBusiness(profile.id);
+    if (!work) return { businessId: null, businessName: '' };
+    return { businessId: work.business.id, businessName: work.business.name };
+  });
+  const businessId = data?.businessId ?? null;
+  const businessName = data?.businessName ?? '';
 
   const [mode, setMode] = useState<Mode>('search');
   const [query, setQuery] = useState('');
@@ -43,19 +56,6 @@ export default function NuevoClienteScreen() {
   const [extPhone, setExtPhone] = useState('');
   const [extEmail, setExtEmail] = useState('');
   const [vehicles, setVehicles] = useState<VehicleForm[]>([]);
-
-  useEffect(() => {
-    if (!profile) return;
-    getMyWorkBusiness(profile.id)
-      .then((work) => {
-        if (work) {
-          setBusinessId(work.business.id);
-          setBusinessName(work.business.name);
-        }
-      })
-      .catch((err) => console.error('load biz error', err))
-      .finally(() => setLoadingBiz(false));
-  }, [profile]);
 
   function handleQueryChange(text: string) {
     setQuery(text);

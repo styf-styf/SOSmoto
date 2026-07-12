@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getActiveProducts, getActiveServices, getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getMyWorkBusiness } from '../../services/businesses';
+import { getMyEmployeeRecord } from '../../services/employees';
 import { createStory, deleteStory, getBusinessStories, isStoryVisible } from '../../services/stories';
 import { pickAndUploadBusinessStoryImage } from '../../services/storage';
 import type { Business, Product, Service, Story, StoryActionType } from '../../types/database';
@@ -19,13 +21,16 @@ const actionOptions: { label: string; value: StoryActionType }[] = [
   { label: 'Contactar', value: 'contact' },
 ];
 
+interface HistoriasData {
+  business: Business | null;
+  isOwner: boolean;
+  canUploadStories: boolean;
+  plan: PlanLimits | null;
+  stories: Story[];
+}
+
 export default function HistoriasScreen() {
   const { profile } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [plan, setPlan] = useState<PlanLimits | null>(null);
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const [imageUrl, setImageUrl] = useState('');
@@ -39,31 +44,41 @@ export default function HistoriasScreen() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `business-historias-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<HistoriasData>(cacheKey, async () => {
+    const empty: HistoriasData = { business: null, isOwner: false, canUploadStories: false, plan: null, stories: [] };
+    if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusiness(work.business);
-    setIsOwner(work.isOwner);
-    const [planLimits, businessStories] = await Promise.all([
+    if (!work) return empty;
+    const [planLimits, businessStories, employeeRecord] = await Promise.all([
       getPlanLimits(work.business.id),
       getBusinessStories(work.business.id),
+      work.isOwner ? Promise.resolve(null) : getMyEmployeeRecord(work.business.id, profile.id),
     ]);
-    setPlan(planLimits);
-    setStories(businessStories);
-  }, [profile]);
+    return {
+      business: work.business,
+      isOwner: work.isOwner,
+      canUploadStories: work.isOwner || (employeeRecord?.can_upload_stories ?? false),
+      plan: planLimits,
+      stories: businessStories,
+    };
+  });
+  const business = data?.business ?? null;
+  const isOwner = data?.isOwner ?? false;
+  const canUploadStories = data?.canUploadStories ?? false;
+  const plan = data?.plan ?? null;
+  const stories = data?.stories ?? [];
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load historias error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load historias error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   useEffect(() => {
     if (!business) return;
@@ -135,7 +150,7 @@ export default function HistoriasScreen() {
         actionTargetId: actionType === 'service' || actionType === 'product' ? targetId ?? undefined : undefined,
         isPinned: canPin ? isPinned : false,
       });
-      setStories((prev) => [created, ...prev]);
+      setData((prev) => (prev ? { ...prev, stories: [created, ...prev.stories] } : prev));
       setShowForm(false);
     } catch (err) {
       console.error('create story error', err);
@@ -148,7 +163,7 @@ export default function HistoriasScreen() {
   async function handleDelete(story: Story) {
     try {
       await deleteStory(story.id);
-      setStories((prev) => prev.filter((s) => s.id !== story.id));
+      setData((prev) => (prev ? { ...prev, stories: prev.stories.filter((s) => s.id !== story.id) } : prev));
     } catch (err) {
       console.error('delete story error', err);
       Alert.alert('Error', 'No se pudo eliminar la historia.');
@@ -177,16 +192,16 @@ export default function HistoriasScreen() {
         Foto visible 24h para tus clientes. {plan?.maxActiveStories === null ? 'Tu plan permite historias ilimitadas.' : `${activeCount}/${plan?.maxActiveStories ?? 0} historias activas según tu plan ${plan?.planName}.`}
       </Text>
 
-      {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede subir historias.</Text>}
-      {isOwner && business.is_limited && (
+      {!canUploadStories && <Text style={styles.helperText}>No tienes permiso para subir historias en este negocio.</Text>}
+      {canUploadStories && business.is_limited && (
         <Text style={styles.limitedNotice}>Tu negocio está limitado: no puedes subir nuevas historias.</Text>
       )}
 
-      {isOwner && !business.is_limited && !showForm && (
+      {canUploadStories && !business.is_limited && !showForm && (
         <Button title="+ Nueva historia" onPress={handleAddPress} style={styles.createButton} />
       )}
 
-      {isOwner && !business.is_limited && showForm && (
+      {canUploadStories && !business.is_limited && showForm && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Imagen</Text>
           {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}

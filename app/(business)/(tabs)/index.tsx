@@ -18,6 +18,7 @@ import {
 } from '../../../services/employeeInvitations';
 import {
   dismissRemovalNotice,
+  getMyEmployeeRecord,
   getMyRemovalNotice,
 } from '../../../services/employees';
 import { changeRoleToClient } from '../../../services/users';
@@ -48,6 +49,7 @@ export default function BusinessHomeScreen() {
   const navigation = useNavigation();
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [canCreatePosts, setCanCreatePosts] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pendingInvitations, setPendingInvitations] = useState<EmployeeInvitationWithBusiness[]>([]);
   const [removalNotice, setRemovalNotice] = useState<EmployeeRemovalNotice | null>(null);
@@ -77,6 +79,12 @@ export default function BusinessHomeScreen() {
       const result = work?.business ?? null;
       setBusiness(result);
       setIsOwner(work?.isOwner ?? false);
+      if (result) {
+        const employeeRecord = work?.isOwner ? null : await getMyEmployeeRecord(result.id, profile.id);
+        setCanCreatePosts(work?.isOwner || (employeeRecord?.can_create_posts ?? false));
+      } else {
+        setCanCreatePosts(false);
+      }
       if (!result) {
         const [invitations, notice] = await Promise.all([
           getMyPendingInvitations(profile.id),
@@ -266,7 +274,7 @@ export default function BusinessHomeScreen() {
     </View>
   );
 
-  const createPostBox = isOwner && (
+  const createPostBox = canCreatePosts && (
     <View style={styles.createPostWrap}>
       {business.is_limited ? (
         <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
@@ -574,6 +582,7 @@ function PendingInvitationsScreen({
       {invitations.map((inv) => (
         <View key={inv.id} style={styles.invitationCard}>
           <Text style={styles.invitationBusiness}>{inv.business_name}</Text>
+          {inv.job_title && <Text style={styles.invitationMeta}>Cargo: {inv.job_title}</Text>}
           <Text style={styles.invitationMeta}>
             {inv.can_accept_aid_requests
               ? 'Podrás aceptar solicitudes de auxilio'

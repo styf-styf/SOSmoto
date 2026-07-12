@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createAppointmentRequest } from '../../services/appointmentRequests';
 import { getBusinessById } from '../../services/businesses';
 import { getActiveServices } from '../../services/catalog';
@@ -20,14 +21,15 @@ function defaultSuggestTime(): Date {
   return d;
 }
 
+interface AgendarData {
+  business: Business | null;
+  services: Service[];
+  vehicles: Vehicle[];
+}
+
 export default function AgendarScreen() {
   const { businessId, serviceId: initialServiceId } = useLocalSearchParams<{ businessId: string; serviceId?: string }>();
   const { profile } = useAuth();
-
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialServiceId ?? null);
@@ -41,25 +43,24 @@ export default function AgendarScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!businessId || !profile) return;
+  const cacheKey = businessId && profile ? `agendar-${businessId}-${profile.id}` : null;
+  const { data, loading } = useCachedLoad<AgendarData>(cacheKey, async () => {
+    if (!businessId || !profile) return { business: null, services: [], vehicles: [] };
     const [businessResult, serviceList, vehicleList] = await Promise.all([
       getBusinessById(businessId),
       getActiveServices(businessId),
       getVehicles(profile.id),
     ]);
-    setBusiness(businessResult);
-    setServices(serviceList);
-    setVehicles(vehicleList);
-    setSelectedVehicleId((prev) => prev ?? vehicleList[0]?.id ?? null);
-  }, [businessId, profile]);
+    return { business: businessResult, services: serviceList, vehicles: vehicleList };
+  });
+  const business = data?.business ?? null;
+  const services = data?.services ?? [];
+  const vehicles = data?.vehicles ?? [];
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load agendar error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
+    setSelectedVehicleId((prev) => prev ?? vehicles[0]?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicles]);
 
   function handleDateChange(event: any, date?: Date) {
     if (Platform.OS === 'android') setShowDatePicker(false);

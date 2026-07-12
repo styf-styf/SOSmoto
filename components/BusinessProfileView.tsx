@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -93,6 +93,16 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       }
     }
   }, [mode, businessId, profile]);
+
+  // Carga apenas monta (no solo al enfocar) -- con `lazy: false` en el
+  // navegador de tabs del negocio, este componente monta apenas se abre la
+  // app, para que sus datos ya estén listos en segundo plano cuando el
+  // usuario entre a la pestaña "Perfil" por primera vez.
+  useEffect(() => {
+    load()
+      .catch((err) => console.error('business profile load error', err))
+      .finally(() => setLoading(false));
+  }, [load]);
 
   useFocusEffect(
     useCallback(() => {

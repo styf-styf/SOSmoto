@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +60,14 @@ export default function ClientPerfilScreen() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
   }
+
+  // Carga apenas monta (no solo al enfocar) -- con `lazy: false` en el
+  // navegador de tabs, este componente monta apenas se abre la app, para
+  // que sus datos ya estén listos en segundo plano cuando el usuario entre
+  // a esta pestaña por primera vez.
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useFocusEffect(
     useCallback(() => {

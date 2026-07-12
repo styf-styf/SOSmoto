@@ -40,6 +40,7 @@ import {
   type PlanLimits,
 } from '../../../services/catalog';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { getMyEmployeeRecord } from '../../../services/employees';
 import { pickAndUploadBusinessImage } from '../../../services/storage';
 import type { Business, Product, ProductVariant, Service } from '../../../types/database';
 
@@ -84,6 +85,7 @@ export default function CatalogoScreen() {
   }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const [canManageCatalog, setCanManageCatalog] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [limits, setLimits] = useState<PlanLimits | null>(null);
@@ -100,14 +102,16 @@ export default function CatalogoScreen() {
     setBusiness(myBusiness);
     if (!myBusiness) return;
 
-    const [serviceList, productList, planLimits] = await Promise.all([
+    const [serviceList, productList, planLimits, employeeRecord] = await Promise.all([
       getAllServices(myBusiness.id),
       getAllProducts(myBusiness.id),
       getPlanLimits(myBusiness.id),
+      work?.isOwner ? Promise.resolve(null) : getMyEmployeeRecord(myBusiness.id, profile.id),
     ]);
     setServices(serviceList);
     setProducts(productList);
     setLimits(planLimits);
+    setCanManageCatalog(work?.isOwner || (employeeRecord?.can_manage_catalog ?? false));
   }, [profile]);
 
   async function handleRefresh() {
@@ -278,6 +282,9 @@ export default function CatalogoScreen() {
             Tu negocio está limitado: no puedes crear, editar ni eliminar servicios o productos.
           </Text>
         )}
+        {!business.is_limited && !canManageCatalog && (
+          <Text style={styles.limitedNotice}>No tienes permiso para editar el catálogo de este negocio.</Text>
+        )}
 
         {/* Acceso rápido al inventario de productos */}
         <Pressable style={styles.inventarioBtn} onPress={() => router.push('/(business)/inventario')}>
@@ -293,7 +300,7 @@ export default function CatalogoScreen() {
                 Servicios ({activeServicesCount}
                 {limits?.maxServices !== null ? `/${limits?.maxServices}` : ''})
               </Text>
-              {!business.is_limited && (
+              {!business.is_limited && canManageCatalog && (
                 <Pressable onPress={handleAddService} style={styles.addButton}>
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={styles.addButtonText}>Agregar</Text>
@@ -305,7 +312,7 @@ export default function CatalogoScreen() {
             ) : (
               <CatalogGrid
                 items={services}
-                readOnly={business.is_limited}
+                readOnly={business.is_limited || !canManageCatalog}
                 onEdit={(service) => setForm({ kind: 'service', service })}
                 onDelete={confirmDeleteService}
                 highlightId={highlightId}
@@ -321,7 +328,7 @@ export default function CatalogoScreen() {
             Productos ({activeProductsCount}
             {limits?.maxProducts !== null ? `/${limits?.maxProducts}` : ''})
           </Text>
-          {!business.is_limited && (
+          {!business.is_limited && canManageCatalog && (
             <Pressable onPress={handleAddProduct} style={styles.addButton}>
               <Ionicons name="add" size={16} color={colors.primary} />
               <Text style={styles.addButtonText}>Agregar</Text>
@@ -333,7 +340,7 @@ export default function CatalogoScreen() {
         ) : (
           <CatalogGrid
             items={products}
-            readOnly={business.is_limited}
+            readOnly={business.is_limited || !canManageCatalog}
             onEdit={(product) => setForm({ kind: 'product', product })}
             onDelete={confirmDeleteProduct}
             highlightId={highlightId}

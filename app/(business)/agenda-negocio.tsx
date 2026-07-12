@@ -8,6 +8,7 @@ import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import {
   approveAppointment,
   cancelAppointment,
@@ -35,11 +36,15 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+interface AgendaData {
+  businessId: string | null;
+  appointments: BusinessAppointment[];
+  reviewedAppointmentIds: Set<string>;
+  reportIdsByAppointment: Map<string, AppointmentReportInfo>;
+}
+
 export default function AgendaNegocioScreen() {
   const { profile } = useAuth();
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [appointments, setAppointments] = useState<BusinessAppointment[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Panel de proponer/contra-proponer fecha
   const [proposingId, setProposingId] = useState<string | null>(null);
@@ -50,17 +55,28 @@ export default function AgendaNegocioScreen() {
   const [saving, setSaving] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [reviewedAppointmentIds, setReviewedAppointmentIds] = useState<Set<string>>(new Set());
-  const [reportIdsByAppointment, setReportIdsByAppointment] = useState<Map<string, AppointmentReportInfo>>(new Map());
   const [ratingId, setRatingId] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async (id: string) => {
-    const result = await getBusinessAppointments(id);
-    setAppointments(result);
+  const cacheKey = profile ? `agenda-negocio-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<AgendaData>(cacheKey, async () => {
+    const empty: AgendaData = {
+      businessId: null,
+      appointments: [],
+      reviewedAppointmentIds: new Set(),
+      reportIdsByAppointment: new Map(),
+    };
+    if (!profile) return empty;
+    const work = await getMyWorkBusiness(profile.id);
+    if (!work) return empty;
+    const [result, { appointmentIds }, reportMap] = await Promise.all([
+      getBusinessAppointments(work.business.id),
+      getReviewedTargetIds(profile.id),
+      getReportIdsByAppointments(work.business.id),
+    ]);
     // Sincronizar recordatorios locales para el taller
     syncAppointmentReminders(
       result.map((a) => ({
@@ -71,52 +87,58 @@ export default function AgendaNegocioScreen() {
         serviceName: a.service_name,
       }))
     ).catch((err) => console.warn('sync reminders error', err));
-  }, []);
+    return {
+      businessId: work.business.id,
+      appointments: result,
+      reviewedAppointmentIds: appointmentIds,
+      reportIdsByAppointment: reportMap,
+    };
+  });
+  const businessId = data?.businessId ?? null;
+  const appointments = data?.appointments ?? [];
+  const reviewedAppointmentIds = data?.reviewedAppointmentIds ?? new Set<string>();
+  const reportIdsByAppointment = data?.reportIdsByAppointment ?? new Map<string, AppointmentReportInfo>();
 
-  const loadReviewed = useCallback(async (bizId: string) => {
-    if (!profile) return;
-    const [{ appointmentIds }, reportMap] = await Promise.all([
-      getReviewedTargetIds(profile.id),
-      getReportIdsByAppointments(bizId),
-    ]);
-    setReviewedAppointmentIds(appointmentIds);
-    setReportIdsByAppointment(reportMap);
-  }, [profile]);
+  function setAppointments(updater: (prev: BusinessAppointment[]) => BusinessAppointment[]) {
+    setData((prev) => (prev ? { ...prev, appointments: updater(prev.appointments) } : prev));
+  }
+
+  function setReviewedAppointmentIds(updater: (prev: Set<string>) => Set<string>) {
+    setData((prev) => (prev ? { ...prev, reviewedAppointmentIds: updater(prev.reviewedAppointmentIds) } : prev));
+  }
 
   async function handleRefresh() {
-    if (!businessId) return;
     setRefreshing(true);
-    try { await load(businessId); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load agenda error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   useEffect(() => {
-    if (!profile) return;
-    setLoading(true);
-    getMyWorkBusiness(profile.id)
-      .then((work) => {
-        if (!work) return;
-        setBusinessId(work.business.id);
-        return Promise.all([load(work.business.id), loadReviewed(work.business.id)]);
-      })
-      .catch((err) => console.error('load agenda error', err))
-      .finally(() => setLoading(false));
-  }, [profile, load, loadReviewed]);
-
-  useEffect(() => {
     if (!businessId) return;
+    // Un cambio real notificado por el servidor SÍ amerita recargar (no es
+    // un "por si acaso" al revisitar la pantalla, es un cambio confirmado).
     const unsubscribe = subscribeToBusinessAppointments(businessId, () => {
-      load(businessId).catch((err) => console.error('reload agenda error', err));
+      reload().catch((err) => console.error('reload agenda error', err));
     });
     return unsubscribe;
-  }, [businessId, load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
 
-  // Recarga el mapa de informes cada vez que la pantalla recupera el foco (ej. al volver de nuevo-informe tras guardar borrador)
+  // Recarga el mapa de informes cada vez que la pantalla recupera el foco
+  // (ej. al volver de nuevo-informe tras guardar borrador) -- este sí es un
+  // caso de "algo cambió en otra pantalla", no un refresco "por si acaso".
   useFocusEffect(
     useCallback(() => {
       if (!businessId) return;
       getReportIdsByAppointments(businessId)
-        .then((map) => setReportIdsByAppointment(map))
+        .then((map) => setData((prev) => (prev ? { ...prev, reportIdsByAppointment: map } : prev)))
         .catch((err) => console.error('reload reports on focus', err));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [businessId])
   );
 

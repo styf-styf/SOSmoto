@@ -80,7 +80,12 @@ export interface BusinessEmployee {
   business_id: string;
   user_id: string;
   role: EmployeeRole;
+  job_title: string | null;
   can_accept_aid_requests: boolean;
+  can_manage_catalog: boolean;
+  can_reply_chat: boolean;
+  can_upload_stories: boolean;
+  can_create_posts: boolean;
   created_at: string;
 }
 
@@ -97,7 +102,12 @@ export interface EmployeeInvitation {
   id: string;
   business_id: string;
   invitee_id: string;
+  job_title: string | null;
   can_accept_aid_requests: boolean;
+  can_manage_catalog: boolean;
+  can_reply_chat: boolean;
+  can_upload_stories: boolean;
+  can_create_posts: boolean;
   status: InvitationStatus;
   created_at: string;
   updated_at: string;

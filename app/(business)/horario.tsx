@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
 import type { Business, BusinessSchedule } from '../../types/database';
 
@@ -18,39 +18,53 @@ const days: { key: string; label: string }[] = [
   { key: 'domingo', label: 'Domingo' },
 ];
 
+interface HorarioData {
+  business: Business | null;
+  isOwner: boolean;
+}
+
 export default function HorarioScreen() {
   const { profile } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [is24h, setIs24h] = useState(false);
-  const [schedule, setSchedule] = useState<BusinessSchedule>({});
-  const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `horario-${profile.id}` : null;
+  const { data, loading, reload: reloadCache, setData } = useCachedLoad<HorarioData>(cacheKey, async () => {
+    if (!profile) return { business: null, isOwner: false };
     const work = await getMyWorkBusiness(profile.id);
-    const myBusiness = work?.business ?? null;
-    setBusiness(myBusiness);
-    setIsOwner(work?.isOwner ?? false);
-    if (!myBusiness) return;
-    setIs24h(myBusiness.is_24h);
-    setSchedule(myBusiness.schedule ?? {});
-  }, [profile]);
+    return { business: work?.business ?? null, isOwner: work?.isOwner ?? false };
+  });
+  const business = data?.business ?? null;
+  const isOwner = data?.isOwner ?? false;
+
+  const [is24h, setIs24h] = useState(() => data?.business?.is_24h ?? false);
+  const [schedule, setSchedule] = useState<BusinessSchedule>(() => data?.business?.schedule ?? {});
+  const [saving, setSaving] = useState(false);
+  const didPopulateRef = useRef(!!data?.business);
+
+  function populateForm(b: Business | null) {
+    if (!b) return;
+    setIs24h(b.is_24h);
+    setSchedule(b.schedule ?? {});
+  }
 
   useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load horario error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
+    if (didPopulateRef.current || !business) return;
+    didPopulateRef.current = true;
+    populateForm(business);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load().catch((err) => console.error('refresh horario error', err));
-    }, [load])
-  );
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const result = await reloadCache();
+      populateForm(result.business);
+    } catch (err) {
+      console.error('refresh horario error', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function handleToggleDay(key: string, open: boolean) {
     setSchedule((prev) => ({
@@ -83,7 +97,7 @@ export default function HorarioScreen() {
     setSaving(true);
     try {
       const updated = await updateBusiness(business.id, { is_24h: is24h, schedule });
-      setBusiness(updated);
+      setData((prev) => (prev ? { ...prev, business: updated } : prev));
       Alert.alert('Guardado', 'El horario se actualizó.');
     } catch (err) {
       console.error('update horario error', err);
@@ -110,7 +124,10 @@ export default function HorarioScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+    >
       {!isOwner && (
         <View style={styles.readOnlyBanner}>
           <Text style={styles.readOnlyText}>Solo el dueño del negocio puede editar estos datos.</Text>

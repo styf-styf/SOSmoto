@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, getSubscriptionPlans, updateBusinessPlan } from '../../services/businesses';
 import { getAllProducts, getAllServices } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
@@ -28,23 +29,31 @@ function limitLabel(value: number | null): string {
   return value === null ? 'Ilimitado' : String(value);
 }
 
+interface SuscripcionData {
+  business: Business | null;
+  isOwner: boolean;
+  plans: SubscriptionPlan[];
+  usage: { services: number; products: number; employees: number };
+  expiresAt: string | null;
+}
+
 export default function SuscripcionScreen() {
   const { profile } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [usage, setUsage] = useState({ services: 0, products: 0, employees: 0 });
-  const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
+  const cacheKey = profile ? `suscripcion-${profile.id}` : null;
+  const { data, loading, reload, setData } = useCachedLoad<SuscripcionData>(cacheKey, async () => {
+    const empty: SuscripcionData = {
+      business: null,
+      isOwner: false,
+      plans: [],
+      usage: { services: 0, products: 0, employees: 0 },
+      expiresAt: null,
+    };
+    if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
-    if (!work) return;
-    setBusiness(work.business);
-    setIsOwner(work.isOwner);
+    if (!work) return empty;
 
     const [allPlans, services, products, employees, activeSub] = await Promise.all([
       getSubscriptionPlans(),
@@ -53,26 +62,34 @@ export default function SuscripcionScreen() {
       getEmployees(work.business.id),
       getActiveSubscription(work.business.id),
     ]);
-    setPlans(allPlans);
-    setUsage({
-      services: services.filter((s) => s.is_active).length,
-      products: products.filter((p) => p.is_active).length,
-      employees: employees.length + 1,
-    });
-    setExpiresAt(activeSub?.expires_at ?? null);
-  }, [profile]);
+    return {
+      business: work.business,
+      isOwner: work.isOwner,
+      plans: allPlans,
+      usage: {
+        services: services.filter((s) => s.is_active).length,
+        products: products.filter((p) => p.is_active).length,
+        employees: employees.length + 1,
+      },
+      expiresAt: activeSub?.expires_at ?? null,
+    };
+  });
+  const business = data?.business ?? null;
+  const isOwner = data?.isOwner ?? false;
+  const plans = data?.plans ?? [];
+  const usage = data?.usage ?? { services: 0, products: 0, employees: 0 };
+  const expiresAt = data?.expiresAt ?? null;
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load suscripcion error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load suscripcion error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   async function openPortal(planId: string) {
     try {
@@ -161,7 +178,7 @@ export default function SuscripcionScreen() {
     setSwitching(planId);
     try {
       const updated = await updateBusinessPlan(business.id, planId);
-      setBusiness(updated);
+      setData((prev) => (prev ? { ...prev, business: updated } : prev));
       Alert.alert('Listo', 'Tu plan se actualizó.');
     } catch (err) {
       console.error('update plan error', err);

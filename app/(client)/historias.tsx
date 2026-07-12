@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createStory, deleteStory, getClientActiveStoryCount, getClientStories, isStoryVisible } from '../../services/stories';
 import { pickAndUploadClientStoryImage } from '../../services/storage';
 import type { Story } from '../../types/database';
@@ -14,8 +15,6 @@ const templates = ['Mi moto', 'En ruta', 'Antes/Después', 'Recomiendo este tall
 
 export default function ClientHistoriasScreen() {
   const { profile } = useAuth();
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const [imageUrl, setImageUrl] = useState('');
@@ -24,23 +23,23 @@ export default function ClientHistoriasScreen() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
-    const clientStories = await getClientStories(profile.id);
-    setStories(clientStories);
-  }, [profile]);
+  const cacheKey = profile ? `client-historias-${profile.id}` : null;
+  const { data, loading, reload, setData: setStories } = useCachedLoad<Story[]>(cacheKey, async () => {
+    if (!profile) return [];
+    return getClientStories(profile.id);
+  });
+  const stories = data ?? [];
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load client historias error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load client historias error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   const activeCount = stories.filter(isStoryVisible).length;
   const atLimit = activeCount >= CLIENT_DAILY_LIMIT;
@@ -97,7 +96,7 @@ export default function ClientHistoriasScreen() {
         caption: caption.trim() || undefined,
         actionType: 'none',
       });
-      setStories((prev) => [created, ...prev]);
+      setStories((prev) => [created, ...(prev ?? [])]);
       setShowForm(false);
     } catch (err) {
       console.error('create client story error', err);
@@ -110,7 +109,7 @@ export default function ClientHistoriasScreen() {
   async function handleDelete(story: Story) {
     try {
       await deleteStory(story.id);
-      setStories((prev) => prev.filter((s) => s.id !== story.id));
+      setStories((prev) => (prev ?? []).filter((s) => s.id !== story.id));
     } catch (err) {
       console.error('delete client story error', err);
       Alert.alert('Error', 'No se pudo eliminar la historia.');

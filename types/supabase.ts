@@ -198,7 +198,12 @@ export interface Database {
           business_id: string;
           user_id: string;
           role: 'owner' | 'mechanic';
+          job_title: string | null;
           can_accept_aid_requests: boolean;
+          can_manage_catalog: boolean;
+          can_reply_chat: boolean;
+          can_upload_stories: boolean;
+          can_create_posts: boolean;
           created_at: string;
         };
         Insert: {
@@ -206,7 +211,12 @@ export interface Database {
           business_id: string;
           user_id: string;
           role?: 'owner' | 'mechanic';
+          job_title?: string | null;
           can_accept_aid_requests?: boolean;
+          can_manage_catalog?: boolean;
+          can_reply_chat?: boolean;
+          can_upload_stories?: boolean;
+          can_create_posts?: boolean;
           created_at?: string;
         };
         Update: {
@@ -214,7 +224,12 @@ export interface Database {
           business_id?: string;
           user_id?: string;
           role?: 'owner' | 'mechanic';
+          job_title?: string | null;
           can_accept_aid_requests?: boolean;
+          can_manage_catalog?: boolean;
+          can_reply_chat?: boolean;
+          can_upload_stories?: boolean;
+          can_create_posts?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -245,7 +260,12 @@ export interface Database {
           id: string;
           business_id: string;
           invitee_id: string;
+          job_title: string | null;
           can_accept_aid_requests: boolean;
+          can_manage_catalog: boolean;
+          can_reply_chat: boolean;
+          can_upload_stories: boolean;
+          can_create_posts: boolean;
           status: 'pending' | 'accepted' | 'rejected';
           created_at: string;
           updated_at: string;
@@ -254,7 +274,12 @@ export interface Database {
           id?: string;
           business_id: string;
           invitee_id: string;
+          job_title?: string | null;
           can_accept_aid_requests?: boolean;
+          can_manage_catalog?: boolean;
+          can_reply_chat?: boolean;
+          can_upload_stories?: boolean;
+          can_create_posts?: boolean;
           status?: 'pending' | 'accepted' | 'rejected';
           created_at?: string;
           updated_at?: string;
@@ -263,7 +288,12 @@ export interface Database {
           id?: string;
           business_id?: string;
           invitee_id?: string;
+          job_title?: string | null;
           can_accept_aid_requests?: boolean;
+          can_manage_catalog?: boolean;
+          can_reply_chat?: boolean;
+          can_upload_stories?: boolean;
+          can_create_posts?: boolean;
           status?: 'pending' | 'accepted' | 'rejected';
           created_at?: string;
           updated_at?: string;
@@ -1322,7 +1352,12 @@ export interface Database {
           business_id: string;
           user_id: string;
           role: 'owner' | 'mechanic';
+          job_title: string | null;
           can_accept_aid_requests: boolean;
+          can_manage_catalog: boolean;
+          can_reply_chat: boolean;
+          can_upload_stories: boolean;
+          can_create_posts: boolean;
           created_at: string;
           full_name: string;
           email: string;

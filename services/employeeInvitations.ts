@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getPlanLimits } from './catalog';
 import { notifyUser } from './notifications';
+import type { EmployeePermissions } from './employees';
 import type {
   EmployeeInvitation,
   EmployeeInvitationWithBusiness,
@@ -12,7 +13,8 @@ export type { EmployeeInvitationWithBusiness, EmployeeInvitationWithInvitee };
 export async function sendEmployeeInvitation(
   businessId: string,
   inviteeId: string,
-  canAcceptAidRequests: boolean
+  jobTitle: string | null,
+  permissions: EmployeePermissions
 ): Promise<EmployeeInvitation> {
   const { data: existing } = await supabase
     .from('employee_invitations')
@@ -25,7 +27,16 @@ export async function sendEmployeeInvitation(
 
   const { data, error } = await supabase
     .from('employee_invitations')
-    .insert({ business_id: businessId, invitee_id: inviteeId, can_accept_aid_requests: canAcceptAidRequests })
+    .insert({
+      business_id: businessId,
+      invitee_id: inviteeId,
+      job_title: jobTitle,
+      can_accept_aid_requests: permissions.canAcceptAidRequests,
+      can_manage_catalog: permissions.canManageCatalog,
+      can_reply_chat: permissions.canReplyChat,
+      can_upload_stories: permissions.canUploadStories,
+      can_create_posts: permissions.canCreatePosts,
+    })
     .select()
     .single();
   if (error) throw error;
@@ -128,7 +139,12 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
       business_id: inv.business_id,
       user_id: inv.invitee_id,
       role: 'mechanic',
+      job_title: inv.job_title,
       can_accept_aid_requests: inv.can_accept_aid_requests,
+      can_manage_catalog: inv.can_manage_catalog,
+      can_reply_chat: inv.can_reply_chat,
+      can_upload_stories: inv.can_upload_stories,
+      can_create_posts: inv.can_create_posts,
     });
     if (empError) throw empError;
   }

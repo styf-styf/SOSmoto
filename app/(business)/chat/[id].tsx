@@ -10,6 +10,7 @@ import { ImageViewerModal } from '../../../components/ImageViewerModal';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { getMyEmployeeRecord } from '../../../services/employees';
 import { supabase } from '../../../services/supabase';
 import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
 import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
@@ -50,6 +51,7 @@ export default function ChatScreen() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isLimited, setIsLimited] = useState(false);
+  const [canReplyChat, setCanReplyChat] = useState(true);
   const [client, setClient] = useState<User | null>(null);
   const [otherBusiness, setOtherBusiness] = useState<{ name: string; logo_url: string | null; is_verified: boolean } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -86,17 +88,23 @@ export default function ChatScreen() {
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
     if (profile.role === 'client') {
-      return { clientId: profile.id, businessId: id, isLimited: false };
+      return { clientId: profile.id, businessId: id, isLimited: false, canReplyChat: true };
     }
     if (sellerBusinessId) {
       // Estoy comprando como negocio (ej. taller apartando un producto de
       // otra tienda) -- yo soy el lado "cliente" de este hilo específico,
       // no el dueño del negocio destino.
-      return { clientId: profile.id, businessId: sellerBusinessId, isLimited: false };
+      return { clientId: profile.id, businessId: sellerBusinessId, isLimited: false, canReplyChat: true };
     }
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return null;
-    return { clientId: id, businessId: work.business.id, isLimited: work.business.is_limited };
+    const employeeRecord = work.isOwner ? null : await getMyEmployeeRecord(work.business.id, profile.id);
+    return {
+      clientId: id,
+      businessId: work.business.id,
+      isLimited: work.business.is_limited,
+      canReplyChat: work.isOwner || (employeeRecord?.can_reply_chat ?? false),
+    };
   }, [profile, id, sellerBusinessId]);
 
   useEffect(() => {
@@ -107,6 +115,7 @@ export default function ChatScreen() {
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
         setIsLimited(thread.isLimited);
+        setCanReplyChat(thread.canReplyChat);
 
         if (isBuyerMode) {
           // Estoy comprando como negocio: no hay acciones de vendedor (confirmar
@@ -649,9 +658,13 @@ export default function ChatScreen() {
           )}
         </ScrollView>
 
-        {isLimited ? (
+        {isLimited || !canReplyChat ? (
           <View style={styles.limitedNotice}>
-            <Text style={styles.limitedNoticeText}>Tu negocio está limitado: no puedes enviar mensajes.</Text>
+            <Text style={styles.limitedNoticeText}>
+              {isLimited
+                ? 'Tu negocio está limitado: no puedes enviar mensajes.'
+                : 'No tienes permiso para responder chats en este negocio.'}
+            </Text>
           </View>
         ) : (
           <>

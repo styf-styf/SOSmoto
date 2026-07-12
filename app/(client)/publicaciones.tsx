@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
 import { createPost, deletePost, getMyClientPosts, MAX_POST_PHOTOS_CLIENT } from '../../services/posts';
 import { pickAndUploadClientPostImage } from '../../services/storage';
@@ -14,8 +15,6 @@ import type { Post } from '../../types/database';
 
 export default function ClientPublicacionesScreen() {
   const { profile } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const [photos, setPhotos] = useState<string[]>([]);
@@ -30,23 +29,23 @@ export default function ClientPublicacionesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
-    const myPosts = await getMyClientPosts(profile.id);
-    setPosts(myPosts);
-  }, [profile]);
+  const cacheKey = profile ? `client-publicaciones-${profile.id}` : null;
+  const { data, loading, reload, setData: setPosts } = useCachedLoad<Post[]>(cacheKey, async () => {
+    if (!profile) return [];
+    return getMyClientPosts(profile.id);
+  });
+  const posts = data ?? [];
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load client posts error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load client posts error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   function resetForm() {
     setPhotos([]);
@@ -115,7 +114,7 @@ export default function ClientPublicacionesScreen() {
         caption: caption.trim() || undefined,
         tagBusinessId: taggedBusiness?.id,
       });
-      setPosts((prev) => [created, ...prev]);
+      setPosts((prev) => [created, ...(prev ?? [])]);
       setShowForm(false);
     } catch (err) {
       console.error('create post error', err);
@@ -128,7 +127,7 @@ export default function ClientPublicacionesScreen() {
   async function handleDelete(post: Post) {
     try {
       await deletePost(post.id);
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      setPosts((prev) => (prev ?? []).filter((p) => p.id !== post.id));
     } catch (err) {
       console.error('delete post error', err);
       Alert.alert('Error', 'No se pudo eliminar la publicación.');

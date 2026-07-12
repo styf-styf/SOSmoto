@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getBusinessClientByName, type ExternalVehicle } from '../../services/businessClients';
 import { getVehicles } from '../../services/vehicles';
@@ -90,8 +91,12 @@ export default function NuevoInformeScreen() {
 
   const isLocked = !!params.appointmentStatus && params.appointmentStatus !== 'completed';
 
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [loadingBiz, setLoadingBiz] = useState(true);
+  const cacheKey = profile ? `nuevo-informe-biz-${profile.id}` : null;
+  const { data: businessId, loading: loadingBiz } = useCachedLoad<string | null>(cacheKey, async () => {
+    if (!profile) return null;
+    const work = await getMyWorkBusiness(profile.id);
+    return work?.business.id ?? null;
+  });
 
   const isExternal = !params.clientId;
 
@@ -123,18 +128,6 @@ export default function NuevoInformeScreen() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [draftVehiclePlate, setDraftVehiclePlate] = useState<string | null>(null);
-
-  const loadBusiness = useCallback(async () => {
-    if (!profile) return;
-    const work = await getMyWorkBusiness(profile.id);
-    if (work) setBusinessId(work.business.id);
-  }, [profile]);
-
-  useEffect(() => {
-    loadBusiness()
-      .catch((err) => console.error('load biz error', err))
-      .finally(() => setLoadingBiz(false));
-  }, [loadBusiness]);
 
   // Cargar vehículos desde BD según tipo de cliente
   useEffect(() => {

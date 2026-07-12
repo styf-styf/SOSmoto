@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getDueMaintenance, markCompleted, type MaintenanceItem } from '../../services/maintenance';
 import { createVehicle, deleteVehicle, getVehicles, updateVehicle } from '../../services/vehicles';
 import type { MotoType, Vehicle } from '../../types/database';
@@ -21,28 +22,26 @@ const motoTypeLabel: Record<MotoType, string> = {
 
 export default function VehiclesScreen() {
   const { profile } = useAuth();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
-    const result = await getVehicles(profile.id);
-    setVehicles(result);
-  }, [profile]);
+  const cacheKey = profile ? `vehiculos-${profile.id}` : null;
+  const { data, loading, reload, setData: setVehicles } = useCachedLoad<Vehicle[]>(cacheKey, async () => {
+    if (!profile) return [];
+    return getVehicles(profile.id);
+  });
+  const vehicles = data ?? [];
 
   async function handleRefresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await reload();
+    } catch (err) {
+      console.error('load vehicles error', err);
+    } finally {
+      setRefreshing(false);
+    }
   }
-
-  useEffect(() => {
-    setLoading(true);
-    load()
-      .catch((err) => console.error('load vehicles error', err))
-      .finally(() => setLoading(false));
-  }, [load]);
 
   function handleDelete(vehicle: Vehicle) {
     Alert.alert('Eliminar moto', `¿Eliminar ${vehicle.brand} ${vehicle.model}?`, [
@@ -53,7 +52,7 @@ export default function VehiclesScreen() {
         onPress: async () => {
           try {
             await deleteVehicle(vehicle.id);
-            setVehicles((prev) => prev.filter((v) => v.id !== vehicle.id));
+            setVehicles((prev) => (prev ?? []).filter((v) => v.id !== vehicle.id));
           } catch (err) {
             console.error('delete vehicle error', err);
           }
@@ -82,7 +81,7 @@ export default function VehiclesScreen() {
           vehicle={vehicle}
           onDelete={() => handleDelete(vehicle)}
           onUpdated={(updated) =>
-            setVehicles((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
+            setVehicles((prev) => (prev ?? []).map((v) => (v.id === updated.id ? updated : v)))
           }
         />
       ))}
@@ -91,7 +90,7 @@ export default function VehiclesScreen() {
         <AddVehicleForm
           onCancel={() => setShowForm(false)}
           onCreated={(vehicle) => {
-            setVehicles((prev) => [vehicle, ...prev]);
+            setVehicles((prev) => [vehicle, ...(prev ?? [])]);
             setShowForm(false);
           }}
         />
