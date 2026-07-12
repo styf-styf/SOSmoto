@@ -477,6 +477,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   container: {
+    flexGrow: 1,
     padding: 20,
     backgroundColor: colors.background,
   },

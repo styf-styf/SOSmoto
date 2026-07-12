@@ -179,6 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: SIDE_PADDING,
     paddingTop: 16,
     paddingBottom: 32,

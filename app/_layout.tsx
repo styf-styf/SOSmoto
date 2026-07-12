@@ -29,7 +29,10 @@ export default function RootLayout() {
       <AuthProvider>
         <KeyboardProvider>
           <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
+          {/* animation: 'none' -- este Stack solo enruta por rol (auth/cliente/negocio)
+              tras el splash; sin esto, la transición nativa por defecto se ve como un
+              slide justo cuando aparece Home, dando la sensación de un salto raro. */}
+          <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(client)" />
             <Stack.Screen name="(business)" />

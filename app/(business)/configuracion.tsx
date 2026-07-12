@@ -9,6 +9,7 @@ import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { signOut } from '../../services/auth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
+import { getEmployees } from '../../services/employees';
 import { getPendingRequests } from '../../services/helpRequests';
 import type { Business } from '../../types/database';
 
@@ -22,6 +23,7 @@ interface BusinessConfigData {
   business: Business | null;
   plan: PlanLimits | null;
   pendingCount: number;
+  employeeCount: number;
 }
 
 export default function BusinessConfiguracionScreen() {
@@ -31,19 +33,21 @@ export default function BusinessConfiguracionScreen() {
 
   const cacheKey = profile ? `business-config-${profile.id}` : null;
   const { data, loading, reload } = useCachedLoad<BusinessConfigData>(cacheKey, async () => {
-    if (!profile) return { business: null, plan: null, pendingCount: 0 };
+    if (!profile) return { business: null, plan: null, pendingCount: 0, employeeCount: 0 };
     const work = await getMyWorkBusiness(profile.id);
     const myBusiness = work?.business ?? null;
-    if (!myBusiness) return { business: null, plan: null, pendingCount: 0 };
-    const [planLimits, pending] = await Promise.all([
+    if (!myBusiness) return { business: null, plan: null, pendingCount: 0, employeeCount: 0 };
+    const [planLimits, pending, employees] = await Promise.all([
       getPlanLimits(myBusiness.id),
       getPendingRequests(myBusiness.id),
+      getEmployees(myBusiness.id),
     ]);
-    return { business: myBusiness, plan: planLimits, pendingCount: pending.length };
+    return { business: myBusiness, plan: planLimits, pendingCount: pending.length, employeeCount: employees.length };
   });
   const business = data?.business ?? null;
   const plan = data?.plan ?? null;
   const pendingCount = data?.pendingCount ?? 0;
+  const employeeCount = data?.employeeCount ?? 0;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -109,6 +113,12 @@ export default function BusinessConfiguracionScreen() {
       <View style={styles.menuGroup}>
         <MenuRow icon="storefront-outline" label="Datos del negocio" onPress={() => router.push('/(business)/datos-negocio')} />
         <MenuRow icon="time-outline" label="Horario" onPress={() => router.push('/(business)/horario')} />
+        <MenuRow
+          icon="people-circle-outline"
+          label="Equipo"
+          badge={employeeCount > 0 ? `${employeeCount} persona${employeeCount === 1 ? '' : 's'}` : undefined}
+          onPress={() => router.push('/(business)/empleados')}
+        />
         <MenuRow icon="grid-outline" label="Catálogo" onPress={() => router.push('/(business)/catalogo')} />
         {business.business_type === 'workshop' && (
           <MenuRow icon="calendar-outline" label="Agenda" onPress={() => router.push('/(business)/agenda-negocio')} />
@@ -144,7 +154,6 @@ export default function BusinessConfiguracionScreen() {
           badge={plan ? planLabel[plan.planName] ?? plan.planName : undefined}
           onPress={() => router.push('/(business)/suscripcion')}
         />
-        <MenuRow icon="people-circle-outline" label="Equipo" onPress={() => router.push('/(business)/empleados')} />
         <MenuRow
           icon="shield-checkmark-outline"
           label="Verificación"
@@ -168,7 +177,11 @@ export default function BusinessConfiguracionScreen() {
         onPress={handleSignOut}
         disabled={signingOut}
       >
-        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        {signingOut ? (
+          <ActivityIndicator size="small" color={colors.danger} />
+        ) : (
+          <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        )}
         <Text style={styles.signOutLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
       </Pressable>
     </ScrollView>
@@ -214,6 +227,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 20,

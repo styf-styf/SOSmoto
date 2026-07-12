@@ -493,7 +493,7 @@ export default function InventarioScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   summaryCard: {
     flex: 1, alignItems: 'center', backgroundColor: colors.surface,

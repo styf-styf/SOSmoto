@@ -227,6 +227,7 @@ export default function ClientPerfilScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
     paddingHorizontal: SIDE_PADDING,
     paddingTop: 36,
     paddingBottom: 32,

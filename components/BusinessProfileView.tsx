@@ -52,6 +52,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [logoOverride, setLogoOverride] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ type: 'business' | 'review'; id: string; label: string } | null>(null);
 
   const logoUrl = logoOverride ?? business?.logo_url ?? null;
@@ -129,8 +130,14 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   }
 
   async function handleSignOut() {
-    await signOut();
-    router.replace('/(auth)/login');
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/(auth)/login');
+    } catch (err) {
+      console.error('sign out error', err);
+      setSigningOut(false);
+    }
   }
 
   async function toggleFollow() {
@@ -178,7 +185,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       return (
         <View style={styles.center}>
           <Text style={styles.placeholder}>{profile?.full_name ?? 'Perfil'}</Text>
-          <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} />
+          <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} loading={signingOut} />
         </View>
       );
     }

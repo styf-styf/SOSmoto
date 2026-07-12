@@ -759,7 +759,7 @@ export default function NuevoInformeScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
   subtitle: { fontSize: 14, color: colors.textMuted, marginBottom: 4 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   clientRowText: { flex: 1, fontSize: 14, color: colors.textMuted },

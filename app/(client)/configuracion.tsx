@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
@@ -101,7 +101,11 @@ export default function ConfiguracionScreen() {
         onPress={handleSignOut}
         disabled={signingOut}
       >
-        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        {signingOut ? (
+          <ActivityIndicator size="small" color={colors.danger} />
+        ) : (
+          <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        )}
         <Text style={styles.dangerLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
       </Pressable>
 
@@ -153,6 +157,7 @@ function MenuRow({
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 32,

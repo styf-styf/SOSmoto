@@ -976,6 +976,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: SIDE_PADDING,
     paddingTop: 36,
     paddingBottom: 32,

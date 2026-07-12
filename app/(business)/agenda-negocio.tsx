@@ -633,6 +633,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 20,

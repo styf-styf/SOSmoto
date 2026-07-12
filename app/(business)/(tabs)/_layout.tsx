@@ -75,7 +75,11 @@ export default function BusinessTabsLayout() {
         options={{
           title: 'Catálogo',
           tabBarIcon: ({ color, size }) => <Ionicons name="cube" size={size} color={color} />,
-          href: isWorkshop ? null : undefined,
+          // Mientras businessType todavia no resuelve (null), ocultar esta
+          // pestaña en vez de asumir "no es taller" -- si no, en talleres se
+          // alcanza a ver "Catálogo" un instante antes de que aparezca
+          // "Solicitudes" y desaparezca esta, un flash confuso en la tab bar.
+          href: businessType === null || isWorkshop ? null : undefined,
         }}
       />
       <Tabs.Screen

@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 4,
     paddingBottom: 20,

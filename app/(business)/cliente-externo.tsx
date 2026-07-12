@@ -442,7 +442,7 @@ export default function ClienteExternoScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
 
   profileCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,

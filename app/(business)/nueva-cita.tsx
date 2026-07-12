@@ -386,6 +386,7 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background,
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, backgroundColor: colors.background,
   },
   fieldLabel: {

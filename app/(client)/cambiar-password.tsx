@@ -55,6 +55,7 @@ export default function CambiarPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 28,

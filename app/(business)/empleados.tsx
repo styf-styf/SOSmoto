@@ -328,23 +328,24 @@ function EmployeeRow({
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{employee.user?.full_name ?? 'Usuario'}</Text>
         {isOwner && (
-          <Pressable onPress={handleRemove}>
-            <Ionicons name="trash-outline" size={20} color={colors.danger} />
-          </Pressable>
+          <View style={styles.cardHeaderActions}>
+            <Pressable
+              style={styles.iconButtonBox}
+              onPress={() => { setJobTitle(employee.job_title ?? ''); setEditingJobTitle((v) => !v); }}
+            >
+              <Ionicons name="create-outline" size={16} color={colors.primary} />
+            </Pressable>
+            <Pressable style={[styles.iconButtonBox, styles.iconButtonBoxDanger]} onPress={handleRemove}>
+              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            </Pressable>
+          </View>
         )}
       </View>
       {employee.user?.email && <Text style={styles.cardMeta}>{employee.user.email}</Text>}
       {employee.user?.phone && <Text style={styles.cardMeta}>{employee.user.phone}</Text>}
 
       {!editingJobTitle ? (
-        <View style={styles.jobTitleRow}>
-          <Text style={styles.jobTitleText}>{employee.job_title || 'Sin cargo asignado'}</Text>
-          {isOwner && (
-            <Pressable onPress={() => { setJobTitle(employee.job_title ?? ''); setEditingJobTitle(true); }} hitSlop={8}>
-              <Ionicons name="pencil-outline" size={16} color={colors.primary} />
-            </Pressable>
-          )}
-        </View>
+        <Text style={styles.jobTitleText}>{employee.job_title || 'Sin cargo asignado'}</Text>
       ) : (
         <View style={styles.jobTitleEditBox}>
           <TextField label="Cargo" placeholder={getJobTitlePlaceholder(businessType)} value={jobTitle} onChangeText={setJobTitle} />
@@ -453,6 +454,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 20,
@@ -503,6 +505,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  cardHeaderActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButtonBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#FFF1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconButtonBoxDanger: {
+    backgroundColor: '#FBE8E8',
+  },
   invitationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -535,16 +552,11 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: 10,
   },
-  jobTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
   jobTitleText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
+    marginTop: 6,
   },
   jobTitleEditBox: {
     marginTop: 8,

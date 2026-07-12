@@ -385,7 +385,7 @@ export default function NuevoClienteScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
   tabs: {
     flexDirection: 'row', backgroundColor: colors.surface,
     borderRadius: 12, padding: 4, marginBottom: 20,
