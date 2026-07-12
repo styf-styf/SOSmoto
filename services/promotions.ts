@@ -12,14 +12,16 @@ export async function getActivePlanPromotion(): Promise<ActivePlanPromotion | nu
     plan_name: row.plan_name,
     duration_days: row.duration_days,
     activated_at: row.activated_at,
+    applies_to_all_businesses: row.applies_to_all_businesses,
   };
 }
 
-// Un negocio es elegible si: nunca reclamó una promoción antes, y se
-// registró después de que la promoción actual se activó (la oferta es solo
-// para altas nuevas, no para negocios ya existentes).
+// Un negocio es elegible si: nunca reclamó una promoción antes, y (a menos
+// que el admin haya activado "Todos" en vez de "Nuevos negocios") se
+// registró después de que la promoción actual se activó.
 export function isEligibleForPromotion(business: Business, promotion: ActivePlanPromotion): boolean {
   if (business.promotion_claimed_at) return false;
+  if (promotion.applies_to_all_businesses) return true;
   return new Date(business.created_at) >= new Date(promotion.activated_at);
 }
 

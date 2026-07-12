@@ -1421,6 +1421,7 @@ export interface Database {
           plan_name: 'free' | 'standard' | 'pro';
           duration_days: number;
           activated_at: string;
+          applies_to_all_businesses: boolean;
         }[];
       };
       increment_ad_metric: {

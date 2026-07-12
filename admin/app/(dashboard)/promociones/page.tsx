@@ -1,6 +1,7 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
 import type { AdminPlanPromotionRow, AdminPromotionBeneficiaryRow, PlanName } from '../../../lib/types';
 import { PromotionToggleCard } from './PromotionToggleCard';
+import { PromotionScopeToggle } from './PromotionScopeToggle';
 import { BeneficiaryExpiryEditor } from './BeneficiaryExpiryEditor';
 
 const PLAN_LABELS: Record<PlanName, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
@@ -19,7 +20,7 @@ function liveRemainingDays(promo: AdminPlanPromotionRow | undefined): number {
 export default async function PromocionesPage() {
   const supabase = createAdminClient();
 
-  const [plansResult, promotionsResult, beneficiariesResult] = await Promise.all([
+  const [plansResult, promotionsResult, beneficiariesResult, settingsResult] = await Promise.all([
     supabase.from('subscription_plans').select('id, name').in('name', ['standard', 'pro']),
     supabase
       .from('plan_promotions')
@@ -29,11 +30,13 @@ export default async function PromocionesPage() {
       .select('id, business_id, plan_id, started_at, expires_at, businesses(name), subscription_plans(name)')
       .not('promotion_id', 'is', null)
       .order('expires_at', { ascending: true }),
+    supabase.from('promotion_settings').select('applies_to_all_businesses').eq('id', true).maybeSingle(),
   ]);
 
   const plans = (plansResult.data ?? []) as { id: string; name: PlanName }[];
   const promotions = (promotionsResult.data ?? []) as unknown as AdminPlanPromotionRow[];
   const beneficiaries = (beneficiariesResult.data ?? []) as unknown as AdminPromotionBeneficiaryRow[];
+  const appliesToAll = !!(settingsResult.data as { applies_to_all_businesses: boolean } | null)?.applies_to_all_businesses;
 
   const activePromotion = promotions.find((p) => p.is_active) ?? null;
 
@@ -44,6 +47,8 @@ export default async function PromocionesPage() {
         Regala un plan pago por tiempo limitado a los negocios que se registren mientras la oferta esté activa. Solo
         puede haber una promoción activa a la vez, y cada negocio puede reclamar una única vez en toda su historia.
       </p>
+
+      <PromotionScopeToggle appliesToAll={appliesToAll} />
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {plans.map((plan) => {
@@ -64,9 +69,13 @@ export default async function PromocionesPage() {
       </div>
 
       <h2 className="mb-3 text-lg font-semibold">Negocios con beneficio de promoción</h2>
-      {(plansResult.error || promotionsResult.error || beneficiariesResult.error) && (
+      {(plansResult.error || promotionsResult.error || beneficiariesResult.error || settingsResult.error) && (
         <p className="mb-3 text-sm text-red-600">
-          Error: {plansResult.error?.message ?? promotionsResult.error?.message ?? beneficiariesResult.error?.message}
+          Error:{' '}
+          {plansResult.error?.message ??
+            promotionsResult.error?.message ??
+            beneficiariesResult.error?.message ??
+            settingsResult.error?.message}
         </p>
       )}
 
