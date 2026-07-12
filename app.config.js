@@ -39,14 +39,14 @@ module.exports = {
     },
     plugins: [
       'expo-router',
-      ['./plugins/withAndroidSplashIconBackground.js', { backgroundColor: '#FF6B00' }],
+      ['./plugins/withAndroidSplashIconBackground.js', { backgroundColor: '#1A1A2E' }],
       [
         'expo-splash-screen',
         {
-          image: './assets/splash-icon-white.png',
-          imageWidth: 180,
+          image: './assets/SOSmoto_foreground.png',
+          imageWidth: 220,
           resizeMode: 'contain',
-          backgroundColor: '#FF6B00',
+          backgroundColor: '#1A1A2E',
         },
       ],
       [
