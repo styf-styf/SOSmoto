@@ -242,6 +242,10 @@ body {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  cursor: grab;
+}
+.carousel-track:active {
+  cursor: grabbing;
 }
 .carousel-track::-webkit-scrollbar { display: none; }
 .carousel-track img {
@@ -372,10 +376,15 @@ body {
   scrollbar-width: none;
   margin: 0 -20px;
   padding: 0 20px;
+  cursor: grab;
+}
+.related-track:active {
+  cursor: grabbing;
 }
 .related-track::-webkit-scrollbar { display: none; }
 .related-card {
   flex: 0 0 108px;
+  display: block;
   text-decoration: none;
 }
 .related-image {
@@ -392,6 +401,7 @@ body {
   display: block;
 }
 .related-name {
+  width: 100%;
   font-size: 12px;
   font-weight: 600;
   color: ${COLORS.text};
@@ -401,10 +411,14 @@ body {
   text-overflow: ellipsis;
 }
 .related-price {
+  width: 100%;
   font-size: 12px;
   font-weight: 700;
   color: ${COLORS.primary};
   margin: 2px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .related-list {
   margin-top: 4px;
@@ -468,6 +482,38 @@ document.querySelectorAll('.carousel-track').forEach(function (track) {
     var idx = Math.round(track.scrollLeft / track.clientWidth);
     dots.forEach(function (d, i) { d.classList.toggle('active', i === idx); });
   });
+});
+// Touch/mobile ya puede deslizar solo (overflow-x + scroll-snap nativo),
+// pero un mouse de escritorio no arrastra por defecto -- esto agrega
+// "click y arrastra" para que también funcione con mouse.
+document.querySelectorAll('.carousel-track, .related-track').forEach(function (track) {
+  var isDown = false;
+  var startX = 0;
+  var startScroll = 0;
+  var moved = false;
+  track.addEventListener('mousedown', function (e) {
+    isDown = true;
+    moved = false;
+    startX = e.pageX;
+    startScroll = track.scrollLeft;
+  });
+  window.addEventListener('mouseup', function () { isDown = false; });
+  window.addEventListener('mousemove', function (e) {
+    if (!isDown) return;
+    e.preventDefault();
+    var delta = e.pageX - startX;
+    if (Math.abs(delta) > 3) moved = true;
+    track.scrollLeft = startScroll - delta;
+  });
+  // Si hubo arrastre real, cancela el click del link para no navegar
+  // sin querer al soltar el mouse encima de una tarjeta.
+  track.addEventListener(
+    'click',
+    function (e) {
+      if (moved) e.preventDefault();
+    },
+    true
+  );
 });
 </script>
 </body>
