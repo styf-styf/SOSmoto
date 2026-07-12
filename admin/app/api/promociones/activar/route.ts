@@ -2,39 +2,33 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/requireAdmin';
 import { createAdminClient } from '../../../../lib/supabase/admin';
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-// Cada plan tiene una única fila para siempre (plan_promotions_plan_id_key).
-// Activar es "reanudar" si ya existía una campaña con días restantes, o
-// "arrancar de cero" si nunca se usó o ya se agotó. Nunca afecta a los
-// negocios que ya reclamaron el beneficio (su expires_at ya quedó fijo).
+// Un plan no puede activar su promoción si ya existe otra activa -- el
+// admin debe desactivar la otra primero (no se auto-pausa). Los días de la
+// campaña se fijan por separado (ver /api/promociones/dias) antes de
+// activar; acá solo se prende el toggle usando lo que ya quedó guardado en
+// remaining_days.
 export async function POST(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { planId, durationDays } = await req.json().catch(() => ({}));
+  const { planId } = await req.json().catch(() => ({}));
   if (!planId) {
     return NextResponse.json({ error: 'Falta planId' }, { status: 400 });
   }
 
   const supabase = createAdminClient();
-  const now = new Date();
 
-  // Pausar cualquier otra promoción activa (solo puede haber una a la vez).
   const { data: otherActive } = await supabase
     .from('plan_promotions')
-    .select('id, remaining_days, activated_at')
+    .select('id')
     .eq('is_active', true)
     .neq('plan_id', planId)
     .maybeSingle();
   if (otherActive) {
-    const elapsedDays = (now.getTime() - new Date(otherActive.activated_at).getTime()) / MS_PER_DAY;
-    const remaining = Math.max(0, Number(otherActive.remaining_days) - elapsedDays);
-    const { error: pauseError } = await supabase
-      .from('plan_promotions')
-      .update({ is_active: false, remaining_days: remaining, updated_at: now.toISOString() })
-      .eq('id', otherActive.id);
-    if (pauseError) return NextResponse.json({ error: pauseError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Ya hay otra promoción activa. Desactívala primero para poder activar esta.' },
+      { status: 400 }
+    );
   }
 
   const { data: existing } = await supabase
@@ -42,43 +36,15 @@ export async function POST(req: Request) {
     .select('id, remaining_days')
     .eq('plan_id', planId)
     .maybeSingle();
-
-  if (existing && Number(existing.remaining_days) > 0) {
-    // Reanudar: se mantienen los días restantes, no se reinician.
-    const { error } = await supabase
-      .from('plan_promotions')
-      .update({ is_active: true, activated_at: now.toISOString(), updated_at: now.toISOString() })
-      .eq('id', existing.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true });
+  if (!existing || Number(existing.remaining_days) <= 0) {
+    return NextResponse.json({ error: 'Primero define cuántos días va a durar la promoción.' }, { status: 400 });
   }
 
-  if (!durationDays || Number(durationDays) <= 0) {
-    return NextResponse.json({ error: 'Falta durationDays para arrancar una campaña nueva' }, { status: 400 });
-  }
-
-  if (existing) {
-    const { error } = await supabase
-      .from('plan_promotions')
-      .update({
-        duration_days: Number(durationDays),
-        remaining_days: Number(durationDays),
-        is_active: true,
-        activated_at: now.toISOString(),
-        updated_at: now.toISOString(),
-      })
-      .eq('id', existing.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  } else {
-    const { error } = await supabase.from('plan_promotions').insert({
-      plan_id: planId,
-      duration_days: Number(durationDays),
-      remaining_days: Number(durationDays),
-      is_active: true,
-      activated_at: now.toISOString(),
-    });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const { error } = await supabase
+    .from('plan_promotions')
+    .update({ is_active: true, activated_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', existing.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ success: true });
 }
