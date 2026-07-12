@@ -232,7 +232,7 @@ body {
 }
 .image-wrap {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 4;
   background: ${COLORS.surface};
   margin-top: 12px;
 }
@@ -277,7 +277,7 @@ body {
 .carousel-track img {
   flex: 0 0 100%;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 4;
   object-fit: cover;
   scroll-snap-align: start;
   scroll-snap-stop: always;
@@ -410,7 +410,7 @@ body {
 .related-track::-webkit-scrollbar { display: none; }
 .related-arrow {
   position: absolute;
-  top: 44px;
+  top: 72px;
   transform: translateY(-50%);
   width: 26px;
   height: 26px;
@@ -438,7 +438,7 @@ body {
 }
 .related-image {
   width: 108px;
-  height: 108px;
+  aspect-ratio: 3 / 4;
   border-radius: 10px;
   background: ${COLORS.surface};
   overflow: hidden;
