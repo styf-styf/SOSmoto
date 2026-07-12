@@ -16,15 +16,22 @@ import { BusinessListItem } from '../../components/BusinessListItem';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
-import { getSearchAds, type AdWithBusiness } from '../../services/ads';
+import { getSearchAdsForBusinessViewer, type AdWithBusiness } from '../../services/ads';
 import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
 import type { BusinessType } from '../../types/database';
 import { applyFreshnessOrder } from '../../utils/feedOrdering';
 
+// Solo tiendas y marcas -- nunca otros talleres. Un taller no puede seguir
+// ni interactuar de ninguna forma con el perfil de otro taller (solo con
+// tiendas, relacion B2B), asi que mostrarlos en el buscador del negocio no
+// lleva a nada util. Este buscador es exclusivo del taller (la tienda no
+// tiene boton de acceso -- ver BusinessProfileView).
+const STORE_AND_BRAND_TYPES: BusinessType[] = ['store', 'brand_advertiser'];
+
 const typeFilters: { label: string; value: BusinessType | undefined }[] = [
   { label: 'Todos', value: undefined },
-  { label: 'Talleres', value: 'workshop' },
   { label: 'Tiendas', value: 'store' },
+  { label: 'Marcas', value: 'brand_advertiser' },
 ];
 
 const ratingFilters = [
@@ -33,10 +40,6 @@ const ratingFilters = [
   { label: '4.5+ ★', value: 4.5 },
 ];
 
-// Mismo buscador que usa el cliente (app/(client)/(tabs)/buscar.tsx), pero
-// con los links apuntando a rutas de negocio -- un taller/tienda tambien
-// necesita poder buscar otros negocios (ej. un taller buscando tiendas para
-// seguir/comprar), y hoy no tenian ninguna forma de hacerlo.
 export default function BusinessBuscarScreen() {
   const { profile } = useAuth();
   const { coords } = useLocation();
@@ -55,7 +58,7 @@ export default function BusinessBuscarScreen() {
   const loadAds = useCallback(async () => {
     try {
       const city = await getNearestCity(coords);
-      const ads = await getSearchAds(city);
+      const ads = await getSearchAdsForBusinessViewer(city);
       setFeaturedAds(applyFreshnessOrder(ads, (ad) => ad.created_at, lastSeenAdAt));
     } catch (err) {
       console.error('load search ads error', err);
@@ -77,6 +80,7 @@ export default function BusinessBuscarScreen() {
       const result = await searchBusinesses({
         query: query || undefined,
         businessType,
+        businessTypeIn: businessType ? undefined : STORE_AND_BRAND_TYPES,
         coords,
         minRating,
         only24h: only24h || undefined,

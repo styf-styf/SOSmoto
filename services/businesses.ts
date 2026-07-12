@@ -75,6 +75,9 @@ export async function getFollowedBusinesses(clientId: string): Promise<Business[
 export interface SearchBusinessesParams {
   query?: string;
   businessType?: BusinessType;
+  // Alternativa a businessType para filtrar por varios tipos a la vez (ej.
+  // el buscador del taller: tiendas + marcas, nunca otros talleres).
+  businessTypeIn?: BusinessType[];
   serviceName?: string;
   coords?: { latitude: number; longitude: number } | null;
   minRating?: number;
@@ -99,6 +102,7 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
   let query = supabase.from('businesses').select('*');
   if (serviceBusinessIds) query = query.in('id', serviceBusinessIds);
   if (params.businessType) query = query.eq('business_type', params.businessType);
+  else if (params.businessTypeIn?.length) query = query.in('business_type', params.businessTypeIn);
   if (params.minRating) query = query.gte('rating_avg', params.minRating);
   if (params.only24h) query = query.eq('is_24h', true);
   if (params.query) {

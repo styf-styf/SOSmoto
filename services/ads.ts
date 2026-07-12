@@ -1,8 +1,8 @@
 import { supabase } from './supabase';
-import type { Ad, AdComment, AdPricing } from '../types/database';
+import type { Ad, AdComment, AdPricing, BusinessType } from '../types/database';
 
 export interface AdWithBusiness extends Ad {
-  business: { name: string; logo_url: string | null; is_verified: boolean } | null;
+  business: { name: string; logo_url: string | null; is_verified: boolean; business_type?: BusinessType } | null;
 }
 
 // El anuncio se ve y se comporta como una publicación del feed (con
@@ -104,11 +104,11 @@ export async function getBusinessAds(businessId: string): Promise<Ad[]> {
 // anuncios que necesita y se elige al azar entre los elegibles, para
 // repartir el espacio entre quienes pagaron publicidad en vez de apilarlos
 // todos.
-async function getEligibleAds(city: string | null): Promise<AdWithBusiness[]> {
+async function getEligibleAds(city: string | null, businessTypes?: BusinessType[]): Promise<AdWithBusiness[]> {
   const nowIso = new Date().toISOString();
   let query = supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url, is_verified)')
+    .select('*, business:businesses(name, logo_url, is_verified, business_type)')
     .eq('status', 'active')
     .lte('starts_at', nowIso)
     .gte('ends_at', nowIso)
@@ -116,7 +116,9 @@ async function getEligibleAds(city: string | null): Promise<AdWithBusiness[]> {
   query = city ? query.or(`target_city.is.null,target_city.eq.${city}`) : query.is('target_city', null);
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as unknown as AdWithBusiness[];
+  const ads = (data ?? []) as unknown as AdWithBusiness[];
+  if (!businessTypes?.length) return ads;
+  return ads.filter((ad) => ad.business?.business_type && businessTypes.includes(ad.business.business_type));
 }
 
 function pickRandom<T>(ads: T[], count: number): T[] {
@@ -143,6 +145,15 @@ export async function getFeedAds(city: string | null, count = 15): Promise<AdWit
 
 export async function getSearchAds(city: string | null): Promise<AdWithBusiness[]> {
   return getEligibleAds(city);
+}
+
+// Para el buscador del negocio (taller): solo anuncios de tiendas y marcas,
+// nunca de otros talleres -- ademas de no tener sentido (un taller no puede
+// interactuar con el perfil de otro taller), mezclar anunciantes que no son
+// el publico objetivo (clientes) infla las metricas de impresiones/clics
+// que se le venden al anunciante como alcance real.
+export async function getSearchAdsForBusinessViewer(city: string | null): Promise<AdWithBusiness[]> {
+  return getEligibleAds(city, ['store', 'brand_advertiser']);
 }
 
 export async function getActiveProfileAds(city: string | null): Promise<AdWithBusiness[]> {

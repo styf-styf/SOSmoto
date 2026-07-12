@@ -310,21 +310,23 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       {mode === 'self' && (
         <View style={styles.profileActionsRow}>
           <ProfileActionButton
-            icon="search-outline"
-            label="Buscar"
-            onPress={() => router.push('/(business)/buscar')}
-          />
-          <ProfileActionButton
             icon="grid-outline"
             label="Catálogo"
             onPress={() => router.push('/(business)/catalogo')}
           />
           {business.business_type === 'workshop' && (
-            <ProfileActionButton
-              icon="calendar-outline"
-              label="Agenda"
-              onPress={() => router.push('/(business)/agenda-negocio')}
-            />
+            <>
+              <ProfileActionButton
+                icon="search-outline"
+                label="Buscar"
+                onPress={() => router.push('/(business)/buscar')}
+              />
+              <ProfileActionButton
+                icon="calendar-outline"
+                label="Agenda"
+                onPress={() => router.push('/(business)/agenda-negocio')}
+              />
+            </>
           )}
           <ProfileActionButton
             icon="people-outline"
