@@ -24,7 +24,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  // Arranca en `true` (no `false`) -- entre el momento en que `sessionLoaded`
+  // pasa a `true` y el efecto de abajo (que depende de `sessionLoaded`)
+  // alcanza a correr, hay un render intermedio donde `session` ya existe
+  // pero `profile` todavía es `null`. Si `profileLoading` arrancara en
+  // `false`, ese render intermedio calcula `loading = false` con sesión
+  // pero sin perfil -- exactamente la forma que usan las pantallas
+  // (`app/index.tsx`, `app/post|ad/[id].tsx`) para decidir "no hay sesión,
+  // manda a login". Normalmente ese render intermedio dura tan poco que no
+  // se nota, pero al abrir la app en frío directo a una pantalla de deep
+  // link se volvió visible (mandaba a login a un usuario que sí tenía
+  // sesión activa).
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -45,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!session?.user) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
 
