@@ -8,6 +8,25 @@ export interface BusinessWithDistance extends Business {
 
 const SEARCH_RADIUS_KM = 60;
 
+// A quien le vende cada tipo de negocio, segun el flujo B2B de SOSmoto:
+// taller le compra a tienda y marca; tienda le compra solo a marca (nunca a
+// otro taller ni a otra tienda -- ninguno tiene caso de uso B2B ahi). Marca
+// no compra a nadie -- no aparece como clave aca a proposito. Fuente unica
+// de esta regla: la usan el buscador B2B (buscar.tsx), el boton de compra en
+// producto/[id].tsx, y la visibilidad de "Mis compras" en configuracion.tsx.
+export const B2B_ALLOWED_SELLER_TYPES: Partial<Record<BusinessType, BusinessType[]>> = {
+  workshop: ['store', 'brand_advertiser'],
+  store: ['brand_advertiser'],
+};
+
+export function canBuyFromBusinessType(
+  viewerType: BusinessType | null | undefined,
+  sellerType: BusinessType | null | undefined
+): boolean {
+  if (!viewerType || !sellerType) return false;
+  return B2B_ALLOWED_SELLER_TYPES[viewerType]?.includes(sellerType) ?? false;
+}
+
 export async function getNearbyBusinesses(
   coords: { latitude: number; longitude: number } | null,
   limit = 20

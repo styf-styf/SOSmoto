@@ -131,12 +131,12 @@ export default function BusinessConfiguracionScreen() {
           icon="images-outline"
           label="Publicaciones"
           onPress={() => router.push('/(business)/publicaciones')}
-          last={business.business_type !== 'workshop'}
+          last={business.business_type === 'brand_advertiser'}
         />
         {business.business_type === 'workshop' && (
           <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} />
         )}
-        {business.business_type === 'workshop' && (
+        {(business.business_type === 'workshop' || business.business_type === 'store') && (
           <MenuRow icon="bag-handle-outline" label="Mis compras" onPress={() => router.push('/(business)/mis-compras')} last />
         )}
       </View>

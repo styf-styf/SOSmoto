@@ -9,6 +9,16 @@ function withVariantLabel(name: string, variantLabel?: string | null): string {
   return variantLabel ? `${name} (${variantLabel})` : name;
 }
 
+// product_intents lo usa tanto un cliente comprando en una tienda/taller
+// como un taller/tienda pidiendo al por mayor a otro negocio (ver
+// getMyProductPurchases) -- las notificaciones al vendedor deben decir quién
+// pide, no asumir siempre "un cliente". Si el comprador es dueño de un
+// negocio, usamos su nombre comercial; si no, "Un cliente".
+async function getBuyerLabel(buyerId: string): Promise<string> {
+  const { data } = await supabase.from('businesses').select('name').eq('owner_id', buyerId).maybeSingle();
+  return data?.name ?? 'Un cliente';
+}
+
 export async function getClientIntentForProduct(
   clientId: string,
   productId: string,
@@ -57,10 +67,11 @@ export async function createProductIntent(
   }
   if (business?.owner_id && product?.name) {
     const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
+    const buyerLabel = await getBuyerLabel(clientId);
     await notifyUser(
       business.owner_id,
       'Producto apartado',
-      `Un cliente quiere apartar: ${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`,
+      `${buyerLabel} quiere apartar: ${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`,
       { type: 'product_intent', productId, businessId }
     );
   }
@@ -100,20 +111,21 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
     }
     const productName = withVariantLabel(product?.name ?? 'un producto', variantLabel);
     const qtyPrefix = intent.quantity > 1 ? `${intent.quantity} x ` : '';
+    const buyerLabel = await getBuyerLabel(intent.client_id);
 
     // Mensaje automático en el chat (mismo patrón que cancelAppointmentRequest)
     await supabase.from('messages').insert({
       client_id: intent.client_id,
       business_id: intent.business_id,
       sender_id: intent.client_id,
-      body: `❌ El cliente canceló el apartado: ${qtyPrefix}${productName}`,
+      body: `❌ ${buyerLabel} canceló el apartado: ${qtyPrefix}${productName}`,
     });
 
     if (business?.owner_id) {
       await notifyUser(
         business.owner_id,
         'Apartado cancelado',
-        `El cliente canceló: ${qtyPrefix}${productName}`,
+        `${buyerLabel} canceló: ${qtyPrefix}${productName}`,
         { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id }
       );
     }
@@ -291,17 +303,27 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  return ((data ?? []) as unknown as (ProductIntent & {
+  const rows = (data ?? []) as unknown as (ProductIntent & {
     products: { name: string; reference_price: number | null } | null;
     product_variants: { label: string; reference_price: number | null } | null;
     users: { full_name: string; phone: string | null; avatar_url: string | null } | null;
-  })[]).map((row) => ({
+  })[];
+
+  const buyerIds = [...new Set(rows.map((row) => row.client_id))];
+  const buyerBusinessByOwnerId = new Map<string, string>();
+  if (buyerIds.length > 0) {
+    const { data: buyerBusinesses } = await supabase.from('businesses').select('owner_id, name').in('owner_id', buyerIds);
+    (buyerBusinesses ?? []).forEach((b: { owner_id: string; name: string }) => buyerBusinessByOwnerId.set(b.owner_id, b.name));
+  }
+
+  return rows.map((row) => ({
     ...row,
     product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
     product_price: row.product_variants?.reference_price ?? row.products?.reference_price ?? null,
     client_name: row.users?.full_name ?? 'Cliente',
     client_phone: row.users?.phone ?? null,
     client_avatar_url: row.users?.avatar_url ?? null,
+    buyer_business_name: buyerBusinessByOwnerId.get(row.client_id) ?? null,
   }));
 }
 

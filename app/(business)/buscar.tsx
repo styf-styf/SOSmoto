@@ -18,20 +18,21 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
 import { getSearchAdsForBusinessViewer, type AdWithBusiness } from '../../services/ads';
-import { getMyWorkBusiness, getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
+import {
+  B2B_ALLOWED_SELLER_TYPES,
+  getMyWorkBusiness,
+  getNearestCity,
+  searchBusinesses,
+  type BusinessWithDistance,
+} from '../../services/businesses';
 import { searchCatalog, type FeedCatalogItem } from '../../services/catalog';
 import type { BusinessType } from '../../types/database';
 import { applyFreshnessOrder } from '../../utils/feedOrdering';
 
-// A quien le vende cada tipo de negocio, segun el flujo B2B de SOSmoto:
-// taller le compra a tienda y marca; tienda le compra solo a marca (nunca a
-// otro taller ni a otra tienda -- ninguno tiene caso de uso B2B ahi). Este
-// buscador es exclusivo de taller/tienda (la marca no tiene boton de acceso
-// -- no le compra a nadie, ver BusinessProfileView).
-const ALLOWED_TARGET_TYPES: Record<string, BusinessType[]> = {
-  workshop: ['store', 'brand_advertiser'],
-  store: ['brand_advertiser'],
-};
+// Este buscador es exclusivo de taller/tienda (la marca no tiene boton de
+// acceso -- no le compra a nadie, ver BusinessProfileView). Regla de quien
+// ve a quien: B2B_ALLOWED_SELLER_TYPES (services/businesses.ts).
+const ALLOWED_TARGET_TYPES = B2B_ALLOWED_SELLER_TYPES;
 
 const TYPE_FILTER_LABELS: Record<BusinessType, string> = {
   workshop: 'Talleres',

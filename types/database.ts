@@ -578,6 +578,10 @@ export interface ProductIntentWithDetails extends ProductIntentWithProduct {
   client_name: string;
   client_phone: string | null;
   client_avatar_url: string | null;
+  // Nombre del negocio del comprador, si el comprador es dueño de un
+  // negocio (pedido B2B taller/tienda -> tienda/marca) -- null si compró
+  // como cliente.
+  buyer_business_name: string | null;
 }
 
 export type ServiceIntentStatus = 'pending' | 'confirmed' | 'unavailable' | 'cancelled';

@@ -10,7 +10,7 @@ import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
-import { getMyWorkBusiness } from '../../../../services/businesses';
+import { canBuyFromBusinessType, getMyWorkBusiness } from '../../../../services/businesses';
 import { getProductById, getProductsByCategory, incrementProductViews } from '../../../../services/catalog';
 import {
   cancelProductIntent,
@@ -30,7 +30,7 @@ export default function BusinessProductDetailScreen() {
   const navigation = useNavigation();
   const [product, setProduct] = useState<ProductWithBusiness | null>(null);
   const [canBuy, setCanBuy] = useState(false);
-  const [viewerIsStore, setViewerIsStore] = useState(false);
+  const [viewerIsBusiness, setViewerIsBusiness] = useState(false);
   const [isOwnProduct, setIsOwnProduct] = useState(false);
   const [loading, setLoading] = useState(true);
   const [intent, setIntent] = useState<ProductIntent | null>(null);
@@ -64,6 +64,9 @@ export default function BusinessProductDetailScreen() {
         const firstAvailable = result.variants.find((v) => v.stock > 0) ?? result.variants[0];
         setSelectedVariantId(firstAvailable.id);
       }
+      if (result.min_order_quantity) {
+        setQuantity(result.min_order_quantity);
+      }
     }
 
     const owns = !!(work && result && work.business.id === result.business_id);
@@ -76,9 +79,9 @@ export default function BusinessProductDetailScreen() {
       return;
     }
 
-    if (work) {
-      setCanBuy(work.business.business_type === 'workshop');
-      setViewerIsStore(work.business.business_type === 'store');
+    if (work && result) {
+      setCanBuy(canBuyFromBusinessType(work.business.business_type, result.business_type));
+      setViewerIsBusiness(true);
     }
   }, [id, profile]);
 
@@ -127,22 +130,34 @@ export default function BusinessProductDetailScreen() {
 
   async function handleApartar() {
     if (!profile || !product) return;
-    setApartando(true);
-    try {
-      if (intent) {
+    if (intent) {
+      setApartando(true);
+      try {
         await cancelProductIntent(intent.id);
         setIntent(null);
-        setQuantity(1);
-      } else {
-        const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity, variantId);
-        setIntent(newIntent);
-        const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
-        const itemLabel = selectedVariant ? `${product.name} (${selectedVariant.label})` : product.name;
-        const msg = encodeURIComponent(
-          `Hola, quiero apartar: ${qtyPrefix}${itemLabel}${effectivePrice != null ? ` ($${(effectivePrice * quantity).toFixed(2)})` : ''}`
-        );
-        router.push(`/(business)/chat/${product.business_owner_id}?initialMessage=${msg}&sellerBusinessId=${product.business_id}`);
+        setQuantity(product.min_order_quantity || 1);
+      } catch (err) {
+        console.error('apartar error', err);
+        Alert.alert('Error', 'No se pudo procesar. Intenta de nuevo.');
+      } finally {
+        setApartando(false);
       }
+      return;
+    }
+    if (product.min_order_quantity && quantity < product.min_order_quantity) {
+      Alert.alert('Cantidad insuficiente', `Este producto requiere un pedido mínimo de ${product.min_order_quantity} unidades.`);
+      return;
+    }
+    setApartando(true);
+    try {
+      const newIntent = await createProductIntent(profile.id, product.id, product.business_id, quantity, variantId);
+      setIntent(newIntent);
+      const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
+      const itemLabel = selectedVariant ? `${product.name} (${selectedVariant.label})` : product.name;
+      const msg = encodeURIComponent(
+        `Hola, quiero hacer un pedido de: ${qtyPrefix}${itemLabel}${effectivePrice != null ? ` ($${(effectivePrice * quantity).toFixed(2)})` : ''}`
+      );
+      router.push(`/(business)/chat/${product.business_owner_id}?initialMessage=${msg}&sellerBusinessId=${product.business_id}`);
     } catch (err) {
       console.error('apartar error', err);
       Alert.alert('Error', 'No se pudo procesar. Intenta de nuevo.');
@@ -301,28 +316,34 @@ export default function BusinessProductDetailScreen() {
         </View>
       ) : (
         <View style={styles.buttonGroup}>
-          {!canBuy && viewerIsStore && (
+          {!canBuy && viewerIsBusiness && (
             <View style={styles.noticeBox}>
               <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
               <Text style={styles.noticeText}>
-                No puedes apartar productos con una cuenta de tienda. Cambia a una cuenta de cliente para solicitar este producto.
+                Tu tipo de negocio no puede pedir productos a este negocio. Talleres compran a tiendas y marcas; tiendas
+                compran solo a marcas.
               </Text>
             </View>
           )}
           {effectiveStock > 0 && canBuy && (!hasVariants || !!selectedVariantId) && !intent && (
             <View style={styles.apartarRow}>
               <Button
-                title="Apartar producto"
+                title="Pedir producto"
                 onPress={handleApartar}
                 loading={apartando}
                 style={styles.apartarButton}
               />
-              <QuantityStepper value={quantity} onChange={setQuantity} max={effectiveStock} />
+              <QuantityStepper
+                value={quantity}
+                onChange={setQuantity}
+                min={product.min_order_quantity || 1}
+                max={effectiveStock}
+              />
             </View>
           )}
           {canBuy && intent && (
             <Button
-              title="Cancelar apartado"
+              title="Cancelar pedido"
               onPress={handleApartar}
               loading={apartando}
               style={styles.buttonCancel}
@@ -330,12 +351,12 @@ export default function BusinessProductDetailScreen() {
           )}
           {intent?.status === 'pending' && (
             <Text style={styles.intentBadge}>
-              Apartado ({intent.quantity}) — en espera de confirmación del negocio
+              Pedido ({intent.quantity}) — en espera de confirmación del negocio
             </Text>
           )}
           {intent?.status === 'confirmed' && (
             <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
-              ✓ Apartado ({intent.quantity}) confirmado por el negocio
+              ✓ Pedido ({intent.quantity}) confirmado por el negocio
             </Text>
           )}
 

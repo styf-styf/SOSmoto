@@ -136,7 +136,7 @@ export default function PedidosScreen() {
                   <Ionicons name="person" size={18} color={colors.textMuted} />
                 )}
               </View>
-              <Text style={styles.cardTitle}>{intent.client_name}</Text>
+              <Text style={styles.cardTitle}>{intent.buyer_business_name ?? intent.client_name}</Text>
               <View style={[styles.statusBadge, statusBadgeStyle(intent.status)]}>
                 <Text style={[styles.statusText, statusTextStyle(intent.status)]}>
                   {statusLabel(intent.status)}

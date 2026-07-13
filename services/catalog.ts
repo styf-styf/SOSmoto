@@ -137,6 +137,7 @@ export interface ProductWithBusiness extends Product {
   business_owner_id: string;
   business_logo_url: string | null;
   business_is_verified: boolean;
+  business_type: BusinessType;
   category_name: string;
   variants: ProductVariant[];
 }
@@ -168,7 +169,11 @@ export async function getServiceById(id: string): Promise<ServiceWithBusiness | 
 
 export async function getProductById(id: string): Promise<ProductWithBusiness | null> {
   const [{ data, error }, variants] = await Promise.all([
-    supabase.from('products').select('*, businesses(name, owner_id, logo_url, is_verified), categories(name)').eq('id', id).maybeSingle(),
+    supabase
+      .from('products')
+      .select('*, businesses(name, owner_id, logo_url, is_verified, business_type), categories(name)')
+      .eq('id', id)
+      .maybeSingle(),
     getProductVariants(id),
   ]);
   if (error) throw error;
@@ -180,6 +185,7 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
     business_owner_id: businesses?.owner_id ?? '',
     business_logo_url: businesses?.logo_url ?? null,
     business_is_verified: businesses?.is_verified ?? false,
+    business_type: businesses?.business_type ?? 'workshop',
     category_name: categories?.name ?? '',
     variants,
   } as ProductWithBusiness;
