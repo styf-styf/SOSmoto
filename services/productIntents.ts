@@ -1,7 +1,22 @@
 import { supabase } from './supabase';
 import { notifyUser } from './notifications';
 import { addStockMovement, addVariantStockMovement } from './inventory';
-import type { ProductIntent, ProductIntentWithProduct, ProductIntentWithDetails, ProductIntentStatus, Review } from '../types/database';
+import { getEffectiveUnitPrice } from './catalog';
+import type { ProductIntent, ProductIntentWithProduct, ProductIntentWithDetails, ProductIntentStatus, ProductPriceTier, Review } from '../types/database';
+
+// Precio por unidad de un intent: si el producto tiene variante, usa el
+// precio fijo de esa variante (los escalones de volumen no aplican a
+// variantes); si no, calcula el escalón que corresponde a la cantidad
+// pedida (ver getEffectiveUnitPrice en catalog.ts).
+function intentUnitPrice(
+  product: { reference_price: number | null; min_order_quantity?: number | null; price_tiers?: ProductPriceTier[] | null } | null,
+  variant: { reference_price: number | null } | null,
+  quantity: number
+): number | null {
+  if (variant?.reference_price != null) return variant.reference_price;
+  if (!product) return null;
+  return getEffectiveUnitPrice(product.reference_price, product.min_order_quantity ?? null, product.price_tiers ?? null, quantity);
+}
 
 // Junta nombre de producto + etiqueta de variante (ej. "Casco MT (Talla M)")
 // para mostrar en notificaciones y mensajes de chat automáticos.
@@ -220,7 +235,7 @@ export async function getPendingIntentsForBusinessClient(
 ): Promise<ProductIntentWithProduct[]> {
   const { data, error } = await supabase
     .from('product_intents')
-    .select('*, products(name, reference_price), product_variants(label, reference_price)')
+    .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price)')
     .eq('business_id', businessId)
     .eq('client_id', clientId)
     .eq('status', 'pending')
@@ -229,13 +244,13 @@ export async function getPendingIntentsForBusinessClient(
 
   return (
     (data ?? []) as unknown as (ProductIntent & {
-      products: { name: string; reference_price: number | null } | null;
+      products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
       product_variants: { label: string; reference_price: number | null } | null;
     })[]
   ).map((row) => ({
     ...row,
     product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-    product_price: row.product_variants?.reference_price ?? row.products?.reference_price ?? null,
+    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
   }));
 }
 
@@ -298,13 +313,15 @@ export function subscribeToClientProductIntentsForBusiness(
 export async function getBusinessProductIntents(businessId: string): Promise<ProductIntentWithDetails[]> {
   const { data, error } = await supabase
     .from('product_intents')
-    .select('*, products(name, reference_price), product_variants(label, reference_price), users(full_name, phone, avatar_url)')
+    .select(
+      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price), users(full_name, phone, avatar_url)'
+    )
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as (ProductIntent & {
-    products: { name: string; reference_price: number | null } | null;
+    products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
     product_variants: { label: string; reference_price: number | null } | null;
     users: { full_name: string; phone: string | null; avatar_url: string | null } | null;
   })[];
@@ -319,7 +336,7 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
   return rows.map((row) => ({
     ...row,
     product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-    product_price: row.product_variants?.reference_price ?? row.products?.reference_price ?? null,
+    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
     client_name: row.users?.full_name ?? 'Cliente',
     client_phone: row.users?.phone ?? null,
     client_avatar_url: row.users?.avatar_url ?? null,
@@ -333,7 +350,7 @@ export async function getClientProductIntents(
 ): Promise<ProductIntentWithProduct[]> {
   const { data, error } = await supabase
     .from('product_intents')
-    .select('*, products(name, reference_price), product_variants(label, reference_price)')
+    .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price)')
     .eq('business_id', businessId)
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
@@ -341,13 +358,13 @@ export async function getClientProductIntents(
 
   return (
     (data ?? []) as unknown as (ProductIntent & {
-      products: { name: string; reference_price: number | null } | null;
+      products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
       product_variants: { label: string; reference_price: number | null } | null;
     })[]
   ).map((row) => ({
     ...row,
     product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-    product_price: row.product_variants?.reference_price ?? row.products?.reference_price ?? null,
+    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
   }));
 }
 
@@ -388,13 +405,15 @@ export interface MyProductPurchase {
 export async function getMyProductPurchases(userId: string): Promise<MyProductPurchase[]> {
   const { data, error } = await supabase
     .from('product_intents')
-    .select('*, products(name, reference_price), product_variants(label, reference_price), businesses(name)')
+    .select(
+      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price), businesses(name)'
+    )
     .eq('client_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as (ProductIntent & {
-    products: { name: string; reference_price: number | null } | null;
+    products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
     product_variants: { label: string; reference_price: number | null } | null;
     businesses: { name: string } | null;
   })[];
@@ -421,7 +440,7 @@ export async function getMyProductPurchases(userId: string): Promise<MyProductPu
     updatedAt: r.updated_at,
     productId: r.product_id,
     productName: withVariantLabel(r.products?.name ?? 'Producto', r.product_variants?.label),
-    productPrice: r.product_variants?.reference_price ?? r.products?.reference_price ?? null,
+    productPrice: intentUnitPrice(r.products, r.product_variants, r.quantity),
     quantity: r.quantity,
     businessId: r.business_id,
     businessName: r.businesses?.name ?? 'Negocio',

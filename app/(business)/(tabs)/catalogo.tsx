@@ -42,7 +42,7 @@ import {
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { pickAndUploadBusinessImage } from '../../../services/storage';
-import type { Business, Product, ProductVariant, Service } from '../../../types/database';
+import type { Business, Product, ProductPriceTier, ProductVariant, Service } from '../../../types/database';
 
 const SIDE_PADDING = 20;
 const GRID_GAP = 10;
@@ -70,6 +70,11 @@ interface VariantRow {
   label: string;
   stock: string;
   price: string;
+}
+
+interface PriceTierRow {
+  minQuantity: string;
+  unitPrice: string;
 }
 
 // Mismo grid de foto + lista sin foto que ve el cliente en
@@ -674,6 +679,9 @@ function ProductForm({
   const [minOrderQuantity, setMinOrderQuantity] = useState(
     product?.min_order_quantity != null ? String(product.min_order_quantity) : ''
   );
+  const [priceTierRows, setPriceTierRows] = useState<PriceTierRow[]>(
+    (product?.price_tiers ?? []).map((t) => ({ minQuantity: String(t.min_quantity), unitPrice: String(t.unit_price) }))
+  );
   const isBrand = limits?.businessType === 'brand_advertiser';
   const [photos, setPhotos] = useState<string[]>(product?.photos ?? []);
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
@@ -704,6 +712,18 @@ function ProductForm({
 
   function addVariantRow() {
     setVariants((prev) => [...prev, { label: '', stock: '0', price: '' }]);
+  }
+
+  function addTierRow() {
+    setPriceTierRows((prev) => [...prev, { minQuantity: '', unitPrice: '' }]);
+  }
+
+  function removeTierRow(index: number) {
+    setPriceTierRows((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateTierRow(index: number, patch: Partial<PriceTierRow>) {
+    setPriceTierRows((prev) => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
   }
 
   function removeVariantRow(index: number) {
@@ -788,6 +808,35 @@ function ProductForm({
         return;
       }
     }
+    let parsedPriceTiers: ProductPriceTier[] | null = null;
+    if (priceTierRows.length > 0) {
+      const rows: ProductPriceTier[] = [];
+      for (const t of priceTierRows) {
+        const q = Number(t.minQuantity);
+        const p = Number(t.unitPrice);
+        if (!t.minQuantity.trim() || !t.unitPrice.trim() || Number.isNaN(q) || Number.isNaN(p) || q < 1 || p <= 0) {
+          Alert.alert(
+            'Escalón de precio inválido',
+            'Cada escalón necesita una cantidad mínima (número entero) y un precio por unidad válidos.'
+          );
+          return;
+        }
+        rows.push({ min_quantity: q, unit_price: p });
+      }
+      rows.sort((a, b) => a.min_quantity - b.min_quantity);
+      let prevQty = parsedMinOrderQuantity ?? 1;
+      for (const r of rows) {
+        if (r.min_quantity <= prevQty) {
+          Alert.alert(
+            'Escalones repetidos',
+            'Cada escalón debe tener una cantidad mínima mayor que la del escalón anterior (y que la cantidad mínima de pedido).'
+          );
+          return;
+        }
+        prevQty = r.min_quantity;
+      }
+      parsedPriceTiers = rows;
+    }
     for (const v of variants) {
       if (!v.label.trim()) {
         Alert.alert('Falta la etiqueta', 'Ingresa un nombre para cada variante (ej. Talla M).');
@@ -815,6 +864,7 @@ function ProductForm({
             photos,
             is_active: isActive,
             min_order_quantity: parsedMinOrderQuantity,
+            price_tiers: parsedPriceTiers,
           })
         : await createProduct({
             businessId,
@@ -825,6 +875,7 @@ function ProductForm({
             stock: parsedStock,
             photos,
             minOrderQuantity: parsedMinOrderQuantity ?? undefined,
+            priceTiers: parsedPriceTiers,
           });
 
       let finalProduct = result;
@@ -886,6 +937,55 @@ function ProductForm({
           value={minOrderQuantity}
           onChangeText={setMinOrderQuantity}
         />
+      )}
+
+      {isBrand && (
+        <>
+          <Text style={styles.fieldLabel}>Precio por volumen (opcional)</Text>
+          <Text style={styles.variantHint}>
+            El precio de arriba ({price.trim() ? `$${price}` : 'sin definir'}) aplica desde{' '}
+            {minOrderQuantity.trim() || '1'} unidad{minOrderQuantity.trim() === '1' ? '' : 'es'}. Agrega escalones para
+            cantidades mayores, ej. 3 uds a $9, 6 uds a $8.50.
+          </Text>
+          {priceTierRows.map((t, index) => (
+            <View key={index} style={styles.variantCard}>
+              <View style={styles.variantCardHeader}>
+                <Text style={styles.fieldLabel}>Escalón {index + 1}</Text>
+                <Pressable onPress={() => removeTierRow(index)} hitSlop={8}>
+                  <Ionicons name="close-circle" size={20} color={colors.danger} />
+                </Pressable>
+              </View>
+              <View style={styles.variantCardFieldsRow}>
+                <View style={styles.variantFieldCol}>
+                  <Text style={styles.variantFieldLabel}>Desde (unidades)</Text>
+                  <TextInput
+                    style={styles.variantSmallInput}
+                    placeholder="Ej: 6"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    value={t.minQuantity}
+                    onChangeText={(text) => updateTierRow(index, { minQuantity: text })}
+                  />
+                </View>
+                <View style={styles.variantFieldCol}>
+                  <Text style={styles.variantFieldLabel}>Precio por unidad</Text>
+                  <TextInput
+                    style={styles.variantSmallInput}
+                    placeholder="Ej: 8.50"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    value={t.unitPrice}
+                    onChangeText={(text) => updateTierRow(index, { unitPrice: text })}
+                  />
+                </View>
+              </View>
+            </View>
+          ))}
+          <Pressable style={styles.addVariantBtn} onPress={addTierRow}>
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={styles.addVariantBtnText}>Agregar escalón</Text>
+          </Pressable>
+        </>
       )}
 
       <Text style={styles.fieldLabel}>Variantes (opcional)</Text>

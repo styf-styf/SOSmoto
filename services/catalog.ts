@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { BusinessType, Category, CategoryKind, Product, ProductVariant, Service } from '../types/database';
+import type { BusinessType, Category, CategoryKind, Product, ProductPriceTier, ProductVariant, Service } from '../types/database';
 
 export async function getProductVariants(productId: string): Promise<ProductVariant[]> {
   const { data, error } = await supabase
@@ -140,6 +140,35 @@ export interface ProductWithBusiness extends Product {
   business_type: BusinessType;
   category_name: string;
   variants: ProductVariant[];
+}
+
+// Todos los escalones de precio de un producto, incluyendo el "escalon 0"
+// implicito (min_order_quantity/referencePrice) -- price_tiers en la BD solo
+// guarda los escalones ADICIONALES, esta funcion arma la lista completa
+// ordenada para mostrar/calcular.
+export function getAllPriceTiers(
+  referencePrice: number | null,
+  minOrderQuantity: number | null,
+  extraTiers: ProductPriceTier[] | null
+): ProductPriceTier[] {
+  if (referencePrice === null) return extraTiers ?? [];
+  const base: ProductPriceTier = { min_quantity: minOrderQuantity ?? 1, unit_price: referencePrice };
+  return [base, ...(extraTiers ?? [])].sort((a, b) => a.min_quantity - b.min_quantity);
+}
+
+// Precio por unidad que corresponde a una cantidad pedida: el escalon con el
+// min_quantity mas alto que sea <= quantity. Si no hay escalones o la
+// cantidad no alcanza ninguno, cae al precio base.
+export function getEffectiveUnitPrice(
+  referencePrice: number | null,
+  minOrderQuantity: number | null,
+  extraTiers: ProductPriceTier[] | null,
+  quantity: number
+): number | null {
+  const tiers = getAllPriceTiers(referencePrice, minOrderQuantity, extraTiers);
+  if (tiers.length === 0) return referencePrice;
+  const applicable = tiers.filter((t) => quantity >= t.min_quantity);
+  return (applicable.length > 0 ? applicable[applicable.length - 1] : tiers[0]).unit_price;
 }
 
 export async function incrementProductViews(id: string): Promise<void> {
@@ -530,6 +559,10 @@ export interface CreateProductParams {
   photos?: string[];
   // Cantidad minima de pedido -- para venta al por mayor (marca -> taller/tienda).
   minOrderQuantity?: number;
+  // Escalones adicionales de precio por volumen (ver ProductPriceTier) --
+  // el primer escalon (min_order_quantity/referencePrice) no va aca, se arma
+  // solo al leer el producto (ver effectivePriceTiers).
+  priceTiers?: ProductPriceTier[] | null;
 }
 
 export async function createProduct(params: CreateProductParams): Promise<Product> {
@@ -556,6 +589,7 @@ export async function createProduct(params: CreateProductParams): Promise<Produc
       stock: params.stock ?? 0,
       photos: params.photos ?? [],
       min_order_quantity: params.minOrderQuantity ?? null,
+      price_tiers: params.priceTiers ?? null,
     })
     .select()
     .single();
@@ -574,6 +608,7 @@ export async function updateProduct(
     is_active: boolean;
     photos: string[];
     min_order_quantity: number | null;
+    price_tiers: ProductPriceTier[] | null;
   }>
 ): Promise<Product> {
   if (updates.photos) {

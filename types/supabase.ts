@@ -463,6 +463,7 @@ export interface Database {
           views: number;
           created_at: string;
           min_order_quantity: number | null;
+          price_tiers: { min_quantity: number; unit_price: number }[] | null;
         };
         Insert: {
           id?: string;
@@ -477,6 +478,7 @@ export interface Database {
           views?: number;
           created_at?: string;
           min_order_quantity?: number | null;
+          price_tiers?: { min_quantity: number; unit_price: number }[] | null;
         };
         Update: {
           id?: string;
@@ -491,6 +493,7 @@ export interface Database {
           views?: number;
           created_at?: string;
           min_order_quantity?: number | null;
+          price_tiers?: { min_quantity: number; unit_price: number }[] | null;
         };
         Relationships: [];
       };

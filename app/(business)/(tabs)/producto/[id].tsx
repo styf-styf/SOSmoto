@@ -11,7 +11,13 @@ import { ReportModal } from '../../../../components/ReportModal';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { canBuyFromBusinessType, getMyWorkBusiness } from '../../../../services/businesses';
-import { getProductById, getProductsByCategory, incrementProductViews } from '../../../../services/catalog';
+import {
+  getAllPriceTiers,
+  getEffectiveUnitPrice,
+  getProductById,
+  getProductsByCategory,
+  incrementProductViews,
+} from '../../../../services/catalog';
 import {
   cancelProductIntent,
   createProductIntent,
@@ -44,7 +50,15 @@ export default function BusinessProductDetailScreen() {
 
   const hasVariants = !!product && product.variants.length > 0;
   const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
-  const effectivePrice = selectedVariant?.reference_price ?? product?.reference_price ?? null;
+  const hasPriceTiers = !!product && !hasVariants && !!product.price_tiers?.length;
+  // Las variantes tienen su propio precio fijo -- los escalones por volumen
+  // solo aplican al producto base (sin variantes), por eso el precio efectivo
+  // recalcula con la cantidad elegida solo en ese caso.
+  const effectivePrice = hasVariants
+    ? (selectedVariant?.reference_price ?? product?.reference_price ?? null)
+    : product
+      ? getEffectiveUnitPrice(product.reference_price, product.min_order_quantity, product.price_tiers, quantity)
+      : null;
   const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : (product?.stock ?? 0);
   const variantId = hasVariants ? selectedVariantId : null;
 
@@ -255,13 +269,29 @@ export default function BusinessProductDetailScreen() {
       {product.category_name && <Text style={styles.category}>{product.category_name}</Text>}
 
       <Text style={styles.price}>
-        {effectivePrice !== null ? `$${effectivePrice.toFixed(2)}` : 'Precio a consultar'}
+        {effectivePrice !== null ? `$${effectivePrice.toFixed(2)} c/u` : 'Precio a consultar'}
       </Text>
       <Text style={styles.stock}>
         {effectiveStock > 0 ? `Disponible · ${effectiveStock} en stock` : 'Sin stock disponible'}
       </Text>
       {!!product.min_order_quantity && (
         <Text style={styles.stock}>Pedido mínimo: {product.min_order_quantity} unidades</Text>
+      )}
+
+      {hasPriceTiers && (
+        <View style={styles.tiersBox}>
+          <Text style={styles.tiersTitle}>Precio por volumen</Text>
+          {getAllPriceTiers(product.reference_price, product.min_order_quantity, product.price_tiers).map((t, i) => (
+            <View key={i} style={styles.tierRow}>
+              <Text style={[styles.tierRowText, quantity >= t.min_quantity && styles.tierRowTextActive]}>
+                {t.min_quantity}+ unidades
+              </Text>
+              <Text style={[styles.tierRowText, quantity >= t.min_quantity && styles.tierRowTextActive]}>
+                ${t.unit_price.toFixed(2)} c/u
+              </Text>
+            </View>
+          ))}
+        </View>
       )}
 
       {hasVariants && (
@@ -488,6 +518,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 4,
+  },
+  tiersBox: {
+    marginTop: 12,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    padding: 12,
+    gap: 4,
+  },
+  tiersTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  tierRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tierRowText: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  tierRowTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   section: {
     marginTop: 24,

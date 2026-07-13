@@ -186,6 +186,11 @@ export interface Service {
   created_at: string;
 }
 
+export interface ProductPriceTier {
+  min_quantity: number;
+  unit_price: number;
+}
+
 export interface Product {
   id: string;
   business_id: string;
@@ -201,6 +206,10 @@ export interface Product {
   // Cantidad minima de pedido -- solo relevante para compras al por mayor
   // (taller/tienda comprandole a una marca); null para venta al detalle normal.
   min_order_quantity: number | null;
+  // Escalones de precio por volumen, ordenados ascendente por min_quantity --
+  // el primero siempre coincide con min_order_quantity/reference_price. null
+  // si el producto no tiene precio por volumen (venta al detalle normal).
+  price_tiers: ProductPriceTier[] | null;
 }
 
 export interface ProductVariant {
