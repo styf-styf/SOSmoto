@@ -79,7 +79,7 @@ export default function ClientHomeScreen() {
       }
 
       const [businessStoriesGlobal, clientStoriesGlobal, newNearby, businessStoriesFollowed] = await Promise.all([
-        getVisibleBusinessStoriesGlobal(),
+        getVisibleBusinessStoriesGlobal({ excludeBrand: true }),
         getVisibleClientStories(),
         getNewNearbyBusinesses(coords),
         profile ? getVisibleBusinessStoriesFollowed(profile.id) : Promise.resolve([]),

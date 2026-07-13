@@ -123,17 +123,21 @@ export interface BusinessStoryWithAuthor extends Story {
 
 // Historias activas de TODOS los negocios (no solo seguidos/cercanos) -- junto
 // con getVisibleClientStories(), alimenta la fila combinada de "Estados" que
-// se muestra igual en el home del cliente y en el del negocio.
-export async function getVisibleBusinessStoriesGlobal(): Promise<BusinessStoryWithAuthor[]> {
+// se muestra igual en el home del cliente y en el del negocio. Un cliente
+// nunca debe ver historias de una Marca (B2B puro) -- filtrado en el cliente
+// porque Supabase JS no filtra bien columnas de una relación embebida sin
+// !inner (mismo patrón que getFeedCatalogPool/getPublicFeedPage).
+export async function getVisibleBusinessStoriesGlobal(opts: { excludeBrand?: boolean } = {}): Promise<BusinessStoryWithAuthor[]> {
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses(id, name, logo_url, is_verified)')
+    .select('*, businesses(id, name, logo_url, is_verified, business_type)')
     .not('business_id', 'is', null)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as BusinessStoryWithAuthor[];
+  const rows = (data ?? []) as unknown as (BusinessStoryWithAuthor & { businesses: { business_type?: string } | null })[];
+  return opts.excludeBrand ? rows.filter((row) => row.businesses?.business_type !== 'brand_advertiser') : rows;
 }
 
 export interface StoryFeedItem {

@@ -141,9 +141,14 @@ export const HomeFeed = forwardRef<
     // PostCard para que reconozca sus propias publicaciones aunque quien
     // mira sea un mecánico, no el dueño (ver PostCard.tsx).
     viewerBusinessId?: string;
+    // Una Marca nunca compra nada (B2B_ALLOWED_SELLER_TYPES no la tiene como
+    // comprador) -- las tiras de catálogo intercaladas en su propio feed son
+    // ruido no accionable, así que se las quitamos por completo (las
+    // publicaciones sí se mantienen, tienen valor como visibilidad general).
+    hideCatalogPool?: boolean;
   }
 >(function HomeFeed(
-  { role, city, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId },
+  { role, city, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId, hideCatalogPool },
   ref
 ) {
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
@@ -166,7 +171,10 @@ export const HomeFeed = forwardRef<
         ? await getFollowingFeedPage(clientId, { limit: PAGE_SIZE, excludeBrand })
         : await getPublicFeedPage({ limit: PAGE_SIZE, excludeBrand });
 
-    const [catalog, ads] = await Promise.all([getFeedCatalogPool(30, { excludeBrand }), getFeedAds(city)]);
+    const [catalog, ads] = await Promise.all([
+      hideCatalogPool ? Promise.resolve([]) : getFeedCatalogPool(30, { excludeBrand }),
+      getFeedAds(city),
+    ]);
 
     setPosts(postsPage);
     const orderedCatalog = applyFreshnessOrder(catalog, (item) => item.createdAt, lastSeenCatalogAt);
@@ -174,7 +182,7 @@ export const HomeFeed = forwardRef<
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(ads, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
-  }, [city, feedMode, clientId, excludeBrand]);
+  }, [city, feedMode, clientId, excludeBrand, hideCatalogPool]);
 
   // loadInitial depende de city/clientId, que llegan como prop desde la
   // pantalla padre y arrancan en null/undefined hasta que se resuelven

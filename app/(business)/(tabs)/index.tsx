@@ -298,6 +298,7 @@ export default function BusinessHomeScreen() {
         city={business.city}
         viewerBusinessId={business.id}
         onRefresh={load}
+        hideCatalogPool={business.business_type === 'brand_advertiser'}
         ListHeaderComponent={
           <View>
             <View style={styles.brandHeaderRow}>
