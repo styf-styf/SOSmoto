@@ -207,7 +207,12 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     );
   }
 
-  const showFollowClient = mode === 'public' && profile?.role === 'client';
+  // Un cliente nunca sigue a una Marca (B2B puro, nunca le vende directo al
+  // cliente) -- este chequeo es la última puerta: búsqueda/feed/historias ya
+  // no la muestran, pero si un cliente llega al perfil por un link directo,
+  // el botón de Seguir no debe aparecer igual.
+  const showFollowClient =
+    mode === 'public' && profile?.role === 'client' && business.business_type !== 'brand_advertiser';
   // Mismo sentido B2B del buscador (ver app/(business)/buscar.tsx): taller
   // sigue a tienda y marca; tienda sigue solo a marca; nadie sigue a un
   // taller (no hay ninguna interacción B2B taller->taller ni ->tienda que
