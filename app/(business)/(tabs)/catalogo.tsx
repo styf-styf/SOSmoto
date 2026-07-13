@@ -64,28 +64,38 @@ function formatItemPrice(referencePrice: number | null): string {
 }
 
 // Valida y ordena los escalones de precio por volumen de un producto o
-// variante -- cada uno debe tener cantidad/precio válidos y una cantidad
-// mínima estrictamente mayor que la del escalón anterior (y que
-// baseMinQuantity, el escalón implícito 0 = min_order_quantity/precio base).
-function parsePriceTierRows(rows: PriceTierRow[], baseMinQuantity: number): ProductPriceTier[] {
+// variante. El precio de arriba (basePrice) YA es el escalón 0, desde
+// baseMinQuantity unidades -- los escalones que se agregan acá son SOLO
+// para cantidades mayores a esa. Los mensajes de error citan los números
+// reales que el usuario ingresó para que quede claro qué corregir.
+function parsePriceTierRows(rows: PriceTierRow[], baseMinQuantity: number, basePrice: number | null): ProductPriceTier[] {
   const tiers: ProductPriceTier[] = [];
   for (const t of rows) {
     const q = Number(t.minQuantity);
     const p = Number(t.unitPrice);
     if (!t.minQuantity.trim() || !t.unitPrice.trim() || Number.isNaN(q) || Number.isNaN(p) || q < 1 || p <= 0) {
-      throw new Error('Cada escalón necesita una cantidad mínima (número entero) y un precio por unidad válidos.');
+      throw new Error(
+        'Cada escalón necesita una cantidad entera (mínimo 1) y un precio mayor a 0.\n\n' +
+          'Ejemplo: "Desde 6" con precio "8.50" significa que desde 6 unidades, cada una cuesta $8.50.'
+      );
     }
     tiers.push({ min_quantity: q, unit_price: p });
   }
   tiers.sort((a, b) => a.min_quantity - b.min_quantity);
   let prevQty = baseMinQuantity;
+  let prevDescription =
+    basePrice !== null
+      ? `tu precio de arriba ($${basePrice}), que ya aplica desde ${baseMinQuantity} unidad${baseMinQuantity === 1 ? '' : 'es'}`
+      : `la cantidad mínima de pedido (${baseMinQuantity})`;
   for (const t of tiers) {
     if (t.min_quantity <= prevQty) {
       throw new Error(
-        'Cada escalón debe tener una cantidad mínima mayor que la del escalón anterior (y que la cantidad mínima de pedido).'
+        `El escalón "Desde ${t.min_quantity}" repite o baja de ${prevDescription}.\n\n` +
+          `Ejemplo: si ya tienes ${basePrice !== null ? `$${basePrice} desde ${prevQty}` : `un precio desde ${prevQty}`} unidad${prevQty === 1 ? '' : 'es'}, tu próximo escalón debe empezar en ${prevQty + 1} o más (ej. "Desde ${prevQty + 1}" con un precio menor), no repetir ${prevQty}.`
       );
     }
     prevQty = t.min_quantity;
+    prevDescription = `el escalón anterior ("Desde ${t.min_quantity}", $${t.unit_price})`;
   }
   return tiers;
 }
@@ -789,10 +799,11 @@ function ProductForm({
     for (const iv of initialVariants) {
       if (!currentIds.has(iv.id)) await deleteProductVariant(iv.id);
     }
+    const generalPrice = price.trim() ? Number(price) : null;
     for (const v of variants) {
       const vStock = Number(v.stock) || 0;
       const vPrice = v.price.trim() ? Number(v.price) : null;
-      const vTiers = v.priceTiers.length > 0 ? parsePriceTierRows(v.priceTiers, baseMinQty) : null;
+      const vTiers = v.priceTiers.length > 0 ? parsePriceTierRows(v.priceTiers, baseMinQty, vPrice ?? generalPrice) : null;
       if (v.id) {
         await updateProductVariant(v.id, { label: v.label.trim(), stock: vStock, reference_price: vPrice, price_tiers: vTiers });
       } else {
@@ -860,7 +871,7 @@ function ProductForm({
     let parsedPriceTiers: ProductPriceTier[] | null = null;
     if (priceTierRows.length > 0) {
       try {
-        parsedPriceTiers = parsePriceTierRows(priceTierRows, parsedMinOrderQuantity ?? 1);
+        parsedPriceTiers = parsePriceTierRows(priceTierRows, parsedMinOrderQuantity ?? 1, parsedPrice);
       } catch (err) {
         Alert.alert('Escalón de precio inválido', err instanceof Error ? err.message : 'Revisa los escalones.');
         return;
@@ -882,7 +893,7 @@ function ProductForm({
       }
       if (v.priceTiers.length > 0) {
         try {
-          parsePriceTierRows(v.priceTiers, parsedMinOrderQuantity ?? 1);
+          parsePriceTierRows(v.priceTiers, parsedMinOrderQuantity ?? 1, v.price.trim() ? Number(v.price) : parsedPrice);
         } catch (err) {
           Alert.alert('Escalón de precio inválido', `"${v.label}": ${err instanceof Error ? err.message : ''}`);
           return;
@@ -980,9 +991,11 @@ function ProductForm({
         <>
           <Text style={styles.fieldLabel}>Precio por volumen (opcional)</Text>
           <Text style={styles.variantHint}>
-            El precio de arriba ({price.trim() ? `$${price}` : 'sin definir'}) aplica desde{' '}
-            {minOrderQuantity.trim() || '1'} unidad{minOrderQuantity.trim() === '1' ? '' : 'es'}. Agrega escalones para
-            cantidades mayores, ej. 3 uds a $9, 6 uds a $8.50.
+            El precio de arriba ({price.trim() ? `$${price}` : 'sin definir'}) ya aplica desde{' '}
+            {minOrderQuantity.trim() || '1'} unidad{minOrderQuantity.trim() === '1' ? '' : 'es'} -- NO agregues un escalón que
+            repita esa cantidad. Agrega escalones solo para cantidades MAYORES, ej. si ya aplica desde{' '}
+            {minOrderQuantity.trim() || '1'}, el primer escalón puede ser "Desde {Number(minOrderQuantity.trim() || '1') + 1}
+            " (o más) a un precio menor.
           </Text>
           {priceTierRows.map((t, index) => (
             <View key={index} style={styles.variantCard}>
@@ -1071,6 +1084,12 @@ function ProductForm({
           {isBrand && (
             <View style={styles.variantTiersWrap}>
               <Text style={styles.variantFieldLabel}>Precio por volumen de esta variante (opcional)</Text>
+              <Text style={styles.variantTierHint}>
+                Su precio ({v.price.trim() ? `$${v.price}` : price.trim() ? `$${price} (general)` : 'sin definir'}) ya aplica
+                desde {minOrderQuantity.trim() || '1'} unidad{minOrderQuantity.trim() === '1' ? '' : 'es'}. No repitas esa
+                cantidad acá abajo -- agrega escalones solo para cantidades MAYORES, ej. si ya aplica desde{' '}
+                {minOrderQuantity.trim() || '1'}, el primer escalón puede ser "Desde {Number(minOrderQuantity.trim() || '1') + 1}" (o más).
+              </Text>
               {v.priceTiers.map((t, tierIndex) => (
                 <View key={tierIndex} style={styles.variantCardFieldsRow}>
                   <View style={styles.variantFieldCol}>
@@ -1347,6 +1366,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginBottom: 10,
+  },
+  variantTierHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+    marginBottom: 8,
+    lineHeight: 15,
   },
   variantCard: {
     backgroundColor: colors.surface,
