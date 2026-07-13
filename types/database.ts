@@ -220,6 +220,10 @@ export interface ProductVariant {
   reference_price: number | null;
   is_active: boolean;
   created_at: string;
+  // Mismo mecanismo que Product.price_tiers -- el escalon base es
+  // reference_price junto con min_order_quantity del producto (las
+  // variantes no tienen su propio MOQ).
+  price_tiers: ProductPriceTier[] | null;
 }
 
 export type CategoryKind = 'product' | 'service';

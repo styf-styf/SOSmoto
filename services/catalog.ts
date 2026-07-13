@@ -17,6 +17,7 @@ export interface CreateProductVariantParams {
   label: string;
   stock: number;
   referencePrice: number | null;
+  priceTiers?: ProductPriceTier[] | null;
 }
 
 export async function createProductVariant(params: CreateProductVariantParams): Promise<ProductVariant> {
@@ -27,6 +28,7 @@ export async function createProductVariant(params: CreateProductVariantParams): 
       label: params.label,
       stock: params.stock,
       reference_price: params.referencePrice,
+      price_tiers: params.priceTiers ?? null,
     })
     .select()
     .single();
@@ -36,7 +38,7 @@ export async function createProductVariant(params: CreateProductVariantParams): 
 
 export async function updateProductVariant(
   id: string,
-  updates: Partial<{ label: string; stock: number; reference_price: number | null }>
+  updates: Partial<{ label: string; stock: number; reference_price: number | null; price_tiers: ProductPriceTier[] | null }>
 ): Promise<ProductVariant> {
   const { data, error } = await supabase.from('product_variants').update(updates).eq('id', id).select().single();
   if (error) throw error;

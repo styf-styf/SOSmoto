@@ -50,15 +50,16 @@ export default function BusinessProductDetailScreen() {
 
   const hasVariants = !!product && product.variants.length > 0;
   const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
-  const hasPriceTiers = !!product && !hasVariants && !!product.price_tiers?.length;
-  // Las variantes tienen su propio precio fijo -- los escalones por volumen
-  // solo aplican al producto base (sin variantes), por eso el precio efectivo
-  // recalcula con la cantidad elegida solo en ese caso.
-  const effectivePrice = hasVariants
-    ? (selectedVariant?.reference_price ?? product?.reference_price ?? null)
-    : product
-      ? getEffectiveUnitPrice(product.reference_price, product.min_order_quantity, product.price_tiers, quantity)
-      : null;
+  // Cada variante puede tener sus propios escalones de precio por volumen
+  // (independientes de los del producto base) -- el escalón base siempre es
+  // el precio de la variante (o el del producto si la variante no fijó uno
+  // propio) junto con min_order_quantity, que sí es compartido por todas.
+  const activeReferencePrice = hasVariants ? (selectedVariant?.reference_price ?? product?.reference_price ?? null) : (product?.reference_price ?? null);
+  const activePriceTiers = hasVariants ? (selectedVariant?.price_tiers ?? null) : (product?.price_tiers ?? null);
+  const hasPriceTiers = !!activePriceTiers?.length;
+  const effectivePrice = product
+    ? getEffectiveUnitPrice(activeReferencePrice, product.min_order_quantity, activePriceTiers, quantity)
+    : null;
   const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : (product?.stock ?? 0);
   const variantId = hasVariants ? selectedVariantId : null;
 
@@ -281,7 +282,7 @@ export default function BusinessProductDetailScreen() {
       {hasPriceTiers && (
         <View style={styles.tiersBox}>
           <Text style={styles.tiersTitle}>Precio por volumen</Text>
-          {getAllPriceTiers(product.reference_price, product.min_order_quantity, product.price_tiers).map((t, i) => (
+          {getAllPriceTiers(activeReferencePrice, product.min_order_quantity, activePriceTiers).map((t, i) => (
             <View key={i} style={styles.tierRow}>
               <Text style={[styles.tierRowText, quantity >= t.min_quantity && styles.tierRowTextActive]}>
                 {t.min_quantity}+ unidades

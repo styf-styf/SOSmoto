@@ -506,6 +506,7 @@ export interface Database {
           reference_price: number | null;
           is_active: boolean;
           created_at: string;
+          price_tiers: { min_quantity: number; unit_price: number }[] | null;
         };
         Insert: {
           id?: string;
@@ -515,6 +516,7 @@ export interface Database {
           reference_price?: number | null;
           is_active?: boolean;
           created_at?: string;
+          price_tiers?: { min_quantity: number; unit_price: number }[] | null;
         };
         Update: {
           id?: string;
@@ -524,6 +526,7 @@ export interface Database {
           reference_price?: number | null;
           is_active?: boolean;
           created_at?: string;
+          price_tiers?: { min_quantity: number; unit_price: number }[] | null;
         };
         Relationships: [];
       };

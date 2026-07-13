@@ -63,6 +63,33 @@ function formatItemPrice(referencePrice: number | null): string {
   return referencePrice !== null ? `$${Number(referencePrice).toFixed(2)}` : 'Consultar';
 }
 
+// Valida y ordena los escalones de precio por volumen de un producto o
+// variante -- cada uno debe tener cantidad/precio válidos y una cantidad
+// mínima estrictamente mayor que la del escalón anterior (y que
+// baseMinQuantity, el escalón implícito 0 = min_order_quantity/precio base).
+function parsePriceTierRows(rows: PriceTierRow[], baseMinQuantity: number): ProductPriceTier[] {
+  const tiers: ProductPriceTier[] = [];
+  for (const t of rows) {
+    const q = Number(t.minQuantity);
+    const p = Number(t.unitPrice);
+    if (!t.minQuantity.trim() || !t.unitPrice.trim() || Number.isNaN(q) || Number.isNaN(p) || q < 1 || p <= 0) {
+      throw new Error('Cada escalón necesita una cantidad mínima (número entero) y un precio por unidad válidos.');
+    }
+    tiers.push({ min_quantity: q, unit_price: p });
+  }
+  tiers.sort((a, b) => a.min_quantity - b.min_quantity);
+  let prevQty = baseMinQuantity;
+  for (const t of tiers) {
+    if (t.min_quantity <= prevQty) {
+      throw new Error(
+        'Cada escalón debe tener una cantidad mínima mayor que la del escalón anterior (y que la cantidad mínima de pedido).'
+      );
+    }
+    prevQty = t.min_quantity;
+  }
+  return tiers;
+}
+
 type FormState = { kind: 'service'; service: Service | null } | { kind: 'product'; product: Product | null };
 
 interface VariantRow {
@@ -70,6 +97,7 @@ interface VariantRow {
   label: string;
   stock: string;
   price: string;
+  priceTiers: PriceTierRow[];
 }
 
 interface PriceTierRow {
@@ -704,6 +732,10 @@ function ProductForm({
             label: v.label,
             stock: String(v.stock),
             price: v.reference_price !== null ? String(v.reference_price) : '',
+            priceTiers: (v.price_tiers ?? []).map((t) => ({
+              minQuantity: String(t.min_quantity),
+              unitPrice: String(t.unit_price),
+            })),
           }))
         );
       })
@@ -711,7 +743,29 @@ function ProductForm({
   }, [product]);
 
   function addVariantRow() {
-    setVariants((prev) => [...prev, { label: '', stock: '0', price: '' }]);
+    setVariants((prev) => [...prev, { label: '', stock: '0', price: '', priceTiers: [] }]);
+  }
+
+  function addVariantTierRow(variantIndex: number) {
+    setVariants((prev) =>
+      prev.map((v, i) => (i === variantIndex ? { ...v, priceTiers: [...v.priceTiers, { minQuantity: '', unitPrice: '' }] } : v))
+    );
+  }
+
+  function removeVariantTierRow(variantIndex: number, tierIndex: number) {
+    setVariants((prev) =>
+      prev.map((v, i) => (i === variantIndex ? { ...v, priceTiers: v.priceTiers.filter((_, ti) => ti !== tierIndex) } : v))
+    );
+  }
+
+  function updateVariantTierRow(variantIndex: number, tierIndex: number, patch: Partial<PriceTierRow>) {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === variantIndex
+          ? { ...v, priceTiers: v.priceTiers.map((t, ti) => (ti === tierIndex ? { ...t, ...patch } : t)) }
+          : v
+      )
+    );
   }
 
   function addTierRow() {
@@ -737,6 +791,9 @@ function ProductForm({
   // Crea/actualiza/elimina las filas de variantes contra la BD y, si quedan
   // variantes activas, resincroniza products.stock como la suma de todas.
   async function syncVariants(productId: string) {
+    // Ya validado en handleSave antes de llegar acá -- se reparsea solo para
+    // tener el mismo escalón base (min_order_quantity) al armar cada arreglo.
+    const baseMinQty = minOrderQuantity.trim() ? Number(minOrderQuantity) : 1;
     const currentIds = new Set(variants.filter((v) => v.id).map((v) => v.id));
     for (const iv of initialVariants) {
       if (!currentIds.has(iv.id)) await deleteProductVariant(iv.id);
@@ -744,10 +801,11 @@ function ProductForm({
     for (const v of variants) {
       const vStock = Number(v.stock) || 0;
       const vPrice = v.price.trim() ? Number(v.price) : null;
+      const vTiers = v.priceTiers.length > 0 ? parsePriceTierRows(v.priceTiers, baseMinQty) : null;
       if (v.id) {
-        await updateProductVariant(v.id, { label: v.label.trim(), stock: vStock, reference_price: vPrice });
+        await updateProductVariant(v.id, { label: v.label.trim(), stock: vStock, reference_price: vPrice, price_tiers: vTiers });
       } else {
-        await createProductVariant({ productId, label: v.label.trim(), stock: vStock, referencePrice: vPrice });
+        await createProductVariant({ productId, label: v.label.trim(), stock: vStock, referencePrice: vPrice, priceTiers: vTiers });
       }
     }
     if (variants.length > 0) {
@@ -810,32 +868,12 @@ function ProductForm({
     }
     let parsedPriceTiers: ProductPriceTier[] | null = null;
     if (priceTierRows.length > 0) {
-      const rows: ProductPriceTier[] = [];
-      for (const t of priceTierRows) {
-        const q = Number(t.minQuantity);
-        const p = Number(t.unitPrice);
-        if (!t.minQuantity.trim() || !t.unitPrice.trim() || Number.isNaN(q) || Number.isNaN(p) || q < 1 || p <= 0) {
-          Alert.alert(
-            'Escalón de precio inválido',
-            'Cada escalón necesita una cantidad mínima (número entero) y un precio por unidad válidos.'
-          );
-          return;
-        }
-        rows.push({ min_quantity: q, unit_price: p });
+      try {
+        parsedPriceTiers = parsePriceTierRows(priceTierRows, parsedMinOrderQuantity ?? 1);
+      } catch (err) {
+        Alert.alert('Escalón de precio inválido', err instanceof Error ? err.message : 'Revisa los escalones.');
+        return;
       }
-      rows.sort((a, b) => a.min_quantity - b.min_quantity);
-      let prevQty = parsedMinOrderQuantity ?? 1;
-      for (const r of rows) {
-        if (r.min_quantity <= prevQty) {
-          Alert.alert(
-            'Escalones repetidos',
-            'Cada escalón debe tener una cantidad mínima mayor que la del escalón anterior (y que la cantidad mínima de pedido).'
-          );
-          return;
-        }
-        prevQty = r.min_quantity;
-      }
-      parsedPriceTiers = rows;
     }
     for (const v of variants) {
       if (!v.label.trim()) {
@@ -850,6 +888,14 @@ function ProductForm({
       if (v.price.trim() && Number.isNaN(Number(v.price))) {
         Alert.alert('Precio inválido', `Ingresa un precio válido para "${v.label}" o déjalo vacío.`);
         return;
+      }
+      if (v.priceTiers.length > 0) {
+        try {
+          parsePriceTierRows(v.priceTiers, parsedMinOrderQuantity ?? 1);
+        } catch (err) {
+          Alert.alert('Escalón de precio inválido', `"${v.label}": ${err instanceof Error ? err.message : ''}`);
+          return;
+        }
       }
     }
     setSaving(true);
@@ -1030,6 +1076,43 @@ function ProductForm({
               />
             </View>
           </View>
+
+          {isBrand && (
+            <View style={styles.variantTiersWrap}>
+              <Text style={styles.variantFieldLabel}>Precio por volumen de esta variante (opcional)</Text>
+              {v.priceTiers.map((t, tierIndex) => (
+                <View key={tierIndex} style={styles.variantCardFieldsRow}>
+                  <View style={styles.variantFieldCol}>
+                    <TextInput
+                      style={styles.variantSmallInput}
+                      placeholder="Desde uds"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      value={t.minQuantity}
+                      onChangeText={(text) => updateVariantTierRow(index, tierIndex, { minQuantity: text })}
+                    />
+                  </View>
+                  <View style={styles.variantFieldCol}>
+                    <TextInput
+                      style={styles.variantSmallInput}
+                      placeholder="Precio c/u"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      value={t.unitPrice}
+                      onChangeText={(text) => updateVariantTierRow(index, tierIndex, { unitPrice: text })}
+                    />
+                  </View>
+                  <Pressable onPress={() => removeVariantTierRow(index, tierIndex)} hitSlop={8} style={styles.variantTierRemoveBtn}>
+                    <Ionicons name="close-circle" size={18} color={colors.danger} />
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable style={styles.addVariantTierBtn} onPress={() => addVariantTierRow(index)}>
+                <Ionicons name="add" size={14} color={colors.primary} />
+                <Text style={styles.addVariantBtnText}>Agregar escalón</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       ))}
       <Pressable style={styles.addVariantBtn} onPress={addVariantRow}>
@@ -1318,6 +1401,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     backgroundColor: colors.background,
+  },
+  variantTiersWrap: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  variantTierRemoveBtn: {
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  addVariantTierBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
   },
   addVariantBtn: {
     flexDirection: 'row',

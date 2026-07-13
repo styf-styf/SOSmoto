@@ -4,18 +4,19 @@ import { addStockMovement, addVariantStockMovement } from './inventory';
 import { getEffectiveUnitPrice } from './catalog';
 import type { ProductIntent, ProductIntentWithProduct, ProductIntentWithDetails, ProductIntentStatus, ProductPriceTier, Review } from '../types/database';
 
-// Precio por unidad de un intent: si el producto tiene variante, usa el
-// precio fijo de esa variante (los escalones de volumen no aplican a
-// variantes); si no, calcula el escalón que corresponde a la cantidad
-// pedida (ver getEffectiveUnitPrice en catalog.ts).
+// Precio por unidad de un intent, calculando el escalón de volumen que
+// corresponde a la cantidad pedida -- el precio base es el de la variante si
+// existe (o el del producto si no), pero min_order_quantity siempre es del
+// producto (las variantes no tienen su propio MOQ, ver getEffectiveUnitPrice).
 function intentUnitPrice(
   product: { reference_price: number | null; min_order_quantity?: number | null; price_tiers?: ProductPriceTier[] | null } | null,
-  variant: { reference_price: number | null } | null,
+  variant: { reference_price: number | null; price_tiers?: ProductPriceTier[] | null } | null,
   quantity: number
 ): number | null {
-  if (variant?.reference_price != null) return variant.reference_price;
-  if (!product) return null;
-  return getEffectiveUnitPrice(product.reference_price, product.min_order_quantity ?? null, product.price_tiers ?? null, quantity);
+  if (!product) return variant?.reference_price ?? null;
+  const basePrice = variant?.reference_price ?? product.reference_price;
+  const tiers = variant?.price_tiers ?? product.price_tiers ?? null;
+  return getEffectiveUnitPrice(basePrice, product.min_order_quantity ?? null, tiers, quantity);
 }
 
 // Junta nombre de producto + etiqueta de variante (ej. "Casco MT (Talla M)")
@@ -235,7 +236,7 @@ export async function getPendingIntentsForBusinessClient(
 ): Promise<ProductIntentWithProduct[]> {
   const { data, error } = await supabase
     .from('product_intents')
-    .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price)')
+    .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers)')
     .eq('business_id', businessId)
     .eq('client_id', clientId)
     .eq('status', 'pending')
@@ -245,7 +246,7 @@ export async function getPendingIntentsForBusinessClient(
   return (
     (data ?? []) as unknown as (ProductIntent & {
       products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
-      product_variants: { label: string; reference_price: number | null } | null;
+      product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     })[]
   ).map((row) => ({
     ...row,
@@ -314,7 +315,7 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
   const { data, error } = await supabase
     .from('product_intents')
     .select(
-      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price), users(full_name, phone, avatar_url)'
+      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers), users(full_name, phone, avatar_url)'
     )
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
@@ -322,7 +323,7 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
 
   const rows = (data ?? []) as unknown as (ProductIntent & {
     products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
-    product_variants: { label: string; reference_price: number | null } | null;
+    product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     users: { full_name: string; phone: string | null; avatar_url: string | null } | null;
   })[];
 
@@ -350,7 +351,7 @@ export async function getClientProductIntents(
 ): Promise<ProductIntentWithProduct[]> {
   const { data, error } = await supabase
     .from('product_intents')
-    .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price)')
+    .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers)')
     .eq('business_id', businessId)
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
@@ -359,7 +360,7 @@ export async function getClientProductIntents(
   return (
     (data ?? []) as unknown as (ProductIntent & {
       products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
-      product_variants: { label: string; reference_price: number | null } | null;
+      product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     })[]
   ).map((row) => ({
     ...row,
@@ -406,7 +407,7 @@ export async function getMyProductPurchases(userId: string): Promise<MyProductPu
   const { data, error } = await supabase
     .from('product_intents')
     .select(
-      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price), businesses(name)'
+      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers), businesses(name)'
     )
     .eq('client_id', userId)
     .order('created_at', { ascending: false });
@@ -414,7 +415,7 @@ export async function getMyProductPurchases(userId: string): Promise<MyProductPu
 
   const rows = (data ?? []) as unknown as (ProductIntent & {
     products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
-    product_variants: { label: string; reference_price: number | null } | null;
+    product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     businesses: { name: string } | null;
   })[];
 
