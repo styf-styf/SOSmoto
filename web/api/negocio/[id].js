@@ -117,7 +117,10 @@ module.exports = async (req, res) => {
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
-  if (!business || business.is_limited) {
+  // Una Marca es B2B puro (le vende a talleres/tiendas, nunca al público) --
+  // mismo criterio que ya usa negocios.js para excluirla del listado/búsqueda,
+  // acá cierra el camino directo por ID (esta página no requiere login).
+  if (!business || business.is_limited || business.business_type === 'brand_advertiser') {
     res.status(404).send(notFoundPage('Este negocio ya no está disponible.'));
     return;
   }
