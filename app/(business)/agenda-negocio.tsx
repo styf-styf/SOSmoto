@@ -6,6 +6,7 @@ import { router, Stack, useFocusEffect } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
+import { InfoButton, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
@@ -60,6 +61,7 @@ export default function AgendaNegocioScreen() {
   const [comment, setComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const cacheKey = profile ? `agenda-negocio-${profile.id}` : null;
   const { data, loading, reload, setData } = useCachedLoad<AgendaData>(cacheKey, async () => {
@@ -304,6 +306,7 @@ export default function AgendaNegocioScreen() {
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
           <Text style={styles.newCitaBtnText}>Nueva cita</Text>
         </Pressable>
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona el flujo de citas" />
       </View>
 
       <AppointmentCalendar
@@ -583,6 +586,50 @@ export default function AgendaNegocioScreen() {
         }))
       }
       </ScrollView>
+
+      <InfoModal visible={showInfo} title="Cómo funciona el flujo de citas" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title="Cómo llega una cita nueva">
+          <Text style={infoTextStyles.text}>
+            Si el cliente pidió la cita sin sugerir fecha, la ves como "Sin fecha aún" -- te toca a ti proponer una
+            con "Proponer fecha".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={2} title="A veces el cliente ya propuso fecha">
+          <Text style={infoTextStyles.text}>
+            Si el cliente sugirió fecha y hora al pedir la cita, la ves como "Cliente propuso fecha" -- puedes
+            "Aceptar", "Proponer otra" (tu contrapropuesta) o "Rechazar".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={3} title="Cuando tú propones, esperas respuesta">
+          <Text style={infoTextStyles.text}>
+            Verás "Esperando respuesta del cliente" hasta que él la acepte o pida otro cambio -- puedes tocar "Cambiar
+            fecha" si te arrepientes antes de que responda.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={4} title="El ida y vuelta de propuestas">
+          <Text style={infoTextStyles.text}>
+            No hay límite de rondas -- pueden proponer y contraproponer las veces que hagan falta hasta que alguno
+            toque "Aceptar"/"Aprobar".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={5} title="Confirmada = ambos de acuerdo">
+          <Text style={infoTextStyles.text}>
+            Desde ahí puedes "Completar" (cuando termines el servicio), "Reagendar" si algo cambia, o "Cancelar cita".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={6} title="Informe de servicio y calificación">
+          <Text style={infoTextStyles.text}>
+            Después de completar, puedes crear un informe de lo que hiciste (queda disponible para el cliente) y
+            calificar al cliente -- esa calificación es interna, no pública, y ayuda a detectar clientes que cancelan
+            seguido o no se presentan.
+          </Text>
+        </InfoStep>
+      </InfoModal>
     </>
   );
 }

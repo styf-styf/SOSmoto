@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import MapView from 'react-native-maps';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../../components/Button';
+import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../../components/InfoModal';
 import { MapNamedMarker } from '../../../components/MapNamedMarker';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
@@ -33,6 +35,7 @@ const statusLabel: Record<HelpRequest['status'], string> = {
 
 export default function AuxilioScreen() {
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const { coords, getCoords, refresh: refreshLocation } = useLocation();
   const { activeRequest, setActiveRequest, completedRequest, clearCompletedRequest } =
     useActiveHelpRequestContext();
@@ -44,6 +47,7 @@ export default function AuxilioScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
   const [nearbyWorkshops, setNearbyWorkshops] = useState<Business[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
 
   const mapRef = useRef<MapView>(null);
   const isMounted = useRef(false);
@@ -173,6 +177,9 @@ export default function AuxilioScreen() {
 
   return (
     <View style={styles.screen}>
+      <View style={[styles.infoBtnWrap, { top: insets.top + 12 }]}>
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona el auxilio en carretera" />
+      </View>
       {coords ? (
         <View style={styles.mapContainer}>
           <MapView
@@ -257,6 +264,59 @@ export default function AuxilioScreen() {
           />
         </View>
       </KeyboardStickyView>
+
+      <InfoModal visible={showInfo} title="Cómo funciona el auxilio en carretera" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title="Pides ayuda">
+          <Text style={infoTextStyles.text}>
+            Eliges tu moto, describes qué pasó (opcional) y tocas "Pedir auxilio". Tu ubicación GPS se comparte
+            automáticamente con los talleres cercanos.
+          </Text>
+          <InfoExample label="Ejemplo">
+            <Text style={infoTextStyles.exampleText}>Moto: "Yamaha FZ" · "Se quedó sin batería"</Text>
+          </InfoExample>
+        </InfoStep>
+
+        <InfoStep number={2} title="Talleres cercanos reciben tu solicitud">
+          <Text style={infoTextStyles.text}>
+            Se notifica a <Text style={infoTextStyles.bold}>todos</Text> los talleres cuyo radio de cobertura te
+            alcanza, no solo al más cercano. Verás cuántos fueron notificados mientras esperas.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={3} title="Un taller acepta">
+          <Text style={infoTextStyles.text}>
+            En cuanto un taller acepta, la solicitud se cierra para los demás. Verás su nombre, ubicación en el mapa,
+            y podrás llamarlo o escribirle por chat.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={4} title='El "Llega en ~X min" se calcula solo'>
+          <Text style={infoTextStyles.text}>
+            Apenas el taller comparte su ubicación en vivo, el tiempo estimado se calcula automáticamente (por Google
+            Maps) y se va actualizando mientras se mueve hacia ti -- no lo escribe nadie a mano.
+          </Text>
+          <InfoExample label="Importante" ok={false}>
+            <Text style={infoTextStyles.exampleText}>
+              Si el taller todavía no activó su ubicación en vivo, es normal que no veas un tiempo estimado apenas
+              acepta -- aparecerá en cuanto la active.
+            </Text>
+          </InfoExample>
+        </InfoStep>
+
+        <InfoStep number={5} title="Puedes cancelar en cualquier momento">
+          <Text style={infoTextStyles.text}>
+            Mientras el taller no haya llegado (mientras el estado sea "Buscando talleres" o "Un taller va en
+            camino"), puedes cancelar la solicitud con el botón de abajo.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={6} title="Al terminar, calificas al taller">
+          <Text style={infoTextStyles.text}>
+            Tu calificación ayuda a otros motociclistas a elegir taller, y ayuda al taller a aparecer mejor
+            posicionado en las búsquedas.
+          </Text>
+        </InfoStep>
+      </InfoModal>
     </View>
   );
 }
@@ -462,6 +522,12 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     width: '100%',
+  },
+  infoBtnWrap: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 10,
+    elevation: 10,
   },
   locateBtn: {
     position: 'absolute',

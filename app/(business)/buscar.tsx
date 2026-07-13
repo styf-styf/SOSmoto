@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AdGridCard } from '../../components/AdGridCard';
 import { BusinessListItem } from '../../components/BusinessListItem';
 import { FeedCatalogStrip } from '../../components/FeedCatalogStrip';
+import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
@@ -69,6 +70,7 @@ export default function BusinessBuscarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const lastSeenAdAt = useRef<string | null>(null);
   const didInitialSearchRef = useRef(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -161,13 +163,16 @@ export default function BusinessBuscarScreen() {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Buscar"
-        placeholderTextColor={colors.textMuted}
-        value={query}
-        onChangeText={setQuery}
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          style={[styles.searchInput, styles.searchInputFlex]}
+          placeholder="Buscar"
+          placeholderTextColor={colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+        />
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona este buscador" />
+      </View>
 
       <View style={styles.filterRow}>
         {typeFilters.map((filter) => (
@@ -243,6 +248,35 @@ export default function BusinessBuscarScreen() {
           )}
         </ScrollView>
       )}
+
+      <InfoModal visible={showInfo} title="Cómo funciona este buscador" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title="Solo ves a quién le puedes comprar">
+          <Text style={infoTextStyles.text}>
+            Este buscador filtra los tipos de negocio según a quién le puedes pedir productos -- no es un error si ves
+            menos filtros que otro negocio.
+          </Text>
+          <InfoExample label="Ejemplo">
+            <Text style={infoTextStyles.exampleText}>Taller → ve los filtros "Tiendas" y "Marcas"</Text>
+            <Text style={infoTextStyles.exampleText}>Tienda → ve solo el filtro "Marcas"</Text>
+          </InfoExample>
+        </InfoStep>
+
+        <InfoStep number={2} title="Por qué no aparecen otros talleres">
+          <Text style={infoTextStyles.text}>
+            Un taller no le compra a otro taller, así que ningún taller aparece en estos resultados -- este buscador
+            es solo para pedidos al por mayor (talleres/tiendas comprándole a tiendas/marcas), no para auxilio en
+            carretera ni para que un cliente encuentre un taller.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={3} title='Si el botón "Pedir producto" aparece bloqueado'>
+          <Text style={infoTextStyles.text}>
+            El buscador ya filtra para que esto casi nunca pase, pero si llegas al perfil de un negocio por otro
+            camino (ej. un link compartido) y no puedes comprarle, verás un aviso explicando por qué en vez del botón
+            de pedir.
+          </Text>
+        </InfoStep>
+      </InfoModal>
     </View>
   );
 }
@@ -255,6 +289,12 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   searchInput: {
     height: 50,
     borderRadius: 12,
@@ -264,7 +304,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     backgroundColor: colors.surface,
-    marginBottom: 12,
+  },
+  searchInputFlex: {
+    flex: 1,
   },
   limitedContainer: {
     alignItems: 'center',

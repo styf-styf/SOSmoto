@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollVi
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '../../components/Button';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
+import { InfoButton, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
@@ -72,6 +73,7 @@ export default function CitasScreen() {
   const [savingCounter, setSavingCounter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const cacheKey = profile ? `citas-${profile.id}` : null;
   const { data, loading, reload, setData: setCitasData } = useCachedLoad<CitasData>(cacheKey, async () => {
@@ -218,6 +220,11 @@ export default function CitasScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>Tus citas</Text>
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona el flujo de citas" size={20} />
+      </View>
+
       <AppointmentCalendar
         appointments={appointments}
         selectedDate={selectedDate}
@@ -427,6 +434,49 @@ export default function CitasScreen() {
           );
         }))
       }
+
+      <InfoModal visible={showInfo} title="Cómo funciona el flujo de citas" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title="Pides una cita">
+          <Text style={infoTextStyles.text}>
+            Desde el perfil del taller, eliges el servicio y, si quieres, sugieres fecha y hora. Se abre un chat con
+            el taller donde queda registrada tu solicitud.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={2} title="El taller elige o confirma la fecha">
+          <Text style={infoTextStyles.text}>
+            Si no sugeriste fecha, verás "Esperando fecha del taller" hasta que la propongan. Si sugeriste una y el
+            taller la acepta tal cual, pasa directo a "Confirmada".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={3} title="Si el taller propone otra fecha">
+          <Text style={infoTextStyles.text}>
+            Verás "El taller propuso una fecha" con tres opciones: "Aprobar" (queda Confirmada), "Proponer otra" (tu
+            contrapropuesta) o "Cancelar".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={4} title="El ida y vuelta de propuestas">
+          <Text style={infoTextStyles.text}>
+            Cada vez que uno de los dos propone una fecha nueva, la cita queda "esperando respuesta" del otro lado
+            hasta que alguien apruebe -- no hay límite de rondas, pueden proponer y contraproponer las veces que hagan
+            falta.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={5} title="Confirmada = ambos de acuerdo">
+          <Text style={infoTextStyles.text}>
+            Una vez confirmada, todavía puedes tocar "Proponer otro horario" si algo cambia, o cancelar la cita.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={6} title="Al completar, revisa el informe de servicio">
+          <Text style={infoTextStyles.text}>
+            Si el taller generó un informe de lo que hizo, podrás abrirlo tocando la tarjeta de la cita completada.
+          </Text>
+        </InfoStep>
+      </InfoModal>
     </ScrollView>
   );
 }
@@ -473,6 +523,17 @@ const styles = StyleSheet.create({
   placeholder: {
     color: colors.textMuted,
     fontSize: 14,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
   },
   card: {
     backgroundColor: colors.surface,

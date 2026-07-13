@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
+import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -52,6 +53,7 @@ export default function EmpleadosScreen() {
   const { profile } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const cacheKey = profile ? `empleados-${profile.id}` : null;
   const { data, loading, reload, setData } = useCachedLoad<EmpleadosData>(cacheKey, async () => {
@@ -133,11 +135,14 @@ export default function EmpleadosScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
-      <Text style={styles.helperText}>
-        {allowedAdditional !== null
-          ? `${employees.length}/${allowedAdditional} personas adicionales en el equipo (plan ${limits?.planName})`
-          : `${employees.length} personas en el equipo (plan ${limits?.planName}, sin límite)`}
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.helperText, styles.headerRowText]}>
+          {allowedAdditional !== null
+            ? `${employees.length}/${allowedAdditional} personas adicionales en el equipo (plan ${limits?.planName})`
+            : `${employees.length} personas en el equipo (plan ${limits?.planName}, sin límite)`}
+        </Text>
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Qué hace cada permiso" size={20} />
+      </View>
 
       {isOwner && isLimited && (
         <Text style={styles.limitedNotice}>
@@ -197,6 +202,44 @@ export default function EmpleadosScreen() {
       {!isOwner && (
         <Text style={styles.helperText}>Solo el dueño del negocio puede agregar o quitar personal.</Text>
       )}
+
+      <InfoModal visible={showInfo} title="Qué hace cada permiso" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title="Puede aceptar auxilios">
+          <Text style={infoTextStyles.text}>
+            Puede tocar "Aceptar" en la pestaña Solicitudes cuando llega un pedido de auxilio en carretera. Sin este
+            permiso, ve las solicitudes pero solo puede rechazarlas, nunca aceptarlas.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={2} title="Puede editar catálogo (productos/servicios)">
+          <Text style={infoTextStyles.text}>
+            Puede agregar, editar y eliminar productos y servicios -- precio, stock, variantes, fotos, todo. Sin este
+            permiso, solo puede ver el catálogo, no tocar el botón "Agregar" ni editar nada existente.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={3} title="Puede responder chats">
+          <Text style={infoTextStyles.text}>
+            Puede escribir mensajes en las conversaciones con clientes y otros negocios. Sin este permiso, puede ver
+            los chats pero no enviar respuestas.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={4} title="Puede subir historias">
+          <Text style={infoTextStyles.text}>Puede publicar historias de 24 horas a nombre del negocio.</Text>
+        </InfoStep>
+
+        <InfoStep number={5} title="Puede crear publicaciones">
+          <Text style={infoTextStyles.text}>Puede publicar posts en el feed del negocio (fotos, promos, novedades).</Text>
+        </InfoStep>
+
+        <InfoExample label="Importante" ok={false}>
+          <Text style={infoTextStyles.exampleText}>
+            Si un empleado te dice "no tengo permiso" en alguna pantalla, el mensaje que ve no siempre dice cuál
+            permiso le falta -- revisa esta lista y actívale el que corresponda entrando a "Editar" en su tarjeta.
+          </Text>
+        </InfoExample>
+      </InfoModal>
     </ScrollView>
   );
 }
@@ -477,6 +520,17 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 20,
     backgroundColor: colors.background,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 16,
+  },
+  headerRowText: {
+    flex: 1,
+    marginBottom: 0,
   },
   section: {
     marginBottom: 8,

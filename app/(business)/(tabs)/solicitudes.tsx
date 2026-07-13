@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Te
 import { Ionicons } from '@expo/vector-icons';
 import MapView from 'react-native-maps';
 import { Button } from '../../../components/Button';
+import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../../components/InfoModal';
 import { MapNamedMarker } from '../../../components/MapNamedMarker';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
@@ -40,6 +41,7 @@ export default function SolicitudesScreen() {
   const [comment, setComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
   const [locationSharingFailed, setLocationSharingFailed] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const load = useCallback(async (id: string) => {
     const [pendingList, activeRequest] = await Promise.all([
@@ -245,7 +247,10 @@ export default function SolicitudesScreen() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Pendientes</Text>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitle}>Pendientes</Text>
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona la recepción de auxilios" size={20} />
+      </View>
       {pending.length === 0 ? (
         <Text style={styles.placeholder}>No tienes solicitudes pendientes.</Text>
       ) : (
@@ -259,6 +264,63 @@ export default function SolicitudesScreen() {
           />
         ))
       )}
+
+      <InfoModal visible={showInfo} title="Cómo funciona la recepción de auxilios" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title='El interruptor "Disponible para auxilios"'>
+          <Text style={infoTextStyles.text}>
+            Si lo apagas, dejas de aparecer para clientes cercanos que piden auxilio nuevo. Tus solicitudes ya activas
+            siguen normales, no se cancelan.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={2} title="Quién recibe cada solicitud">
+          <Text style={infoTextStyles.text}>
+            Todos los talleres dentro del radio de cobertura del cliente reciben la solicitud al mismo tiempo -- no
+            hay prioridad por plan (Free/Estándar/Pro). Solo tu radio de cobertura (Configuración → Auxilio en
+            carretera) decide si te llega.
+          </Text>
+          <InfoExample label="Ejemplo">
+            <Text style={infoTextStyles.exampleText}>
+              "Fuera de tu radio de cobertura configurado" significa que nadie más cercano estaba disponible y te
+              notificamos igual, por si puedes ayudar.
+            </Text>
+          </InfoExample>
+        </InfoStep>
+
+        <InfoStep number={3} title="El primero en aceptar se queda con la solicitud">
+          <Text style={infoTextStyles.text}>
+            En cuanto tocas "Aceptar", la solicitud se cierra automáticamente para los demás talleres que la
+            recibieron.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={4} title='El "ETA estimado" se calcula solo'>
+          <Text style={infoTextStyles.text}>
+            Apenas aceptas, la app comparte tu ubicación GPS en vivo mientras la tengas abierta, y el tiempo estimado
+            se recalcula automáticamente (Google Maps) mientras te acercas -- no lo escribes tú.
+          </Text>
+          <InfoExample label="Si ves la advertencia roja" ok={false}>
+            <Text style={infoTextStyles.exampleText}>
+              "No pudimos compartir tu ubicación en vivo" significa que el cliente no ve tu posición ni un ETA
+              actualizado -- revisa el permiso de GPS de la app hasta que se resuelva.
+            </Text>
+          </InfoExample>
+        </InfoStep>
+
+        <InfoStep number={5} title='Al terminar, toca "Marcar completado"'>
+          <Text style={infoTextStyles.text}>
+            Eso te lleva a calificar al cliente -- una calificación interna, no pública, que sirve para detectar
+            clientes que cancelan seguido o no se presentan.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={6} title="Empleados: el permiso de aceptar es aparte">
+          <Text style={infoTextStyles.text}>
+            Solo un empleado con el permiso "Aceptar auxilios" activado (en Equipo) puede tocar "Aceptar" -- si no lo
+            ves, pídele al dueño que active ese permiso para tu cuenta.
+          </Text>
+        </InfoStep>
+      </InfoModal>
     </ScrollView>
   );
 }
@@ -351,11 +413,16 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
   },
   placeholder: {
     color: colors.textMuted,

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
+import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -52,6 +53,7 @@ export default function PublicidadScreen() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const cacheKey = profile ? `publicidad-${profile.id}` : null;
   const { data, loading, reload, setData } = useCachedLoad<PublicidadData>(cacheKey, async () => {
@@ -163,11 +165,14 @@ export default function PublicidadScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
-      <Text style={styles.helperText}>
-        Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las
-        aprueba. Una vez activa, se muestra automáticamente en inicio, búsqueda y perfiles relevantes — no eliges
-        dónde aparece.
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.helperText, styles.headerRowText]}>
+          Todas las campañas son de pago (vía Payphone) y quedan en revisión hasta que el equipo de SOSmoto las
+          aprueba. Una vez activa, se muestra automáticamente en inicio, búsqueda y perfiles relevantes — no eliges
+          dónde aparece.
+        </Text>
+        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona la publicidad" size={20} />
+      </View>
 
       {!isOwner && <Text style={styles.helperText}>Solo el dueño del negocio puede crear campañas.</Text>}
       {isOwner && business.is_limited && (
@@ -263,6 +268,63 @@ export default function PublicidadScreen() {
           ))}
         </View>
       )}
+
+      <InfoModal visible={showInfo} title="Cómo funciona la publicidad" onClose={() => setShowInfo(false)}>
+        <InfoStep number={1} title="Cómo se calcula el precio">
+          <Text style={infoTextStyles.text}>
+            El total es <Text style={infoTextStyles.bold}>precio por día × cantidad de días</Text>. El precio por día
+            es distinto según el alcance que elijas: "Nacional" cuesta más por día que "Solo tu ciudad".
+          </Text>
+          <InfoExample label="Ejemplo con los precios de hoy">
+            {pricing && (
+              <>
+                <Text style={infoTextStyles.exampleText}>
+                  Nacional: ${Number(pricing.price_per_day_national).toFixed(2)}/día · Solo tu ciudad: $
+                  {Number(pricing.price_per_day_city).toFixed(2)}/día
+                </Text>
+                <Text style={infoTextStyles.exampleText}>
+                  Campaña nacional de 7 días → 7 × ${Number(pricing.price_per_day_national).toFixed(2)} = $
+                  {(Number(pricing.price_per_day_national) * 7).toFixed(2)}
+                </Text>
+                <Text style={infoTextStyles.exampleText}>
+                  La misma campaña, solo en tu ciudad → 7 × ${Number(pricing.price_per_day_city).toFixed(2)} = $
+                  {(Number(pricing.price_per_day_city) * 7).toFixed(2)}
+                </Text>
+              </>
+            )}
+            <Text style={infoTextStyles.exampleTextMuted}>Estos precios los define el admin y pueden cambiar.</Text>
+          </InfoExample>
+        </InfoStep>
+
+        <InfoStep number={2} title="Pagas primero, se revisa después">
+          <Text style={infoTextStyles.text}>
+            Pagas de una sola vez (vía Payphone) al crear la campaña. Después, un admin de SOSmoto la revisa antes de
+            mostrarla a nadie -- para evitar contenido inapropiado o competencia desleal. El estado pasa de
+            "Pendiente de revisión" a "Aprobada" (ya circulando) o "Rechazada".
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={3} title="No eliges dónde aparece">
+          <Text style={infoTextStyles.text}>
+            Una vez aprobada, se muestra automáticamente en el inicio, en búsquedas y en perfiles relevantes, según su
+            alcance -- no hay forma de elegir una posición específica dentro de la app.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={4} title="Impresiones y clics">
+          <Text style={infoTextStyles.text}>
+            Cada campaña activa muestra cuántas veces se vio (impresiones) y cuántas veces la tocaron (clics), para
+            que midas si está funcionando.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={5} title='"Pausar" no devuelve el dinero'>
+          <Text style={infoTextStyles.text}>
+            Pausar detiene que la campaña se siga mostrando, pero no reembolsa lo ya pagado -- revisa bien la
+            duración antes de pagar.
+          </Text>
+        </InfoStep>
+      </InfoModal>
     </ScrollView>
   );
 }
@@ -292,6 +354,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  headerRowText: {
+    flex: 1,
   },
   placeholder: {
     color: colors.textMuted,
