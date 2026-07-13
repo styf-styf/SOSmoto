@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -100,6 +101,31 @@ function parsePriceTierRows(rows: PriceTierRow[], baseMinQuantity: number, baseP
   return tiers;
 }
 
+// Bloques reutilizables del modal de ayuda "Cómo agregar stock y variantes"
+// (ver InventoryInfoModal más abajo) -- un paso numerado + su ejemplo.
+function InfoStep({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+  return (
+    <View style={styles.infoStep}>
+      <View style={styles.infoStepHeader}>
+        <View style={styles.infoStepBadge}>
+          <Text style={styles.infoStepBadgeText}>{number}</Text>
+        </View>
+        <Text style={styles.infoStepTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function InfoExample({ label, ok, children }: { label: string; ok?: boolean; children: ReactNode }) {
+  return (
+    <View style={[styles.infoExampleBox, ok === false && styles.infoExampleBoxError]}>
+      <Text style={[styles.infoExampleLabel, ok === false && styles.infoExampleLabelError]}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
 type FormState = { kind: 'service'; service: Service | null } | { kind: 'product'; product: Product | null };
 
 interface VariantRow {
@@ -135,6 +161,7 @@ export default function CatalogoScreen() {
   const [form, setForm] = useState<FormState | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showInventoryInfo, setShowInventoryInfo] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const didInitialLoadRef = useRef(false);
 
@@ -321,11 +348,21 @@ export default function CatalogoScreen() {
         )}
 
         {/* Acceso rápido al inventario de productos */}
-        <Pressable style={styles.inventarioBtn} onPress={() => router.push('/(business)/inventario')}>
-          <Ionicons name="cube-outline" size={18} color={colors.primary} />
-          <Text style={styles.inventarioBtnText}>Ver inventario de productos</Text>
-          <Ionicons name="chevron-forward-outline" size={16} color={colors.textMuted} />
-        </Pressable>
+        <View style={styles.inventarioRow}>
+          <Pressable style={styles.inventarioBtn} onPress={() => router.push('/(business)/inventario')}>
+            <Ionicons name="cube-outline" size={18} color={colors.primary} />
+            <Text style={styles.inventarioBtnText}>Ver inventario de productos</Text>
+            <Ionicons name="chevron-forward-outline" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={styles.inventarioInfoBtn}
+            onPress={() => setShowInventoryInfo(true)}
+            hitSlop={8}
+            accessibilityLabel="Cómo agregar stock y variantes"
+          >
+            <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
+          </Pressable>
+        </View>
 
         {canHaveServices && (
           <>
@@ -405,6 +442,104 @@ export default function CatalogoScreen() {
             onDelete={form.product ? () => confirmDeleteProduct(form.product!) : undefined}
           />
         )}
+      </Modal>
+
+      <Modal visible={showInventoryInfo} animationType="slide" onRequestClose={() => setShowInventoryInfo(false)}>
+        <View style={styles.infoModalHeader}>
+          <Text style={styles.infoModalTitle}>Cómo agregar stock y variantes</Text>
+          <Pressable onPress={() => setShowInventoryInfo(false)} hitSlop={8}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.infoModalBody}>
+          <InfoStep number={1} title="Stock sin variantes">
+            <Text style={styles.infoText}>
+              Si tu producto no tiene tallas, colores ni presentaciones distintas, usa el campo{' '}
+              <Text style={styles.infoBold}>"Stock"</Text> directo en el formulario del producto.
+            </Text>
+            <InfoExample label="Ejemplo">
+              <Text style={styles.infoExampleText}>"Aceite 20W50" → Stock: 50</Text>
+              <Text style={styles.infoExampleTextMuted}>Tienes 50 unidades disponibles para vender/pedir.</Text>
+            </InfoExample>
+          </InfoStep>
+
+          <InfoStep number={2} title="Variantes (tallas, colores, presentaciones)">
+            <Text style={styles.infoText}>
+              Usa <Text style={styles.infoBold}>"Agregar variante"</Text> cuando el mismo producto viene en varias
+              versiones, cada una con su propio stock. El stock total del producto se calcula solo, sumando el de todas
+              las variantes -- no lo edites arriba, ese campo desaparece en cuanto agregas una variante.
+            </Text>
+            <InfoExample label="Ejemplo">
+              <Text style={styles.infoExampleText}>"Casco MT" con dos variantes:</Text>
+              <Text style={styles.infoExampleText}>· Talla M → Stock: 10</Text>
+              <Text style={styles.infoExampleText}>· Talla L → Stock: 8</Text>
+              <Text style={styles.infoExampleTextMuted}>Stock total del producto: 18 uds (automático).</Text>
+            </InfoExample>
+            <Text style={styles.infoText}>
+              El "Precio" de cada variante es opcional: si lo dejas vacío, esa variante hereda el precio general del
+              producto. Solo llénalo si esa variante en particular cuesta distinto (ej. la Talla L más cara).
+            </Text>
+          </InfoStep>
+
+          {business.business_type === 'brand_advertiser' && (
+            <>
+              <InfoStep number={3} title="Cantidad mínima de pedido">
+                <Text style={styles.infoText}>
+                  Define cuántas unidades como mínimo debe pedirte un taller o tienda. Si lo dejas vacío, se puede pedir
+                  desde 1 unidad.
+                </Text>
+                <InfoExample label="Ejemplo">
+                  <Text style={styles.infoExampleText}>Cantidad mínima de pedido: 12</Text>
+                  <Text style={styles.infoExampleTextMuted}>
+                    Un taller no puede pedirte menos de 12 unidades de este producto.
+                  </Text>
+                </InfoExample>
+              </InfoStep>
+
+              <InfoStep number={4} title="Precio por volumen (escalones del producto)">
+                <Text style={styles.infoText}>
+                  El precio que pones en el campo <Text style={styles.infoBold}>"Precio"</Text> ya es el precio desde tu
+                  cantidad mínima de pedido -- es el "escalón 0". Los escalones que agregues abajo son{' '}
+                  <Text style={styles.infoBold}>solo para cantidades mayores</Text>, cada uno con una cantidad más alta que
+                  el anterior.
+                </Text>
+                <InfoExample label="✓ Ejemplo correcto" ok>
+                  <Text style={styles.infoExampleText}>Precio: $40 · Cantidad mínima de pedido: 1</Text>
+                  <Text style={styles.infoExampleText}>Escalón 1 → Desde 3, $38</Text>
+                  <Text style={styles.infoExampleText}>Escalón 2 → Desde 6, $35</Text>
+                  <Text style={styles.infoExampleTextMuted}>
+                    Resultado: 1-2 unidades a $40 c/u · 3-5 unidades a $38 c/u · 6 o más a $35 c/u.
+                  </Text>
+                </InfoExample>
+                <InfoExample label="✕ Error más común" ok={false}>
+                  <Text style={styles.infoExampleText}>Precio: $40 · Cantidad mínima de pedido: 1</Text>
+                  <Text style={styles.infoExampleText}>Escalón 1 → Desde 1, $38</Text>
+                  <Text style={styles.infoExampleTextMuted}>
+                    Inválido: el escalón repite la cantidad 1, que ya tiene precio ($40) por ser tu cantidad mínima.
+                    Empieza el primer escalón en 2 o más.
+                  </Text>
+                </InfoExample>
+              </InfoStep>
+
+              <InfoStep number={5} title="Precio por volumen por variante">
+                <Text style={styles.infoText}>
+                  Cada variante puede tener sus propios escalones, totalmente independientes de los del producto y de las
+                  demás variantes. La misma regla del paso 4 aplica: el "Precio" de esa variante ya es su escalón 0, no lo
+                  repitas abajo.
+                </Text>
+                <InfoExample label="Ejemplo">
+                  <Text style={styles.infoExampleText}>Talla M → Precio: $23 → Escalón: Desde 6, $20</Text>
+                  <Text style={styles.infoExampleText}>Talla L → Precio: $28 → Escalón: Desde 6, $25</Text>
+                  <Text style={styles.infoExampleTextMuted}>
+                    Cada talla tiene su propio precio y su propio descuento por volumen -- no se mezclan entre sí.
+                  </Text>
+                </InfoExample>
+              </InfoStep>
+            </>
+          )}
+
+          <Button title="Entendido" onPress={() => setShowInventoryInfo(false)} style={styles.infoModalCloseButton} />
+        </ScrollView>
       </Modal>
     </View>
   );
@@ -1225,14 +1360,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  inventarioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
   inventarioBtn: {
+    flex: 1,
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.surface, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 14,
-    marginBottom: 20,
   },
   inventarioBtnText: {
     flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary,
+  },
+  inventarioInfoBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addButton: {
     flexDirection: 'row',
@@ -1530,5 +1679,97 @@ const styles = StyleSheet.create({
   },
   itemRowHighlight: {
     backgroundColor: `${colors.primary}18`,
+  },
+  infoModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  infoModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  infoModalBody: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  infoModalCloseButton: {
+    marginTop: 8,
+  },
+  infoStep: {
+    marginBottom: 26,
+  },
+  infoStepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  infoStepBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoStepBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  infoStepTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  infoBold: {
+    fontWeight: '700',
+  },
+  infoExampleBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.success,
+  },
+  infoExampleBoxError: {
+    borderLeftColor: colors.danger,
+  },
+  infoExampleLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  infoExampleLabelError: {
+    color: colors.danger,
+  },
+  infoExampleText: {
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  infoExampleTextMuted: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
+    marginTop: 4,
   },
 });
