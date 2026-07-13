@@ -272,5 +272,5 @@ export interface AdminVerificationRequestRow {
   status: KycStatus;
   admin_notes: string | null;
   created_at: string;
-  businesses: { name: string; city: string; is_verified: boolean } | null;
+  businesses: { name: string; city: string; is_verified: boolean; business_type: string } | null;
 }

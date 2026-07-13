@@ -9,7 +9,7 @@ const KYC_BUCKET = 'kyc-documents';
 const SIGNED_URL_TTL_SECONDS = 600;
 
 const REQUEST_SELECT =
-  'id, business_id, id_document_path, ruc_document_path, storefront_photo_path, notes, status, admin_notes, created_at, businesses(name, city, is_verified)';
+  'id, business_id, id_document_path, ruc_document_path, storefront_photo_path, notes, status, admin_notes, created_at, businesses(name, city, is_verified, business_type)';
 
 const statusLabel: Record<KycStatus, string> = {
   pending_review: 'En revisión',
@@ -69,6 +69,12 @@ export default async function KycPage({
   ]);
 
   const pending = (pendingResult.data ?? []) as unknown as AdminVerificationRequestRow[];
+  // Marcas se priorizan: talleres/tiendas dependen de esa confianza para comprarles al por mayor.
+  pending.sort((a, b) => {
+    const aBrand = a.businesses?.business_type === 'brand_advertiser' ? 0 : 1;
+    const bBrand = b.businesses?.business_type === 'brand_advertiser' ? 0 : 1;
+    return aBrand - bBrand;
+  });
   const history = (historyResult.data ?? []) as unknown as AdminVerificationRequestRow[];
   const historyTotalPages = historyResult.count ? Math.ceil(historyResult.count / HISTORY_PAGE_SIZE) : 1;
   const signedUrls = await buildSignedUrlMap(supabase, [...pending, ...history]);
@@ -86,7 +92,14 @@ export default async function KycPage({
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {pending.map((req) => (
           <div key={req.id} className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="mb-1 text-sm font-semibold">{req.businesses?.name ?? 'Negocio'}</p>
+            <div className="mb-1 flex items-center gap-2">
+              <p className="text-sm font-semibold">{req.businesses?.name ?? 'Negocio'}</p>
+              {req.businesses?.business_type === 'brand_advertiser' && (
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                  Marca · prioridad
+                </span>
+              )}
+            </div>
             <p className="mb-3 text-xs text-gray-500">{req.businesses?.city}</p>
             <div className="grid grid-cols-2 gap-2">
               <DocLink label="Identificación" url={signedUrls.get(req.id_document_path)} />

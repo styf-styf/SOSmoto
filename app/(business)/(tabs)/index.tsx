@@ -680,13 +680,19 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
     }
   }
 
+  const isBrand = businessType === 'brand_advertiser';
+
   async function handleCreate() {
     if (!profile) return;
-    if (!name.trim() || !province || !city.trim() || !address.trim() || !phone.trim()) {
+    if (!name.trim() || !phone.trim()) {
       Alert.alert('Faltan datos', 'Completa todos los campos obligatorios.');
       return;
     }
-    if (!selectedCoords) {
+    if (!isBrand && (!province || !city.trim() || !address.trim())) {
+      Alert.alert('Faltan datos', 'Completa todos los campos obligatorios.');
+      return;
+    }
+    if (!isBrand && !selectedCoords) {
       Alert.alert('Ubicación requerida', 'Selecciona la ubicación de tu negocio en el mapa.');
       return;
     }
@@ -696,11 +702,11 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         ownerId: profile.id,
         businessType,
         name: name.trim(),
-        province,
-        city: city.trim(),
-        address: address.trim(),
-        latitude: selectedCoords.latitude,
-        longitude: selectedCoords.longitude,
+        province: isBrand ? undefined : province,
+        city: isBrand ? '' : city.trim(),
+        address: isBrand ? '' : address.trim(),
+        latitude: isBrand ? QUITO_DEFAULT.latitude : selectedCoords!.latitude,
+        longitude: isBrand ? QUITO_DEFAULT.longitude : selectedCoords!.longitude,
         phone: phone.trim(),
       });
       Keyboard.dismiss();
@@ -729,38 +735,48 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
 
       <TextField label="Nombre del negocio *" placeholder="Taller Mecánico XYZ" value={name} onChangeText={setName} />
 
-      <Text style={styles.fieldLabel}>Provincia *</Text>
-      <Pressable style={styles.pickerButton} onPress={() => setShowProvincePicker(true)}>
-        <Text style={[styles.pickerButtonText, !province && styles.pickerButtonPlaceholder]}>
-          {province || 'Selecciona una provincia'}
+      {isBrand && (
+        <Text style={styles.subtitle}>
+          Una Marca no tiene local propio dentro de la app: vende al por mayor a talleres y tiendas, así que no necesita dirección ni ubicación en el mapa.
         </Text>
-        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-      </Pressable>
+      )}
 
-      <TextField label="Ciudad *" placeholder="Quito" value={city} onChangeText={setCity} />
-
-      <TextField
-        label="Dirección *"
-        placeholder="Av. Principal 123, oficina 4"
-        value={address}
-        onChangeText={setAddress}
-        rightIcon={{ name: gettingAddress ? 'reload-outline' : 'navigate-outline', onPress: handleFillAddressFromGPS }}
-      />
-
-      <Text style={styles.fieldLabel}>Ubicación en el mapa *</Text>
-      {selectedCoords ? (
-        <View style={styles.locationConfirmed}>
-          <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-          <Text style={styles.locationConfirmedText}>Ubicación seleccionada</Text>
-          <Pressable onPress={openMapPicker}>
-            <Text style={styles.locationChangeLink}>Cambiar</Text>
+      {!isBrand && (
+        <>
+          <Text style={styles.fieldLabel}>Provincia *</Text>
+          <Pressable style={styles.pickerButton} onPress={() => setShowProvincePicker(true)}>
+            <Text style={[styles.pickerButtonText, !province && styles.pickerButtonPlaceholder]}>
+              {province || 'Selecciona una provincia'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
           </Pressable>
-        </View>
-      ) : (
-        <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
-          <Ionicons name="map-outline" size={18} color={colors.primary} />
-          <Text style={styles.mapPickerButtonText}>Seleccionar en mapa</Text>
-        </Pressable>
+
+          <TextField label="Ciudad *" placeholder="Quito" value={city} onChangeText={setCity} />
+
+          <TextField
+            label="Dirección *"
+            placeholder="Av. Principal 123, oficina 4"
+            value={address}
+            onChangeText={setAddress}
+            rightIcon={{ name: gettingAddress ? 'reload-outline' : 'navigate-outline', onPress: handleFillAddressFromGPS }}
+          />
+
+          <Text style={styles.fieldLabel}>Ubicación en el mapa *</Text>
+          {selectedCoords ? (
+            <View style={styles.locationConfirmed}>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={styles.locationConfirmedText}>Ubicación seleccionada</Text>
+              <Pressable onPress={openMapPicker}>
+                <Text style={styles.locationChangeLink}>Cambiar</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
+              <Ionicons name="map-outline" size={18} color={colors.primary} />
+              <Text style={styles.mapPickerButtonText}>Seleccionar en mapa</Text>
+            </Pressable>
+          )}
+        </>
       )}
 
       <TextField

@@ -671,6 +671,10 @@ function ProductForm({
   const [categoryId, setCategoryId] = useState(product?.category_id ?? '');
   const [price, setPrice] = useState(product?.reference_price !== null && product?.reference_price !== undefined ? String(product.reference_price) : '');
   const [stock, setStock] = useState(product ? String(product.stock) : '0');
+  const [minOrderQuantity, setMinOrderQuantity] = useState(
+    product?.min_order_quantity != null ? String(product.min_order_quantity) : ''
+  );
+  const isBrand = limits?.businessType === 'brand_advertiser';
   const [photos, setPhotos] = useState<string[]>(product?.photos ?? []);
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -776,6 +780,14 @@ function ProductForm({
         return;
       }
     }
+    let parsedMinOrderQuantity: number | null = null;
+    if (minOrderQuantity.trim()) {
+      parsedMinOrderQuantity = Number(minOrderQuantity);
+      if (Number.isNaN(parsedMinOrderQuantity) || parsedMinOrderQuantity < 1) {
+        Alert.alert('Cantidad mínima inválida', 'Ingresa un número válido (mínimo 1) o déjalo vacío.');
+        return;
+      }
+    }
     for (const v of variants) {
       if (!v.label.trim()) {
         Alert.alert('Falta la etiqueta', 'Ingresa un nombre para cada variante (ej. Talla M).');
@@ -802,6 +814,7 @@ function ProductForm({
             stock: parsedStock,
             photos,
             is_active: isActive,
+            min_order_quantity: parsedMinOrderQuantity,
           })
         : await createProduct({
             businessId,
@@ -811,6 +824,7 @@ function ProductForm({
             referencePrice: parsedPrice,
             stock: parsedStock,
             photos,
+            minOrderQuantity: parsedMinOrderQuantity ?? undefined,
           });
 
       let finalProduct = result;
@@ -862,6 +876,16 @@ function ProductForm({
             {variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)} uds (suma de variantes)
           </Text>
         </View>
+      )}
+
+      {isBrand && (
+        <TextField
+          label="Cantidad mínima de pedido (opcional)"
+          placeholder="Ej. 12 (por caja)"
+          keyboardType="numeric"
+          value={minOrderQuantity}
+          onChangeText={setMinOrderQuantity}
+        />
       )}
 
       <Text style={styles.fieldLabel}>Variantes (opcional)</Text>

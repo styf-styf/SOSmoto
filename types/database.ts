@@ -198,6 +198,9 @@ export interface Product {
   is_active: boolean;
   views: number;
   created_at: string;
+  // Cantidad minima de pedido -- solo relevante para compras al por mayor
+  // (taller/tienda comprandole a una marca); null para venta al detalle normal.
+  min_order_quantity: number | null;
 }
 
 export interface ProductVariant {

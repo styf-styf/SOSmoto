@@ -123,6 +123,16 @@ export default function HorarioScreen() {
     );
   }
 
+  if (business.business_type === 'brand_advertiser') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>
+          Las Marcas no tienen horario de atención al público: venden al por mayor a talleres y tiendas, no directo al cliente final.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}

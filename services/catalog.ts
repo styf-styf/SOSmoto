@@ -390,6 +390,7 @@ export interface PlanLimits {
   maxEmployees: number | null;
   maxActiveStories: number | null;
   maxPhotosPerItem: number | null;
+  businessType: BusinessType | null;
 }
 
 const FREE_PLAN_LIMITS: PlanLimits = {
@@ -399,26 +400,34 @@ const FREE_PLAN_LIMITS: PlanLimits = {
   maxEmployees: 1,
   maxActiveStories: null,
   maxPhotosPerItem: 1,
+  businessType: null,
 };
 
 export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   const { data, error } = await supabase
     .from('businesses')
-    .select('subscription_plans(name, max_services, max_products, max_employees, max_active_stories, max_photos_per_item)')
+    .select(
+      'business_type, subscription_plans(name, max_services, max_products, max_employees, max_active_stories, max_photos_per_item)'
+    )
     .eq('id', businessId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return FREE_PLAN_LIMITS;
 
   const plan = (data as any)?.subscription_plans;
-  if (!plan) return FREE_PLAN_LIMITS;
+  const businessType = (data as any)?.business_type ?? null;
+  if (!plan) return { ...FREE_PLAN_LIMITS, businessType };
   return {
     planName: plan.name ?? 'free',
     maxServices: plan.max_services ?? null,
-    maxProducts: plan.max_products ?? null,
+    // Una marca vende al por mayor a talleres/tiendas, no al consumidor
+    // final -- su catalogo real suele tener muchos mas SKUs que un taller/
+    // tienda de barrio, asi que el limite de plan no le aplica.
+    maxProducts: businessType === 'brand_advertiser' ? null : (plan.max_products ?? null),
     maxEmployees: plan.max_employees ?? null,
     maxActiveStories: plan.max_active_stories ?? null,
     maxPhotosPerItem: plan.max_photos_per_item ?? null,
+    businessType,
   };
 }
 
@@ -503,6 +512,8 @@ export interface CreateProductParams {
   referencePrice?: number;
   stock?: number;
   photos?: string[];
+  // Cantidad minima de pedido -- para venta al por mayor (marca -> taller/tienda).
+  minOrderQuantity?: number;
 }
 
 export async function createProduct(params: CreateProductParams): Promise<Product> {
@@ -528,6 +539,7 @@ export async function createProduct(params: CreateProductParams): Promise<Produc
       reference_price: params.referencePrice ?? null,
       stock: params.stock ?? 0,
       photos: params.photos ?? [],
+      min_order_quantity: params.minOrderQuantity ?? null,
     })
     .select()
     .single();
@@ -545,6 +557,7 @@ export async function updateProduct(
     stock: number;
     is_active: boolean;
     photos: string[];
+    min_order_quantity: number | null;
   }>
 ): Promise<Product> {
   if (updates.photos) {

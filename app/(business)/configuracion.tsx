@@ -112,7 +112,9 @@ export default function BusinessConfiguracionScreen() {
       <Text style={styles.sectionTitle}>Mi negocio</Text>
       <View style={styles.menuGroup}>
         <MenuRow icon="storefront-outline" label="Datos del negocio" onPress={() => router.push('/(business)/datos-negocio')} />
-        <MenuRow icon="time-outline" label="Horario" onPress={() => router.push('/(business)/horario')} />
+        {business.business_type !== 'brand_advertiser' && (
+          <MenuRow icon="time-outline" label="Horario" onPress={() => router.push('/(business)/horario')} />
+        )}
         <MenuRow
           icon="people-circle-outline"
           label="Equipo"

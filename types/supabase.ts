@@ -462,6 +462,7 @@ export interface Database {
           is_active: boolean;
           views: number;
           created_at: string;
+          min_order_quantity: number | null;
         };
         Insert: {
           id?: string;
@@ -475,6 +476,7 @@ export interface Database {
           is_active?: boolean;
           views?: number;
           created_at?: string;
+          min_order_quantity?: number | null;
         };
         Update: {
           id?: string;
@@ -488,6 +490,7 @@ export interface Database {
           is_active?: boolean;
           views?: number;
           created_at?: string;
+          min_order_quantity?: number | null;
         };
         Relationships: [];
       };

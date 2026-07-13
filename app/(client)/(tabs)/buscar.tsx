@@ -79,12 +79,17 @@ export default function BuscarScreen() {
         searchBusinesses({
           query: query || undefined,
           businessType,
+          // Sin esto, "Todos" (businessType sin definir) devolvía tambien
+          // marcas/brand_advertiser -- el cliente nunca les compra directo
+          // (son proveedores B2B para taller/tienda), asi que no tiene
+          // sentido que aparezcan en el buscador de negocios del cliente.
+          businessTypeIn: businessType ? undefined : ['workshop', 'store'],
           serviceName: serviceFilter,
           coords,
           minRating,
           only24h: only24h || undefined,
         }),
-        query.trim() ? searchCatalog({ query }) : Promise.resolve([]),
+        query.trim() ? searchCatalog({ query, businessTypeIn: ['workshop', 'store'] }) : Promise.resolve([]),
       ]);
       setResults(result);
       setCatalogResults(catalog);

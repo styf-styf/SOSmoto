@@ -18,23 +18,26 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
 import { getSearchAdsForBusinessViewer, type AdWithBusiness } from '../../services/ads';
-import { getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
+import { getMyWorkBusiness, getNearestCity, searchBusinesses, type BusinessWithDistance } from '../../services/businesses';
 import { searchCatalog, type FeedCatalogItem } from '../../services/catalog';
 import type { BusinessType } from '../../types/database';
 import { applyFreshnessOrder } from '../../utils/feedOrdering';
 
-// Solo tiendas y marcas -- nunca otros talleres. Un taller no puede seguir
-// ni interactuar de ninguna forma con el perfil de otro taller (solo con
-// tiendas, relacion B2B), asi que mostrarlos en el buscador del negocio no
-// lleva a nada util. Este buscador es exclusivo del taller (la tienda no
-// tiene boton de acceso -- ver BusinessProfileView).
-const STORE_AND_BRAND_TYPES: BusinessType[] = ['store', 'brand_advertiser'];
+// A quien le vende cada tipo de negocio, segun el flujo B2B de SOSmoto:
+// taller le compra a tienda y marca; tienda le compra solo a marca (nunca a
+// otro taller ni a otra tienda -- ninguno tiene caso de uso B2B ahi). Este
+// buscador es exclusivo de taller/tienda (la marca no tiene boton de acceso
+// -- no le compra a nadie, ver BusinessProfileView).
+const ALLOWED_TARGET_TYPES: Record<string, BusinessType[]> = {
+  workshop: ['store', 'brand_advertiser'],
+  store: ['brand_advertiser'],
+};
 
-const typeFilters: { label: string; value: BusinessType | undefined }[] = [
-  { label: 'Todos', value: undefined },
-  { label: 'Tiendas', value: 'store' },
-  { label: 'Marcas', value: 'brand_advertiser' },
-];
+const TYPE_FILTER_LABELS: Record<BusinessType, string> = {
+  workshop: 'Talleres',
+  store: 'Tiendas',
+  brand_advertiser: 'Marcas',
+};
 
 const ratingFilters = [
   { label: 'Todas', value: undefined },
@@ -45,6 +48,14 @@ const ratingFilters = [
 export default function BusinessBuscarScreen() {
   const { profile } = useAuth();
   const { coords } = useLocation();
+
+  // null mientras no se sabe todavia -- undefined en la busqueda real
+  // significaria "sin restriccion de tipo", que nunca es lo que queremos acá.
+  const [allowedTypes, setAllowedTypes] = useState<BusinessType[] | null>(null);
+  const typeFilters = [
+    { label: 'Todos', value: undefined as BusinessType | undefined },
+    ...(allowedTypes ?? []).map((t) => ({ label: TYPE_FILTER_LABELS[t], value: t as BusinessType | undefined })),
+  ];
 
   const [query, setQuery] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType | undefined>(undefined);
@@ -57,6 +68,19 @@ export default function BusinessBuscarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const lastSeenAdAt = useRef<string | null>(null);
   const didInitialSearchRef = useRef(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    getMyWorkBusiness(profile.id)
+      .then((work) => {
+        const viewerType = work?.business?.business_type;
+        setAllowedTypes((viewerType && ALLOWED_TARGET_TYPES[viewerType]) || []);
+      })
+      .catch((err) => {
+        console.error('load viewer business type error', err);
+        setAllowedTypes([]);
+      });
+  }, [profile]);
 
   const loadAds = useCallback(async () => {
     try {
@@ -79,18 +103,19 @@ export default function BusinessBuscarScreen() {
   );
 
   const search = useCallback(async () => {
+    if (!allowedTypes || allowedTypes.length === 0) return;
     try {
       const [result, catalog] = await Promise.all([
         searchBusinesses({
           query: query || undefined,
           businessType,
-          businessTypeIn: businessType ? undefined : STORE_AND_BRAND_TYPES,
+          businessTypeIn: businessType ? undefined : allowedTypes,
           coords,
           minRating,
           only24h: only24h || undefined,
         }),
         query.trim()
-          ? searchCatalog({ query, kinds: ['product'], businessTypeIn: STORE_AND_BRAND_TYPES })
+          ? searchCatalog({ query, kinds: ['product'], businessTypeIn: allowedTypes })
           : Promise.resolve([]),
       ]);
       setResults(result);
@@ -98,9 +123,10 @@ export default function BusinessBuscarScreen() {
     } catch (err) {
       console.error('search businesses error', err);
     }
-  }, [query, businessType, coords, minRating, only24h]);
+  }, [query, businessType, coords, minRating, only24h, allowedTypes]);
 
   useEffect(() => {
+    if (!allowedTypes) return;
     if (!didInitialSearchRef.current) {
       didInitialSearchRef.current = true;
       setLoading(true);

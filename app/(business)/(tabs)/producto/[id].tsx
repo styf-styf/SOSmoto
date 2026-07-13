@@ -245,6 +245,9 @@ export default function BusinessProductDetailScreen() {
       <Text style={styles.stock}>
         {effectiveStock > 0 ? `Disponible · ${effectiveStock} en stock` : 'Sin stock disponible'}
       </Text>
+      {!!product.min_order_quantity && (
+        <Text style={styles.stock}>Pedido mínimo: {product.min_order_quantity} unidades</Text>
+      )}
 
       {hasVariants && (
         <View style={styles.variantRow}>

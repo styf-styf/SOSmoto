@@ -17,6 +17,7 @@ export default function EstadisticasScreen() {
   const { profile } = useAuth();
   const [planName, setPlanName] = useState('free');
   const [stats, setStats] = useState<BusinessDashboardStats | null>(null);
+  const [isBrand, setIsBrand] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -24,6 +25,7 @@ export default function EstadisticasScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
+    setIsBrand(work.business.business_type === 'brand_advertiser');
     const [limits, dashboardStats] = await Promise.all([
       getPlanLimits(work.business.id),
       getBusinessDashboardStats(work.business.id),
@@ -67,17 +69,28 @@ export default function EstadisticasScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.planBadge}>
-        <Text style={styles.planBadgeText}>Dashboard {planLabel[planName] ?? planLabel.free}</Text>
+        <Text style={styles.planBadgeText}>
+          {isBrand ? 'Dashboard B2B' : 'Dashboard'} {planLabel[planName] ?? planLabel.free}
+        </Text>
       </View>
 
-      <View style={styles.row}>
-        <StatCard label="Auxilios recibidos" value={stats.helpRequestsTotal} />
-        <StatCard label="Auxilios completados" value={stats.helpRequestsCompleted} />
-      </View>
-      <View style={styles.row}>
-        <StatCard label="Citas recibidas" value={stats.appointmentsTotal} />
-        <StatCard label="Citas completadas" value={stats.appointmentsCompleted} />
-      </View>
+      {isBrand ? (
+        <Text style={styles.upsell}>
+          Como Marca, tus compradores son talleres y tiendas, no clientes finales. Estas métricas reflejan cuánto te
+          descubren y compran negocios al por mayor.
+        </Text>
+      ) : (
+        <>
+          <View style={styles.row}>
+            <StatCard label="Auxilios recibidos" value={stats.helpRequestsTotal} />
+            <StatCard label="Auxilios completados" value={stats.helpRequestsCompleted} />
+          </View>
+          <View style={styles.row}>
+            <StatCard label="Citas recibidas" value={stats.appointmentsTotal} />
+            <StatCard label="Citas completadas" value={stats.appointmentsCompleted} />
+          </View>
+        </>
+      )}
 
       {!showIntermedio && (
         <Text style={styles.upsell}>
@@ -87,18 +100,22 @@ export default function EstadisticasScreen() {
 
       {showIntermedio && (
         <>
-          <Text style={styles.sectionTitle}>Productos más vistos</Text>
+          <Text style={styles.sectionTitle}>{isBrand ? 'Productos más vistos por negocios' : 'Productos más vistos'}</Text>
           {stats.topProducts.length === 0 ? (
             <Text style={styles.placeholder}>Sin vistas registradas todavía.</Text>
           ) : (
             stats.topProducts.map((p) => <RankedRow key={p.id} name={p.name} value={p.views} />)
           )}
 
-          <Text style={styles.sectionTitle}>Servicios más vistos</Text>
-          {stats.topServices.length === 0 ? (
-            <Text style={styles.placeholder}>Sin vistas registradas todavía.</Text>
-          ) : (
-            stats.topServices.map((s) => <RankedRow key={s.id} name={s.name} value={s.views} />)
+          {!isBrand && (
+            <>
+              <Text style={styles.sectionTitle}>Servicios más vistos</Text>
+              {stats.topServices.length === 0 ? (
+                <Text style={styles.placeholder}>Sin vistas registradas todavía.</Text>
+              ) : (
+                stats.topServices.map((s) => <RankedRow key={s.id} name={s.name} value={s.views} />)
+              )}
+            </>
           )}
 
           <Text style={styles.sectionTitle}>Publicidad e historias</Text>
@@ -113,7 +130,7 @@ export default function EstadisticasScreen() {
         </>
       )}
 
-      {showAvanzado && (
+      {showAvanzado && !isBrand && (
         <>
           <Text style={styles.sectionTitle}>Conversión</Text>
           <StatCard

@@ -81,7 +81,11 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     const myPosts = await getMyBusinessPosts(resolvedBusiness.id);
     setPosts(myPosts);
 
-    if (mode === 'self' && resolvedBusiness.business_type === 'workshop' && profile) {
+    if (
+      mode === 'self' &&
+      (resolvedBusiness.business_type === 'workshop' || resolvedBusiness.business_type === 'store') &&
+      profile
+    ) {
       getFollowedBusinesses(profile.id)
         .then(setFollowedStores)
         .catch((err) => console.error('load followed stores error', err));
@@ -204,15 +208,16 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   }
 
   const showFollowClient = mode === 'public' && profile?.role === 'client';
-  // Un taller puede seguir a una tienda (relación B2B), pero una tienda no
-  // puede seguir a un taller -- ver a-b-c-d en producto/servicio, la misma
-  // asimetría B2B ya aplicada al flujo de compra.
-  const canWorkshopFollowStore =
+  // Mismo sentido B2B del buscador (ver app/(business)/buscar.tsx): taller
+  // sigue a tienda y marca; tienda sigue solo a marca; nadie sigue a un
+  // taller (no hay ninguna interacción B2B taller->taller ni ->tienda que
+  // justifique seguirlo).
+  const canBusinessFollowTarget =
     mode === 'public' &&
     profile?.role === 'business' &&
-    viewerBusinessType === 'workshop' &&
-    business.business_type === 'store';
-  const showFollowButton = showFollowClient || canWorkshopFollowStore;
+    ((viewerBusinessType === 'workshop' && (business.business_type === 'store' || business.business_type === 'brand_advertiser')) ||
+      (viewerBusinessType === 'store' && business.business_type === 'brand_advertiser'));
+  const showFollowButton = showFollowClient || canBusinessFollowTarget;
 
   return (
     <ScrollView contentContainerStyle={[styles.container, mode === 'public' && styles.containerWithHeader]}>
@@ -314,19 +319,19 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             label="Catálogo"
             onPress={() => router.push('/(business)/catalogo')}
           />
+          {(business.business_type === 'workshop' || business.business_type === 'store') && (
+            <ProfileActionButton
+              icon="search-outline"
+              label="Buscar"
+              onPress={() => router.push('/(business)/buscar')}
+            />
+          )}
           {business.business_type === 'workshop' && (
-            <>
-              <ProfileActionButton
-                icon="search-outline"
-                label="Buscar"
-                onPress={() => router.push('/(business)/buscar')}
-              />
-              <ProfileActionButton
-                icon="calendar-outline"
-                label="Agenda"
-                onPress={() => router.push('/(business)/agenda-negocio')}
-              />
-            </>
+            <ProfileActionButton
+              icon="calendar-outline"
+              label="Agenda"
+              onPress={() => router.push('/(business)/agenda-negocio')}
+            />
           )}
           <ProfileActionButton
             icon="people-outline"
@@ -409,12 +414,12 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         </View>
       )}
 
-      {mode === 'self' && business.business_type === 'workshop' && (
+      {mode === 'self' && (business.business_type === 'workshop' || business.business_type === 'store') && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Siguiendo</Text>
           {followedStores.length === 0 ? (
             <Text style={styles.placeholderText}>
-              Aún no sigues a ninguna tienda. Búscalas y síguelas para ver sus novedades aquí.
+              Aún no sigues a ningún negocio. Búscalos y síguelos para ver sus novedades aquí.
             </Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followingRow}>
