@@ -25,13 +25,21 @@ import {
 } from '../../services/employeeInvitations';
 import type { BusinessType } from '../../types/database';
 
-const PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof EmployeeWithUser; label: string }[] = [
+const ALL_PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof EmployeeWithUser; label: string }[] = [
   { key: 'canAcceptAidRequests', field: 'can_accept_aid_requests', label: 'Puede aceptar auxilios' },
   { key: 'canManageCatalog', field: 'can_manage_catalog', label: 'Puede editar catálogo (productos/servicios)' },
   { key: 'canReplyChat', field: 'can_reply_chat', label: 'Puede responder chats' },
   { key: 'canUploadStories', field: 'can_upload_stories', label: 'Puede subir historias' },
   { key: 'canCreatePosts', field: 'can_create_posts', label: 'Puede crear publicaciones' },
 ];
+
+// El auxilio en carretera es exclusivo de taller -- tienda y marca nunca
+// reciben solicitudes de auxilio, así que ese permiso no aplica ni debe
+// mostrarse para ellas (mostrarlo confunde: el switch no haría nada).
+function getPermissionRows(businessType: BusinessType | null) {
+  if (businessType === 'workshop') return ALL_PERMISSION_ROWS;
+  return ALL_PERMISSION_ROWS.filter((row) => row.key !== 'canAcceptAidRequests');
+}
 
 function getJobTitlePlaceholder(businessType: BusinessType | null): string {
   if (businessType === 'workshop') return 'Ej. Mecánico, Secretaria, Administrador';
@@ -204,34 +212,47 @@ export default function EmpleadosScreen() {
       )}
 
       <InfoModal visible={showInfo} title="Qué hace cada permiso" onClose={() => setShowInfo(false)}>
-        <InfoStep number={1} title="Puede aceptar auxilios">
-          <Text style={infoTextStyles.text}>
-            Puede tocar "Aceptar" en la pestaña Solicitudes cuando llega un pedido de auxilio en carretera. Sin este
-            permiso, ve las solicitudes pero solo puede rechazarlas, nunca aceptarlas.
-          </Text>
-        </InfoStep>
+        {(() => {
+          let step = 0;
+          const next = () => ++step;
+          return (
+            <>
+              {businessType === 'workshop' && (
+                <InfoStep number={next()} title="Puede aceptar auxilios">
+                  <Text style={infoTextStyles.text}>
+                    Puede tocar "Aceptar" en la pestaña Solicitudes cuando llega un pedido de auxilio en carretera.
+                    Sin este permiso, ve las solicitudes pero solo puede rechazarlas, nunca aceptarlas. Este permiso
+                    solo existe para talleres -- tiendas y marcas nunca reciben solicitudes de auxilio.
+                  </Text>
+                </InfoStep>
+              )}
 
-        <InfoStep number={2} title="Puede editar catálogo (productos/servicios)">
-          <Text style={infoTextStyles.text}>
-            Puede agregar, editar y eliminar productos y servicios -- precio, stock, variantes, fotos, todo. Sin este
-            permiso, solo puede ver el catálogo, no tocar el botón "Agregar" ni editar nada existente.
-          </Text>
-        </InfoStep>
+              <InfoStep number={next()} title="Puede editar catálogo (productos/servicios)">
+                <Text style={infoTextStyles.text}>
+                  Puede agregar, editar y eliminar productos y servicios -- precio, stock, variantes, fotos, todo. Sin
+                  este permiso, solo puede ver el catálogo, no tocar el botón "Agregar" ni editar nada existente.
+                </Text>
+              </InfoStep>
 
-        <InfoStep number={3} title="Puede responder chats">
-          <Text style={infoTextStyles.text}>
-            Puede escribir mensajes en las conversaciones con clientes y otros negocios. Sin este permiso, puede ver
-            los chats pero no enviar respuestas.
-          </Text>
-        </InfoStep>
+              <InfoStep number={next()} title="Puede responder chats">
+                <Text style={infoTextStyles.text}>
+                  Puede escribir mensajes en las conversaciones con clientes y otros negocios. Sin este permiso, puede
+                  ver los chats pero no enviar respuestas.
+                </Text>
+              </InfoStep>
 
-        <InfoStep number={4} title="Puede subir historias">
-          <Text style={infoTextStyles.text}>Puede publicar historias de 24 horas a nombre del negocio.</Text>
-        </InfoStep>
+              <InfoStep number={next()} title="Puede subir historias">
+                <Text style={infoTextStyles.text}>Puede publicar historias de 24 horas a nombre del negocio.</Text>
+              </InfoStep>
 
-        <InfoStep number={5} title="Puede crear publicaciones">
-          <Text style={infoTextStyles.text}>Puede publicar posts en el feed del negocio (fotos, promos, novedades).</Text>
-        </InfoStep>
+              <InfoStep number={next()} title="Puede crear publicaciones">
+                <Text style={infoTextStyles.text}>
+                  Puede publicar posts en el feed del negocio (fotos, promos, novedades).
+                </Text>
+              </InfoStep>
+            </>
+          );
+        })()}
 
         <InfoExample label="Importante" ok={false}>
           <Text style={infoTextStyles.exampleText}>
@@ -320,7 +341,7 @@ function EmployeeRow({
   const [editing, setEditing] = useState(false);
   const [jobTitle, setJobTitle] = useState(employee.job_title ?? '');
   const [savingJobTitle, setSavingJobTitle] = useState(false);
-  const activePermissions = PERMISSION_ROWS.filter((row) => Boolean(employee[row.field]));
+  const activePermissions = getPermissionRows(businessType).filter((row) => Boolean(employee[row.field]));
 
   async function handleToggle(key: keyof EmployeePermissions, field: keyof EmployeeWithUser, value: boolean) {
     setBusy(true);
@@ -410,7 +431,7 @@ function EmployeeRow({
         <View style={styles.jobTitleEditBox}>
           <TextField label="Cargo" placeholder={getJobTitlePlaceholder(businessType)} value={jobTitle} onChangeText={setJobTitle} />
 
-          {PERMISSION_ROWS.map((row) => (
+          {getPermissionRows(businessType).map((row) => (
             <View key={row.key} style={styles.cardFooter}>
               <Text style={styles.cardMeta}>{row.label}</Text>
               <Switch
@@ -445,7 +466,7 @@ function AddEmployeeForm({
   const [email, setEmail] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [permissions, setPermissions] = useState<EmployeePermissions>({
-    canAcceptAidRequests: true,
+    canAcceptAidRequests: businessType === 'workshop',
     canManageCatalog: true,
     canReplyChat: true,
     canUploadStories: false,
@@ -489,7 +510,7 @@ function AddEmployeeForm({
 
       <TextField label="Cargo *" placeholder={getJobTitlePlaceholder(businessType)} value={jobTitle} onChangeText={setJobTitle} />
 
-      {PERMISSION_ROWS.map((row) => (
+      {getPermissionRows(businessType).map((row) => (
         <View key={row.key} style={styles.cardFooter}>
           <Text style={styles.cardMeta}>{row.label}</Text>
           <Switch
