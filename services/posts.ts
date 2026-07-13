@@ -79,7 +79,7 @@ export async function getMyClientPosts(clientId: string): Promise<Post[]> {
 
 const FEED_SELECT = `
   *,
-  author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified, owner_id),
+  author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified, owner_id, business_type),
   author_client:users!posts_client_id_fkey(id, full_name, avatar_url),
   tag_business:businesses!posts_tag_business_id_fkey(id, name),
   tag_client:users!posts_tag_client_id_fkey(id, full_name, avatar_url),
@@ -88,7 +88,14 @@ const FEED_SELECT = `
 `;
 
 export interface PostWithAuthor extends Post {
-  author_business: { id: string; name: string; logo_url: string | null; is_verified: boolean; owner_id: string } | null;
+  author_business: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    is_verified: boolean;
+    owner_id: string;
+    business_type: string;
+  } | null;
   author_client: { id: string; full_name: string; avatar_url: string | null } | null;
   tag_business: { id: string; name: string } | null;
   tag_client: { id: string; full_name: string; avatar_url: string | null } | null;
@@ -99,6 +106,11 @@ export interface PostWithAuthor extends Post {
 export interface PublicFeedPageParams {
   limit?: number;
   before?: { createdAt: string; id: string };
+  // Un cliente nunca debe ver publicaciones de una Marca (B2B puro) en su
+  // feed -- taller/tienda sí, porque a ellos sí les vende. Filtrado en el
+  // cliente porque Supabase JS no filtra bien columnas de una relación
+  // embebida sin !inner (mismo patrón que getFeedCatalogPool/searchCatalog).
+  excludeBrand?: boolean;
 }
 
 export async function getFollowingFeedPage(
@@ -128,7 +140,8 @@ export async function getFollowingFeedPage(
 
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
+  const rows = (data ?? []) as unknown as PostWithAuthor[];
+  return params.excludeBrand ? rows.filter((row) => row.author_business?.business_type !== 'brand_advertiser') : rows;
 }
 
 // Feed público de publicaciones (de cualquier negocio o cliente) -- se usa
@@ -151,7 +164,8 @@ export async function getPublicFeedPage(params: PublicFeedPageParams = {}): Prom
   }
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
+  const rows = (data ?? []) as unknown as PostWithAuthor[];
+  return params.excludeBrand ? rows.filter((row) => row.author_business?.business_type !== 'brand_advertiser') : rows;
 }
 
 export async function getPostById(postId: string): Promise<PostWithAuthor | null> {

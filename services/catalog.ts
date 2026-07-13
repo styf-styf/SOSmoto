@@ -255,17 +255,17 @@ export interface FeedCatalogItem {
 // banner de descubrimiento mezclado entre negocios. Devuelve ordenado por más
 // reciente primero -- el propio HomeFeed decide si lo muestra en ese orden
 // (primera carga) o mezclado (recargas sin nada nuevo).
-export async function getFeedCatalogPool(limit = 30): Promise<FeedCatalogItem[]> {
+export async function getFeedCatalogPool(limit = 30, opts: { excludeBrand?: boolean } = {}): Promise<FeedCatalogItem[]> {
   const [servicesResult, productsResult] = await Promise.all([
     supabase
       .from('services')
-      .select('*, businesses(name, logo_url)')
+      .select('*, businesses(name, logo_url, business_type)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(limit),
     supabase
       .from('products')
-      .select('*, businesses(name, logo_url)')
+      .select('*, businesses(name, logo_url, business_type)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(limit),
@@ -273,7 +273,17 @@ export async function getFeedCatalogPool(limit = 30): Promise<FeedCatalogItem[]>
   if (servicesResult.error) throw servicesResult.error;
   if (productsResult.error) throw productsResult.error;
 
-  const services: FeedCatalogItem[] = (servicesResult.data ?? []).map((row: any) => ({
+  // Filtrado en el cliente (ver comentario en searchCatalog): Supabase JS no
+  // filtra bien columnas de una relación embebida sin !inner. Un cliente
+  // nunca debe ver productos/servicios de una Marca (B2B puro) en su feed.
+  const servicesRows = opts.excludeBrand
+    ? (servicesResult.data ?? []).filter((row: any) => row.businesses?.business_type !== 'brand_advertiser')
+    : (servicesResult.data ?? []);
+  const productsRows = opts.excludeBrand
+    ? (productsResult.data ?? []).filter((row: any) => row.businesses?.business_type !== 'brand_advertiser')
+    : (productsResult.data ?? []);
+
+  const services: FeedCatalogItem[] = servicesRows.map((row: any) => ({
     kind: 'service',
     id: row.id,
     businessId: row.business_id,
@@ -284,7 +294,7 @@ export async function getFeedCatalogPool(limit = 30): Promise<FeedCatalogItem[]>
     photoUrl: row.photos?.[0],
     createdAt: row.created_at,
   }));
-  const products: FeedCatalogItem[] = (productsResult.data ?? []).map((row: any) => ({
+  const products: FeedCatalogItem[] = productsRows.map((row: any) => ({
     kind: 'product',
     id: row.id,
     businessId: row.business_id,
