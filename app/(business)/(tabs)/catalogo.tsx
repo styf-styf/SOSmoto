@@ -218,15 +218,6 @@ export default function CatalogoScreen() {
     );
   }
 
-  if (business.business_type === 'brand_advertiser') {
-    return (
-      <View style={styles.center}>
-        <Ionicons name="megaphone-outline" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
-        <Text style={styles.placeholder}>Las marcas gestionan su visibilidad a través de anuncios publicitarios, no de catálogo.</Text>
-      </View>
-    );
-  }
-
   const canHaveServices = business.business_type === 'workshop';
   const activeServicesCount = services.filter((s) => s.is_active).length;
   const activeProductsCount = products.filter((p) => p.is_active).length;
