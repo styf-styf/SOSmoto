@@ -274,3 +274,27 @@ export interface AdminVerificationRequestRow {
   created_at: string;
   businesses: { name: string; city: string; is_verified: boolean; business_type: string } | null;
 }
+
+export type EmailType = 'received' | 'sent';
+
+export interface AdminEmailRow {
+  id: string;
+  type: EmailType;
+  alias: string;
+  from_address: string;
+  to_address: string;
+  subject: string;
+  html: string | null;
+  text: string | null;
+  message_id: string | null;
+  in_reply_to: string | null;
+  thread_references: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export interface AdminEmailAliasRow {
+  alias: string;
+  label: string;
+  created_at: string;
+}
