@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,15 +25,47 @@ import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { supabase } from '../../../services/supabase';
-import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
-import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
-import { getPendingIntentsForBusinessClient, updateIntentStatus } from '../../../services/productIntents';
-import { getPendingServiceIntentsForBusinessClient, updateServiceIntentStatus } from '../../../services/serviceIntents';
-import { acceptAppointmentRequest, getActiveAppointmentRequest, rejectAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
+import {
+  getMessages,
+  markThreadRead,
+  sendMessage,
+  subscribeToMessages,
+} from '../../../services/messages';
+import {
+  pickImageFromCamera,
+  pickImageFromLibrary,
+  uploadChatImage,
+} from '../../../services/storage';
+import {
+  getPendingIntentsForBusinessClient,
+  updateIntentStatus,
+} from '../../../services/productIntents';
+import {
+  getPendingServiceIntentsForBusinessClient,
+  updateServiceIntentStatus,
+} from '../../../services/serviceIntents';
+import {
+  acceptAppointmentRequest,
+  getActiveAppointmentRequest,
+  rejectAppointmentRequest,
+  subscribeToAppointmentRequest,
+  type AppointmentRequest,
+} from '../../../services/appointmentRequests';
 import { scheduleAppointmentReminder } from '../../../services/appointmentReminders';
 import { getUserById } from '../../../services/users';
-import type { Message, ProductIntentWithProduct, ServiceIntentWithService, User } from '../../../types/database';
-import { encodeQuote, formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
+import type {
+  Message,
+  ProductIntentWithProduct,
+  ServiceIntentWithService,
+  User,
+} from '../../../types/database';
+import {
+  encodeQuote,
+  formatMessageDateLabel,
+  formatMessageTime,
+  parseQuote,
+  shouldShowDateSeparator,
+} from '../../../utils/chatFormat';
 
 const QUICK_REPLIES = [
   'En camino',
@@ -43,9 +88,16 @@ function defaultApproveDate(suggestedAt?: string | null): Date {
 }
 
 export default function ChatScreen() {
-  const { id, initialMessage, prefill, sellerBusinessId } = useLocalSearchParams<{ id: string; initialMessage?: string; prefill?: string; sellerBusinessId?: string }>();
+  const { id, initialMessage, prefill, sellerBusinessId } =
+    useLocalSearchParams<{
+      id: string;
+      initialMessage?: string;
+      prefill?: string;
+      sellerBusinessId?: string;
+    }>();
   const isBuyerMode = !!sellerBusinessId;
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
   const [clientId, setClientId] = useState<string | null>(null);
@@ -53,11 +105,17 @@ export default function ChatScreen() {
   const [isLimited, setIsLimited] = useState(false);
   const [canReplyChat, setCanReplyChat] = useState(true);
   const [client, setClient] = useState<User | null>(null);
-  const [otherBusiness, setOtherBusiness] = useState<{ name: string; logo_url: string | null; is_verified: boolean } | null>(null);
+  const [otherBusiness, setOtherBusiness] = useState<{
+    name: string;
+    logo_url: string | null;
+    is_verified: boolean;
+  } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
-  const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(null);
+  const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(
+    null,
+  );
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showAttach, setShowAttach] = useState(false);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -66,11 +124,14 @@ export default function ChatScreen() {
   const [quotePrice, setQuotePrice] = useState('');
   const [quoteTime, setQuoteTime] = useState('');
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
-  const [serviceIntents, setServiceIntents] = useState<ServiceIntentWithService[]>([]);
+  const [serviceIntents, setServiceIntents] = useState<
+    ServiceIntentWithService[]
+  >([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
 
   // Solicitud de cita pendiente
-  const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
+  const [appointmentRequest, setAppointmentRequest] =
+    useState<AppointmentRequest | null>(null);
   const [processingRequest, setProcessingRequest] = useState(false);
   const [showApproveForm, setShowApproveForm] = useState(false);
   const [approvePickerDate, setApprovePickerDate] = useState<Date>(new Date());
@@ -80,7 +141,9 @@ export default function ChatScreen() {
 
   // IDs de banners que el negocio cerró con la (X) -- solo oculta la tarjeta
   // de la vista, no confirma ni cancela nada; se resetea si se recarga el chat.
-  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
+  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
+    new Set(),
+  );
   function dismissBanner(key: string) {
     setDismissedBanners((prev) => new Set(prev).add(key));
   }
@@ -88,17 +151,29 @@ export default function ChatScreen() {
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
     if (profile.role === 'client') {
-      return { clientId: profile.id, businessId: id, isLimited: false, canReplyChat: true };
+      return {
+        clientId: profile.id,
+        businessId: id,
+        isLimited: false,
+        canReplyChat: true,
+      };
     }
     if (sellerBusinessId) {
       // Estoy comprando como negocio (ej. taller apartando un producto de
       // otra tienda) -- yo soy el lado "cliente" de este hilo específico,
       // no el dueño del negocio destino.
-      return { clientId: profile.id, businessId: sellerBusinessId, isLimited: false, canReplyChat: true };
+      return {
+        clientId: profile.id,
+        businessId: sellerBusinessId,
+        isLimited: false,
+        canReplyChat: true,
+      };
     }
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return null;
-    const employeeRecord = work.isOwner ? null : await getMyEmployeeRecord(work.business.id, profile.id);
+    const employeeRecord = work.isOwner
+      ? null
+      : await getMyEmployeeRecord(work.business.id, profile.id);
     return {
       clientId: id,
       businessId: work.business.id,
@@ -129,13 +204,27 @@ export default function ChatScreen() {
               .eq('id', thread.businessId)
               .maybeSingle()
               .then(
-                ({ data }: { data: { name: string; logo_url: string | null; is_verified: boolean } | null }) => { if (data) setOtherBusiness(data); },
-                () => {}
+                ({
+                  data,
+                }: {
+                  data: {
+                    name: string;
+                    logo_url: string | null;
+                    is_verified: boolean;
+                  } | null;
+                }) => {
+                  if (data) setOtherBusiness(data);
+                },
+                () => {},
               ),
           ]);
           setMessages(history);
           if (profile) {
-            await markThreadRead(thread.clientId, thread.businessId, profile.id);
+            await markThreadRead(
+              thread.clientId,
+              thread.businessId,
+              profile.id,
+            );
           }
           return;
         }
@@ -143,8 +232,14 @@ export default function ChatScreen() {
         const [history, , , , activeRequest] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
-          getPendingIntentsForBusinessClient(thread.businessId, thread.clientId).then(setIntents),
-          getPendingServiceIntentsForBusinessClient(thread.businessId, thread.clientId).then(setServiceIntents),
+          getPendingIntentsForBusinessClient(
+            thread.businessId,
+            thread.clientId,
+          ).then(setIntents),
+          getPendingServiceIntentsForBusinessClient(
+            thread.businessId,
+            thread.clientId,
+          ).then(setServiceIntents),
           getActiveAppointmentRequest(thread.clientId, thread.businessId),
         ]);
         // Si el interlocutor es propietario de un negocio (chat B2B), cargamos
@@ -156,8 +251,18 @@ export default function ChatScreen() {
           .eq('owner_id', thread.clientId)
           .maybeSingle()
           .then(
-            ({ data }: { data: { name: string; logo_url: string | null; is_verified: boolean } | null }) => { if (data) setOtherBusiness(data); },
-            () => {}
+            ({
+              data,
+            }: {
+              data: {
+                name: string;
+                logo_url: string | null;
+                is_verified: boolean;
+              } | null;
+            }) => {
+              if (data) setOtherBusiness(data);
+            },
+            () => {},
           );
         setMessages(history);
         if (activeRequest) {
@@ -179,46 +284,56 @@ export default function ChatScreen() {
   // el usuario decide si lo envía.
   const initialSentRef = useRef(false);
   useEffect(() => {
-    if (!clientId || !businessId || !initialMessage || initialSentRef.current) return;
+    if (!clientId || !businessId || !initialMessage || initialSentRef.current)
+      return;
     if (messages.length > 0) return; // hilo existente: no duplicar
     initialSentRef.current = true;
     handleSend(initialMessage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, businessId, messages.length]);
 
   // Suscripción a cambios en la solicitud de cita (no aplica cuando compro como negocio)
   useEffect(() => {
     if (!clientId || !businessId || isBuyerMode) return;
-    const unsubscribe = subscribeToAppointmentRequest(clientId, businessId, 'business', (req) => {
-      if (req.status === 'pending') {
-        setAppointmentRequest(req);
-        const prefill = defaultApproveDate(req.suggested_at);
-        setApprovePickerDate(prefill);
-        setApprovePickerTime(prefill);
-      } else {
-        setAppointmentRequest(null);
-        setShowApproveForm(false);
-      }
-    });
+    const unsubscribe = subscribeToAppointmentRequest(
+      clientId,
+      businessId,
+      'business',
+      (req) => {
+        if (req.status === 'pending') {
+          setAppointmentRequest(req);
+          const prefill = defaultApproveDate(req.suggested_at);
+          setApprovePickerDate(prefill);
+          setApprovePickerTime(prefill);
+        } else {
+          setAppointmentRequest(null);
+          setShowApproveForm(false);
+        }
+      },
+    );
     return unsubscribe;
   }, [clientId, businessId]);
 
   useEffect(() => {
     if (!businessId || !clientId) return;
-    const unsubscribe = subscribeToMessages('business_id', businessId, (message) => {
-      if (message.client_id !== clientId) return;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === message.id)) return prev;
-        // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
-        if (message.sender_id === profile?.id) return prev;
-        return [...prev, message];
-      });
-      if (profile && message.sender_id !== profile.id) {
-        markThreadRead(clientId, businessId, profile.id).catch((err) =>
-          console.error('mark thread read error', err)
-        );
-      }
-    });
+    const unsubscribe = subscribeToMessages(
+      'business_id',
+      businessId,
+      (message) => {
+        if (message.client_id !== clientId) return;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === message.id)) return prev;
+          // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
+          if (message.sender_id === profile?.id) return prev;
+          return [...prev, message];
+        });
+        if (profile && message.sender_id !== profile.id) {
+          markThreadRead(clientId, businessId, profile.id).catch((err) =>
+            console.error('mark thread read error', err),
+          );
+        }
+      },
+    );
     return unsubscribe;
   }, [businessId, clientId, profile]);
 
@@ -235,27 +350,39 @@ export default function ChatScreen() {
     return sub.remove;
   }, []);
 
-  async function handleIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
+  async function handleIntentAction(
+    intentId: string,
+    status: 'confirmed' | 'unavailable',
+  ) {
     setProcessingIntent(intentId);
     try {
       await updateIntentStatus(intentId, status);
       setIntents((prev) => prev.filter((i) => i.id !== intentId));
     } catch (err) {
       console.error('update intent error', err);
-      Alert.alert('Error', 'No se pudo actualizar el estado. Intenta de nuevo.');
+      Alert.alert(
+        'Error',
+        'No se pudo actualizar el estado. Intenta de nuevo.',
+      );
     } finally {
       setProcessingIntent(null);
     }
   }
 
-  async function handleServiceIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
+  async function handleServiceIntentAction(
+    intentId: string,
+    status: 'confirmed' | 'unavailable',
+  ) {
     setProcessingIntent(intentId);
     try {
       await updateServiceIntentStatus(intentId, status);
       setServiceIntents((prev) => prev.filter((i) => i.id !== intentId));
     } catch (err) {
       console.error('update service intent error', err);
-      Alert.alert('Error', 'No se pudo actualizar el estado. Intenta de nuevo.');
+      Alert.alert(
+        'Error',
+        'No se pudo actualizar el estado. Intenta de nuevo.',
+      );
     } finally {
       setProcessingIntent(null);
     }
@@ -276,14 +403,22 @@ export default function ChatScreen() {
   async function handleAcceptRequest() {
     if (!appointmentRequest || processingRequest) return;
     const dt = new Date(approvePickerDate);
-    dt.setHours(approvePickerTime.getHours(), approvePickerTime.getMinutes(), 0, 0);
+    dt.setHours(
+      approvePickerTime.getHours(),
+      approvePickerTime.getMinutes(),
+      0,
+      0,
+    );
     if (dt.getTime() < Date.now()) {
       Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
       return;
     }
     setProcessingRequest(true);
     try {
-      const newAppointment = await acceptAppointmentRequest(appointmentRequest, dt.toISOString());
+      const newAppointment = await acceptAppointmentRequest(
+        appointmentRequest,
+        dt.toISOString(),
+      );
       // Recordatorio local para el taller
       await scheduleAppointmentReminder({
         appointmentId: newAppointment.id,
@@ -303,26 +438,30 @@ export default function ChatScreen() {
 
   async function handleRejectRequest() {
     if (!appointmentRequest || processingRequest) return;
-    Alert.alert('Rechazar solicitud', '¿Seguro que quieres rechazar esta solicitud de cita?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Sí, rechazar',
-        style: 'destructive',
-        onPress: async () => {
-          setProcessingRequest(true);
-          try {
-            await rejectAppointmentRequest(appointmentRequest);
-            setAppointmentRequest(null);
-            setShowApproveForm(false);
-          } catch (err) {
-            console.error('reject request error', err);
-            Alert.alert('Error', 'No se pudo rechazar la solicitud.');
-          } finally {
-            setProcessingRequest(false);
-          }
+    Alert.alert(
+      'Rechazar solicitud',
+      '¿Seguro que quieres rechazar esta solicitud de cita?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, rechazar',
+          style: 'destructive',
+          onPress: async () => {
+            setProcessingRequest(true);
+            try {
+              await rejectAppointmentRequest(appointmentRequest);
+              setAppointmentRequest(null);
+              setShowApproveForm(false);
+            } catch (err) {
+              console.error('reject request error', err);
+              Alert.alert('Error', 'No se pudo rechazar la solicitud.');
+            } finally {
+              setProcessingRequest(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   async function handleCamera() {
@@ -392,7 +531,9 @@ export default function ChatScreen() {
       });
       setMessages((prev) => {
         const without = prev.filter((m) => m.id !== tempId);
-        return without.some((m) => m.id === message.id) ? without : [...without, message];
+        return without.some((m) => m.id === message.id)
+          ? without
+          : [...without, message];
       });
     } catch (err) {
       console.error('send message error', err);
@@ -404,7 +545,10 @@ export default function ChatScreen() {
 
   function handleSendQuote() {
     if (!quoteService.trim()) {
-      Alert.alert('Falta el servicio', 'Ingresa el nombre del servicio o trabajo.');
+      Alert.alert(
+        'Falta el servicio',
+        'Ingresa el nombre del servicio o trabajo.',
+      );
       return;
     }
     const encoded = encodeQuote({
@@ -430,16 +574,25 @@ export default function ChatScreen() {
   const hasBanner =
     intents.some((i) => !dismissedBanners.has(`intent:${i.id}`)) ||
     serviceIntents.some((i) => !dismissedBanners.has(`svcintent:${i.id}`)) ||
-    (appointmentRequest !== null && !dismissedBanners.has(`req:${appointmentRequest.id}`));
+    (appointmentRequest !== null &&
+      !dismissedBanners.has(`req:${appointmentRequest.id}`));
   const approveDateTime = (() => {
     const dt = new Date(approvePickerDate);
-    dt.setHours(approvePickerTime.getHours(), approvePickerTime.getMinutes(), 0, 0);
+    dt.setHours(
+      approvePickerTime.getHours(),
+      approvePickerTime.getMinutes(),
+      0,
+      0,
+    );
     return dt;
   })();
 
   return (
     <View style={styles.container}>
-      <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
+      <ImageViewerModal
+        uri={viewingImage}
+        onClose={() => setViewingImage(null)}
+      />
       <ChatHeader
         name={otherBusiness?.name || client?.full_name || 'Cliente'}
         avatarUrl={otherBusiness ? otherBusiness.logo_url : client?.avatar_url}
@@ -451,145 +604,221 @@ export default function ChatScreen() {
         {hasBanner && (
           <View style={styles.intentsBanner}>
             {/* Banner de solicitud de cita (lado taller) */}
-            {appointmentRequest && !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
-              <View style={styles.intentCard}>
-                <View style={styles.intentCardTopRow}>
-                  <Pressable
-                    style={styles.dismissBannerBtn}
-                    onPress={() => dismissBanner(`req:${appointmentRequest.id}`)}
-                  >
-                    <Ionicons name="close" size={16} color={colors.textMuted} />
-                  </Pressable>
-                  <View style={styles.intentInfo}>
-                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                    <View style={styles.requestInfo}>
-                      <Text style={styles.intentText} numberOfLines={1}>
-                        Solicitud de cita:{' '}
-                        <Text style={styles.intentName}>
-                          {appointmentRequest.service_name ?? 'Sin servicio especificado'}
+            {appointmentRequest &&
+              !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
+                <View style={styles.intentCard}>
+                  <View style={styles.intentCardTopRow}>
+                    <Pressable
+                      style={styles.dismissBannerBtn}
+                      onPress={() =>
+                        dismissBanner(`req:${appointmentRequest.id}`)
+                      }
+                    >
+                      <Ionicons
+                        name="close"
+                        size={16}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                    <View style={styles.intentInfo}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={colors.primary}
+                      />
+                      <View style={styles.requestInfo}>
+                        <Text style={styles.intentText} numberOfLines={1}>
+                          Solicitud de cita:{' '}
+                          <Text style={styles.intentName}>
+                            {appointmentRequest.service_name ??
+                              'Sin servicio especificado'}
+                          </Text>
                         </Text>
-                      </Text>
-                      {appointmentRequest.suggested_at ? (
-                        <Text style={styles.requestSub}>
-                          Fecha sugerida:{' '}
-                          {new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </Text>
-                      ) : null}
+                        {appointmentRequest.suggested_at ? (
+                          <Text style={styles.requestSub}>
+                            Fecha sugerida:{' '}
+                            {new Date(
+                              appointmentRequest.suggested_at,
+                            ).toLocaleString('es-EC', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
                   </View>
+                  {!showApproveForm && (
+                    <View style={styles.intentActions}>
+                      <Pressable
+                        style={[styles.intentBtn, styles.intentBtnConfirm]}
+                        onPress={openApproveForm}
+                        disabled={processingRequest}
+                      >
+                        <Text style={styles.intentBtnText}>Aceptar</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.intentBtn, styles.intentBtnReject]}
+                        onPress={handleRejectRequest}
+                        disabled={processingRequest}
+                      >
+                        {processingRequest ? (
+                          <ActivityIndicator
+                            size="small"
+                            color={colors.danger}
+                          />
+                        ) : (
+                          <Text
+                            style={[
+                              styles.intentBtnText,
+                              styles.intentBtnTextReject,
+                            ]}
+                          >
+                            Rechazar
+                          </Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
-                {!showApproveForm && (
+              )}
+
+            {/* Intents de producto */}
+            {intents
+              .filter((intent) => !dismissedBanners.has(`intent:${intent.id}`))
+              .map((intent) => (
+                <View key={intent.id} style={styles.intentCard}>
+                  <View style={styles.intentCardTopRow}>
+                    <Pressable
+                      style={styles.dismissBannerBtn}
+                      onPress={() => dismissBanner(`intent:${intent.id}`)}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={16}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                    <View style={styles.intentInfo}>
+                      <Ionicons
+                        name="cube-outline"
+                        size={16}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.intentText} numberOfLines={1}>
+                        Quiere apartar:{' '}
+                        <Text style={styles.intentName}>
+                          {intent.quantity > 1 ? `${intent.quantity} × ` : ''}
+                          {intent.product_name}
+                        </Text>
+                        {intent.product_price != null
+                          ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}`
+                          : ''}
+                      </Text>
+                    </View>
+                  </View>
                   <View style={styles.intentActions}>
                     <Pressable
                       style={[styles.intentBtn, styles.intentBtnConfirm]}
-                      onPress={openApproveForm}
-                      disabled={processingRequest}
+                      onPress={() => handleIntentAction(intent.id, 'confirmed')}
+                      disabled={processingIntent === intent.id}
                     >
-                      <Text style={styles.intentBtnText}>Aceptar</Text>
+                      {processingIntent === intent.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.intentBtnText}>
+                          Confirmar apartado
+                        </Text>
+                      )}
                     </Pressable>
                     <Pressable
                       style={[styles.intentBtn, styles.intentBtnReject]}
-                      onPress={handleRejectRequest}
-                      disabled={processingRequest}
+                      onPress={() =>
+                        handleIntentAction(intent.id, 'unavailable')
+                      }
+                      disabled={processingIntent === intent.id}
                     >
-                      {processingRequest ? (
-                        <ActivityIndicator size="small" color={colors.danger} />
-                      ) : (
-                        <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>Rechazar</Text>
-                      )}
+                      <Text
+                        style={[
+                          styles.intentBtnText,
+                          styles.intentBtnTextReject,
+                        ]}
+                      >
+                        No disponible
+                      </Text>
                     </Pressable>
                   </View>
-                )}
-              </View>
-            )}
-
-            {/* Intents de producto */}
-            {intents.filter((intent) => !dismissedBanners.has(`intent:${intent.id}`)).map((intent) => (
-              <View key={intent.id} style={styles.intentCard}>
-                <View style={styles.intentCardTopRow}>
-                  <Pressable
-                    style={styles.dismissBannerBtn}
-                    onPress={() => dismissBanner(`intent:${intent.id}`)}
-                  >
-                    <Ionicons name="close" size={16} color={colors.textMuted} />
-                  </Pressable>
-                  <View style={styles.intentInfo}>
-                    <Ionicons name="cube-outline" size={16} color={colors.primary} />
-                    <Text style={styles.intentText} numberOfLines={1}>
-                      Quiere apartar:{' '}
-                      <Text style={styles.intentName}>
-                        {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
-                      </Text>
-                      {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
-                    </Text>
-                  </View>
                 </View>
-                <View style={styles.intentActions}>
-                  <Pressable
-                    style={[styles.intentBtn, styles.intentBtnConfirm]}
-                    onPress={() => handleIntentAction(intent.id, 'confirmed')}
-                    disabled={processingIntent === intent.id}
-                  >
-                    {processingIntent === intent.id ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.intentBtnText}>Confirmar apartado</Text>
-                    )}
-                  </Pressable>
-                  <Pressable
-                    style={[styles.intentBtn, styles.intentBtnReject]}
-                    onPress={() => handleIntentAction(intent.id, 'unavailable')}
-                    disabled={processingIntent === intent.id}
-                  >
-                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
+              ))}
 
             {/* Intents de servicio */}
-            {serviceIntents.filter((intent) => !dismissedBanners.has(`svcintent:${intent.id}`)).map((intent) => (
-              <View key={intent.id} style={styles.intentCard}>
-                <View style={styles.intentCardTopRow}>
-                  <Pressable
-                    style={styles.dismissBannerBtn}
-                    onPress={() => dismissBanner(`svcintent:${intent.id}`)}
-                  >
-                    <Ionicons name="close" size={16} color={colors.textMuted} />
-                  </Pressable>
-                  <View style={styles.intentInfo}>
-                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                    <Text style={styles.intentText} numberOfLines={1}>
-                      Quiere agendar: <Text style={styles.intentName}>{intent.service_name}</Text>
-                      {intent.service_price != null ? ` · $${intent.service_price.toFixed(2)}` : ''}
-                    </Text>
+            {serviceIntents
+              .filter(
+                (intent) => !dismissedBanners.has(`svcintent:${intent.id}`),
+              )
+              .map((intent) => (
+                <View key={intent.id} style={styles.intentCard}>
+                  <View style={styles.intentCardTopRow}>
+                    <Pressable
+                      style={styles.dismissBannerBtn}
+                      onPress={() => dismissBanner(`svcintent:${intent.id}`)}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={16}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                    <View style={styles.intentInfo}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.intentText} numberOfLines={1}>
+                        Quiere agendar:{' '}
+                        <Text style={styles.intentName}>
+                          {intent.service_name}
+                        </Text>
+                        {intent.service_price != null
+                          ? ` · $${intent.service_price.toFixed(2)}`
+                          : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.intentActions}>
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnConfirm]}
+                      onPress={() =>
+                        handleServiceIntentAction(intent.id, 'confirmed')
+                      }
+                      disabled={processingIntent === intent.id}
+                    >
+                      {processingIntent === intent.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.intentBtnText}>Confirmar cita</Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnReject]}
+                      onPress={() =>
+                        handleServiceIntentAction(intent.id, 'unavailable')
+                      }
+                      disabled={processingIntent === intent.id}
+                    >
+                      <Text
+                        style={[
+                          styles.intentBtnText,
+                          styles.intentBtnTextReject,
+                        ]}
+                      >
+                        No disponible
+                      </Text>
+                    </Pressable>
                   </View>
                 </View>
-                <View style={styles.intentActions}>
-                  <Pressable
-                    style={[styles.intentBtn, styles.intentBtnConfirm]}
-                    onPress={() => handleServiceIntentAction(intent.id, 'confirmed')}
-                    disabled={processingIntent === intent.id}
-                  >
-                    {processingIntent === intent.id ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.intentBtnText}>Confirmar cita</Text>
-                    )}
-                  </Pressable>
-                  <Pressable
-                    style={[styles.intentBtn, styles.intentBtnReject]}
-                    onPress={() => handleServiceIntentAction(intent.id, 'unavailable')}
-                    disabled={processingIntent === intent.id}
-                  >
-                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>No disponible</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
+              ))}
           </View>
         )}
 
@@ -597,10 +826,14 @@ export default function ChatScreen() {
           ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={styles.messages}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: false })
+          }
         >
           {messages.length === 0 ? (
-            <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
+            <Text style={styles.placeholder}>
+              Aún no hay mensajes. Escribe el primero.
+            </Text>
           ) : (
             messages.map((message, index) => {
               const isMine = message.sender_id === profile?.id;
@@ -609,13 +842,24 @@ export default function ChatScreen() {
                 <View key={message.id}>
                   {shouldShowDateSeparator(messages, index) && (
                     <View style={styles.dateSeparator}>
-                      <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                      <Text style={styles.dateSeparatorText}>
+                        {formatMessageDateLabel(message.created_at)}
+                      </Text>
                     </View>
                   )}
                   {quote ? (
-                    <View style={[styles.quoteCard, isMine ? styles.quoteCardMine : styles.quoteCardTheirs]}>
+                    <View
+                      style={[
+                        styles.quoteCard,
+                        isMine ? styles.quoteCardMine : styles.quoteCardTheirs,
+                      ]}
+                    >
                       <View style={styles.quoteHeader}>
-                        <Ionicons name="receipt-outline" size={14} color={colors.primary} />
+                        <Ionicons
+                          name="receipt-outline"
+                          size={14}
+                          color={colors.primary}
+                        />
                         <Text style={styles.quoteTitle}>Cotización</Text>
                       </View>
                       <Text style={styles.quoteService}>{quote.service}</Text>
@@ -630,26 +874,62 @@ export default function ChatScreen() {
                     </View>
                   ) : message.image_url ? (
                     <Pressable
-                      style={[styles.imageBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+                      style={[
+                        styles.imageBubble,
+                        isMine ? styles.bubbleMine : styles.bubbleTheirs,
+                      ]}
                       onPress={() => setViewingImage(message.image_url!)}
                     >
-                      <Image source={{ uri: message.image_url }} style={styles.chatImage} resizeMode="cover" />
+                      <Image
+                        source={{ uri: message.image_url }}
+                        style={styles.chatImage}
+                        resizeMode="cover"
+                      />
                       {!!message.body && (
-                        <Text style={[styles.imageBubbleCaption, isMine ? styles.bubbleTextMine : styles.bubbleText]}>
+                        <Text
+                          style={[
+                            styles.imageBubbleCaption,
+                            isMine ? styles.bubbleTextMine : styles.bubbleText,
+                          ]}
+                        >
                           {message.body}
                         </Text>
                       )}
                     </Pressable>
                   ) : (
-                    <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                      <Text style={isMine ? styles.bubbleTextMine : styles.bubbleText}>{message.body}</Text>
+                    <View
+                      style={[
+                        styles.bubble,
+                        isMine ? styles.bubbleMine : styles.bubbleTheirs,
+                      ]}
+                    >
+                      <Text
+                        style={
+                          isMine ? styles.bubbleTextMine : styles.bubbleText
+                        }
+                      >
+                        {message.body}
+                      </Text>
                     </View>
                   )}
-                  <View style={[styles.messageTimeRow, isMine ? styles.messageTimeMine : styles.messageTimeTheirs]}>
+                  <View
+                    style={[
+                      styles.messageTimeRow,
+                      isMine
+                        ? styles.messageTimeMine
+                        : styles.messageTimeTheirs,
+                    ]}
+                  >
                     {message.id.startsWith('temp_') ? (
-                      <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+                      <Ionicons
+                        name="time-outline"
+                        size={11}
+                        color={colors.textMuted}
+                      />
                     ) : (
-                      <Text style={styles.messageTime}>{formatMessageTime(message.created_at)}</Text>
+                      <Text style={styles.messageTime}>
+                        {formatMessageTime(message.created_at)}
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -674,7 +954,10 @@ export default function ChatScreen() {
                   <Pressable
                     key={reply}
                     style={styles.quickReplyChip}
-                    onPress={() => { setText(reply); setShowQuickReplies(false); }}
+                    onPress={() => {
+                      setText(reply);
+                      setShowQuickReplies(false);
+                    }}
                   >
                     <Text style={styles.quickReplyText}>{reply}</Text>
                   </Pressable>
@@ -707,11 +990,21 @@ export default function ChatScreen() {
                   onChangeText={setQuoteTime}
                 />
                 <View style={styles.quoteFormActions}>
-                  <Pressable style={styles.quoteFormBtn} onPress={handleSendQuote}>
-                    <Text style={styles.quoteFormBtnText}>Enviar cotización</Text>
+                  <Pressable
+                    style={styles.quoteFormBtn}
+                    onPress={handleSendQuote}
+                  >
+                    <Text style={styles.quoteFormBtnText}>
+                      Enviar cotización
+                    </Text>
                   </Pressable>
-                  <Pressable style={styles.quoteFormBtnSecondary} onPress={() => setShowQuoteForm(false)}>
-                    <Text style={styles.quoteFormBtnSecondaryText}>Cancelar</Text>
+                  <Pressable
+                    style={styles.quoteFormBtnSecondary}
+                    onPress={() => setShowQuoteForm(false)}
+                  >
+                    <Text style={styles.quoteFormBtnSecondaryText}>
+                      Cancelar
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -720,18 +1013,29 @@ export default function ChatScreen() {
             {/* Formulario de confirmación de fecha al aceptar solicitud */}
             {showApproveForm && appointmentRequest && (
               <View style={styles.approveForm}>
-                <Text style={styles.approveFormTitle}>Confirmar fecha de cita</Text>
+                <Text style={styles.approveFormTitle}>
+                  Confirmar fecha de cita
+                </Text>
                 {appointmentRequest.vehicle_label ? (
-                  <Text style={styles.approveFormSub}>Moto: {appointmentRequest.vehicle_label}</Text>
+                  <Text style={styles.approveFormSub}>
+                    Moto: {appointmentRequest.vehicle_label}
+                  </Text>
                 ) : null}
 
                 <Text style={styles.approveFieldLabel}>Fecha</Text>
                 <Pressable
                   style={styles.approvePickerBtn}
-                  onPress={() => { setShowApproveDatePicker((v) => !v); setShowApproveTimePicker(false); }}
+                  onPress={() => {
+                    setShowApproveDatePicker((v) => !v);
+                    setShowApproveTimePicker(false);
+                  }}
                 >
                   <Text style={styles.approvePickerBtnText}>
-                    {approvePickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    {approvePickerDate.toLocaleDateString('es-EC', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
                   </Text>
                 </Pressable>
                 {showApproveDatePicker && (
@@ -741,7 +1045,8 @@ export default function ChatScreen() {
                     display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
                     minimumDate={new Date()}
                     onChange={(_, date) => {
-                      if (Platform.OS === 'android') setShowApproveDatePicker(false);
+                      if (Platform.OS === 'android')
+                        setShowApproveDatePicker(false);
                       if (date) setApprovePickerDate(date);
                     }}
                   />
@@ -750,10 +1055,16 @@ export default function ChatScreen() {
                 <Text style={styles.approveFieldLabel}>Hora</Text>
                 <Pressable
                   style={styles.approvePickerBtn}
-                  onPress={() => { setShowApproveTimePicker((v) => !v); setShowApproveDatePicker(false); }}
+                  onPress={() => {
+                    setShowApproveTimePicker((v) => !v);
+                    setShowApproveDatePicker(false);
+                  }}
                 >
                   <Text style={styles.approvePickerBtnText}>
-                    {approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                    {approvePickerTime.toLocaleTimeString('es-EC', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </Text>
                 </Pressable>
                 {showApproveTimePicker && (
@@ -762,7 +1073,8 @@ export default function ChatScreen() {
                     mode="time"
                     display="spinner"
                     onChange={(_, time) => {
-                      if (Platform.OS === 'android') setShowApproveTimePicker(false);
+                      if (Platform.OS === 'android')
+                        setShowApproveTimePicker(false);
                       if (time) setApprovePickerTime(time);
                     }}
                   />
@@ -770,19 +1082,27 @@ export default function ChatScreen() {
 
                 <Text style={styles.approveHint}>
                   Cita para:{' '}
-                  {approveDateTime.toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+                  {approveDateTime.toLocaleString('es-EC', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
                 </Text>
 
                 <View style={styles.approveFormActions}>
                   <Pressable
-                    style={[styles.approveFormBtn, processingRequest && styles.approveFormBtnDisabled]}
+                    style={[
+                      styles.approveFormBtn,
+                      processingRequest && styles.approveFormBtnDisabled,
+                    ]}
                     onPress={handleAcceptRequest}
                     disabled={processingRequest}
                   >
                     {processingRequest ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.approveFormBtnText}>Confirmar cita</Text>
+                      <Text style={styles.approveFormBtnText}>
+                        Confirmar cita
+                      </Text>
                     )}
                   </Pressable>
                   <Pressable
@@ -790,7 +1110,9 @@ export default function ChatScreen() {
                     onPress={() => setShowApproveForm(false)}
                     disabled={processingRequest}
                   >
-                    <Text style={styles.approveFormBtnSecondaryText}>Volver</Text>
+                    <Text style={styles.approveFormBtnSecondaryText}>
+                      Volver
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -798,41 +1120,92 @@ export default function ChatScreen() {
 
             {pendingImage && (
               <View style={styles.pendingImageRow}>
-                <Image source={{ uri: pendingImage.uri }} style={styles.pendingImageThumb} resizeMode="cover" />
-                <Pressable style={styles.pendingImageRemove} onPress={() => setPendingImage(null)}>
-                  <Ionicons name="close-circle" size={20} color={colors.danger} />
+                <Image
+                  source={{ uri: pendingImage.uri }}
+                  style={styles.pendingImageThumb}
+                  resizeMode="cover"
+                />
+                <Pressable
+                  style={styles.pendingImageRemove}
+                  onPress={() => setPendingImage(null)}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={colors.danger}
+                  />
                 </Pressable>
               </View>
             )}
-            <View style={styles.inputRow}>
+            <View
+              style={[styles.inputRow, { paddingBottom: 8 + insets.bottom }]}
+            >
               <View style={{ position: 'relative' }}>
                 {showAttach && (
                   <View style={styles.attachBar}>
                     <Pressable
                       style={styles.iconButton}
-                      onPress={() => { setShowAttach(false); setShowQuickReplies((v) => !v); setShowQuoteForm(false); setShowApproveForm(false); }}
+                      onPress={() => {
+                        setShowAttach(false);
+                        setShowQuickReplies((v) => !v);
+                        setShowQuoteForm(false);
+                        setShowApproveForm(false);
+                      }}
                     >
-                      <Ionicons name="flash-outline" size={20} color={colors.textMuted} />
+                      <Ionicons
+                        name="flash-outline"
+                        size={20}
+                        color={colors.textMuted}
+                      />
                     </Pressable>
                     <Pressable
                       style={styles.iconButton}
-                      onPress={() => { setShowAttach(false); setShowQuoteForm((v) => !v); setShowQuickReplies(false); setShowApproveForm(false); }}
+                      onPress={() => {
+                        setShowAttach(false);
+                        setShowQuoteForm((v) => !v);
+                        setShowQuickReplies(false);
+                        setShowApproveForm(false);
+                      }}
                     >
-                      <Ionicons name="receipt-outline" size={20} color={colors.textMuted} />
+                      <Ionicons
+                        name="receipt-outline"
+                        size={20}
+                        color={colors.textMuted}
+                      />
                     </Pressable>
                     {clientId && (
                       <Pressable
                         style={styles.iconButton}
-                        onPress={() => { setShowAttach(false); router.push(`/(business)/nueva-cita?clientId=${clientId}`); }}
+                        onPress={() => {
+                          setShowAttach(false);
+                          router.push(
+                            `/(business)/nueva-cita?clientId=${clientId}`,
+                          );
+                        }}
                       >
-                        <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
+                        <Ionicons
+                          name="calendar-outline"
+                          size={20}
+                          color={colors.textMuted}
+                        />
                       </Pressable>
                     )}
                     <Pressable style={styles.iconButton} onPress={handleCamera}>
-                      <Ionicons name="camera-outline" size={20} color={colors.textMuted} />
+                      <Ionicons
+                        name="camera-outline"
+                        size={20}
+                        color={colors.textMuted}
+                      />
                     </Pressable>
-                    <Pressable style={styles.iconButton} onPress={handleGallery}>
-                      <Ionicons name="images-outline" size={20} color={colors.textMuted} />
+                    <Pressable
+                      style={styles.iconButton}
+                      onPress={handleGallery}
+                    >
+                      <Ionicons
+                        name="images-outline"
+                        size={20}
+                        color={colors.textMuted}
+                      />
                     </Pressable>
                   </View>
                 )}
@@ -840,7 +1213,11 @@ export default function ChatScreen() {
                   style={styles.iconButton}
                   onPress={() => setShowAttach((v) => !v)}
                 >
-                  <Ionicons name={showAttach ? 'close' : 'add'} size={24} color={showAttach ? colors.primary : colors.textMuted} />
+                  <Ionicons
+                    name={showAttach ? 'close' : 'add'}
+                    size={24}
+                    color={showAttach ? colors.primary : colors.textMuted}
+                  />
                 </Pressable>
               </View>
               <TextInput
@@ -852,7 +1229,11 @@ export default function ChatScreen() {
                 multiline
                 blurOnSubmit={false}
               />
-              <Pressable style={styles.sendButton} onPress={() => handleSend()} disabled={!text.trim() && !pendingImage}>
+              <Pressable
+                style={styles.sendButton}
+                onPress={() => handleSend()}
+                disabled={!text.trim() && !pendingImage}
+              >
                 <Ionicons name="send" size={18} color="#fff" />
               </Pressable>
             </View>

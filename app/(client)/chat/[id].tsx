@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { ImagePickerAsset } from 'expo-image-picker';
@@ -9,20 +21,48 @@ import { ImageViewerModal } from '../../../components/ImageViewerModal';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
-import { getMessages, markThreadRead, sendMessage, subscribeToMessages } from '../../../services/messages';
-import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../../../services/storage';
-import { cancelAppointmentRequest, getActiveAppointmentRequest, subscribeToAppointmentRequest, type AppointmentRequest } from '../../../services/appointmentRequests';
+import {
+  getMessages,
+  markThreadRead,
+  sendMessage,
+  subscribeToMessages,
+} from '../../../services/messages';
+import {
+  pickImageFromCamera,
+  pickImageFromLibrary,
+  uploadChatImage,
+} from '../../../services/storage';
+import {
+  cancelAppointmentRequest,
+  getActiveAppointmentRequest,
+  subscribeToAppointmentRequest,
+  type AppointmentRequest,
+} from '../../../services/appointmentRequests';
 import {
   cancelProductIntent,
   getClientProductIntents,
   subscribeToClientProductIntentsForBusiness,
 } from '../../../services/productIntents';
-import type { Business, Message, ProductIntentWithProduct } from '../../../types/database';
-import { formatMessageDateLabel, formatMessageTime, parseQuote, shouldShowDateSeparator } from '../../../utils/chatFormat';
+import type {
+  Business,
+  Message,
+  ProductIntentWithProduct,
+} from '../../../types/database';
+import {
+  formatMessageDateLabel,
+  formatMessageTime,
+  parseQuote,
+  shouldShowDateSeparator,
+} from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
-  const { id, prefill, autoSend } = useLocalSearchParams<{ id: string; prefill?: string; autoSend?: string }>();
+  const { id, prefill, autoSend } = useLocalSearchParams<{
+    id: string;
+    prefill?: string;
+    autoSend?: string;
+  }>();
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const autoSentRef = useRef(false);
 
@@ -32,21 +72,30 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
-  const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(null);
+  const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(
+    null,
+  );
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showAttach, setShowAttach] = useState(false);
 
   // Banner de solicitud de cita
-  const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
+  const [appointmentRequest, setAppointmentRequest] =
+    useState<AppointmentRequest | null>(null);
   const [cancellingRequest, setCancellingRequest] = useState(false);
 
   // Banner de apartados de producto pendientes/confirmados
-  const [productIntents, setProductIntents] = useState<ProductIntentWithProduct[]>([]);
-  const [cancellingIntentId, setCancellingIntentId] = useState<string | null>(null);
+  const [productIntents, setProductIntents] = useState<
+    ProductIntentWithProduct[]
+  >([]);
+  const [cancellingIntentId, setCancellingIntentId] = useState<string | null>(
+    null,
+  );
 
   // IDs de banners que el usuario cerró con la (X) -- solo oculta la tarjeta
   // de la vista, no cancela nada; se resetea si se recarga el chat.
-  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
+  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
+    new Set(),
+  );
   function dismissBanner(key: string) {
     setDismissedBanners((prev) => new Set(prev).add(key));
   }
@@ -63,7 +112,9 @@ export default function ChatScreen() {
 
   const loadProductIntents = useCallback(async (cId: string, bId: string) => {
     const all = await getClientProductIntents(bId, cId);
-    setProductIntents(all.filter((i) => i.status === 'pending' || i.status === 'confirmed'));
+    setProductIntents(
+      all.filter((i) => i.status === 'pending' || i.status === 'confirmed'),
+    );
   }, []);
 
   useEffect(() => {
@@ -76,7 +127,9 @@ export default function ChatScreen() {
         const [history] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getBusinessById(thread.businessId).then(setBusiness),
-          getActiveAppointmentRequest(thread.clientId, thread.businessId).then(setAppointmentRequest),
+          getActiveAppointmentRequest(thread.clientId, thread.businessId).then(
+            setAppointmentRequest,
+          ),
           loadProductIntents(thread.clientId, thread.businessId),
         ]);
         setMessages(history);
@@ -91,18 +144,29 @@ export default function ChatScreen() {
   // Suscripción a cambios en la solicitud de cita
   useEffect(() => {
     if (!clientId || !businessId) return;
-    const unsubscribe = subscribeToAppointmentRequest(clientId, businessId, 'client', (req) => {
-      setAppointmentRequest(req.status === 'pending' ? req : null);
-    });
+    const unsubscribe = subscribeToAppointmentRequest(
+      clientId,
+      businessId,
+      'client',
+      (req) => {
+        setAppointmentRequest(req.status === 'pending' ? req : null);
+      },
+    );
     return unsubscribe;
   }, [clientId, businessId]);
 
   // Suscripción a cambios en apartados de producto
   useEffect(() => {
     if (!clientId || !businessId) return;
-    return subscribeToClientProductIntentsForBusiness(clientId, businessId, () => {
-      loadProductIntents(clientId, businessId).catch((err) => console.error('reload product intents error', err));
-    });
+    return subscribeToClientProductIntentsForBusiness(
+      clientId,
+      businessId,
+      () => {
+        loadProductIntents(clientId, businessId).catch((err) =>
+          console.error('reload product intents error', err),
+        );
+      },
+    );
   }, [clientId, businessId, loadProductIntents]);
 
   useEffect(() => {
@@ -113,7 +177,9 @@ export default function ChatScreen() {
     setText('');
     sendMessage({ clientId, businessId, senderId: profile.id, body })
       .then((message) => {
-        setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+        setMessages((prev) =>
+          prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+        );
       })
       .catch((err) => {
         console.error('auto send error', err);
@@ -123,20 +189,24 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!businessId || !clientId) return;
-    const unsubscribe = subscribeToMessages('client_id', clientId, (message) => {
-      if (message.business_id !== businessId) return;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === message.id)) return prev;
-        // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
-        if (message.sender_id === profile?.id) return prev;
-        return [...prev, message];
-      });
-      if (profile && message.sender_id !== profile.id) {
-        markThreadRead(clientId, businessId, profile.id).catch((err) =>
-          console.error('mark thread read error', err)
-        );
-      }
-    });
+    const unsubscribe = subscribeToMessages(
+      'client_id',
+      clientId,
+      (message) => {
+        if (message.business_id !== businessId) return;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === message.id)) return prev;
+          // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
+          if (message.sender_id === profile?.id) return prev;
+          return [...prev, message];
+        });
+        if (profile && message.sender_id !== profile.id) {
+          markThreadRead(clientId, businessId, profile.id).catch((err) =>
+            console.error('mark thread read error', err),
+          );
+        }
+      },
+    );
     return unsubscribe;
   }, [businessId, clientId, profile]);
 
@@ -211,7 +281,9 @@ export default function ChatScreen() {
       });
       setMessages((prev) => {
         const without = prev.filter((m) => m.id !== tempId);
-        return without.some((m) => m.id === message.id) ? without : [...without, message];
+        return without.some((m) => m.id === message.id)
+          ? without
+          : [...without, message];
       });
     } catch (err) {
       console.error('send message error', err);
@@ -223,48 +295,58 @@ export default function ChatScreen() {
 
   async function handleCancelRequest() {
     if (!appointmentRequest || cancellingRequest) return;
-    Alert.alert('Cancelar solicitud', '¿Seguro que quieres cancelar la solicitud de cita?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Sí, cancelar',
-        style: 'destructive',
-        onPress: async () => {
-          setCancellingRequest(true);
-          try {
-            await cancelAppointmentRequest(appointmentRequest);
-            setAppointmentRequest(null);
-          } catch (err) {
-            console.error('cancel request error', err);
-            Alert.alert('Error', 'No se pudo cancelar la solicitud.');
-          } finally {
-            setCancellingRequest(false);
-          }
+    Alert.alert(
+      'Cancelar solicitud',
+      '¿Seguro que quieres cancelar la solicitud de cita?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingRequest(true);
+            try {
+              await cancelAppointmentRequest(appointmentRequest);
+              setAppointmentRequest(null);
+            } catch (err) {
+              console.error('cancel request error', err);
+              Alert.alert('Error', 'No se pudo cancelar la solicitud.');
+            } finally {
+              setCancellingRequest(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   async function handleCancelIntent(intentId: string) {
     if (cancellingIntentId) return;
-    Alert.alert('Cancelar apartado', '¿Seguro que quieres cancelar este apartado?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Sí, cancelar',
-        style: 'destructive',
-        onPress: async () => {
-          setCancellingIntentId(intentId);
-          try {
-            await cancelProductIntent(intentId);
-            setProductIntents((prev) => prev.filter((i) => i.id !== intentId));
-          } catch (err) {
-            console.error('cancel intent error', err);
-            Alert.alert('Error', 'No se pudo cancelar el apartado.');
-          } finally {
-            setCancellingIntentId(null);
-          }
+    Alert.alert(
+      'Cancelar apartado',
+      '¿Seguro que quieres cancelar este apartado?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingIntentId(intentId);
+            try {
+              await cancelProductIntent(intentId);
+              setProductIntents((prev) =>
+                prev.filter((i) => i.id !== intentId),
+              );
+            } catch (err) {
+              console.error('cancel intent error', err);
+              Alert.alert('Error', 'No se pudo cancelar el apartado.');
+            } finally {
+              setCancellingIntentId(null);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   if (loading) {
@@ -277,52 +359,66 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
-      <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
+      <ImageViewerModal
+        uri={viewingImage}
+        onClose={() => setViewingImage(null)}
+      />
       <ChatHeader
         name={business?.name ?? 'Negocio'}
         avatarUrl={business?.logo_url}
         fallbackIcon="storefront"
         isVerified={business?.is_verified ?? false}
-        onPressName={businessId ? () => router.push(`/(client)/business/${businessId}`) : undefined}
+        onPressName={
+          businessId
+            ? () => router.push(`/(client)/business/${businessId}`)
+            : undefined
+        }
       />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {/* Banner: solicitud de cita pendiente (lado cliente) */}
-        {appointmentRequest && !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
-          <View style={styles.requestBanner}>
-            <Pressable
-              style={styles.dismissBannerBtn}
-              onPress={() => dismissBanner(`req:${appointmentRequest.id}`)}
-            >
-              <Ionicons name="close" size={16} color={colors.textMuted} />
-            </Pressable>
-            <View style={styles.requestBannerInfo}>
-              <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-              <View style={styles.requestBannerText}>
-                <Text style={styles.requestBannerTitle}>Solicitud de cita pendiente</Text>
-                {appointmentRequest.service_name ? (
-                  <Text style={styles.requestBannerSub} numberOfLines={1}>
-                    {appointmentRequest.service_name}
-                    {appointmentRequest.suggested_at
-                      ? ` · ${new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`
-                      : ''}
+        {appointmentRequest &&
+          !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
+            <View style={styles.requestBanner}>
+              <Pressable
+                style={styles.dismissBannerBtn}
+                onPress={() => dismissBanner(`req:${appointmentRequest.id}`)}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+              <View style={styles.requestBannerInfo}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={colors.primary}
+                />
+                <View style={styles.requestBannerText}>
+                  <Text style={styles.requestBannerTitle}>
+                    Solicitud de cita pendiente
                   </Text>
-                ) : null}
+                  {appointmentRequest.service_name ? (
+                    <Text style={styles.requestBannerSub} numberOfLines={1}>
+                      {appointmentRequest.service_name}
+                      {appointmentRequest.suggested_at
+                        ? ` · ${new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`
+                        : ''}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
+              <Pressable
+                style={styles.cancelRequestBtn}
+                onPress={handleCancelRequest}
+                disabled={cancellingRequest}
+              >
+                {cancellingRequest ? (
+                  <ActivityIndicator size="small" color={colors.danger} />
+                ) : (
+                  <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
+                )}
+              </Pressable>
             </View>
-            <Pressable
-              style={styles.cancelRequestBtn}
-              onPress={handleCancelRequest}
-              disabled={cancellingRequest}
-            >
-              {cancellingRequest ? (
-                <ActivityIndicator size="small" color={colors.danger} />
-              ) : (
-                <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
-              )}
-            </Pressable>
-          </View>
-        )}
+          )}
 
         {/* Banner: apartados de producto pendientes/confirmados (lado cliente) */}
         {productIntents
@@ -336,14 +432,23 @@ export default function ChatScreen() {
                 <Ionicons name="close" size={16} color={colors.textMuted} />
               </Pressable>
               <View style={styles.requestBannerInfo}>
-                <Ionicons name="cube-outline" size={16} color={colors.primary} />
+                <Ionicons
+                  name="cube-outline"
+                  size={16}
+                  color={colors.primary}
+                />
                 <View style={styles.requestBannerText}>
                   <Text style={styles.requestBannerTitle}>
-                    {intent.status === 'confirmed' ? 'Apartado confirmado' : 'Apartado pendiente'}
+                    {intent.status === 'confirmed'
+                      ? 'Apartado confirmado'
+                      : 'Apartado pendiente'}
                   </Text>
                   <Text style={styles.requestBannerSub} numberOfLines={1}>
-                    {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
-                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
+                    {intent.quantity > 1 ? `${intent.quantity} × ` : ''}
+                    {intent.product_name}
+                    {intent.product_price != null
+                      ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}`
+                      : ''}
                   </Text>
                 </View>
               </View>
@@ -365,10 +470,14 @@ export default function ChatScreen() {
           ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={styles.messages}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: false })
+          }
         >
           {messages.length === 0 ? (
-            <Text style={styles.placeholder}>Aún no hay mensajes. Escribe el primero.</Text>
+            <Text style={styles.placeholder}>
+              Aún no hay mensajes. Escribe el primero.
+            </Text>
           ) : (
             messages.map((message, index) => {
               const isMine = message.sender_id === profile?.id;
@@ -377,14 +486,27 @@ export default function ChatScreen() {
                 <View key={message.id}>
                   {shouldShowDateSeparator(messages, index) && (
                     <View style={styles.dateSeparator}>
-                      <Text style={styles.dateSeparatorText}>{formatMessageDateLabel(message.created_at)}</Text>
+                      <Text style={styles.dateSeparatorText}>
+                        {formatMessageDateLabel(message.created_at)}
+                      </Text>
                     </View>
                   )}
                   {quote ? (
-                    <View style={[styles.quoteCard, isMine ? styles.quoteCardMine : styles.quoteCardTheirs]}>
+                    <View
+                      style={[
+                        styles.quoteCard,
+                        isMine ? styles.quoteCardMine : styles.quoteCardTheirs,
+                      ]}
+                    >
                       <View style={styles.quoteHeader}>
-                        <Ionicons name="receipt-outline" size={14} color={colors.primary} />
-                        <Text style={styles.quoteTitle}>Cotización del taller</Text>
+                        <Ionicons
+                          name="receipt-outline"
+                          size={14}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.quoteTitle}>
+                          Cotización del taller
+                        </Text>
                       </View>
                       <Text style={styles.quoteService}>{quote.service}</Text>
                       <View style={styles.quoteRow}>
@@ -398,26 +520,62 @@ export default function ChatScreen() {
                     </View>
                   ) : message.image_url ? (
                     <Pressable
-                      style={[styles.imageBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+                      style={[
+                        styles.imageBubble,
+                        isMine ? styles.bubbleMine : styles.bubbleTheirs,
+                      ]}
                       onPress={() => setViewingImage(message.image_url!)}
                     >
-                      <Image source={{ uri: message.image_url }} style={styles.chatImage} resizeMode="cover" />
+                      <Image
+                        source={{ uri: message.image_url }}
+                        style={styles.chatImage}
+                        resizeMode="cover"
+                      />
                       {!!message.body && (
-                        <Text style={[styles.imageBubbleCaption, isMine ? styles.bubbleTextMine : styles.bubbleText]}>
+                        <Text
+                          style={[
+                            styles.imageBubbleCaption,
+                            isMine ? styles.bubbleTextMine : styles.bubbleText,
+                          ]}
+                        >
                           {message.body}
                         </Text>
                       )}
                     </Pressable>
                   ) : (
-                    <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                      <Text style={isMine ? styles.bubbleTextMine : styles.bubbleText}>{message.body}</Text>
+                    <View
+                      style={[
+                        styles.bubble,
+                        isMine ? styles.bubbleMine : styles.bubbleTheirs,
+                      ]}
+                    >
+                      <Text
+                        style={
+                          isMine ? styles.bubbleTextMine : styles.bubbleText
+                        }
+                      >
+                        {message.body}
+                      </Text>
                     </View>
                   )}
-                  <View style={[styles.messageTimeRow, isMine ? styles.messageTimeMine : styles.messageTimeTheirs]}>
+                  <View
+                    style={[
+                      styles.messageTimeRow,
+                      isMine
+                        ? styles.messageTimeMine
+                        : styles.messageTimeTheirs,
+                    ]}
+                  >
                     {message.id.startsWith('temp_') ? (
-                      <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+                      <Ionicons
+                        name="time-outline"
+                        size={11}
+                        color={colors.textMuted}
+                      />
                     ) : (
-                      <Text style={styles.messageTime}>{formatMessageTime(message.created_at)}</Text>
+                      <Text style={styles.messageTime}>
+                        {formatMessageTime(message.created_at)}
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -428,26 +586,48 @@ export default function ChatScreen() {
 
         {pendingImage && (
           <View style={styles.pendingImageRow}>
-            <Image source={{ uri: pendingImage.uri }} style={styles.pendingImageThumb} resizeMode="cover" />
-            <Pressable style={styles.pendingImageRemove} onPress={() => setPendingImage(null)}>
+            <Image
+              source={{ uri: pendingImage.uri }}
+              style={styles.pendingImageThumb}
+              resizeMode="cover"
+            />
+            <Pressable
+              style={styles.pendingImageRemove}
+              onPress={() => setPendingImage(null)}
+            >
               <Ionicons name="close-circle" size={20} color={colors.danger} />
             </Pressable>
           </View>
         )}
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: 8 + insets.bottom }]}>
           <View style={{ position: 'relative' }}>
             {showAttach && (
               <View style={styles.attachBar}>
                 <Pressable style={styles.iconButton} onPress={handleCamera}>
-                  <Ionicons name="camera-outline" size={20} color={colors.textMuted} />
+                  <Ionicons
+                    name="camera-outline"
+                    size={20}
+                    color={colors.textMuted}
+                  />
                 </Pressable>
                 <Pressable style={styles.iconButton} onPress={handleGallery}>
-                  <Ionicons name="images-outline" size={20} color={colors.textMuted} />
+                  <Ionicons
+                    name="images-outline"
+                    size={20}
+                    color={colors.textMuted}
+                  />
                 </Pressable>
               </View>
             )}
-            <Pressable style={styles.iconButton} onPress={() => setShowAttach(v => !v)}>
-              <Ionicons name={showAttach ? 'close' : 'add'} size={24} color={showAttach ? colors.primary : colors.textMuted} />
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => setShowAttach((v) => !v)}
+            >
+              <Ionicons
+                name={showAttach ? 'close' : 'add'}
+                size={24}
+                color={showAttach ? colors.primary : colors.textMuted}
+              />
             </Pressable>
           </View>
           <TextInput
@@ -459,7 +639,11 @@ export default function ChatScreen() {
             multiline
             blurOnSubmit={false}
           />
-          <Pressable style={styles.sendButton} onPress={handleSend} disabled={!text.trim() && !pendingImage}>
+          <Pressable
+            style={styles.sendButton}
+            onPress={handleSend}
+            disabled={!text.trim() && !pendingImage}
+          >
             <Ionicons name="send" size={18} color="#fff" />
           </Pressable>
         </View>
