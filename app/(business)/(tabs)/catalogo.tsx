@@ -49,7 +49,9 @@ const SIDE_PADDING = 20;
 const GRID_GAP = 10;
 const GRID_COLUMNS = 2;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
+// Math.floor (no Math.round): evita que 2*CARD_WIDTH + GRID_GAP supere por
+// 1px el ancho disponible y el grid colapse a 1 columna (ver AdGridCard.tsx).
+const CARD_WIDTH = Math.floor((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
 
 interface CatalogDisplayItem {
