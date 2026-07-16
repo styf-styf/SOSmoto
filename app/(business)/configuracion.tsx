@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
@@ -32,18 +40,38 @@ export default function BusinessConfiguracionScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const cacheKey = profile ? `business-config-${profile.id}` : null;
-  const { data, loading, reload } = useCachedLoad<BusinessConfigData>(cacheKey, async () => {
-    if (!profile) return { business: null, plan: null, pendingCount: 0, employeeCount: 0 };
-    const work = await getMyWorkBusiness(profile.id);
-    const myBusiness = work?.business ?? null;
-    if (!myBusiness) return { business: null, plan: null, pendingCount: 0, employeeCount: 0 };
-    const [planLimits, pending, employees] = await Promise.all([
-      getPlanLimits(myBusiness.id),
-      getPendingRequests(myBusiness.id),
-      getEmployees(myBusiness.id),
-    ]);
-    return { business: myBusiness, plan: planLimits, pendingCount: pending.length, employeeCount: employees.length };
-  });
+  const { data, loading, reload } = useCachedLoad<BusinessConfigData>(
+    cacheKey,
+    async () => {
+      if (!profile)
+        return {
+          business: null,
+          plan: null,
+          pendingCount: 0,
+          employeeCount: 0,
+        };
+      const work = await getMyWorkBusiness(profile.id);
+      const myBusiness = work?.business ?? null;
+      if (!myBusiness)
+        return {
+          business: null,
+          plan: null,
+          pendingCount: 0,
+          employeeCount: 0,
+        };
+      const [planLimits, pending, employees] = await Promise.all([
+        getPlanLimits(myBusiness.id),
+        getPendingRequests(myBusiness.id),
+        getEmployees(myBusiness.id),
+      ]);
+      return {
+        business: myBusiness,
+        plan: planLimits,
+        pendingCount: pending.length,
+        employeeCount: employees.length,
+      };
+    },
+  );
   const business = data?.business ?? null;
   const plan = data?.plan ?? null;
   const pendingCount = data?.pendingCount ?? 0;
@@ -83,7 +111,12 @@ export default function BusinessConfiguracionScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.placeholder}>No tienes un negocio registrado.</Text>
-        <Button title="Cerrar sesión" variant="secondary" onPress={handleSignOut} loading={signingOut} />
+        <Button
+          title="Cerrar sesión"
+          variant="secondary"
+          onPress={handleSignOut}
+          loading={signingOut}
+        />
       </View>
     );
   }
@@ -91,19 +124,37 @@ export default function BusinessConfiguracionScreen() {
   return (
     <ScrollView
       contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.primary]}
+        />
+      }
     >
       <View style={styles.planBadge}>
         <Text style={styles.planBadgeText}>
-          Plan {plan ? planLabel[plan.planName] ?? plan.planName : '...'}
+          Plan {plan ? (planLabel[plan.planName] ?? plan.planName) : '...'}
           {business.is_verified ? ' · Verificado' : ''}
         </Text>
       </View>
 
       {business.business_type === 'workshop' && (
-        <Pressable style={styles.statCard} onPress={() => router.push('/(business)/solicitudes')}>
-          <Text style={styles.statLabel}>Solicitudes de auxilio pendientes</Text>
-          <Text style={[styles.statValue, pendingCount > 0 && styles.statValueAlert]}>{pendingCount}</Text>
+        <Pressable
+          style={styles.statCard}
+          onPress={() => router.push('/(business)/solicitudes')}
+        >
+          <Text style={styles.statLabel}>
+            Solicitudes de auxilio pendientes
+          </Text>
+          <Text
+            style={[
+              styles.statValue,
+              pendingCount > 0 && styles.statValueAlert,
+            ]}
+          >
+            {pendingCount}
+          </Text>
         </Pressable>
       )}
 
@@ -111,22 +162,57 @@ export default function BusinessConfiguracionScreen() {
 
       <Text style={styles.sectionTitle}>Mi negocio</Text>
       <View style={styles.menuGroup}>
-        <MenuRow icon="storefront-outline" label="Datos del negocio" onPress={() => router.push('/(business)/datos-negocio')} />
+        <MenuRow
+          icon="storefront-outline"
+          label="Datos del negocio"
+          onPress={() => router.push('/(business)/datos-negocio')}
+        />
+        {business.business_type === 'workshop' && (
+          <MenuRow
+            icon="car-outline"
+            label="Auxilio en carretera"
+            onPress={() => router.push('/(business)/auxilio-carretera')}
+          />
+        )}
         {business.business_type !== 'brand_advertiser' && (
-          <MenuRow icon="time-outline" label="Horario" onPress={() => router.push('/(business)/horario')} />
+          <MenuRow
+            icon="time-outline"
+            label="Horario"
+            onPress={() => router.push('/(business)/horario')}
+          />
         )}
         <MenuRow
           icon="people-circle-outline"
           label="Equipo"
-          badge={employeeCount > 0 ? `${employeeCount} persona${employeeCount === 1 ? '' : 's'}` : undefined}
+          badge={
+            employeeCount > 0
+              ? `${employeeCount} persona${employeeCount === 1 ? '' : 's'}`
+              : undefined
+          }
           onPress={() => router.push('/(business)/empleados')}
         />
-        <MenuRow icon="grid-outline" label="Catálogo" onPress={() => router.push('/(business)/catalogo')} />
+        <MenuRow
+          icon="grid-outline"
+          label="Catálogo"
+          onPress={() => router.push('/(business)/catalogo')}
+        />
         {business.business_type === 'workshop' && (
-          <MenuRow icon="calendar-outline" label="Agenda" onPress={() => router.push('/(business)/agenda-negocio')} />
+          <MenuRow
+            icon="calendar-outline"
+            label="Agenda"
+            onPress={() => router.push('/(business)/agenda-negocio')}
+          />
         )}
-        <MenuRow icon="people-outline" label="Clientes" onPress={() => router.push('/(business)/clientes')} />
-        <MenuRow icon="film-outline" label="Historias" onPress={() => router.push('/(business)/historias')} />
+        <MenuRow
+          icon="people-outline"
+          label="Clientes"
+          onPress={() => router.push('/(business)/clientes')}
+        />
+        <MenuRow
+          icon="film-outline"
+          label="Historias"
+          onPress={() => router.push('/(business)/historias')}
+        />
         <MenuRow
           icon="images-outline"
           label="Publicaciones"
@@ -134,18 +220,41 @@ export default function BusinessConfiguracionScreen() {
           last={business.business_type === 'brand_advertiser'}
         />
         {business.business_type === 'workshop' && (
-          <MenuRow icon="build-outline" label="Recordatorios de mantenimiento" onPress={() => router.push('/(business)/mantenimiento-proactivo')} />
+          <MenuRow
+            icon="build-outline"
+            label="Recordatorios de mantenimiento"
+            onPress={() => router.push('/(business)/mantenimiento-proactivo')}
+          />
         )}
-        {(business.business_type === 'workshop' || business.business_type === 'store') && (
-          <MenuRow icon="bag-handle-outline" label="Mis compras" onPress={() => router.push('/(business)/mis-compras')} last />
+        {(business.business_type === 'workshop' ||
+          business.business_type === 'store') && (
+          <MenuRow
+            icon="bag-handle-outline"
+            label="Mis compras"
+            onPress={() => router.push('/(business)/mis-compras')}
+            last
+          />
         )}
       </View>
 
       <Text style={styles.sectionTitle}>Crecimiento</Text>
       <View style={styles.menuGroup}>
-        <MenuRow icon="stats-chart-outline" label="Estadísticas" onPress={() => router.push('/(business)/estadisticas')} />
-        <MenuRow icon="megaphone-outline" label="Publicidad" onPress={() => router.push('/(business)/publicidad')} />
-        <MenuRow icon="trending-up-outline" label="Crece tu negocio" onPress={() => router.push('/(business)/crece-tu-negocio')} last />
+        <MenuRow
+          icon="stats-chart-outline"
+          label="Estadísticas"
+          onPress={() => router.push('/(business)/estadisticas')}
+        />
+        <MenuRow
+          icon="megaphone-outline"
+          label="Publicidad"
+          onPress={() => router.push('/(business)/publicidad')}
+        />
+        <MenuRow
+          icon="trending-up-outline"
+          label="Crece tu negocio"
+          onPress={() => router.push('/(business)/crece-tu-negocio')}
+          last
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Plan y cuenta</Text>
@@ -153,7 +262,7 @@ export default function BusinessConfiguracionScreen() {
         <MenuRow
           icon="card-outline"
           label="Plan y suscripción"
-          badge={plan ? planLabel[plan.planName] ?? plan.planName : undefined}
+          badge={plan ? (planLabel[plan.planName] ?? plan.planName) : undefined}
           onPress={() => router.push('/(business)/suscripcion')}
         />
         <MenuRow
@@ -175,7 +284,10 @@ export default function BusinessConfiguracionScreen() {
       <View style={styles.divider} />
 
       <Pressable
-        style={({ pressed }) => [styles.signOutRow, pressed && styles.menuRowPressed]}
+        style={({ pressed }) => [
+          styles.signOutRow,
+          pressed && styles.menuRowPressed,
+        ]}
         onPress={handleSignOut}
         disabled={signingOut}
       >
@@ -184,7 +296,9 @@ export default function BusinessConfiguracionScreen() {
         ) : (
           <Ionicons name="log-out-outline" size={18} color={colors.danger} />
         )}
-        <Text style={styles.signOutLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
+        <Text style={styles.signOutLabel}>
+          {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+        </Text>
       </Pressable>
     </ScrollView>
   );
@@ -207,14 +321,27 @@ function MenuRow({
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.menuRow, !last && styles.menuRowBorder, pressed && styles.menuRowPressed]}
+      style={({ pressed }) => [
+        styles.menuRow,
+        !last && styles.menuRowBorder,
+        pressed && styles.menuRowPressed,
+      ]}
       onPress={onPress}
     >
       <View style={styles.menuRowIconWrap}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
       <Text style={styles.menuRowLabel}>{label}</Text>
-      {badge && <Text style={[styles.menuRowBadge, badgeDanger && styles.menuRowBadgeDanger]}>{badge}</Text>}
+      {badge && (
+        <Text
+          style={[
+            styles.menuRowBadge,
+            badgeDanger && styles.menuRowBadgeDanger,
+          ]}
+        >
+          {badge}
+        </Text>
+      )}
       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
     </Pressable>
   );

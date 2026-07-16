@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { type Region } from 'react-native-maps';
 import { Button } from '../../components/Button';
@@ -11,11 +22,30 @@ import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
 import type { Business } from '../../types/database';
 
 const ECUADOR_PROVINCES_DN = [
-  'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
-  'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
-  'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
-  'Pichincha', 'Santa Elena', 'Santo Domingo de los Tsáchilas',
-  'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe',
+  'Azuay',
+  'Bolívar',
+  'Cañar',
+  'Carchi',
+  'Chimborazo',
+  'Cotopaxi',
+  'El Oro',
+  'Esmeraldas',
+  'Galápagos',
+  'Guayas',
+  'Imbabura',
+  'Loja',
+  'Los Ríos',
+  'Manabí',
+  'Morona Santiago',
+  'Napo',
+  'Orellana',
+  'Pastaza',
+  'Pichincha',
+  'Santa Elena',
+  'Santo Domingo de los Tsáchilas',
+  'Sucumbíos',
+  'Tungurahua',
+  'Zamora Chinchipe',
 ];
 
 interface DatosNegocioData {
@@ -28,33 +58,46 @@ export default function DatosNegocioScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const cacheKey = profile ? `datos-negocio-${profile.id}` : null;
-  const { data, loading, reload: reloadCache, setData } = useCachedLoad<DatosNegocioData>(cacheKey, async () => {
+  const {
+    data,
+    loading,
+    reload: reloadCache,
+    setData,
+  } = useCachedLoad<DatosNegocioData>(cacheKey, async () => {
     if (!profile) return { business: null, isOwner: false };
     const work = await getMyWorkBusiness(profile.id);
-    return { business: work?.business ?? null, isOwner: work?.isOwner ?? false };
+    return {
+      business: work?.business ?? null,
+      isOwner: work?.isOwner ?? false,
+    };
   });
   const business = data?.business ?? null;
   const isOwner = data?.isOwner ?? false;
 
   const [name, setName] = useState(() => data?.business?.name ?? '');
-  const [description, setDescription] = useState(() => data?.business?.description ?? '');
-  const [province, setProvince] = useState(() => data?.business?.province ?? '');
+  const [description, setDescription] = useState(
+    () => data?.business?.description ?? '',
+  );
+  const [province, setProvince] = useState(
+    () => data?.business?.province ?? '',
+  );
   const [city, setCity] = useState(() => data?.business?.city ?? '');
   const [address, setAddress] = useState(() => data?.business?.address ?? '');
   const [phone, setPhone] = useState(() => data?.business?.phone ?? '');
-  const [whatsapp, setWhatsapp] = useState(() => data?.business?.whatsapp ?? '');
-  const [radius, setRadius] = useState(() =>
-    data?.business?.aid_radius_km !== null && data?.business?.aid_radius_km !== undefined
-      ? String(data.business.aid_radius_km)
-      : ''
+  const [whatsapp, setWhatsapp] = useState(
+    () => data?.business?.whatsapp ?? '',
   );
-
   const [saving, setSaving] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
 
   // Map picker
-  const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(
-    data?.business ? { latitude: data.business.latitude, longitude: data.business.longitude } : null
+  const [selectedCoords, setSelectedCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(
+    data?.business
+      ? { latitude: data.business.latitude, longitude: data.business.longitude }
+      : null,
   );
   const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -71,7 +114,6 @@ export default function DatosNegocioScreen() {
     setAddress(b.address);
     setPhone(b.phone ?? '');
     setWhatsapp(b.whatsapp ?? '');
-    setRadius(b.aid_radius_km !== null ? String(b.aid_radius_km) : '');
     setSelectedCoords({ latitude: b.latitude, longitude: b.longitude });
   }
 
@@ -98,7 +140,11 @@ export default function DatosNegocioScreen() {
 
   function openMapPicker() {
     const center = selectedCoords ?? { latitude: -0.1807, longitude: -78.4678 };
-    const region: Region = { ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 };
+    const region: Region = {
+      ...center,
+      latitudeDelta: 0.004,
+      longitudeDelta: 0.004,
+    };
     pendingRegionRef.current = region;
     setMapInitialRegion(region);
     setShowMapPicker(true);
@@ -106,7 +152,10 @@ export default function DatosNegocioScreen() {
 
   function confirmMapLocation() {
     if (pendingRegionRef.current) {
-      setSelectedCoords({ latitude: pendingRegionRef.current.latitude, longitude: pendingRegionRef.current.longitude });
+      setSelectedCoords({
+        latitude: pendingRegionRef.current.latitude,
+        longitude: pendingRegionRef.current.longitude,
+      });
     }
     setShowMapPicker(false);
   }
@@ -119,14 +168,6 @@ export default function DatosNegocioScreen() {
       Alert.alert('Faltan datos', 'Completa nombre, dirección y ciudad.');
       return;
     }
-    let parsedRadius: number | null = null;
-    if (business.business_type === 'workshop') {
-      parsedRadius = radius.trim() ? Number(radius) : null;
-      if (parsedRadius !== null && (Number.isNaN(parsedRadius) || parsedRadius <= 0)) {
-        Alert.alert('Radio inválido', 'Ingresa un número de km válido.');
-        return;
-      }
-    }
     setSaving(true);
     try {
       const updated = await updateBusiness(business.id, {
@@ -137,8 +178,12 @@ export default function DatosNegocioScreen() {
         address: address.trim(),
         phone: phone.trim() || null,
         whatsapp: whatsapp.trim() || null,
-        aid_radius_km: parsedRadius,
-        ...(selectedCoords ? { latitude: selectedCoords.latitude, longitude: selectedCoords.longitude } : {}),
+        ...(selectedCoords
+          ? {
+              latitude: selectedCoords.latitude,
+              longitude: selectedCoords.longitude,
+            }
+          : {}),
       });
       setData((prev) => (prev ? { ...prev, business: updated } : prev));
       Alert.alert('Guardado', 'Los datos de tu negocio se actualizaron.');
@@ -169,41 +214,102 @@ export default function DatosNegocioScreen() {
   return (
     <ScrollView
       contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          colors={[colors.primary]}
+        />
+      }
     >
       {!isOwner && (
         <View style={styles.readOnlyBanner}>
-          <Text style={styles.readOnlyText}>Solo el dueño del negocio puede editar estos datos.</Text>
+          <Text style={styles.readOnlyText}>
+            Solo el dueño del negocio puede editar estos datos.
+          </Text>
         </View>
       )}
 
-      <TextField label="Nombre" value={name} onChangeText={setName} editable={isOwner} />
-      <TextField label="Descripción" value={description} onChangeText={setDescription} multiline editable={isOwner} />
+      <TextField
+        label="Nombre"
+        value={name}
+        onChangeText={setName}
+        editable={isOwner}
+      />
+      <TextField
+        label="Descripción"
+        value={description}
+        onChangeText={setDescription}
+        multiline
+        editable={isOwner}
+      />
 
       {!isBrand && (
         <>
           <Text style={styles.fieldLabel}>Provincia</Text>
           {isOwner ? (
-            <Pressable style={styles.pickerButton} onPress={() => setShowProvincePicker(true)}>
-              <Text style={[styles.pickerButtonText, !province && styles.pickerButtonPlaceholder]}>
+            <Pressable
+              style={styles.pickerButton}
+              onPress={() => setShowProvincePicker(true)}
+            >
+              <Text
+                style={[
+                  styles.pickerButtonText,
+                  !province && styles.pickerButtonPlaceholder,
+                ]}
+              >
                 {province || 'Selecciona una provincia'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color={colors.textMuted}
+              />
             </Pressable>
           ) : (
             <Text style={styles.readOnlyValue}>{province || '—'}</Text>
           )}
 
-          <TextField label="Ciudad" value={city} onChangeText={setCity} editable={isOwner} />
-          <TextField label="Dirección" value={address} onChangeText={setAddress} editable={isOwner} />
+          <TextField
+            label="Ciudad"
+            value={city}
+            onChangeText={setCity}
+            editable={isOwner}
+          />
+          <TextField
+            label="Dirección"
+            value={address}
+            onChangeText={setAddress}
+            editable={isOwner}
+          />
         </>
       )}
-      <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" editable={isOwner} />
-      <TextField label="WhatsApp" value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" editable={isOwner} />
+      <TextField
+        label="Teléfono"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        editable={isOwner}
+      />
+      <TextField
+        label="WhatsApp"
+        value={whatsapp}
+        onChangeText={setWhatsapp}
+        keyboardType="phone-pad"
+        editable={isOwner}
+      />
 
       {!isBrand && (
-        <Modal visible={showProvincePicker} transparent animationType="slide" onRequestClose={() => setShowProvincePicker(false)}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowProvincePicker(false)}>
+        <Modal
+          visible={showProvincePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowProvincePicker(false)}
+        >
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setShowProvincePicker(false)}
+          >
             <View style={styles.modalSheet}>
               <Text style={styles.modalTitle}>Selecciona la provincia</Text>
               <FlatList
@@ -211,11 +317,30 @@ export default function DatosNegocioScreen() {
                 keyExtractor={(item) => item}
                 renderItem={({ item }) => (
                   <Pressable
-                    style={[styles.provinceItem, province === item && styles.provinceItemSelected]}
-                    onPress={() => { setProvince(item); setShowProvincePicker(false); }}
+                    style={[
+                      styles.provinceItem,
+                      province === item && styles.provinceItemSelected,
+                    ]}
+                    onPress={() => {
+                      setProvince(item);
+                      setShowProvincePicker(false);
+                    }}
                   >
-                    <Text style={[styles.provinceText, province === item && styles.provinceTextSelected]}>{item}</Text>
-                    {province === item && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                    <Text
+                      style={[
+                        styles.provinceText,
+                        province === item && styles.provinceTextSelected,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {province === item && (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={colors.primary}
+                      />
+                    )}
                   </Pressable>
                 )}
               />
@@ -229,14 +354,17 @@ export default function DatosNegocioScreen() {
           <Text style={styles.sectionTitle}>Ubicación en el mapa</Text>
           {selectedCoords && (
             <Text style={styles.helperText}>
-              Lat: {selectedCoords.latitude.toFixed(5)}, Lng: {selectedCoords.longitude.toFixed(5)}
+              Lat: {selectedCoords.latitude.toFixed(5)}, Lng:{' '}
+              {selectedCoords.longitude.toFixed(5)}
             </Text>
           )}
           {isOwner ? (
             selectedCoords ? (
               <View style={styles.locationConfirmed}>
                 <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-                <Text style={styles.locationConfirmedText}>Ubicación seleccionada</Text>
+                <Text style={styles.locationConfirmedText}>
+                  Ubicación seleccionada
+                </Text>
                 <Pressable onPress={openMapPicker}>
                   <Text style={styles.locationChangeLink}>Cambiar</Text>
                 </Pressable>
@@ -244,50 +372,60 @@ export default function DatosNegocioScreen() {
             ) : (
               <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
                 <Ionicons name="map-outline" size={18} color={colors.primary} />
-                <Text style={styles.mapPickerButtonText}>Seleccionar en mapa</Text>
+                <Text style={styles.mapPickerButtonText}>
+                  Seleccionar en mapa
+                </Text>
               </Pressable>
             )
           ) : null}
         </>
       )}
 
-      {business.business_type === 'workshop' && (
-        <>
-          <Text style={styles.sectionTitle}>Auxilio en carretera</Text>
-          <TextField
-            label="Radio de cobertura (km)"
-            placeholder="5"
-            keyboardType="numeric"
-            value={radius}
-            onChangeText={setRadius}
-            editable={isOwner}
-          />
-        </>
+      {isOwner && (
+        <Button
+          title="Guardar cambios"
+          onPress={handleSave}
+          loading={saving}
+          style={styles.saveButton}
+        />
       )}
 
-      {isOwner && <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />}
-
       {/* Map picker */}
-      <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
+      <Modal
+        visible={showMapPicker}
+        animationType="slide"
+        onRequestClose={() => setShowMapPicker(false)}
+      >
         <View style={styles.mapContainer}>
           {mapInitialRegion && (
             <MapView
               style={StyleSheet.absoluteFill}
               initialRegion={mapInitialRegion}
-              onRegionChangeComplete={(r) => { pendingRegionRef.current = r; }}
+              onRegionChangeComplete={(r) => {
+                pendingRegionRef.current = r;
+              }}
             />
           )}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <View style={styles.mapPinWrap}>
-              <Ionicons name="location-sharp" size={48} color={colors.primary} />
+              <Ionicons
+                name="location-sharp"
+                size={48}
+                color={colors.primary}
+              />
               <View style={styles.mapPinShadow} />
             </View>
           </View>
           <View style={styles.mapHeader}>
-            <Pressable style={styles.mapCloseBtn} onPress={() => setShowMapPicker(false)}>
+            <Pressable
+              style={styles.mapCloseBtn}
+              onPress={() => setShowMapPicker(false)}
+            >
               <Ionicons name="close" size={22} color={colors.text} />
             </Pressable>
-            <Text style={styles.mapInstructions}>Mueve el mapa para posicionar tu negocio</Text>
+            <Text style={styles.mapInstructions}>
+              Mueve el mapa para posicionar tu negocio
+            </Text>
           </View>
           <View style={styles.mapFooter}>
             <Button title="Confirmar ubicación" onPress={confirmMapLocation} />

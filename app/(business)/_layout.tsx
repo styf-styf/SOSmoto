@@ -30,38 +30,84 @@ export default function BusinessLayout() {
           propio botón de regreso (ChatHeader / StoryViewer) -- header nativo apagado
           para no duplicarlo. */}
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="historia/[businessId]" options={{ headerShown: false }} />
-      <Stack.Screen name="historia-cliente/[clientId]" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="historia/[businessId]"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="historia-cliente/[clientId]"
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name="publicaciones" options={{ title: 'Publicaciones' }} />
-      <Stack.Screen name="publicacion/[id]" options={{ title: 'Publicación' }} />
-      <Stack.Screen name="business/[id]" options={{ title: 'Perfil del negocio' }} />
+      <Stack.Screen
+        name="publicacion/[id]"
+        options={{ title: 'Publicación' }}
+      />
+      <Stack.Screen
+        name="business/[id]"
+        options={{ title: 'Perfil del negocio' }}
+      />
       <Stack.Screen name="anuncio/[id]" options={{ title: 'Anuncio' }} />
       <Stack.Screen name="empleados" options={{ title: 'Equipo' }} />
-      <Stack.Screen name="suscripcion" options={{ title: 'Plan y suscripción' }} />
+      <Stack.Screen
+        name="suscripcion"
+        options={{ title: 'Plan y suscripción' }}
+      />
       <Stack.Screen name="agenda-negocio" options={{ title: 'Agenda' }} />
       <Stack.Screen name="mis-compras" options={{ title: 'Mis compras' }} />
       <Stack.Screen name="buscar" options={{ title: 'Buscar' }} />
       <Stack.Screen name="nueva-cita" options={{ title: 'Nueva cita' }} />
       <Stack.Screen name="nuevo-informe" options={{ title: 'Nuevo informe' }} />
-      <Stack.Screen name="informe/[id]" options={{ title: 'Informe de servicio' }} />
+      <Stack.Screen
+        name="informe/[id]"
+        options={{ title: 'Informe de servicio' }}
+      />
 
       <Stack.Screen name="clientes" options={{ title: 'Clientes' }} />
-      <Stack.Screen name="cliente/[id]" options={{ title: 'Perfil del cliente' }} />
-      <Stack.Screen name="cliente-externo" options={{ title: 'Cliente externo' }} />
+      <Stack.Screen
+        name="cliente/[id]"
+        options={{ title: 'Perfil del cliente' }}
+      />
+      <Stack.Screen
+        name="cliente-externo"
+        options={{ title: 'Cliente externo' }}
+      />
       <Stack.Screen name="nuevo-cliente" options={{ title: 'Nuevo cliente' }} />
-<Stack.Screen name="mantenimiento-proactivo" options={{ title: 'Recordatorios de mantenimiento' }} />
+      <Stack.Screen
+        name="mantenimiento-proactivo"
+        options={{ title: 'Recordatorios de mantenimiento' }}
+      />
       <Stack.Screen name="inventario" options={{ title: 'Inventario' }} />
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
       <Stack.Screen name="historias" options={{ title: 'Historias' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
-      <Stack.Screen name="datos-negocio" options={{ title: 'Datos del negocio' }} />
+      <Stack.Screen
+        name="datos-negocio"
+        options={{ title: 'Datos del negocio' }}
+      />
+      <Stack.Screen
+        name="auxilio-carretera"
+        options={{ title: 'Auxilio en carretera' }}
+      />
       <Stack.Screen name="horario" options={{ title: 'Horario' }} />
-      <Stack.Screen name="verificacion" options={{ title: 'Verificación de negocio' }} />
-      <Stack.Screen name="estado-cuenta" options={{ title: 'Estado de cuenta' }} />
+      <Stack.Screen
+        name="verificacion"
+        options={{ title: 'Verificación de negocio' }}
+      />
+      <Stack.Screen
+        name="estado-cuenta"
+        options={{ title: 'Estado de cuenta' }}
+      />
       <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />
-      <Stack.Screen name="crece-tu-negocio" options={{ title: 'Crece tu negocio' }} />
+      <Stack.Screen
+        name="crece-tu-negocio"
+        options={{ title: 'Crece tu negocio' }}
+      />
       <Stack.Screen name="usuario/[id]" options={{ title: 'Perfil' }} />
-      <Stack.Screen name="negocio-catalogo/[id]" options={{ title: 'Catálogo' }} />
+      <Stack.Screen
+        name="negocio-catalogo/[id]"
+        options={{ title: 'Catálogo' }}
+      />
     </Stack>
   );
 }
