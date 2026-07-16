@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import MapView from 'react-native-maps';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../../components/Button';
-import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../../components/InfoModal';
+import { CircleActionButton } from '../../../components/CircleActionButton';
+import {
+  InfoButton,
+  InfoExample,
+  InfoModal,
+  InfoStep,
+  infoTextStyles,
+} from '../../../components/InfoModal';
 import { MapNamedMarker } from '../../../components/MapNamedMarker';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
@@ -16,6 +32,7 @@ import { useLocation } from '../../../hooks/useLocation';
 import { getBusinessById } from '../../../services/businesses';
 import {
   cancelHelpRequest,
+  completeHelpRequest,
   createHelpRequest,
   getNearbyWorkshops,
   getNotifiedWorkshopsCount,
@@ -24,6 +41,7 @@ import {
 import { createReview } from '../../../services/reviews';
 import { getVehicles } from '../../../services/vehicles';
 import type { Business, HelpRequest, Vehicle } from '../../../types/database';
+import { distanceKm } from '../../../utils/distance';
 
 const statusLabel: Record<HelpRequest['status'], string> = {
   pending: 'Buscando talleres cercanos…',
@@ -37,27 +55,65 @@ export default function AuxilioScreen() {
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
   const { coords, getCoords, refresh: refreshLocation } = useLocation();
-  const { activeRequest, setActiveRequest, completedRequest, clearCompletedRequest } =
-    useActiveHelpRequestContext();
+  const {
+    activeRequest,
+    setActiveRequest,
+    completedRequest,
+    clearCompletedRequest,
+    refresh: refreshActiveRequest,
+  } = useActiveHelpRequestContext();
 
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
+    null,
+  );
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
   const [nearbyWorkshops, setNearbyWorkshops] = useState<Business[]>([]);
   const [showInfo, setShowInfo] = useState(false);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [notifiedCount, setNotifiedCount] = useState<number | null>(null);
+  const [outOfRange, setOutOfRange] = useState(false);
+  const [reopenedNotice, setReopenedNotice] = useState<string | null>(null);
 
   const mapRef = useRef<MapView>(null);
   const isMounted = useRef(false);
   const didInitialLoadRef = useRef(false);
+  const prevAcceptedBusinessIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeRequest) {
+      prevAcceptedBusinessIdRef.current = null;
+      setReopenedNotice(null);
+      return;
+    }
+    const currentBusinessId = activeRequest.accepted_business_id ?? null;
+    if (
+      prevAcceptedBusinessIdRef.current &&
+      !currentBusinessId &&
+      activeRequest.status === 'pending'
+    ) {
+      setReopenedNotice(
+        'El taller anterior canceló tu solicitud. Buscando otro taller cercano…',
+      );
+    } else if (currentBusinessId) {
+      setReopenedNotice(null);
+    }
+    prevAcceptedBusinessIdRef.current = currentBusinessId;
+  }, [activeRequest?.accepted_business_id, activeRequest?.status]);
   useFocusEffect(
     useCallback(() => {
       // Omitir el primer focus (el mount inicial ya carga la ubicación)
-      if (!isMounted.current) { isMounted.current = true; return; }
+      if (!isMounted.current) {
+        isMounted.current = true;
+        return;
+      }
       if (!activeRequest) refreshLocation();
-    }, [activeRequest, refreshLocation]),
+      // Red de seguridad por si el evento realtime de "el taller completó/canceló"
+      // no llegó mientras la pantalla no tenía foco.
+      refreshActiveRequest();
+    }, [activeRequest, refreshLocation, refreshActiveRequest]),
   );
 
   useEffect(() => {
@@ -66,6 +122,38 @@ export default function AuxilioScreen() {
       .then(setNearbyWorkshops)
       .catch((err) => console.error('load nearby workshops error', err));
   }, [coords]);
+
+  useEffect(() => {
+    if (!activeRequest?.accepted_business_id) {
+      setBusiness(null);
+      return;
+    }
+    getBusinessById(activeRequest.accepted_business_id)
+      .then(setBusiness)
+      .catch((err) => console.error('load business error', err));
+  }, [activeRequest?.accepted_business_id]);
+
+  useEffect(() => {
+    if (!activeRequest || activeRequest.status !== 'pending') {
+      setNotifiedCount(null);
+      setOutOfRange(false);
+      return;
+    }
+    let cancelled = false;
+    getNotifiedWorkshopsCount(activeRequest.id)
+      .then((count) => {
+        if (!cancelled) setNotifiedCount(count);
+      })
+      .catch((err) => console.error('load notified count error', err));
+    wasNotifiedOutOfRange(activeRequest.id)
+      .then((value) => {
+        if (!cancelled) setOutOfRange(value);
+      })
+      .catch((err) => console.error('load out of range error', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRequest?.id, activeRequest?.status]);
 
   const loadVehicles = useCallback(async () => {
     if (!profile) return;
@@ -85,21 +173,31 @@ export default function AuxilioScreen() {
         .catch((err) => console.error('load auxilio error', err))
         .finally(() => setLoading(false));
     } else {
-      loadVehicles().catch((err) => console.error('load auxilio background refresh error', err));
+      loadVehicles().catch((err) =>
+        console.error('load auxilio background refresh error', err),
+      );
     }
   }, [loadVehicles]);
 
   function handleLocate() {
     if (!coords || !mapRef.current) return;
     mapRef.current.animateToRegion(
-      { latitude: coords.latitude, longitude: coords.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+      {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      },
       500,
     );
   }
 
   async function handleRequest() {
     if (!profile || !selectedVehicleId) {
-      Alert.alert('Falta información', 'Selecciona una moto antes de pedir auxilio.');
+      Alert.alert(
+        'Falta información',
+        'Selecciona una moto antes de pedir auxilio.',
+      );
       return;
     }
 
@@ -113,7 +211,7 @@ export default function AuxilioScreen() {
       setSubmitting(false);
       Alert.alert(
         'No pudimos ubicarte',
-        'Activa el GPS y el permiso de ubicación para que los talleres puedan encontrarte, luego intenta de nuevo.'
+        'Activa el GPS y el permiso de ubicación para que los talleres puedan encontrarte, luego intenta de nuevo.',
       );
       return;
     }
@@ -146,6 +244,27 @@ export default function AuxilioScreen() {
     }
   }
 
+  async function handleCompleteFromClient() {
+    if (!activeRequest) return;
+    try {
+      await completeHelpRequest(activeRequest.id, 'client');
+      await refreshActiveRequest();
+    } catch (err) {
+      console.error('complete help request error (client)', err);
+      Alert.alert('Error', 'No se pudo marcar como completado.');
+    }
+  }
+
+  function handleCall() {
+    if (!business?.phone) return;
+    Linking.openURL(`tel:${business.phone}`);
+  }
+
+  function handleChat() {
+    if (!business) return;
+    router.push(`/(client)/chat/${business.id}`);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -154,18 +273,21 @@ export default function AuxilioScreen() {
     );
   }
 
-  if (activeRequest) {
-    return <ActiveRequestCard request={activeRequest} onCancel={handleCancel} />;
-  }
-
   if (completedRequest) {
-    return <CompletedRequestCard request={completedRequest} onDone={clearCompletedRequest} />;
+    return (
+      <CompletedRequestCard
+        request={completedRequest}
+        onDone={clearCompletedRequest}
+      />
+    );
   }
 
-  if (vehicles.length === 0) {
+  if (!activeRequest && vehicles.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.placeholder}>Agrega una moto antes de pedir auxilio.</Text>
+        <Text style={styles.placeholder}>
+          Agrega una moto antes de pedir auxilio.
+        </Text>
         <Button
           title="Agregar moto"
           onPress={() => router.push('/(client)/vehiculos')}
@@ -175,40 +297,92 @@ export default function AuxilioScreen() {
     );
   }
 
+  const myMapCoords = activeRequest
+    ? { latitude: activeRequest.latitude, longitude: activeRequest.longitude }
+    : coords;
+  const businessCoords = !activeRequest
+    ? null
+    : activeRequest.business_latitude !== null &&
+        activeRequest.business_longitude !== null
+      ? {
+          latitude: activeRequest.business_latitude,
+          longitude: activeRequest.business_longitude,
+        }
+      : business
+        ? { latitude: business.latitude, longitude: business.longitude }
+        : null;
+  const businessIsLive =
+    !!activeRequest &&
+    activeRequest.business_latitude !== null &&
+    activeRequest.business_longitude !== null;
+  const businessDistanceKm =
+    activeRequest && businessCoords
+      ? distanceKm(
+          activeRequest.latitude,
+          activeRequest.longitude,
+          businessCoords.latitude,
+          businessCoords.longitude,
+        )
+      : null;
+  const businessLabel = businessIsLive
+    ? `${business?.name ?? 'Taller'} (en camino)`
+    : (business?.name ?? 'Taller');
+
   return (
     <View style={styles.screen}>
       <View style={[styles.infoBtnWrap, { top: insets.top + 12 }]}>
-        <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona el auxilio en carretera" />
+        <InfoButton
+          onPress={() => setShowInfo(true)}
+          accessibilityLabel="Cómo funciona el auxilio en carretera"
+        />
       </View>
-      {coords ? (
+      {myMapCoords ? (
         <View style={styles.mapContainer}>
           <MapView
+            key={activeRequest ? 'active' : 'idle'}
             ref={mapRef}
             style={StyleSheet.absoluteFill}
             initialRegion={{
-              latitude: coords.latitude,
-              longitude: coords.longitude,
+              latitude: myMapCoords.latitude,
+              longitude: myMapCoords.longitude,
               latitudeDelta: 0.05,
               longitudeDelta: 0.05,
             }}
           >
             <MapNamedMarker
-              coordinate={coords}
+              coordinate={myMapCoords}
               label="Tú"
               color={colors.sos}
               avatarUrl={profile?.avatar_url}
               fallbackIcon="person"
+              zIndex={1}
             />
-            {nearbyWorkshops.map((workshop) => (
-              <MapNamedMarker
-                key={workshop.id}
-                coordinate={{ latitude: workshop.latitude, longitude: workshop.longitude }}
-                label={workshop.name}
-                color={colors.primary}
-                avatarUrl={workshop.logo_url}
-                fallbackIcon="storefront"
-              />
-            ))}
+            {activeRequest
+              ? businessCoords &&
+                business && (
+                  <MapNamedMarker
+                    key={businessLabel}
+                    coordinate={businessCoords}
+                    label={businessLabel}
+                    color={colors.primary}
+                    avatarUrl={business.logo_url}
+                    fallbackIcon="storefront"
+                    zIndex={2}
+                  />
+                )
+              : nearbyWorkshops.map((workshop) => (
+                  <MapNamedMarker
+                    key={workshop.id}
+                    coordinate={{
+                      latitude: workshop.latitude,
+                      longitude: workshop.longitude,
+                    }}
+                    label={workshop.name}
+                    color={colors.primary}
+                    avatarUrl={workshop.logo_url}
+                    fallbackIcon="storefront"
+                  />
+                ))}
           </MapView>
           <Pressable style={styles.locateBtn} onPress={handleLocate}>
             <Ionicons name="locate" size={22} color={colors.primary} />
@@ -227,93 +401,209 @@ export default function AuxilioScreen() {
           contentContainerStyle={styles.formContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.fieldLabel}>Tu moto</Text>
-          <View style={styles.vehicleSelector}>
-            {vehicles.map((vehicle) => (
-              <Pressable
-                key={vehicle.id}
-                onPress={() => setSelectedVehicleId(vehicle.id)}
-                style={[styles.vehicleOption, selectedVehicleId === vehicle.id && styles.vehicleOptionSelected]}
-              >
-                <Text
-                  style={[
-                    styles.vehicleOptionText,
-                    selectedVehicleId === vehicle.id && styles.vehicleOptionTextSelected,
-                  ]}
-                >
-                  {vehicle.brand} {vehicle.model}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {activeRequest ? (
+            <View style={styles.activeCard}>
+              <Text style={styles.statusTitle}>
+                {statusLabel[activeRequest.status]}
+              </Text>
 
-          <TextField
-            label="¿Qué pasó? (opcional)"
-            placeholder="Ej: se quedó sin batería"
-            value={description}
-            onChangeText={setDescription}
-          />
+              {reopenedNotice && (
+                <Text style={styles.reopenedNotice}>{reopenedNotice}</Text>
+              )}
+
+              {activeRequest.status === 'pending' && (
+                <>
+                  <ActivityIndicator
+                    color={colors.primary}
+                    style={styles.statusSpinner}
+                  />
+                  <Text style={styles.statusDetail}>
+                    {notifiedCount === null
+                      ? 'Buscando talleres cercanos…'
+                      : notifiedCount > 0
+                        ? `Notificamos a ${notifiedCount} taller${notifiedCount === 1 ? '' : 'es'} cercano${notifiedCount === 1 ? '' : 's'}.`
+                        : 'No encontramos talleres cercanos disponibles por ahora. Tu solicitud sigue activa.'}
+                  </Text>
+                  {notifiedCount !== null &&
+                    notifiedCount > 0 &&
+                    outOfRange && (
+                      <Text style={styles.statusDetailMuted}>
+                        Ningún taller cubre tu zona habitualmente; notificamos a
+                        los más cercanos disponibles, podrían tardar un poco más
+                        en responder.
+                      </Text>
+                    )}
+                </>
+              )}
+
+              {business && (
+                <View style={styles.businessCard}>
+                  <Text style={styles.businessName}>{business.name}</Text>
+                  {businessDistanceKm !== null && (
+                    <Text style={styles.businessMeta}>
+                      Distancia:{' '}
+                      {businessDistanceKm < 1
+                        ? `${Math.round(businessDistanceKm * 1000)} m`
+                        : `${businessDistanceKm.toFixed(1)} km`}
+                    </Text>
+                  )}
+                  {activeRequest.estimated_arrival_minutes !== null && (
+                    <Text style={styles.businessMeta}>
+                      Llega en ~{activeRequest.estimated_arrival_minutes} min
+                    </Text>
+                  )}
+                  {business.phone && (
+                    <Pressable
+                      style={styles.businessActionButton}
+                      onPress={handleCall}
+                    >
+                      <Ionicons
+                        name="call-outline"
+                        size={18}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.businessActionText}>Llamar</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.circleActionsRow}>
+                <CircleActionButton
+                  icon="close"
+                  label="Cancelar"
+                  color={colors.danger}
+                  onPress={handleCancel}
+                />
+                {business && (
+                  <>
+                    <CircleActionButton
+                      icon="chatbubble-outline"
+                      label="Chat"
+                      color={colors.primary}
+                      variant="outline"
+                      onPress={handleChat}
+                    />
+                    <CircleActionButton
+                      icon="checkmark"
+                      label="Completar"
+                      color={colors.primary}
+                      onPress={handleCompleteFromClient}
+                    />
+                  </>
+                )}
+              </View>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.fieldLabel}>Tu moto</Text>
+              <View style={styles.vehicleSelector}>
+                {vehicles.map((vehicle) => (
+                  <Pressable
+                    key={vehicle.id}
+                    onPress={() => setSelectedVehicleId(vehicle.id)}
+                    style={[
+                      styles.vehicleOption,
+                      selectedVehicleId === vehicle.id &&
+                        styles.vehicleOptionSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.vehicleOptionText,
+                        selectedVehicleId === vehicle.id &&
+                          styles.vehicleOptionTextSelected,
+                      ]}
+                    >
+                      {vehicle.brand} {vehicle.model}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <TextField
+                label="¿Qué pasó? (opcional)"
+                placeholder="Ej: se quedó sin batería"
+                value={description}
+                onChangeText={setDescription}
+              />
+            </>
+          )}
         </ScrollView>
 
-        <View style={styles.bottomBar}>
-          <Button
-            title={locating ? 'Obteniendo tu ubicación…' : 'Pedir auxilio'}
-            onPress={handleRequest}
-            loading={submitting}
-            style={styles.sosButton}
-          />
-        </View>
+        {!activeRequest && (
+          <View style={styles.bottomBar}>
+            <Button
+              title={locating ? 'Obteniendo tu ubicación…' : 'Pedir auxilio'}
+              onPress={handleRequest}
+              loading={submitting}
+              style={styles.sosButton}
+            />
+          </View>
+        )}
       </KeyboardStickyView>
 
-      <InfoModal visible={showInfo} title="Cómo funciona el auxilio en carretera" onClose={() => setShowInfo(false)}>
+      <InfoModal
+        visible={showInfo}
+        title="Cómo funciona el auxilio en carretera"
+        onClose={() => setShowInfo(false)}
+      >
         <InfoStep number={1} title="Pides ayuda">
           <Text style={infoTextStyles.text}>
-            Eliges tu moto, describes qué pasó (opcional) y tocas "Pedir auxilio". Tu ubicación GPS se comparte
-            automáticamente con los talleres cercanos.
+            Eliges tu moto, describes qué pasó (opcional) y tocas "Pedir
+            auxilio". Tu ubicación GPS se comparte automáticamente con los
+            talleres cercanos.
           </Text>
           <InfoExample label="Ejemplo">
-            <Text style={infoTextStyles.exampleText}>Moto: "Yamaha FZ" · "Se quedó sin batería"</Text>
+            <Text style={infoTextStyles.exampleText}>
+              Moto: "Yamaha FZ" · "Se quedó sin batería"
+            </Text>
           </InfoExample>
         </InfoStep>
 
         <InfoStep number={2} title="Talleres cercanos reciben tu solicitud">
           <Text style={infoTextStyles.text}>
-            Se notifica a <Text style={infoTextStyles.bold}>todos</Text> los talleres cuyo radio de cobertura te
-            alcanza, no solo al más cercano. Verás cuántos fueron notificados mientras esperas.
+            Se notifica a <Text style={infoTextStyles.bold}>todos</Text> los
+            talleres cuyo radio de cobertura te alcanza, no solo al más cercano.
+            Verás cuántos fueron notificados mientras esperas.
           </Text>
         </InfoStep>
 
         <InfoStep number={3} title="Un taller acepta">
           <Text style={infoTextStyles.text}>
-            En cuanto un taller acepta, la solicitud se cierra para los demás. Verás su nombre, ubicación en el mapa,
-            y podrás llamarlo o escribirle por chat.
+            En cuanto un taller acepta, la solicitud se cierra para los demás.
+            Verás su nombre, ubicación en el mapa, y podrás llamarlo o
+            escribirle por chat.
           </Text>
         </InfoStep>
 
         <InfoStep number={4} title='El "Llega en ~X min" se calcula solo'>
           <Text style={infoTextStyles.text}>
-            Apenas el taller comparte su ubicación en vivo, el tiempo estimado se calcula automáticamente (por Google
-            Maps) y se va actualizando mientras se mueve hacia ti -- no lo escribe nadie a mano.
+            Apenas el taller comparte su ubicación en vivo, el tiempo estimado
+            se calcula automáticamente (por Google Maps) y se va actualizando
+            mientras se mueve hacia ti -- no lo escribe nadie a mano.
           </Text>
           <InfoExample label="Importante" ok={false}>
             <Text style={infoTextStyles.exampleText}>
-              Si el taller todavía no activó su ubicación en vivo, es normal que no veas un tiempo estimado apenas
-              acepta -- aparecerá en cuanto la active.
+              Si el taller todavía no activó su ubicación en vivo, es normal que
+              no veas un tiempo estimado apenas acepta -- aparecerá en cuanto la
+              active.
             </Text>
           </InfoExample>
         </InfoStep>
 
         <InfoStep number={5} title="Puedes cancelar en cualquier momento">
           <Text style={infoTextStyles.text}>
-            Mientras el taller no haya llegado (mientras el estado sea "Buscando talleres" o "Un taller va en
-            camino"), puedes cancelar la solicitud con el botón de abajo.
+            Mientras el taller no haya llegado (mientras el estado sea "Buscando
+            talleres" o "Un taller va en camino"), puedes cancelar la solicitud
+            con el botón de abajo.
           </Text>
         </InfoStep>
 
         <InfoStep number={6} title="Al terminar, calificas al taller">
           <Text style={infoTextStyles.text}>
-            Tu calificación ayuda a otros motociclistas a elegir taller, y ayuda al taller a aparecer mejor
-            posicionado en las búsquedas.
+            Tu calificación ayuda a otros motociclistas a elegir taller, y ayuda
+            al taller a aparecer mejor posicionado en las búsquedas.
           </Text>
         </InfoStep>
       </InfoModal>
@@ -321,137 +611,13 @@ export default function AuxilioScreen() {
   );
 }
 
-function ActiveRequestCard({ request, onCancel }: { request: HelpRequest; onCancel: () => void }) {
-  const { profile } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [notifiedCount, setNotifiedCount] = useState<number | null>(null);
-  const [outOfRange, setOutOfRange] = useState(false);
-
-  useEffect(() => {
-    if (request.accepted_business_id) {
-      getBusinessById(request.accepted_business_id)
-        .then(setBusiness)
-        .catch((err) => console.error('load business error', err));
-    }
-  }, [request.accepted_business_id]);
-
-  useEffect(() => {
-    if (request.status !== 'pending') return;
-    let cancelled = false;
-    getNotifiedWorkshopsCount(request.id)
-      .then((count) => {
-        if (!cancelled) setNotifiedCount(count);
-      })
-      .catch((err) => console.error('load notified count error', err));
-    wasNotifiedOutOfRange(request.id)
-      .then((value) => {
-        if (!cancelled) setOutOfRange(value);
-      })
-      .catch((err) => console.error('load out of range error', err));
-    return () => {
-      cancelled = true;
-    };
-  }, [request.id, request.status]);
-
-  function handleCall() {
-    if (!business?.phone) return;
-    Linking.openURL(`tel:${business.phone}`);
-  }
-
-  function handleChat() {
-    if (!business) return;
-    router.push(`/(client)/chat/${business.id}`);
-  }
-
-  const businessCoords =
-    request.business_latitude !== null && request.business_longitude !== null
-      ? { latitude: request.business_latitude, longitude: request.business_longitude }
-      : business
-        ? { latitude: business.latitude, longitude: business.longitude }
-        : null;
-  const businessIsLive = request.business_latitude !== null && request.business_longitude !== null;
-
-  return (
-    <View style={styles.center}>
-      <Text style={styles.statusTitle}>{statusLabel[request.status]}</Text>
-
-      {request.status === 'pending' && (
-        <>
-          <ActivityIndicator color={colors.primary} style={styles.statusSpinner} />
-          <Text style={styles.statusDetail}>
-            {notifiedCount === null
-              ? 'Buscando talleres cercanos…'
-              : notifiedCount > 0
-                ? `Notificamos a ${notifiedCount} taller${notifiedCount === 1 ? '' : 'es'} cercano${notifiedCount === 1 ? '' : 's'}.`
-                : 'No encontramos talleres cercanos disponibles por ahora. Tu solicitud sigue activa.'}
-          </Text>
-          {notifiedCount !== null && notifiedCount > 0 && outOfRange && (
-            <Text style={styles.statusDetailMuted}>
-              Ningún taller cubre tu zona habitualmente; notificamos a los más cercanos disponibles, podrían tardar
-              un poco más en responder.
-            </Text>
-          )}
-        </>
-      )}
-
-      {(request.status === 'accepted' || request.status === 'in_progress') && (
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: request.latitude,
-            longitude: request.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
-        >
-          <MapNamedMarker
-            coordinate={{ latitude: request.latitude, longitude: request.longitude }}
-            label="Tú"
-            color={colors.sos}
-            avatarUrl={profile?.avatar_url}
-            fallbackIcon="person"
-          />
-          {businessCoords && (
-            <MapNamedMarker
-              coordinate={businessCoords}
-              label={businessIsLive ? `${business?.name ?? 'Taller'} (en camino)` : business?.name ?? 'Taller'}
-              color={colors.primary}
-              avatarUrl={business?.logo_url}
-              fallbackIcon="storefront"
-            />
-          )}
-        </MapView>
-      )}
-
-      {business && (
-        <View style={styles.businessCard}>
-          <Text style={styles.businessName}>{business.name}</Text>
-          {request.estimated_arrival_minutes !== null && (
-            <Text style={styles.businessMeta}>Llega en ~{request.estimated_arrival_minutes} min</Text>
-          )}
-          <View style={styles.businessActions}>
-            {business.phone && (
-              <Pressable style={styles.businessActionButton} onPress={handleCall}>
-                <Ionicons name="call-outline" size={18} color={colors.primary} />
-                <Text style={styles.businessActionText}>Llamar</Text>
-              </Pressable>
-            )}
-            <Pressable style={styles.businessActionButton} onPress={handleChat}>
-              <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
-              <Text style={styles.businessActionText}>Chat</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {(request.status === 'pending' || request.status === 'accepted') && (
-        <Button title="Cancelar solicitud" variant="secondary" onPress={onCancel} style={styles.cancelButton} />
-      )}
-    </View>
-  );
-}
-
-function CompletedRequestCard({ request, onDone }: { request: HelpRequest; onDone: () => void }) {
+function CompletedRequestCard({
+  request,
+  onDone,
+}: {
+  request: HelpRequest;
+  onDone: () => void;
+}) {
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [rating, setRating] = useState(5);
@@ -489,18 +655,38 @@ function CompletedRequestCard({ request, onDone }: { request: HelpRequest; onDon
     <View style={styles.center}>
       <Text style={styles.statusTitle}>Auxilio completado</Text>
       <View style={styles.businessCard}>
-        <Text style={styles.businessName}>¿Cómo te fue con {business?.name ?? 'el taller'}?</Text>
+        <Text style={styles.businessName}>
+          ¿Cómo te fue con {business?.name ?? 'el taller'}?
+        </Text>
         <View style={styles.starsRow}>
           {[1, 2, 3, 4, 5].map((value) => (
             <Pressable key={value} onPress={() => setRating(value)}>
-              <Ionicons name={value <= rating ? 'star' : 'star-outline'} size={28} color={colors.warning} />
+              <Ionicons
+                name={value <= rating ? 'star' : 'star-outline'}
+                size={28}
+                color={colors.warning}
+              />
             </Pressable>
           ))}
         </View>
-        <TextField label="Comentario (opcional)" value={comment} onChangeText={setComment} />
+        <TextField
+          label="Comentario (opcional)"
+          value={comment}
+          onChangeText={setComment}
+        />
         <View style={styles.businessActions}>
-          <Button title="Enviar" onPress={handleSubmit} loading={saving} style={styles.flexButton} />
-          <Button title="Omitir" variant="secondary" onPress={onDone} style={styles.flexButton} />
+          <Button
+            title="Enviar"
+            onPress={handleSubmit}
+            loading={saving}
+            style={styles.flexButton}
+          />
+          <Button
+            title="Omitir"
+            variant="secondary"
+            onPress={onDone}
+            style={styles.flexButton}
+          />
         </View>
       </View>
     </View>
@@ -549,7 +735,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   formScroll: {
-    maxHeight: 220,
+    maxHeight: 340,
     flexGrow: 0,
   },
   formContent: {
@@ -600,12 +786,6 @@ const styles = StyleSheet.create({
   vehicleOptionTextSelected: {
     color: colors.primary,
   },
-  map: {
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 20,
-    width: '100%',
-  },
   sosButton: {
     backgroundColor: colors.sos,
     marginTop: 8,
@@ -635,6 +815,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
+  reopenedNotice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.warning,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
   businessCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -651,6 +839,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     marginTop: 4,
+  },
+  activeCard: {
+    backgroundColor: '#FFF1E6',
+    borderRadius: 12,
+    padding: 16,
+  },
+  circleActionsRow: {
+    flexDirection: 'row',
+    marginTop: 14,
   },
   businessActions: {
     flexDirection: 'row',
@@ -680,9 +877,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
     fontSize: 13,
-  },
-  cancelButton: {
-    marginTop: 24,
-    width: '100%',
   },
 });

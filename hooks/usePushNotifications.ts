@@ -20,6 +20,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
         router.push('/(client)/vehiculos');
         break;
       case 'help_request_accepted':
+      case 'help_request_reopened':
+      case 'help_request_completed':
+      case 'help_request_expired':
         router.navigate('/(client)/(tabs)/auxilio');
         break;
       case 'message':
@@ -58,6 +61,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
   if (role === 'business') {
     switch (type) {
       case 'help_request':
+      case 'help_request_cancelled_by_client':
+      case 'help_request_completed':
+      case 'help_request_expired':
         router.navigate('/(business)/(tabs)/solicitudes');
         break;
       case 'message':
@@ -66,7 +72,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
         } else if (data.businessId) {
           // Sin clientId: soy el lado "cliente" de este hilo (compré como
           // negocio) y me está respondiendo el negocio vendedor.
-          router.push(`/(business)/chat/${data.businessId}?sellerBusinessId=${data.businessId}`);
+          router.push(
+            `/(business)/chat/${data.businessId}?sellerBusinessId=${data.businessId}`,
+          );
         }
         break;
       case 'appointment_requested':
@@ -80,10 +88,12 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
         router.push('/(business)/verificacion');
         break;
       case 'product_intent':
-        if (data.productId) router.push(`/(business)/producto/${data.productId}`);
+        if (data.productId)
+          router.push(`/(business)/producto/${data.productId}`);
         break;
       case 'service_intent':
-        if (data.serviceId) router.push(`/(business)/servicio/${data.serviceId}`);
+        if (data.serviceId)
+          router.push(`/(business)/servicio/${data.serviceId}`);
         break;
       case 'rate_business':
         router.push('/(business)/mis-compras');
@@ -123,7 +133,8 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
 export function usePushNotifications(userId: string | undefined, role?: Role) {
   useEffect(() => {
     // Expo Go (SDK 53+) no soporta push remoto; solo funciona en un dev client o build standalone.
-    if (!userId || Platform.OS === 'web' || Constants.appOwnership === 'expo') return;
+    if (!userId || Platform.OS === 'web' || Constants.appOwnership === 'expo')
+      return;
 
     (async () => {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -135,10 +146,15 @@ export function usePushNotifications(userId: string | undefined, role?: Role) {
 
     if (!role) return;
 
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown>;
-      routeNotification(data, role);
-    });
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data as Record<
+          string,
+          unknown
+        >;
+        routeNotification(data, role);
+      },
+    );
 
     return () => subscription.remove();
   }, [userId, role]);

@@ -1,7 +1,12 @@
 import { supabase } from './supabase';
 import { distanceKm } from '../utils/distance';
 import { notifyUser } from './notifications';
-import type { Business, HelpRequest, HelpRequestNotification, VehicleInfo } from '../types/database';
+import type {
+  Business,
+  HelpRequest,
+  HelpRequestNotification,
+  VehicleInfo,
+} from '../types/database';
 
 const FALLBACK_NEAREST_COUNT = 5;
 
@@ -10,7 +15,10 @@ interface NearbyWorkshopsResult {
   outOfRange: boolean;
 }
 
-async function findNearbyWorkshops(latitude: number, longitude: number): Promise<NearbyWorkshopsResult> {
+async function findNearbyWorkshops(
+  latitude: number,
+  longitude: number,
+): Promise<NearbyWorkshopsResult> {
   const { data, error } = await supabase
     .from('businesses')
     .select('*')
@@ -24,7 +32,9 @@ async function findNearbyWorkshops(latitude: number, longitude: number): Promise
     distance: distanceKm(latitude, longitude, b.latitude, b.longitude),
   }));
 
-  const inRange = candidates.filter((c) => c.distance <= (c.business.aid_radius_km ?? 0));
+  const inRange = candidates.filter(
+    (c) => c.distance <= (c.business.aid_radius_km ?? 0),
+  );
   if (inRange.length > 0) {
     return { workshops: inRange.map((c) => c.business), outOfRange: false };
   }
@@ -40,14 +50,17 @@ async function findNearbyWorkshops(latitude: number, longitude: number): Promise
   return { workshops: nearest, outOfRange: true };
 }
 
-export async function getNearbyWorkshops(latitude: number, longitude: number): Promise<Business[]> {
+export async function getNearbyWorkshops(
+  latitude: number,
+  longitude: number,
+): Promise<Business[]> {
   return (await findNearbyWorkshops(latitude, longitude)).workshops;
 }
 
 export async function updateHelpRequestBusinessLocation(
   id: string,
   latitude: number,
-  longitude: number
+  longitude: number,
 ): Promise<void> {
   const { error } = await supabase
     .from('help_requests')
@@ -60,6 +73,18 @@ export async function updateHelpRequestBusinessLocation(
   if (error) throw error;
 }
 
+// El cron de update-help-request-eta corre cada 2 min -- sin esto, el ETA
+// queda en null hasta el siguiente tick apenas el taller acepta/comparte
+// ubicación por primera vez. Es "mejor esfuerzo": si falla, el cron lo
+// termina calculando igual un poco más tarde.
+export async function triggerEtaUpdate(): Promise<void> {
+  try {
+    await supabase.functions.invoke('update-help-request-eta');
+  } catch (err) {
+    console.error('trigger eta update error', err);
+  }
+}
+
 export interface CreateHelpRequestParams {
   clientId: string;
   vehicleId: string;
@@ -68,7 +93,9 @@ export interface CreateHelpRequestParams {
   description?: string;
 }
 
-export async function createHelpRequest(params: CreateHelpRequestParams): Promise<HelpRequest> {
+export async function createHelpRequest(
+  params: CreateHelpRequestParams,
+): Promise<HelpRequest> {
   const { data: helpRequest, error } = await supabase
     .from('help_requests')
     .insert({
@@ -82,27 +109,43 @@ export async function createHelpRequest(params: CreateHelpRequestParams): Promis
     .single();
   if (error) throw error;
 
-  const { workshops: nearbyWorkshops, outOfRange } = await findNearbyWorkshops(params.latitude, params.longitude);
+  const { workshops: nearbyWorkshops, outOfRange } = await findNearbyWorkshops(
+    params.latitude,
+    params.longitude,
+  );
   if (nearbyWorkshops.length > 0) {
-    const { error: notifyError } = await supabase.from('help_request_notifications').insert(
-      nearbyWorkshops.map((b) => ({ help_request_id: helpRequest.id, business_id: b.id, out_of_range: outOfRange }))
-    );
+    const { error: notifyError } = await supabase
+      .from('help_request_notifications')
+      .insert(
+        nearbyWorkshops.map((b) => ({
+          help_request_id: helpRequest.id,
+          business_id: b.id,
+          out_of_range: outOfRange,
+        })),
+      );
     if (notifyError) throw notifyError;
 
     await Promise.all(
       nearbyWorkshops.map((b) =>
-        notifyUser(b.owner_id, 'Nueva solicitud de auxilio', 'Un motociclista cerca de ti necesita ayuda.', {
-          type: 'help_request',
-          helpRequestId: helpRequest.id,
-        })
-      )
+        notifyUser(
+          b.owner_id,
+          'Nueva solicitud de auxilio',
+          'Un motociclista cerca de ti necesita ayuda.',
+          {
+            type: 'help_request',
+            helpRequestId: helpRequest.id,
+          },
+        ),
+      ),
     );
   }
 
   return helpRequest as HelpRequest;
 }
 
-export async function getNotifiedWorkshopsCount(helpRequestId: string): Promise<number> {
+export async function getNotifiedWorkshopsCount(
+  helpRequestId: string,
+): Promise<number> {
   const { count, error } = await supabase
     .from('help_request_notifications')
     .select('id', { count: 'exact', head: true })
@@ -111,7 +154,9 @@ export async function getNotifiedWorkshopsCount(helpRequestId: string): Promise<
   return count ?? 0;
 }
 
-export async function wasNotifiedOutOfRange(helpRequestId: string): Promise<boolean> {
+export async function wasNotifiedOutOfRange(
+  helpRequestId: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from('help_request_notifications')
     .select('out_of_range')
@@ -122,7 +167,9 @@ export async function wasNotifiedOutOfRange(helpRequestId: string): Promise<bool
   return data?.out_of_range ?? false;
 }
 
-export async function getActiveHelpRequest(clientId: string): Promise<HelpRequest | null> {
+export async function getActiveHelpRequest(
+  clientId: string,
+): Promise<HelpRequest | null> {
   const { data, error } = await supabase
     .from('help_requests')
     .select('*')
@@ -136,12 +183,41 @@ export async function getActiveHelpRequest(clientId: string): Promise<HelpReques
 }
 
 export async function cancelHelpRequest(id: string): Promise<void> {
-  const { error } = await supabase.from('help_requests').update({ status: 'cancelled' }).eq('id', id);
+  const { data, error } = await supabase
+    .from('help_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', id)
+    .select()
+    .maybeSingle();
   if (error) throw error;
+
+  const request = data as HelpRequest | null;
+  if (!request?.accepted_business_id) return;
+
+  const { data: businessRow } = await supabase
+    .from('businesses')
+    .select('owner_id')
+    .eq('id', request.accepted_business_id)
+    .maybeSingle();
+  const ownerId = (businessRow as { owner_id: string } | null)?.owner_id;
+  if (!ownerId) return;
+
+  await notifyUser(
+    ownerId,
+    'El cliente canceló el auxilio',
+    'El cliente canceló la solicitud de auxilio que estabas atendiendo.',
+    { type: 'help_request_cancelled_by_client', helpRequestId: id },
+  );
 }
 
-export async function getHelpRequestById(id: string): Promise<HelpRequest | null> {
-  const { data, error } = await supabase.from('help_requests').select('*').eq('id', id).maybeSingle();
+export async function getHelpRequestById(
+  id: string,
+): Promise<HelpRequest | null> {
+  const { data, error } = await supabase
+    .from('help_requests')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
   return data as HelpRequest | null;
 }
@@ -153,8 +229,13 @@ export function subscribeToHelpRequest(id: string, onChange: () => void) {
     .channel(`help_request_${id}_${Math.random().toString(36).slice(2)}`)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'help_requests', filter: `id=eq.${id}` },
-      onChange
+      {
+        event: '*',
+        schema: 'public',
+        table: 'help_requests',
+        filter: `id=eq.${id}`,
+      },
+      onChange,
     )
     .subscribe();
   return () => {
@@ -162,13 +243,23 @@ export function subscribeToHelpRequest(id: string, onChange: () => void) {
   };
 }
 
-export function subscribeToBusinessRequests(businessId: string, onChange: () => void) {
+export function subscribeToBusinessRequests(
+  businessId: string,
+  onChange: () => void,
+) {
   const channel = supabase
-    .channel(`business_requests_${businessId}_${Math.random().toString(36).slice(2)}`)
+    .channel(
+      `business_requests_${businessId}_${Math.random().toString(36).slice(2)}`,
+    )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'help_request_notifications', filter: `business_id=eq.${businessId}` },
-      onChange
+      {
+        event: '*',
+        schema: 'public',
+        table: 'help_request_notifications',
+        filter: `business_id=eq.${businessId}`,
+      },
+      onChange,
     )
     .subscribe();
   return () => {
@@ -183,7 +274,9 @@ export interface PendingHelpRequest {
   vehicle: VehicleInfo | null;
 }
 
-export async function getPendingRequests(businessId: string): Promise<PendingHelpRequest[]> {
+export async function getPendingRequests(
+  businessId: string,
+): Promise<PendingHelpRequest[]> {
   const { data: notifications, error } = await supabase
     .from('help_request_notifications')
     .select('*')
@@ -204,24 +297,40 @@ export async function getPendingRequests(businessId: string): Promise<PendingHel
   if (hrError) throw hrError;
 
   const helpRequestList = (helpRequests ?? []) as HelpRequest[];
-  const clientIds = Array.from(new Set(helpRequestList.map((hr) => hr.client_id)));
-  const vehicleIds = Array.from(new Set(helpRequestList.map((hr) => hr.vehicle_id)));
+  const clientIds = Array.from(
+    new Set(helpRequestList.map((hr) => hr.client_id)),
+  );
+  const vehicleIds = Array.from(
+    new Set(helpRequestList.map((hr) => hr.vehicle_id)),
+  );
 
-  const [{ data: clients, error: clientsError }, { data: vehicles, error: vehiclesError }] =
-    await Promise.all([
-      clientIds.length
-        ? supabase.from('users').select('id, full_name, phone').in('id', clientIds)
-        : Promise.resolve({ data: [], error: null }),
-      vehicleIds.length
-        ? supabase.from('vehicles').select('id, brand, model, year').in('id', vehicleIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+  const [
+    { data: clients, error: clientsError },
+    { data: vehicles, error: vehiclesError },
+  ] = await Promise.all([
+    clientIds.length
+      ? supabase
+          .from('users')
+          .select('id, full_name, phone')
+          .in('id', clientIds)
+      : Promise.resolve({ data: [], error: null }),
+    vehicleIds.length
+      ? supabase
+          .from('vehicles')
+          .select('id, brand, model, year')
+          .in('id', vehicleIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
   if (clientsError) throw clientsError;
   if (vehiclesError) throw vehiclesError;
 
   const helpRequestById = new Map(helpRequestList.map((hr) => [hr.id, hr]));
-  const clientById = new Map((clients ?? []).map((c: any) => [c.id as string, c]));
-  const vehicleById = new Map((vehicles ?? []).map((v: any) => [v.id as string, v]));
+  const clientById = new Map(
+    (clients ?? []).map((c: any) => [c.id as string, c]),
+  );
+  const vehicleById = new Map(
+    (vehicles ?? []).map((v: any) => [v.id as string, v]),
+  );
 
   return notificationList
     .map((notification) => {
@@ -232,7 +341,9 @@ export async function getPendingRequests(businessId: string): Promise<PendingHel
         notification,
         helpRequest,
         client: (clientById.get(helpRequest.client_id) as any) ?? null,
-        vehicle: veh ? { brand: veh.brand, model: veh.model, year: veh.year } : null,
+        vehicle: veh
+          ? { brand: veh.brand, model: veh.model, year: veh.year }
+          : null,
       };
     })
     .filter((item): item is PendingHelpRequest => item !== null);
@@ -245,7 +356,9 @@ export interface AcceptHelpRequestParams {
 
 // El tiempo estimado de llegada ya no se pide al taller -- update-help-request-eta
 // lo calcula solo (Google Distance Matrix) en cuanto hay ubicación en vivo del taller.
-export async function acceptHelpRequest(params: AcceptHelpRequestParams): Promise<void> {
+export async function acceptHelpRequest(
+  params: AcceptHelpRequestParams,
+): Promise<void> {
   const { data, error } = await supabase
     .from('help_requests')
     .update({
@@ -272,11 +385,14 @@ export async function acceptHelpRequest(params: AcceptHelpRequestParams): Promis
     acceptedRequest.client_id,
     'Un taller va en camino',
     'Aceptaron tu solicitud de auxilio. Te avisaremos el tiempo estimado de llegada en cuanto lo tengamos.',
-    { type: 'help_request_accepted', helpRequestId: acceptedRequest.id }
+    { type: 'help_request_accepted', helpRequestId: acceptedRequest.id },
   );
 }
 
-export async function rejectHelpRequest(helpRequestId: string, businessId: string): Promise<void> {
+export async function rejectHelpRequest(
+  helpRequestId: string,
+  businessId: string,
+): Promise<void> {
   const { error } = await supabase
     .from('help_request_notifications')
     .update({ responded: true })
@@ -285,15 +401,85 @@ export async function rejectHelpRequest(helpRequestId: string, businessId: strin
   if (error) throw error;
 }
 
-export async function completeHelpRequest(helpRequestId: string): Promise<void> {
-  const { error } = await supabase
+export async function businessCancelAcceptedRequest(
+  helpRequestId: string,
+  businessId: string,
+  businessName?: string,
+): Promise<void> {
+  const { data, error } = await supabase
     .from('help_requests')
-    .update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('id', helpRequestId);
+    .update({
+      status: 'pending',
+      accepted_business_id: null,
+      accepted_at: null,
+      business_latitude: null,
+      business_longitude: null,
+      business_location_updated_at: null,
+      estimated_arrival_minutes: null,
+    })
+    .eq('id', helpRequestId)
+    .eq('accepted_business_id', businessId)
+    .select();
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error('Ya no puedes cancelar esta solicitud.');
+  }
+
+  const request = data[0] as HelpRequest;
+  const name = businessName ?? 'El taller';
+  await notifyUser(
+    request.client_id,
+    'El taller canceló tu solicitud',
+    `${name} canceló tu solicitud de auxilio. Seguimos buscando otro taller cercano que pueda ayudarte.`,
+    { type: 'help_request_reopened', helpRequestId: request.id },
+  );
 }
 
-export async function getActiveBusinessRequest(businessId: string): Promise<HelpRequest | null> {
+export async function completeHelpRequest(
+  helpRequestId: string,
+  completedBy: 'client' | 'business',
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('help_requests')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('id', helpRequestId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+
+  const request = data as HelpRequest | null;
+  if (!request) return;
+
+  if (completedBy === 'business') {
+    await notifyUser(
+      request.client_id,
+      'Auxilio completado',
+      'El taller marcó tu auxilio como completado. Ya puedes calificar el servicio.',
+      { type: 'help_request_completed', helpRequestId },
+    );
+    return;
+  }
+
+  if (!request.accepted_business_id) return;
+  const { data: businessRow } = await supabase
+    .from('businesses')
+    .select('owner_id')
+    .eq('id', request.accepted_business_id)
+    .maybeSingle();
+  const ownerId = (businessRow as { owner_id: string } | null)?.owner_id;
+  if (!ownerId) return;
+
+  await notifyUser(
+    ownerId,
+    'Auxilio completado',
+    'El cliente marcó el auxilio como completado. Ya puedes calificarlo.',
+    { type: 'help_request_completed', helpRequestId },
+  );
+}
+
+export async function getActiveBusinessRequest(
+  businessId: string,
+): Promise<HelpRequest | null> {
   const { data, error } = await supabase
     .from('help_requests')
     .select('*')

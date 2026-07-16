@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getActiveHelpRequest, getHelpRequestById, subscribeToHelpRequest } from '../services/helpRequests';
+import {
+  getActiveHelpRequest,
+  getHelpRequestById,
+  subscribeToHelpRequest,
+} from '../services/helpRequests';
 import type { HelpRequest } from '../types/database';
 
 export function useActiveHelpRequest(clientId: string | undefined) {
   const [activeRequest, setActiveRequest] = useState<HelpRequest | null>(null);
-  const [completedRequest, setCompletedRequest] = useState<HelpRequest | null>(null);
+  const [completedRequest, setCompletedRequest] = useState<HelpRequest | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     if (!clientId) {
@@ -19,28 +25,45 @@ export function useActiveHelpRequest(clientId: string | undefined) {
     load().catch((err) => console.error('load active help request error', err));
   }, [load]);
 
-  useEffect(() => {
-    if (!activeRequest) return;
-    const requestId = activeRequest.id;
-    // getActiveHelpRequest deja de devolver la solicitud en cuanto pasa a
-    // 'completed', así que hay que leerla por id antes de recargar para
-    // poder mostrarle al cliente el prompt de calificación.
-    const unsubscribe = subscribeToHelpRequest(requestId, () => {
-      getHelpRequestById(requestId)
+  const checkCompletionAndReload = useCallback(
+    (requestId: string) => {
+      // getActiveHelpRequest deja de devolver la solicitud en cuanto pasa a
+      // 'completed', así que hay que leerla por id antes de recargar para
+      // poder mostrarle al cliente el prompt de calificación.
+      return getHelpRequestById(requestId)
         .then((updated) => {
           if (updated?.status === 'completed') setCompletedRequest(updated);
         })
-        .catch((err) => console.error('check completed help request error', err))
+        .catch((err) =>
+          console.error('check completed help request error', err),
+        )
         .finally(() => load());
+    },
+    [load],
+  );
+
+  useEffect(() => {
+    if (!activeRequest) return;
+    const requestId = activeRequest.id;
+    const unsubscribe = subscribeToHelpRequest(requestId, () => {
+      checkCompletionAndReload(requestId);
     });
     return unsubscribe;
-  }, [activeRequest?.id, load]);
+  }, [activeRequest?.id, checkCompletionAndReload]);
+
+  const refresh = useCallback(async () => {
+    if (activeRequest) {
+      await checkCompletionAndReload(activeRequest.id);
+    } else {
+      await load();
+    }
+  }, [activeRequest, checkCompletionAndReload, load]);
 
   return {
     activeRequest,
     setActiveRequest,
     completedRequest,
     clearCompletedRequest: () => setCompletedRequest(null),
-    refresh: load,
+    refresh,
   };
 }

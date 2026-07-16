@@ -9,6 +9,7 @@ interface MapNamedMarkerProps {
   color?: string;
   avatarUrl?: string | null;
   fallbackIcon?: React.ComponentProps<typeof Ionicons>['name'];
+  zIndex?: number;
 }
 
 const CIRC = 30;
@@ -22,12 +23,13 @@ export function MapNamedMarker({
   color = colors.primary,
   avatarUrl,
   fallbackIcon,
+  zIndex,
 }: MapNamedMarkerProps) {
   const showBubble = avatarUrl != null || fallbackIcon != null;
 
   if (showBubble) {
     return (
-      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges>
+      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges zIndex={zIndex}>
         <View style={styles.wrapper} collapsable={false}>
           {/* Chip con nombre */}
           <View style={styles.chip}>
@@ -50,7 +52,7 @@ export function MapNamedMarker({
   }
 
   return (
-    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false} zIndex={zIndex}>
       <View style={styles.classicWrap}>
         <View style={styles.classicBubble}>
           <Text style={styles.classicText} numberOfLines={1}>{label}</Text>
