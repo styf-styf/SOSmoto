@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  Keyboard,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +23,12 @@ import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
-import { createBusiness, getMyWorkBusiness, getNewNearbyBusinesses, type BusinessWithDistance } from '../../../services/businesses';
+import {
+  createBusiness,
+  getMyWorkBusiness,
+  getNewNearbyBusinesses,
+  type BusinessWithDistance,
+} from '../../../services/businesses';
 import {
   acceptInvitation,
   getMyPendingInvitations,
@@ -22,8 +41,12 @@ import {
   getMyRemovalNotice,
 } from '../../../services/employees';
 import { changeRoleToClient } from '../../../services/users';
+import { getFollowsCount } from '../../../services/follows';
 import type { EmployeeRemovalNotice } from '../../../types/database';
-import { dismissGrowthSuggestion, getActiveGrowthSuggestion } from '../../../services/growth';
+import {
+  dismissGrowthSuggestion,
+  getActiveGrowthSuggestion,
+} from '../../../services/growth';
 import {
   getBusinessStories,
   getSeenStoryIds,
@@ -37,11 +60,20 @@ import {
 import { CreateBusinessPostBox } from '../../../components/CreateBusinessPostBox';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
-import type { Business, BusinessType, GrowthSuggestion } from '../../../types/database';
-import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
+import type {
+  Business,
+  BusinessType,
+  GrowthSuggestion,
+} from '../../../types/database';
+import {
+  clearLimitedMark,
+  markLimited,
+  wasPreviouslyLimited,
+} from '../../../utils/accountLimit';
 import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const MIN_FOLLOWS_FOR_FEED = 4;
 
 export default function BusinessHomeScreen() {
   const { profile, refreshProfile } = useAuth();
@@ -51,14 +83,25 @@ export default function BusinessHomeScreen() {
   const [isOwner, setIsOwner] = useState(false);
   const [canCreatePosts, setCanCreatePosts] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [pendingInvitations, setPendingInvitations] = useState<EmployeeInvitationWithBusiness[]>([]);
-  const [removalNotice, setRemovalNotice] = useState<EmployeeRemovalNotice | null>(null);
+  const [pendingInvitations, setPendingInvitations] = useState<
+    EmployeeInvitationWithBusiness[]
+  >([]);
+  const [removalNotice, setRemovalNotice] =
+    useState<EmployeeRemovalNotice | null>(null);
   const [activeStories, setActiveStories] = useState(0);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
-  const [feedItemsFollowing, setFeedItemsFollowing] = useState<StoryFeedItem[]>([]);
-  const [nearbyNewStores, setNearbyNewStores] = useState<BusinessWithDistance[]>([]);
-  const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
-  const [growthSuggestion, setGrowthSuggestion] = useState<GrowthSuggestion | null>(null);
+  const [feedItemsFollowing, setFeedItemsFollowing] = useState<StoryFeedItem[]>(
+    [],
+  );
+  const [nearbyNewStores, setNearbyNewStores] = useState<
+    BusinessWithDistance[]
+  >([]);
+  const [followsCount, setFollowsCount] = useState(0);
+  const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(
+    null,
+  );
+  const [growthSuggestion, setGrowthSuggestion] =
+    useState<GrowthSuggestion | null>(null);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
   const didInitialLoadRef = useRef(false);
@@ -70,7 +113,9 @@ export default function BusinessHomeScreen() {
   // como estaba.
   const isWorkshop = business?.business_type === 'workshop';
   const dragX = useRef(new Animated.Value(0)).current;
-  const siguiendoTranslateX = useRef(Animated.add(dragX, new Animated.Value(SCREEN_WIDTH))).current;
+  const siguiendoTranslateX = useRef(
+    Animated.add(dragX, new Animated.Value(SCREEN_WIDTH)),
+  ).current;
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -80,8 +125,12 @@ export default function BusinessHomeScreen() {
       setBusiness(result);
       setIsOwner(work?.isOwner ?? false);
       if (result) {
-        const employeeRecord = work?.isOwner ? null : await getMyEmployeeRecord(result.id, profile.id);
-        setCanCreatePosts(work?.isOwner || (employeeRecord?.can_create_posts ?? false));
+        const employeeRecord = work?.isOwner
+          ? null
+          : await getMyEmployeeRecord(result.id, profile.id);
+        setCanCreatePosts(
+          work?.isOwner || (employeeRecord?.can_create_posts ?? false),
+        );
       } else {
         setCanCreatePosts(false);
       }
@@ -107,27 +156,46 @@ export default function BusinessHomeScreen() {
             'Negocio limitado',
             result.limitation_reason
               ? `Tu negocio está limitado: ${result.limitation_reason}`
-              : 'Tu negocio está limitado. No puedes crear anuncios nuevos, historias, publicaciones, editar catálogo, gestionar empleados ni usar el chat.'
+              : 'Tu negocio está limitado. No puedes crear anuncios nuevos, historias, publicaciones, editar catálogo, gestionar empleados ni usar el chat.',
           );
         } else if (wasLimited) {
           await clearLimitedMark(key);
-          Alert.alert('Negocio restablecido', 'Se quitó el límite de tu negocio. Ya puedes usar la app con normalidad.');
+          Alert.alert(
+            'Negocio restablecido',
+            'Se quitó el límite de tu negocio. Ya puedes usar la app con normalidad.',
+          );
         }
       }
 
-      const [stories, businessStoriesGlobal, clientStoriesGlobal, suggestion, businessStoriesFollowed, newNearbyStores] =
-        await Promise.all([
-          getBusinessStories(result.id),
-          getVisibleBusinessStoriesGlobal(),
-          getVisibleClientStories(),
-          getActiveGrowthSuggestion(result.id),
-          result.business_type === 'workshop' ? getVisibleBusinessStoriesFollowed(profile.id) : Promise.resolve([]),
-          result.business_type === 'workshop'
-            ? getNewNearbyBusinesses(coords, 6, { onlyType: 'store', excludeBusinessId: result.id })
-            : Promise.resolve([]),
-        ]);
+      const [
+        stories,
+        businessStoriesGlobal,
+        clientStoriesGlobal,
+        suggestion,
+        businessStoriesFollowed,
+        newNearbyStores,
+        followCount,
+      ] = await Promise.all([
+        getBusinessStories(result.id),
+        getVisibleBusinessStoriesGlobal(),
+        getVisibleClientStories(),
+        getActiveGrowthSuggestion(result.id),
+        result.business_type === 'workshop'
+          ? getVisibleBusinessStoriesFollowed(profile.id)
+          : Promise.resolve([]),
+        result.business_type === 'workshop'
+          ? getNewNearbyBusinesses(coords, 6, {
+              onlyType: 'store',
+              excludeBusinessId: result.id,
+            })
+          : Promise.resolve([]),
+        result.business_type === 'workshop'
+          ? getFollowsCount(profile.id)
+          : Promise.resolve(0),
+      ]);
       setGrowthSuggestion(suggestion);
       setNearbyNewStores(newNearbyStores);
+      setFollowsCount(followCount);
       const visibleOwnStories = stories.filter(isStoryVisible);
       setActiveStories(visibleOwnStories.length);
       setOwnPreviewImageUrl(visibleOwnStories[0]?.image_url ?? null);
@@ -144,7 +212,7 @@ export default function BusinessHomeScreen() {
           clientStories: clientStoriesGlobal,
           seenStoryIds: seenIds,
           excludeBusinessId: result.id,
-        })
+        }),
       );
       setFeedItemsFollowing(
         groupStoriesByAuthor({
@@ -152,7 +220,7 @@ export default function BusinessHomeScreen() {
           clientStories: [],
           seenStoryIds: seenIds,
           excludeBusinessId: result.id,
-        })
+        }),
       );
     } catch (err) {
       console.error('load business error', err);
@@ -170,7 +238,9 @@ export default function BusinessHomeScreen() {
       setLoading(true);
       load().finally(() => setLoading(false));
     } else {
-      load().catch((err) => console.error('home background refresh error', err));
+      load().catch((err) =>
+        console.error('home background refresh error', err),
+      );
     }
   }, [load]);
 
@@ -192,7 +262,7 @@ export default function BusinessHomeScreen() {
       dragX.setValue(0);
       markProductoServicioStacksForReset();
       load().catch((err) => console.error('refresh business home error', err));
-    }, [load])
+    }, [load]),
   );
 
   // Reinicia el toggle Para ti/Siguiendo y la pila de producto/servicio
@@ -240,7 +310,9 @@ export default function BusinessHomeScreen() {
       return (
         <RemovedNoticeScreen
           notice={removalNotice}
-          onDismissed={() => { setRemovalNotice(null); }}
+          onDismissed={() => {
+            setRemovalNotice(null);
+          }}
           onChangeToClient={async () => {
             await changeRoleToClient();
             await refreshProfile();
@@ -250,7 +322,12 @@ export default function BusinessHomeScreen() {
       );
     }
     if (pendingInvitations.length > 0) {
-      return <PendingInvitationsScreen invitations={pendingInvitations} onResponded={load} />;
+      return (
+        <PendingInvitationsScreen
+          invitations={pendingInvitations}
+          onResponded={load}
+        />
+      );
     }
     return <BusinessOnboarding onCreated={setBusiness} />;
   }
@@ -259,7 +336,12 @@ export default function BusinessHomeScreen() {
     hasStory: activeStories > 0,
     avatarUrl: business.logo_url,
     previewImageUrl: ownPreviewImageUrl,
-    onPress: () => router.push(activeStories > 0 ? `/(business)/historia/${business.id}` : '/(business)/historias'),
+    onPress: () =>
+      router.push(
+        activeStories > 0
+          ? `/(business)/historia/${business.id}`
+          : '/(business)/historias',
+      ),
   };
 
   const growthCard = growthSuggestion && (
@@ -270,10 +352,16 @@ export default function BusinessHomeScreen() {
           <Text style={styles.growthCardTitle}>{growthSuggestion.title}</Text>
           <Text style={styles.growthCardBody}>{growthSuggestion.body}</Text>
         </View>
-        <Pressable style={styles.growthCardAction} onPress={() => router.push('/(business)/crece-tu-negocio')}>
+        <Pressable
+          style={styles.growthCardAction}
+          onPress={() => router.push('/(business)/crece-tu-negocio')}
+        >
           <Ionicons name="arrow-forward" size={16} color={colors.primary} />
         </Pressable>
-        <Pressable style={styles.growthCardAction} onPress={handleDismissSuggestion}>
+        <Pressable
+          style={styles.growthCardAction}
+          onPress={handleDismissSuggestion}
+        >
           <Ionicons name="close" size={16} color={colors.textMuted} />
         </Pressable>
       </View>
@@ -283,9 +371,14 @@ export default function BusinessHomeScreen() {
   const createPostBox = canCreatePosts && (
     <View style={styles.createPostWrap}>
       {business.is_limited ? (
-        <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
+        <Text style={styles.limitedNotice}>
+          Tu cuenta está limitada: no puedes crear nuevas publicaciones.
+        </Text>
       ) : (
-        <CreateBusinessPostBox businessId={business.id} onCreated={() => homeFeedRef.current?.refresh()} />
+        <CreateBusinessPostBox
+          businessId={business.id}
+          onCreated={() => homeFeedRef.current?.refresh()}
+        />
       )}
     </View>
   );
@@ -313,7 +406,9 @@ export default function BusinessHomeScreen() {
                   ...item,
                   onPress: () =>
                     router.push(
-                      item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
+                      item.kind === 'business'
+                        ? `/(business)/historia/${item.id}`
+                        : `/(business)/historia-cliente/${item.id}`,
                     ),
                 }))}
               />
@@ -326,6 +421,10 @@ export default function BusinessHomeScreen() {
     );
   }
 
+  // El toggle "Siguiendo" solo tiene sentido si el taller sigue suficientes
+  // tiendas/marcas como para que el feed no se sienta vacío.
+  const showFollowing = isWorkshop && followsCount >= MIN_FOLLOWS_FOR_FEED;
+
   // Taller: mismo toggle Para ti/Siguiendo + descubrimiento de tiendas
   // nuevas cerca, igual que el home del cliente (ver app/(client)/(tabs)/index.tsx) --
   // incluye el mismo header de marca "SOSmoto" con el botón "Siguiendo" en vez
@@ -335,10 +434,21 @@ export default function BusinessHomeScreen() {
       <View style={styles.brandHeaderRow}>
         <View style={styles.brandHeaderSide} />
         <Text style={styles.brandTitle}>SOSmoto</Text>
-        <Pressable style={[styles.brandHeaderSide, styles.brandHeaderSideRight]} onPress={() => switchTab('following')}>
-          <Text style={styles.siguiendoBtn}>Siguiendo</Text>
-          <Ionicons name="arrow-forward-outline" size={15} color={colors.primary} />
-        </Pressable>
+        {showFollowing ? (
+          <Pressable
+            style={[styles.brandHeaderSide, styles.brandHeaderSideRight]}
+            onPress={() => switchTab('following')}
+          >
+            <Text style={styles.siguiendoBtn}>Siguiendo</Text>
+            <Ionicons
+              name="arrow-forward-outline"
+              size={15}
+              color={colors.primary}
+            />
+          </Pressable>
+        ) : (
+          <View style={styles.brandHeaderSide} />
+        )}
       </View>
       <View style={styles.storiesWrap}>
         <StoriesRow
@@ -347,7 +457,9 @@ export default function BusinessHomeScreen() {
             ...item,
             onPress: () =>
               router.push(
-                item.kind === 'business' ? `/(business)/historia/${item.id}` : `/(business)/historia-cliente/${item.id}`
+                item.kind === 'business'
+                  ? `/(business)/historia/${item.id}`
+                  : `/(business)/historia-cliente/${item.id}`,
               ),
           }))}
         />
@@ -356,8 +468,14 @@ export default function BusinessHomeScreen() {
       {createPostBox}
       {nearbyNewStores.length > 0 && (
         <View style={styles.descubreWrap}>
-          <Text style={styles.sectionTitleInset}>Nuevas tiendas cerca de ti</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.descubreRow}>
+          <Text style={styles.sectionTitleInset}>
+            Nuevas tiendas cerca de ti
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.descubreRow}
+          >
             {nearbyNewStores.map((biz) => (
               <Pressable
                 key={biz.id}
@@ -367,22 +485,42 @@ export default function BusinessHomeScreen() {
                 <View style={styles.descubreAvatarWrap}>
                   <View style={styles.descubreAvatar}>
                     {biz.logo_url ? (
-                      <Image source={{ uri: biz.logo_url }} style={styles.descubreAvatarImage} />
+                      <Image
+                        source={{ uri: biz.logo_url }}
+                        style={styles.descubreAvatarImage}
+                      />
                     ) : (
-                      <Ionicons name="storefront" size={22} color={colors.primary} />
+                      <Ionicons
+                        name="storefront"
+                        size={22}
+                        color={colors.primary}
+                      />
                     )}
                   </View>
                   {biz.is_verified && (
                     <View style={styles.descubreVerifiedDot}>
-                      <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={15}
+                        color={colors.primary}
+                      />
                     </View>
                   )}
                 </View>
-                <Text numberOfLines={1} style={styles.descubreName}>{biz.name}</Text>
-                <Text numberOfLines={1} style={styles.descubreMeta}>
-                  Tienda{biz.distance_km !== null ? ` · ${biz.distance_km.toFixed(1)} km` : ''}
+                <Text numberOfLines={1} style={styles.descubreName}>
+                  {biz.name}
                 </Text>
-                {biz.rating_avg > 0 && <Text style={styles.descubreRating}>★ {biz.rating_avg.toFixed(1)}</Text>}
+                <Text numberOfLines={1} style={styles.descubreMeta}>
+                  Tienda
+                  {biz.distance_km !== null
+                    ? ` · ${biz.distance_km.toFixed(1)} km`
+                    : ''}
+                </Text>
+                {biz.rating_avg > 0 && (
+                  <Text style={styles.descubreRating}>
+                    ★ {biz.rating_avg.toFixed(1)}
+                  </Text>
+                )}
               </Pressable>
             ))}
           </ScrollView>
@@ -394,8 +532,15 @@ export default function BusinessHomeScreen() {
   const siguiendoHeader = (
     <View>
       <View style={styles.brandHeaderRow}>
-        <Pressable style={[styles.brandHeaderSide, styles.brandHeaderSideLeft]} onPress={() => switchTab('all')}>
-          <Ionicons name="arrow-back-outline" size={15} color={colors.primary} />
+        <Pressable
+          style={[styles.brandHeaderSide, styles.brandHeaderSideLeft]}
+          onPress={() => switchTab('all')}
+        >
+          <Ionicons
+            name="arrow-back-outline"
+            size={15}
+            color={colors.primary}
+          />
           <Text style={styles.siguiendoBtn}>Para ti</Text>
         </Pressable>
         <Text style={styles.brandTitle}>Siguiendo</Text>
@@ -415,7 +560,12 @@ export default function BusinessHomeScreen() {
 
   return (
     <View style={styles.flex}>
-      <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: dragX }] }]}>
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          { transform: [{ translateX: dragX }] },
+        ]}
+      >
         <HomeFeed
           ref={homeFeedRef}
           role="business"
@@ -427,18 +577,25 @@ export default function BusinessHomeScreen() {
           ListHeaderComponent={paraTiHeader}
         />
       </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: siguiendoTranslateX }] }]}>
-        <HomeFeed
-          role="business"
-          city={business.city}
-          feedMode="following"
-          clientId={profile?.id}
-          viewerBusinessId={business.id}
-          emptyMessage="Las tiendas que sigues aún no han publicado nada."
-          onRefresh={load}
-          ListHeaderComponent={siguiendoHeader}
-        />
-      </Animated.View>
+      {showFollowing && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFillObject,
+            { transform: [{ translateX: siguiendoTranslateX }] },
+          ]}
+        >
+          <HomeFeed
+            role="business"
+            city={business.city}
+            feedMode="following"
+            clientId={profile?.id}
+            viewerBusinessId={business.id}
+            emptyMessage="Las tiendas que sigues aún no han publicado nada."
+            onRefresh={load}
+            ListHeaderComponent={siguiendoHeader}
+          />
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -483,21 +640,30 @@ function RemovedNoticeScreen({
               await onChangeToClient();
             } catch (err) {
               console.error('change role to client error', err);
-              Alert.alert('Error', 'No se pudo cambiar el rol. Intenta de nuevo.');
+              Alert.alert(
+                'Error',
+                'No se pudo cambiar el rol. Intenta de nuevo.',
+              );
               setBusy(null);
             }
           },
         },
-      ]
+      ],
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.removedContainer}>
-      <Ionicons name="person-remove-outline" size={52} color={colors.danger} style={styles.removedIcon} />
+      <Ionicons
+        name="person-remove-outline"
+        size={52}
+        color={colors.danger}
+        style={styles.removedIcon}
+      />
       <Text style={styles.removedTitle}>Fuiste removido del equipo</Text>
       <Text style={styles.removedSubtitle}>
-        Ya no eres parte del equipo de <Text style={styles.removedBusiness}>{notice.business_name}</Text>.
+        Ya no eres parte del equipo de{' '}
+        <Text style={styles.removedBusiness}>{notice.business_name}</Text>.
         Elige cómo quieres continuar:
       </Text>
 
@@ -544,7 +710,12 @@ function PendingInvitationsScreen({
       onResponded();
     } catch (err) {
       console.error('accept invitation error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo aceptar la invitación. Intenta de nuevo.');
+      Alert.alert(
+        'Error',
+        err instanceof Error
+          ? err.message
+          : 'No se pudo aceptar la invitación. Intenta de nuevo.',
+      );
     } finally {
       setProcessingId(null);
     }
@@ -572,21 +743,29 @@ function PendingInvitationsScreen({
             }
           },
         },
-      ]
+      ],
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.invitationsContainer}>
-      <Ionicons name="mail-outline" size={48} color={colors.primary} style={styles.invitationsIcon} />
+      <Ionicons
+        name="mail-outline"
+        size={48}
+        color={colors.primary}
+        style={styles.invitationsIcon}
+      />
       <Text style={styles.invitationsTitle}>Tienes invitaciones</Text>
       <Text style={styles.invitationsSubtitle}>
-        Un negocio te invitó a unirte a su equipo. Acepta para empezar a trabajar.
+        Un negocio te invitó a unirte a su equipo. Acepta para empezar a
+        trabajar.
       </Text>
       {invitations.map((inv) => (
         <View key={inv.id} style={styles.invitationCard}>
           <Text style={styles.invitationBusiness}>{inv.business_name}</Text>
-          {inv.job_title && <Text style={styles.invitationMeta}>Cargo: {inv.job_title}</Text>}
+          {inv.job_title && (
+            <Text style={styles.invitationMeta}>Cargo: {inv.job_title}</Text>
+          )}
           <Text style={styles.invitationMeta}>
             {inv.can_accept_aid_requests
               ? 'Podrás aceptar solicitudes de auxilio'
@@ -613,16 +792,39 @@ function PendingInvitationsScreen({
 }
 
 const ECUADOR_PROVINCES = [
-  'Azuay', 'Bolívar', 'Cañar', 'Carchi', 'Chimborazo', 'Cotopaxi',
-  'El Oro', 'Esmeraldas', 'Galápagos', 'Guayas', 'Imbabura', 'Loja',
-  'Los Ríos', 'Manabí', 'Morona Santiago', 'Napo', 'Orellana', 'Pastaza',
-  'Pichincha', 'Santa Elena', 'Santo Domingo de los Tsáchilas',
-  'Sucumbíos', 'Tungurahua', 'Zamora Chinchipe',
+  'Azuay',
+  'Bolívar',
+  'Cañar',
+  'Carchi',
+  'Chimborazo',
+  'Cotopaxi',
+  'El Oro',
+  'Esmeraldas',
+  'Galápagos',
+  'Guayas',
+  'Imbabura',
+  'Loja',
+  'Los Ríos',
+  'Manabí',
+  'Morona Santiago',
+  'Napo',
+  'Orellana',
+  'Pastaza',
+  'Pichincha',
+  'Santa Elena',
+  'Santo Domingo de los Tsáchilas',
+  'Sucumbíos',
+  'Tungurahua',
+  'Zamora Chinchipe',
 ];
 
 const QUITO_DEFAULT = { latitude: -0.1807, longitude: -78.4678 };
 
-function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => void }) {
+function BusinessOnboarding({
+  onCreated,
+}: {
+  onCreated: (business: Business) => void;
+}) {
   const { profile } = useAuth();
   const { coords, getCoords } = useLocation();
   const [businessType, setBusinessType] = useState<BusinessType>('workshop');
@@ -638,20 +840,34 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
   // Teclado
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => { show.remove(); hide.remove(); };
+    const show = Keyboard.addListener('keyboardDidShow', (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () =>
+      setKeyboardHeight(0),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   // Mapa
-  const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const pendingRegionRef = useRef<Region | null>(null);
 
   function openMapPicker() {
     const center = selectedCoords ?? coords ?? QUITO_DEFAULT;
-    const region: Region = { ...center, latitudeDelta: 0.004, longitudeDelta: 0.004 };
+    const region: Region = {
+      ...center,
+      latitudeDelta: 0.004,
+      longitudeDelta: 0.004,
+    };
     pendingRegionRef.current = region;
     setMapInitialRegion(region);
     setShowMapPicker(true);
@@ -659,7 +875,10 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
 
   function confirmMapLocation() {
     if (pendingRegionRef.current) {
-      setSelectedCoords({ latitude: pendingRegionRef.current.latitude, longitude: pendingRegionRef.current.longitude });
+      setSelectedCoords({
+        latitude: pendingRegionRef.current.latitude,
+        longitude: pendingRegionRef.current.longitude,
+      });
     }
     setShowMapPicker(false);
   }
@@ -694,7 +913,10 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
       return;
     }
     if (!isBrand && !selectedCoords) {
-      Alert.alert('Ubicación requerida', 'Selecciona la ubicación de tu negocio en el mapa.');
+      Alert.alert(
+        'Ubicación requerida',
+        'Selecciona la ubicación de tu negocio en el mapa.',
+      );
       return;
     }
     setSaving(true);
@@ -707,14 +929,19 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         city: isBrand ? '' : city.trim(),
         address: isBrand ? '' : address.trim(),
         latitude: isBrand ? QUITO_DEFAULT.latitude : selectedCoords!.latitude,
-        longitude: isBrand ? QUITO_DEFAULT.longitude : selectedCoords!.longitude,
+        longitude: isBrand
+          ? QUITO_DEFAULT.longitude
+          : selectedCoords!.longitude,
         phone: phone.trim(),
       });
       Keyboard.dismiss();
       onCreated(business);
     } catch (err) {
       console.error('create business error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo crear el negocio.');
+      Alert.alert(
+        'Error',
+        err instanceof Error ? err.message : 'No se pudo crear el negocio.',
+      );
     } finally {
       setSaving(false);
     }
@@ -722,51 +949,93 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.onboardingContainer, { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 24 : 20 }]}
+      contentContainerStyle={[
+        styles.onboardingContainer,
+        { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 24 : 20 },
+      ]}
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>Crea tu negocio</Text>
-      <Text style={styles.subtitle}>Completa estos datos para empezar a recibir clientes.</Text>
+      <Text style={styles.subtitle}>
+        Completa estos datos para empezar a recibir clientes.
+      </Text>
 
       <View style={styles.typeSelector}>
-        <TypeOption label="Taller" selected={businessType === 'workshop'} onPress={() => setBusinessType('workshop')} />
-        <TypeOption label="Tienda" selected={businessType === 'store'} onPress={() => setBusinessType('store')} />
-        <TypeOption label="Marca" selected={businessType === 'brand_advertiser'} onPress={() => setBusinessType('brand_advertiser')} />
+        <TypeOption
+          label="Taller"
+          selected={businessType === 'workshop'}
+          onPress={() => setBusinessType('workshop')}
+        />
+        <TypeOption
+          label="Tienda"
+          selected={businessType === 'store'}
+          onPress={() => setBusinessType('store')}
+        />
+        <TypeOption
+          label="Marca"
+          selected={businessType === 'brand_advertiser'}
+          onPress={() => setBusinessType('brand_advertiser')}
+        />
       </View>
 
-      <TextField label="Nombre del negocio *" placeholder="Taller Mecánico XYZ" value={name} onChangeText={setName} />
+      <TextField
+        label="Nombre del negocio *"
+        placeholder="Taller Mecánico XYZ"
+        value={name}
+        onChangeText={setName}
+      />
 
       {isBrand && (
         <Text style={styles.subtitle}>
-          Una Marca no tiene local propio dentro de la app: vende al por mayor a talleres y tiendas, así que no necesita dirección ni ubicación en el mapa.
+          Una Marca no tiene local propio dentro de la app: vende al por mayor a
+          talleres y tiendas, así que no necesita dirección ni ubicación en el
+          mapa.
         </Text>
       )}
 
       {!isBrand && (
         <>
           <Text style={styles.fieldLabel}>Provincia *</Text>
-          <Pressable style={styles.pickerButton} onPress={() => setShowProvincePicker(true)}>
-            <Text style={[styles.pickerButtonText, !province && styles.pickerButtonPlaceholder]}>
+          <Pressable
+            style={styles.pickerButton}
+            onPress={() => setShowProvincePicker(true)}
+          >
+            <Text
+              style={[
+                styles.pickerButtonText,
+                !province && styles.pickerButtonPlaceholder,
+              ]}
+            >
               {province || 'Selecciona una provincia'}
             </Text>
             <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
           </Pressable>
 
-          <TextField label="Ciudad *" placeholder="Quito" value={city} onChangeText={setCity} />
+          <TextField
+            label="Ciudad *"
+            placeholder="Quito"
+            value={city}
+            onChangeText={setCity}
+          />
 
           <TextField
             label="Dirección *"
             placeholder="Av. Principal 123, oficina 4"
             value={address}
             onChangeText={setAddress}
-            rightIcon={{ name: gettingAddress ? 'reload-outline' : 'navigate-outline', onPress: handleFillAddressFromGPS }}
+            rightIcon={{
+              name: gettingAddress ? 'reload-outline' : 'navigate-outline',
+              onPress: handleFillAddressFromGPS,
+            }}
           />
 
           <Text style={styles.fieldLabel}>Ubicación en el mapa *</Text>
           {selectedCoords ? (
             <View style={styles.locationConfirmed}>
               <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-              <Text style={styles.locationConfirmedText}>Ubicación seleccionada</Text>
+              <Text style={styles.locationConfirmedText}>
+                Ubicación seleccionada
+              </Text>
               <Pressable onPress={openMapPicker}>
                 <Text style={styles.locationChangeLink}>Cambiar</Text>
               </Pressable>
@@ -774,7 +1043,9 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
           ) : (
             <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
               <Ionicons name="map-outline" size={18} color={colors.primary} />
-              <Text style={styles.mapPickerButtonText}>Seleccionar en mapa</Text>
+              <Text style={styles.mapPickerButtonText}>
+                Seleccionar en mapa
+              </Text>
             </Pressable>
           )}
         </>
@@ -788,11 +1059,24 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
         onChangeText={setPhone}
       />
 
-      <Button title="Crear negocio" onPress={handleCreate} loading={saving} style={styles.createButton} />
+      <Button
+        title="Crear negocio"
+        onPress={handleCreate}
+        loading={saving}
+        style={styles.createButton}
+      />
 
       {/* Province picker */}
-      <Modal visible={showProvincePicker} transparent animationType="slide" onRequestClose={() => setShowProvincePicker(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowProvincePicker(false)}>
+      <Modal
+        visible={showProvincePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowProvincePicker(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowProvincePicker(false)}
+        >
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>Selecciona la provincia</Text>
             <FlatList
@@ -800,11 +1084,30 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <Pressable
-                  style={[styles.provinceItem, province === item && styles.provinceItemSelected]}
-                  onPress={() => { setProvince(item); setShowProvincePicker(false); }}
+                  style={[
+                    styles.provinceItem,
+                    province === item && styles.provinceItemSelected,
+                  ]}
+                  onPress={() => {
+                    setProvince(item);
+                    setShowProvincePicker(false);
+                  }}
                 >
-                  <Text style={[styles.provinceText, province === item && styles.provinceTextSelected]}>{item}</Text>
-                  {province === item && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  <Text
+                    style={[
+                      styles.provinceText,
+                      province === item && styles.provinceTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {province === item && (
+                    <Ionicons
+                      name="checkmark"
+                      size={16}
+                      color={colors.primary}
+                    />
+                  )}
                 </Pressable>
               )}
             />
@@ -813,28 +1116,43 @@ function BusinessOnboarding({ onCreated }: { onCreated: (business: Business) => 
       </Modal>
 
       {/* Map picker */}
-      <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
+      <Modal
+        visible={showMapPicker}
+        animationType="slide"
+        onRequestClose={() => setShowMapPicker(false)}
+      >
         <View style={styles.mapContainer}>
           {mapInitialRegion && (
             <MapView
               style={StyleSheet.absoluteFill}
               initialRegion={mapInitialRegion}
-              onRegionChangeComplete={(r) => { pendingRegionRef.current = r; }}
+              onRegionChangeComplete={(r) => {
+                pendingRegionRef.current = r;
+              }}
             />
           )}
           {/* Pin fijo en el centro */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <View style={styles.mapPinWrap}>
-              <Ionicons name="location-sharp" size={48} color={colors.primary} />
+              <Ionicons
+                name="location-sharp"
+                size={48}
+                color={colors.primary}
+              />
               <View style={styles.mapPinShadow} />
             </View>
           </View>
           {/* Header */}
           <View style={styles.mapHeader}>
-            <Pressable style={styles.mapCloseBtn} onPress={() => setShowMapPicker(false)}>
+            <Pressable
+              style={styles.mapCloseBtn}
+              onPress={() => setShowMapPicker(false)}
+            >
               <Ionicons name="close" size={22} color={colors.text} />
             </Pressable>
-            <Text style={styles.mapInstructions}>Mueve el mapa para posicionar tu negocio</Text>
+            <Text style={styles.mapInstructions}>
+              Mueve el mapa para posicionar tu negocio
+            </Text>
           </View>
           {/* Footer */}
           <View style={styles.mapFooter}>
@@ -856,8 +1174,18 @@ function TypeOption({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.typeOption, selected && styles.typeOptionSelected]}>
-      <Text style={[styles.typeOptionText, selected && styles.typeOptionTextSelected]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[styles.typeOption, selected && styles.typeOptionSelected]}
+    >
+      <Text
+        style={[
+          styles.typeOptionText,
+          selected && styles.typeOptionTextSelected,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

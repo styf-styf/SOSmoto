@@ -1,12 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
-import { getNewNearbyBusinesses, getNearestCity, type BusinessWithDistance } from '../../../services/businesses';
-import { getHomeMaintenanceAlerts, markCompleted, type MaintenanceAlert } from '../../../services/maintenance';
+import {
+  getNewNearbyBusinesses,
+  getNearestCity,
+  type BusinessWithDistance,
+} from '../../../services/businesses';
+import { getFollowsCount } from '../../../services/follows';
+import {
+  getHomeMaintenanceAlerts,
+  markCompleted,
+  type MaintenanceAlert,
+} from '../../../services/maintenance';
 import {
   getSeenStoryIds,
   getVisibleBusinessStoriesFollowed,
@@ -18,11 +38,19 @@ import {
 import { CreatePostBox } from '../../../components/CreatePostBox';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
-import { clearLimitedMark, markLimited, wasPreviouslyLimited } from '../../../utils/accountLimit';
+import {
+  clearLimitedMark,
+  markLimited,
+  wasPreviouslyLimited,
+} from '../../../utils/accountLimit';
 import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const bizTypeLabel: Record<string, string> = { workshop: 'Taller', store: 'Tienda' };
+const bizTypeLabel: Record<string, string> = {
+  workshop: 'Taller',
+  store: 'Tienda',
+};
+const MIN_FOLLOWS_FOR_FEED = 4;
 
 export default function ClientHomeScreen() {
   const { profile } = useAuth();
@@ -31,18 +59,27 @@ export default function ClientHomeScreen() {
 
   const [city, setCity] = useState<string | null>(null);
   const [feedItems, setFeedItems] = useState<StoryFeedItem[]>([]);
-  const [feedItemsFollowing, setFeedItemsFollowing] = useState<StoryFeedItem[]>([]);
+  const [feedItemsFollowing, setFeedItemsFollowing] = useState<StoryFeedItem[]>(
+    [],
+  );
   const [ownHasStory, setOwnHasStory] = useState(false);
-  const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(null);
-  const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([]);
+  const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(
+    null,
+  );
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<
+    MaintenanceAlert[]
+  >([]);
   const [nearbyNew, setNearbyNew] = useState<BusinessWithDistance[]>([]);
+  const [followsCount, setFollowsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
   const didInitialLoadRef = useRef(false);
 
   const dragX = useRef(new Animated.Value(0)).current;
-  const siguiendoTranslateX = useRef(Animated.add(dragX, new Animated.Value(SCREEN_WIDTH))).current;
+  const siguiendoTranslateX = useRef(
+    Animated.add(dragX, new Animated.Value(SCREEN_WIDTH)),
+  ).current;
 
   useEffect(() => {
     if (!profile?.id || limitCheckedRef.current) return;
@@ -57,11 +94,14 @@ export default function ClientHomeScreen() {
             'Cuenta limitada',
             profile.limitation_reason
               ? `Tu cuenta está limitada: ${profile.limitation_reason}`
-              : 'Tu cuenta está limitada. No puedes crear publicaciones, subir historias ni buscar talleres.'
+              : 'Tu cuenta está limitada. No puedes crear publicaciones, subir historias ni buscar talleres.',
           );
         } else if (wasLimited) {
           await clearLimitedMark(key);
-          Alert.alert('Cuenta restablecida', 'Se quitó el límite de tu cuenta. Ya puedes usar la app con normalidad.');
+          Alert.alert(
+            'Cuenta restablecida',
+            'Se quitó el límite de tu cuenta. Ya puedes usar la app con normalidad.',
+          );
         }
       } catch (err) {
         console.error('check account limit error', err);
@@ -76,26 +116,43 @@ export default function ClientHomeScreen() {
         getHomeMaintenanceAlerts(profile.id)
           .then(setMaintenanceAlerts)
           .catch((err) => console.error('load maintenance alerts error', err));
+        getFollowsCount(profile.id)
+          .then(setFollowsCount)
+          .catch((err) => console.error('load follows count error', err));
       }
 
-      const [businessStoriesGlobal, clientStoriesGlobal, newNearby, businessStoriesFollowed] = await Promise.all([
+      const [
+        businessStoriesGlobal,
+        clientStoriesGlobal,
+        newNearby,
+        businessStoriesFollowed,
+      ] = await Promise.all([
         getVisibleBusinessStoriesGlobal({ excludeBrand: true }),
         getVisibleClientStories(),
         getNewNearbyBusinesses(coords),
-        profile ? getVisibleBusinessStoriesFollowed(profile.id) : Promise.resolve([]),
+        profile
+          ? getVisibleBusinessStoriesFollowed(profile.id)
+          : Promise.resolve([]),
       ]);
       setNearbyNew(newNearby);
 
-      const allStoryIds = [...businessStoriesGlobal.map((s) => s.id), ...clientStoriesGlobal.map((s) => s.id)];
-      const seenIds = profile ? await getSeenStoryIds(profile.id, allStoryIds) : new Set<string>();
-      const ownClientStory = clientStoriesGlobal.find((s) => s.client_id === profile?.id);
+      const allStoryIds = [
+        ...businessStoriesGlobal.map((s) => s.id),
+        ...clientStoriesGlobal.map((s) => s.id),
+      ];
+      const seenIds = profile
+        ? await getSeenStoryIds(profile.id, allStoryIds)
+        : new Set<string>();
+      const ownClientStory = clientStoriesGlobal.find(
+        (s) => s.client_id === profile?.id,
+      );
       setFeedItems(
         groupStoriesByAuthor({
           businessStories: businessStoriesGlobal,
           clientStories: clientStoriesGlobal,
           seenStoryIds: seenIds,
           excludeClientId: profile?.id,
-        })
+        }),
       );
       setFeedItemsFollowing(
         groupStoriesByAuthor({
@@ -103,7 +160,7 @@ export default function ClientHomeScreen() {
           clientStories: [],
           seenStoryIds: seenIds,
           excludeClientId: profile?.id,
-        })
+        }),
       );
       setOwnHasStory(!!ownClientStory);
       setOwnPreviewImageUrl(ownClientStory?.image_url ?? null);
@@ -125,7 +182,9 @@ export default function ClientHomeScreen() {
       setLoading(true);
       load().finally(() => setLoading(false));
     } else {
-      load().catch((err) => console.error('home background refresh error', err));
+      load().catch((err) =>
+        console.error('home background refresh error', err),
+      );
     }
   }, [load]);
 
@@ -138,7 +197,7 @@ export default function ClientHomeScreen() {
       dragX.setValue(0);
       markProductoServicioStacksForReset();
       load().catch((err) => console.error('refresh client home error', err));
-    }, [load])
+    }, [load]),
   );
 
   // Mismo reset si el usuario ya está en Inicio y vuelve a presionar el botón del tab.
@@ -175,7 +234,9 @@ export default function ClientHomeScreen() {
   async function handleCompleteAlert(alert: MaintenanceAlert) {
     try {
       await markCompleted(alert.suggestionId, alert.vehicleMileage);
-      setMaintenanceAlerts((prev) => prev.filter((a) => a.suggestionId !== alert.suggestionId));
+      setMaintenanceAlerts((prev) =>
+        prev.filter((a) => a.suggestionId !== alert.suggestionId),
+      );
     } catch (err) {
       console.error('complete maintenance alert error', err);
     }
@@ -189,16 +250,31 @@ export default function ClientHomeScreen() {
     );
   }
 
+  // El toggle "Siguiendo" solo tiene sentido si el cliente sigue suficientes
+  // negocios como para que el feed no se sienta vacío.
+  const showFollowing = followsCount >= MIN_FOLLOWS_FOR_FEED;
+
   // Para ti: todas las historias — título centrado con botón "Siguiendo →" en naranja a la derecha
   const sharedScrollHeader = (
     <View>
       <View style={styles.headerRow}>
         <View style={styles.headerSide} />
         <Text style={styles.title}>SOSmoto</Text>
-        <Pressable style={[styles.headerSide, styles.headerSideRight]} onPress={() => switchTab('following')}>
-          <Text style={styles.siguiendoBtn}>Siguiendo</Text>
-          <Ionicons name="arrow-forward-outline" size={15} color={colors.primary} />
-        </Pressable>
+        {showFollowing ? (
+          <Pressable
+            style={[styles.headerSide, styles.headerSideRight]}
+            onPress={() => switchTab('following')}
+          >
+            <Text style={styles.siguiendoBtn}>Siguiendo</Text>
+            <Ionicons
+              name="arrow-forward-outline"
+              size={15}
+              color={colors.primary}
+            />
+          </Pressable>
+        ) : (
+          <View style={styles.headerSide} />
+        )}
       </View>
       <StoriesRow
         own={{
@@ -206,13 +282,19 @@ export default function ClientHomeScreen() {
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
           onPress: () =>
-            router.push(ownHasStory && profile ? `/(client)/historia-cliente/${profile.id}` : '/(client)/historias'),
+            router.push(
+              ownHasStory && profile
+                ? `/(client)/historia-cliente/${profile.id}`
+                : '/(client)/historias',
+            ),
         }}
         items={feedItems.map((item) => ({
           ...item,
           onPress: () =>
             router.push(
-              item.kind === 'business' ? `/(client)/historia/${item.id}` : `/(client)/historia-cliente/${item.id}`
+              item.kind === 'business'
+                ? `/(client)/historia/${item.id}`
+                : `/(client)/historia-cliente/${item.id}`,
             ),
         }))}
       />
@@ -223,8 +305,15 @@ export default function ClientHomeScreen() {
   const siguiendoScrollHeader = (
     <View>
       <View style={styles.headerRow}>
-        <Pressable style={[styles.headerSide, styles.headerSideLeft]} onPress={() => switchTab('all')}>
-          <Ionicons name="arrow-back-outline" size={15} color={colors.primary} />
+        <Pressable
+          style={[styles.headerSide, styles.headerSideLeft]}
+          onPress={() => switchTab('all')}
+        >
+          <Ionicons
+            name="arrow-back-outline"
+            size={15}
+            color={colors.primary}
+          />
           <Text style={styles.siguiendoBtn}>Para ti</Text>
         </Pressable>
         <Text style={styles.title}>Siguiendo</Text>
@@ -236,7 +325,11 @@ export default function ClientHomeScreen() {
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
           onPress: () =>
-            router.push(ownHasStory && profile ? `/(client)/historia-cliente/${profile.id}` : '/(client)/historias'),
+            router.push(
+              ownHasStory && profile
+                ? `/(client)/historia-cliente/${profile.id}`
+                : '/(client)/historias',
+            ),
         }}
         items={feedItemsFollowing.map((item) => ({
           ...item,
@@ -248,104 +341,161 @@ export default function ClientHomeScreen() {
 
   return (
     <View style={styles.flex}>
-        {/* Para ti — en reposo en x=0, sale por la izquierda hacia -SCREEN_WIDTH */}
-        <Animated.View
-          style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: dragX }] }]}
-        >
-          <HomeFeed
-            ref={homeFeedRef}
-            role="client"
-            city={city}
-            feedMode="all"
-            clientId={profile?.id}
-            onRefresh={load}
-            ListHeaderComponent={
-              <View>
-                {sharedScrollHeader}
-                {maintenanceAlerts.length > 0 && (
-                  <View style={styles.maintenanceWrap}>
-                    {maintenanceAlerts.map((alert) => (
-                      <View key={alert.suggestionId} style={styles.maintenanceCard}>
-                        <Ionicons
-                          name={alert.overdue ? 'warning' : 'time-outline'}
-                          size={20}
-                          color={alert.overdue ? colors.danger : colors.warning}
-                        />
-                        <View style={styles.maintenanceCardText}>
-                          <Text style={styles.maintenanceCardTitle}>
-                            {alert.serviceName} · {alert.vehicleLabel}
-                          </Text>
-                          <Text style={styles.maintenanceCardMeta}>
-                            {alert.overdue
-                              ? `Mantenimiento vencido · hace ${Math.abs(alert.kmRemaining).toLocaleString()} km`
-                              : `Mantenimiento próximo · faltan ${alert.kmRemaining.toLocaleString()} km`}
-                          </Text>
-                        </View>
-                        <Pressable
-                          style={styles.maintenanceCardAction}
-                          onPress={() => router.push({ pathname: '/(client)/buscar', params: { service: alert.serviceName } })}
-                        >
-                          <Ionicons name="search" size={16} color={colors.primary} />
-                        </Pressable>
-                        <Pressable style={styles.maintenanceCardAction} onPress={() => handleCompleteAlert(alert)}>
-                          <Ionicons name="checkmark-done" size={16} color={colors.success} />
-                        </Pressable>
+      {/* Para ti — en reposo en x=0, sale por la izquierda hacia -SCREEN_WIDTH */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          { transform: [{ translateX: dragX }] },
+        ]}
+      >
+        <HomeFeed
+          ref={homeFeedRef}
+          role="client"
+          city={city}
+          feedMode="all"
+          clientId={profile?.id}
+          onRefresh={load}
+          ListHeaderComponent={
+            <View>
+              {sharedScrollHeader}
+              {maintenanceAlerts.length > 0 && (
+                <View style={styles.maintenanceWrap}>
+                  {maintenanceAlerts.map((alert) => (
+                    <View
+                      key={alert.suggestionId}
+                      style={styles.maintenanceCard}
+                    >
+                      <Ionicons
+                        name={alert.overdue ? 'warning' : 'time-outline'}
+                        size={20}
+                        color={alert.overdue ? colors.danger : colors.warning}
+                      />
+                      <View style={styles.maintenanceCardText}>
+                        <Text style={styles.maintenanceCardTitle}>
+                          {alert.serviceName} · {alert.vehicleLabel}
+                        </Text>
+                        <Text style={styles.maintenanceCardMeta}>
+                          {alert.overdue
+                            ? `Mantenimiento vencido · hace ${Math.abs(alert.kmRemaining).toLocaleString()} km`
+                            : `Mantenimiento próximo · faltan ${alert.kmRemaining.toLocaleString()} km`}
+                        </Text>
                       </View>
-                    ))}
-                  </View>
-                )}
-                <View style={styles.createPostWrap}>
-                  {profile?.is_limited ? (
-                    <Text style={styles.limitedNotice}>Tu cuenta está limitada: no puedes crear nuevas publicaciones.</Text>
-                  ) : (
-                    <CreatePostBox onCreated={() => homeFeedRef.current?.refresh()} />
-                  )}
+                      <Pressable
+                        style={styles.maintenanceCardAction}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(client)/buscar',
+                            params: { service: alert.serviceName },
+                          })
+                        }
+                      >
+                        <Ionicons
+                          name="search"
+                          size={16}
+                          color={colors.primary}
+                        />
+                      </Pressable>
+                      <Pressable
+                        style={styles.maintenanceCardAction}
+                        onPress={() => handleCompleteAlert(alert)}
+                      >
+                        <Ionicons
+                          name="checkmark-done"
+                          size={16}
+                          color={colors.success}
+                        />
+                      </Pressable>
+                    </View>
+                  ))}
                 </View>
-                {nearbyNew.length > 0 && (
-                  <View style={styles.descubreWrap}>
-                    <Text style={styles.sectionTitleInset}>Nuevos cerca de ti</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.descubreRow}>
-                      {nearbyNew.map((biz) => (
-                        <Pressable
-                          key={biz.id}
-                          style={styles.descubreCard}
-                          onPress={() => router.push(`/(client)/business/${biz.id}`)}
-                        >
-                          <View style={styles.descubreAvatarWrap}>
-                            <View style={styles.descubreAvatar}>
-                              {biz.logo_url ? (
-                                <Image source={{ uri: biz.logo_url }} style={styles.descubreAvatarImage} />
-                              ) : (
-                                <Ionicons name="storefront" size={22} color={colors.primary} />
-                              )}
-                            </View>
-                            {biz.is_verified && (
-                              <View style={styles.descubreVerifiedDot}>
-                                <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
-                              </View>
-                            )}
-                          </View>
-                          <Text numberOfLines={1} style={styles.descubreName}>{biz.name}</Text>
-                          <Text numberOfLines={1} style={styles.descubreMeta}>
-                            {bizTypeLabel[biz.business_type] ?? 'Negocio'}
-                            {biz.distance_km !== null ? ` · ${biz.distance_km.toFixed(1)} km` : ''}
-                          </Text>
-                          {biz.rating_avg > 0 && (
-                            <Text style={styles.descubreRating}>★ {biz.rating_avg.toFixed(1)}</Text>
-                          )}
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-                  </View>
+              )}
+              <View style={styles.createPostWrap}>
+                {profile?.is_limited ? (
+                  <Text style={styles.limitedNotice}>
+                    Tu cuenta está limitada: no puedes crear nuevas
+                    publicaciones.
+                  </Text>
+                ) : (
+                  <CreatePostBox
+                    onCreated={() => homeFeedRef.current?.refresh()}
+                  />
                 )}
               </View>
-            }
-          />
-        </Animated.View>
+              {nearbyNew.length > 0 && (
+                <View style={styles.descubreWrap}>
+                  <Text style={styles.sectionTitleInset}>
+                    Nuevos cerca de ti
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.descubreRow}
+                  >
+                    {nearbyNew.map((biz) => (
+                      <Pressable
+                        key={biz.id}
+                        style={styles.descubreCard}
+                        onPress={() =>
+                          router.push(`/(client)/business/${biz.id}`)
+                        }
+                      >
+                        <View style={styles.descubreAvatarWrap}>
+                          <View style={styles.descubreAvatar}>
+                            {biz.logo_url ? (
+                              <Image
+                                source={{ uri: biz.logo_url }}
+                                style={styles.descubreAvatarImage}
+                              />
+                            ) : (
+                              <Ionicons
+                                name="storefront"
+                                size={22}
+                                color={colors.primary}
+                              />
+                            )}
+                          </View>
+                          {biz.is_verified && (
+                            <View style={styles.descubreVerifiedDot}>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={15}
+                                color={colors.primary}
+                              />
+                            </View>
+                          )}
+                        </View>
+                        <Text numberOfLines={1} style={styles.descubreName}>
+                          {biz.name}
+                        </Text>
+                        <Text numberOfLines={1} style={styles.descubreMeta}>
+                          {bizTypeLabel[biz.business_type] ?? 'Negocio'}
+                          {biz.distance_km !== null
+                            ? ` · ${biz.distance_km.toFixed(1)} km`
+                            : ''}
+                        </Text>
+                        {biz.rating_avg > 0 && (
+                          <Text style={styles.descubreRating}>
+                            ★ {biz.rating_avg.toFixed(1)}
+                          </Text>
+                        )}
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+          }
+        />
+      </Animated.View>
 
-        {/* Siguiendo — en reposo en x=SCREEN_WIDTH (fuera de pantalla derecha), entra a x=0 */}
+      {/* Siguiendo — en reposo en x=SCREEN_WIDTH (fuera de pantalla derecha), entra a x=0.
+            Oculto por completo si el cliente sigue menos de MIN_FOLLOWS_FOR_FEED negocios. */}
+      {showFollowing && (
         <Animated.View
-          style={[StyleSheet.absoluteFillObject, { transform: [{ translateX: siguiendoTranslateX }] }]}
+          style={[
+            StyleSheet.absoluteFillObject,
+            { transform: [{ translateX: siguiendoTranslateX }] },
+          ]}
         >
           <HomeFeed
             role="client"
@@ -357,6 +507,7 @@ export default function ClientHomeScreen() {
             ListHeaderComponent={siguiendoScrollHeader}
           />
         </Animated.View>
+      )}
     </View>
   );
 }
