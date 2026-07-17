@@ -385,8 +385,8 @@ export default function CatalogoScreen() {
             ) : (
               <CatalogGrid
                 items={services}
+                kind="service"
                 readOnly={business.is_limited || !canManageCatalog}
-                onEdit={(service) => setForm({ kind: 'service', service })}
                 onDelete={confirmDeleteService}
                 highlightId={highlightId}
                 highlightedId={highlightedId}
@@ -413,8 +413,8 @@ export default function CatalogoScreen() {
         ) : (
           <CatalogGrid
             items={products}
+            kind="product"
             readOnly={business.is_limited || !canManageCatalog}
-            onEdit={(product) => setForm({ kind: 'product', product })}
             onDelete={confirmDeleteProduct}
             highlightId={highlightId}
             highlightedId={highlightedId}
@@ -549,7 +549,7 @@ export default function CatalogoScreen() {
 
 function CatalogGrid<T extends CatalogDisplayItem>({
   items,
-  onEdit,
+  kind,
   onDelete,
   readOnly,
   highlightId,
@@ -557,13 +557,19 @@ function CatalogGrid<T extends CatalogDisplayItem>({
   onHighlightLayout,
 }: {
   items: T[];
-  onEdit: (item: T) => void;
+  kind: 'product' | 'service';
   onDelete: (item: T) => void;
   readOnly?: boolean;
   highlightId?: string;
   highlightedId?: string | null;
   onHighlightLayout?: (y: number) => void;
 }) {
+  // Tocar la tarjeta lleva a la página de detalle (donde ya existe el botón
+  // Editar en el header) -- ya no abre el formulario de edición directamente.
+  function openDetail(item: T) {
+    router.push(kind === 'service' ? `/(business)/servicio/${item.id}` : `/(business)/producto/${item.id}`);
+  }
+
   const containerY = useRef(0);
   const cardLocalY = useRef<number | null>(null);
 
@@ -594,7 +600,7 @@ function CatalogGrid<T extends CatalogDisplayItem>({
             >
               <Pressable
                 style={styles.gridCard}
-                onPress={() => !readOnly && onEdit(item)}
+                onPress={() => openDetail(item)}
               >
                 <Image source={{ uri: item.photos[0] }} style={styles.gridImage} resizeMode="cover" />
                 <GradientShade height={Math.round(CARD_HEIGHT * 0.55)} />
@@ -631,7 +637,7 @@ function CatalogGrid<T extends CatalogDisplayItem>({
             <Pressable
               key={item.id}
               style={[styles.itemRow, item.id === highlightedId && styles.itemRowHighlight]}
-              onPress={() => !readOnly && onEdit(item)}
+              onPress={() => openDetail(item)}
               onLayout={item.id === highlightId ? (e) => {
                 cardLocalY.current = e.nativeEvent.layout.y;
               } : undefined}
