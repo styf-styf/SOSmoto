@@ -74,7 +74,16 @@ export function PostCard({
 
   function handleTagPress(e: GestureResponderEvent) {
     e.stopPropagation();
-    if (tag) router.push(tag.href);
+    if (!tag) return;
+    // Si el negocio etiquetado es el propio (dueño o empleado, ver
+    // viewerBusinessId más arriba), llevarlo a su perfil real en vez de la
+    // vista pública -- mismo criterio que handleAuthorPress.
+    if (post.tag_business && post.tag_business.id === viewerBusinessId) {
+      const prefix = userRole === 'business' ? '/(business)' : '/(client)';
+      router.push(`${prefix}/(tabs)/perfil`);
+      return;
+    }
+    router.push(tag.href);
   }
 
   function handleShare() {

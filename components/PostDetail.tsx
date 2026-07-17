@@ -329,6 +329,18 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
     }
   }
 
+  function handleTagPress() {
+    if (!tag) return;
+    // Si el negocio etiquetado es el propio (dueño o empleado, ver
+    // viewerBusinessId más arriba), llevarlo a su perfil real en vez de la
+    // vista pública -- mismo criterio que handleAuthorPress.
+    if (post?.tag_business && post.tag_business.id === viewerBusinessId) {
+      router.push(`${prefix}/(tabs)/perfil`);
+      return;
+    }
+    router.push(tag.href);
+  }
+
   function handleCommentAuthorPress(comment: PostCommentWithAuthor) {
     if (!comment.users) return;
     if (comment.users.id === profile?.id) {
@@ -376,7 +388,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
         {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 
         {tag && (
-          <Pressable style={styles.tagChip} onPress={() => router.push(tag.href)}>
+          <Pressable style={styles.tagChip} onPress={handleTagPress}>
             <Ionicons name="pricetag" size={12} color={colors.primary} />
             <Text style={styles.tagText}>{tag.label}</Text>
           </Pressable>
