@@ -609,6 +609,41 @@ export interface ServiceIntent {
   updated_at: string;
 }
 
+export type AiChatRole = 'user' | 'assistant';
+
+export type AiChatActionType =
+  | 'solicitar_auxilio'
+  | 'buscar_taller'
+  | 'ver_producto'
+  | 'ver_servicio'
+  | 'ir_a_catalogo'
+  | 'ir_a_estadisticas'
+  | 'crear_campania_publicidad'
+  | 'ver_informe';
+
+export interface AiChatActionParams {
+  service_name?: string | null;
+  product_id?: string | null;
+  service_id?: string | null;
+  report_id?: string | null;
+  business_id?: string | null;
+}
+
+export interface AiChatAction {
+  type: AiChatActionType;
+  label: string;
+  params: AiChatActionParams;
+}
+
+export interface AiChatMessage {
+  id: string;
+  user_id: string;
+  role: AiChatRole;
+  content: string;
+  action: AiChatAction | null;
+  created_at: string;
+}
+
 export interface ServiceIntentWithService extends ServiceIntent {
   service_name: string;
   service_price: number | null;

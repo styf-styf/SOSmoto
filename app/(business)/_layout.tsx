@@ -30,6 +30,7 @@ export default function BusinessLayout() {
           propio botón de regreso (ChatHeader / StoryViewer) -- header nativo apagado
           para no duplicarlo. */}
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="chat/asistente" options={{ headerShown: false }} />
       <Stack.Screen
         name="historia/[businessId]"
         options={{ headerShown: false }}
