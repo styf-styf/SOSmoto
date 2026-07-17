@@ -279,21 +279,31 @@ export default function BusinessProductDetailScreen() {
         <Text style={styles.stock}>Pedido mínimo: {product.min_order_quantity} unidades</Text>
       )}
 
-      {hasPriceTiers && (
-        <View style={styles.tiersBox}>
-          <Text style={styles.tiersTitle}>Precio por volumen</Text>
-          {getAllPriceTiers(activeReferencePrice, product.min_order_quantity, activePriceTiers).map((t, i) => (
-            <View key={i} style={styles.tierRow}>
-              <Text style={[styles.tierRowText, quantity >= t.min_quantity && styles.tierRowTextActive]}>
-                {t.min_quantity}+ unidades
-              </Text>
-              <Text style={[styles.tierRowText, quantity >= t.min_quantity && styles.tierRowTextActive]}>
-                ${t.unit_price.toFixed(2)} c/u
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {hasPriceTiers && (() => {
+        const allTiers = getAllPriceTiers(activeReferencePrice, product.min_order_quantity, activePriceTiers);
+        // Solo el escalón que realmente aplica a `quantity` se resalta (el de
+        // min_quantity más alto que sea <= quantity), no todos los que ya se
+        // "alcanzaron" -- mismo criterio que getEffectiveUnitPrice.
+        const activeIndex = allTiers.reduce(
+          (best, t, i) => (quantity >= t.min_quantity ? i : best),
+          -1
+        );
+        return (
+          <View style={styles.tiersBox}>
+            <Text style={styles.tiersTitle}>Precio por volumen</Text>
+            {allTiers.map((t, i) => (
+              <View key={i} style={styles.tierRow}>
+                <Text style={[styles.tierRowText, i === activeIndex && styles.tierRowTextActive]}>
+                  {t.min_quantity}+ unidades
+                </Text>
+                <Text style={[styles.tierRowText, i === activeIndex && styles.tierRowTextActive]}>
+                  ${t.unit_price.toFixed(2)} c/u
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
 
       {hasVariants && (
         <View style={styles.variantRow}>
@@ -444,6 +454,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    marginRight: 12,
   },
   center: {
     flex: 1,

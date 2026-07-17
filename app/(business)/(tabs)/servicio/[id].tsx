@@ -250,6 +250,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    marginRight: 12,
   },
   center: {
     flex: 1,
