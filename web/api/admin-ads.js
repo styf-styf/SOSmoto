@@ -21,7 +21,8 @@ module.exports = async (req, res) => {
   .approve { background: #1e8e3e; color: #fff; }
   .reject { background: #c0392b; color: #fff; }
   #status { text-align: center; padding: 60px 0; color: #666; }
-  .top-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .top-bar a { color: #444; font-size: 13px; text-decoration: none; }
   #logoutBtn { width: auto; background: none; color: #c0392b; font-weight: 600; font-size: 13px; padding: 6px 8px; }
   #debugBox { display: none; max-width: 560px; margin: 0 auto 12px; background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; border-radius: 8px; padding: 12px; font-size: 12px; font-family: monospace; word-break: break-word; white-space: pre-wrap; }
 </style>
@@ -44,7 +45,10 @@ module.exports = async (req, res) => {
 <div class="container">
   <div id="status">Cargando...</div>
   <div id="content" style="display:none">
-    <div class="top-bar"><button id="logoutBtn" style="flex:none;">Cerrar sesión</button></div>
+    <div class="top-bar">
+      <a href="/api/admin-settings">Configuración →</a>
+      <button id="logoutBtn" style="flex:none;">Cerrar sesión</button>
+    </div>
     <h1>Publicidad · Cola de aprobación</h1>
     <p class="helper">Campañas pagadas, pendientes de revisión antes de mostrarse a los clientes.</p>
     <div id="list"></div>
@@ -102,6 +106,12 @@ module.exports = async (req, res) => {
     });
   }
 
+  function scopeLabel(ad) {
+    if (ad.target_scope === 'radius') return 'Radio ' + ad.target_radius_km + ' km';
+    if (ad.target_scope === 'city') return ad.target_city || 'Ciudad';
+    return 'Nacional';
+  }
+
   async function loadPending() {
     const { data, error } = await sb.functions.invoke('admin-campaigns', { body: { action: 'list' } });
 
@@ -126,10 +136,10 @@ module.exports = async (req, res) => {
       '<div class="card" id="ad-' + escapeHtml(ad.id) + '">' +
         '<div class="card-header"><span class="card-title">' + escapeHtml(ad.businesses ? ad.businesses.name : 'Negocio') + '</span></div>' +
         '<p class="meta">' + escapeHtml(ad.title) + '</p>' +
-        '<p class="meta">Alcance: ' + escapeHtml(ad.target_city || 'Nacional') + '</p>' +
+        '<p class="meta">Alcance: ' + escapeHtml(scopeLabel(ad)) + '</p>' +
         '<p class="meta">' + new Date(ad.starts_at).toLocaleDateString('es-EC') + ' – ' + new Date(ad.ends_at).toLocaleDateString('es-EC') + '</p>' +
         (ad.link_url ? '<p class="meta">Link: ' + escapeHtml(ad.link_url) + '</p>' : '') +
-        '<img class="preview" src="' + escapeHtml(ad.image_url) + '" />' +
+        '<img class="preview" src="' + escapeHtml(ad.photos && ad.photos[0]) + '" />' +
         '<div class="actions">' +
         '<button class="approve" data-id="' + escapeHtml(ad.id) + '" data-action="active">Aprobar</button>' +
         '<button class="reject" data-id="' + escapeHtml(ad.id) + '" data-action="rejected">Rechazar</button>' +
