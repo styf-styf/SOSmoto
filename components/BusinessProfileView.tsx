@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/auth';
 import { getBusinessById, getFollowedBusinesses, getMyWorkBusiness, updateBusiness } from '../services/businesses';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../services/follows';
+import { getUnreadNotificationsCount } from '../services/notifications';
 import { getMyBusinessPosts } from '../services/posts';
 import { createReport } from '../services/reports';
 import { getBusinessReviews } from '../services/reviews';
@@ -55,6 +56,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [followLoading, setFollowLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ type: 'business' | 'review'; id: string; label: string } | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const logoUrl = logoOverride ?? business?.logo_url ?? null;
   const postsWithImage = posts.filter((post) => post.photos.length > 0);
@@ -70,6 +72,9 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       const work = await getMyWorkBusiness(profile.id);
       resolvedBusiness = work?.business ?? null;
       owner = work?.isOwner ?? false;
+      getUnreadNotificationsCount(profile.id)
+        .then(setUnreadNotifications)
+        .catch((err) => console.error('load unread notifications count error', err));
     } else {
       if (!businessId) return;
       resolvedBusiness = await getBusinessById(businessId);
@@ -128,7 +133,10 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     if (!business || !isOwner) return;
     setUploadingLogo(true);
     try {
-      const url = await pickAndUploadBusinessImage(business.id);
+      // Foto de perfil del negocio (logo) -- recorte 1:1, a diferencia del
+      // resto de imágenes del negocio (catálogo, posts, anuncios) que usan
+      // el 3:4 por defecto, porque el logo siempre se muestra en un círculo.
+      const url = await pickAndUploadBusinessImage(business.id, [1, 1]);
       if (!url) return;
       await updateBusiness(business.id, { logo_url: url });
       setLogoOverride(url);
@@ -282,23 +290,27 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
           </View>
         )}
         <View style={styles.headerText}>
-          {mode === 'public' ? (
-            <View style={styles.nameRow}>
-              <Text style={styles.title}>{business.name}</Text>
-              {business.is_verified && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
-            </View>
-          ) : (
+          <View style={styles.nameRow}>
             <Text style={styles.title}>{business.name}</Text>
-          )}
+            {business.is_verified && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
+          </View>
           {mode === 'public' && <Text style={styles.subtitle}>{businessTypeLabel[business.business_type]}</Text>}
           <Text style={styles.subtitle}>
             {business.address}, {business.city}
           </Text>
         </View>
         {mode === 'self' && (
-          <Pressable onPress={() => router.push('/(business)/configuracion')}>
-            <Ionicons name="menu" size={26} color={colors.text} />
-          </Pressable>
+          <View style={styles.headerIconsRow}>
+            <Pressable onPress={() => router.push('/(business)/notificaciones')} hitSlop={8}>
+              <View>
+                <Ionicons name="notifications-outline" size={24} color={colors.text} />
+                {unreadNotifications > 0 && <View style={styles.notificationDot} />}
+              </View>
+            </Pressable>
+            <Pressable onPress={() => router.push('/(business)/configuracion')} hitSlop={8}>
+              <Ionicons name="menu" size={26} color={colors.text} />
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -462,14 +474,9 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
 
       <Text style={styles.sectionTitle}>Publicaciones</Text>
       {posts.length === 0 ? (
-        <View>
-          <Text style={styles.placeholderText}>
-            {mode === 'self' ? 'Todavía no has publicado nada.' : 'Este negocio aún no ha publicado nada.'}
-          </Text>
-          {mode === 'self' && isOwner && (
-            <Button title="Crear publicación" variant="secondary" onPress={() => router.push('/(business)/publicaciones')} />
-          )}
-        </View>
+        <Text style={styles.placeholderText}>
+          {mode === 'self' ? 'Todavía no has publicado nada. Publica desde el Inicio.' : 'Este negocio aún no ha publicado nada.'}
+        </Text>
       ) : (
         <>
           {postsWithImage.length > 0 && (
@@ -614,6 +621,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+  },
+  headerIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.danger,
+    borderWidth: 1.5,
+    borderColor: colors.background,
   },
   avatarWrap: {
     width: 72,

@@ -36,12 +36,61 @@ export async function sendPushNotification(
   }
 }
 
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+}
+
+export async function getMyNotifications(userId: string): Promise<AppNotification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as AppNotification[];
+}
+
+export async function getUnreadNotificationsCount(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('read', false);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('user_id', userId)
+    .eq('read', false);
+  if (error) throw error;
+}
+
 export async function notifyUser(
   userId: string,
   title: string,
   body: string,
   data?: Record<string, unknown>
 ): Promise<void> {
+  // Deja registro en `notifications` (para la bandeja del perfil) además de
+  // mandar el push -- un fallo al guardar el registro no debe impedir que el
+  // push salga.
+  supabase
+    .from('notifications')
+    .insert({ user_id: userId, title, body, data: data ?? null })
+    .then(({ error }) => {
+      if (error) console.error('insert notification error', error);
+    });
+
   const token = await getPushToken(userId);
   if (!token) return;
   await sendPushNotification(token, title, body, data);

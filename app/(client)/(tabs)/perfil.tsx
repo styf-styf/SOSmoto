@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getFollowedBusinesses } from '../../../services/businesses';
+import { getUnreadNotificationsCount } from '../../../services/notifications';
 import { getMyClientPosts } from '../../../services/posts';
 import { pickAndUploadUserAvatar } from '../../../services/storage';
 import { updateUserProfile } from '../../../services/users';
@@ -27,6 +27,7 @@ export default function ClientPerfilScreen() {
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const avatarUrl = avatarOverride ?? profile?.avatar_url ?? null;
   const postsWithImage = posts.filter((post) => post.photos.length > 0);
   const postsWithoutImage = posts.filter((post) => post.photos.length === 0);
@@ -53,6 +54,7 @@ export default function ClientPerfilScreen() {
       getFollowedBusinesses(profile.id).then(setFollowing).catch((err) => console.error('load followed businesses error', err)),
       getMyClientPosts(profile.id).then(setPosts).catch((err) => console.error('load my posts error', err)),
       getVehicles(profile.id).then((vehicles) => setVehicleCount(vehicles.length)).catch((err) => console.error('load vehicles error', err)),
+      getUnreadNotificationsCount(profile.id).then(setUnreadNotifications).catch((err) => console.error('load unread notifications count error', err)),
     ]);
   }, [profile]);
 
@@ -101,9 +103,17 @@ export default function ClientPerfilScreen() {
           <Text style={styles.title}>{profile?.full_name || 'Perfil'}</Text>
           <Text style={styles.subtitle}>{profile?.email}</Text>
         </View>
-        <Pressable onPress={() => router.push('/(client)/configuracion')}>
-          <Ionicons name="menu" size={26} color={colors.text} />
-        </Pressable>
+        <View style={styles.headerIconsRow}>
+          <Pressable onPress={() => router.push('/(client)/notificaciones')} hitSlop={8}>
+            <View>
+              <Ionicons name="notifications-outline" size={24} color={colors.text} />
+              {unreadNotifications > 0 && <View style={styles.notificationDot} />}
+            </View>
+          </Pressable>
+          <Pressable onPress={() => router.push('/(client)/configuracion')} hitSlop={8}>
+            <Ionicons name="menu" size={26} color={colors.text} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.statsRow}>
@@ -130,9 +140,9 @@ export default function ClientPerfilScreen() {
           <Ionicons name="bag-handle-outline" size={20} color={colors.text} />
           <Text style={styles.actionBtnLabel}>Mis compras</Text>
         </Pressable>
-        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/publicaciones')}>
-          <Ionicons name="grid-outline" size={20} color={colors.text} />
-          <Text style={styles.actionBtnLabel}>Publicaciones</Text>
+        <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/historial')}>
+          <Ionicons name="time-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnLabel}>Servicios</Text>
         </Pressable>
         <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/invitaciones')}>
           <Ionicons name="mail-outline" size={20} color={colors.text} />
@@ -181,10 +191,7 @@ export default function ClientPerfilScreen() {
 
       <Text style={styles.sectionTitle}>Mis publicaciones</Text>
       {posts.length === 0 ? (
-        <View>
-          <Text style={styles.placeholder}>Todavía no has publicado nada.</Text>
-          <Button title="Crear publicación" variant="secondary" onPress={() => router.push('/(client)/publicaciones')} />
-        </View>
+        <Text style={styles.placeholder}>Todavía no has publicado nada. Publica desde el Inicio.</Text>
       ) : (
         <>
           {postsWithImage.length > 0 && (
@@ -237,6 +244,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+  },
+  headerIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.danger,
+    borderWidth: 1.5,
+    borderColor: colors.background,
   },
   avatarWrap: {
     width: 72,
