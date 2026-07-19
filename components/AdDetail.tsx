@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -92,7 +92,8 @@ export function AdDetail({ adId }: { adId: string }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.authorRow}>
           <View style={styles.avatar}>
             {ad.business?.logo_url ? (
@@ -151,21 +152,20 @@ export function AdDetail({ adId }: { adId: string }) {
           <Text style={styles.limitedNoticeText}>Tu cuenta está limitada: no puedes comentar.</Text>
         </View>
       ) : (
-        <KeyboardStickyView>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe un comentario…"
-              placeholderTextColor={colors.textMuted}
-              value={text}
-              onChangeText={setText}
-            />
-            <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
-              <Ionicons name="send" size={18} color="#fff" />
-            </Pressable>
-          </View>
-        </KeyboardStickyView>
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribe un comentario…"
+            placeholderTextColor={colors.textMuted}
+            value={text}
+            onChangeText={setText}
+          />
+          <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
+            <Ionicons name="send" size={18} color="#fff" />
+          </Pressable>
+        </View>
       )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -185,6 +185,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   scroll: {
     padding: 20,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
@@ -380,7 +380,8 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           }}
         />
       )}
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.authorRow} onPress={handleAuthorPress}>
           <View style={styles.avatar}>
             {avatarUrl ? (
@@ -437,21 +438,20 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           <Text style={styles.limitedNoticeText}>Tu cuenta está limitada: no puedes comentar.</Text>
         </View>
       ) : (
-        <KeyboardStickyView>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe un comentario…"
-              placeholderTextColor={colors.textMuted}
-              value={text}
-              onChangeText={setText}
-            />
-            <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
-              <Ionicons name="send" size={18} color="#fff" />
-            </Pressable>
-          </View>
-        </KeyboardStickyView>
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribe un comentario…"
+            placeholderTextColor={colors.textMuted}
+            value={text}
+            onChangeText={setText}
+          />
+          <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
+            <Ionicons name="send" size={18} color="#fff" />
+          </Pressable>
+        </View>
       )}
+      </KeyboardAvoidingView>
 
       <Modal visible={showEditModal} animationType="slide" onRequestClose={() => setShowEditModal(false)}>
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
