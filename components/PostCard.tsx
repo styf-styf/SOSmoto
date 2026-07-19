@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import type { GestureResponderEvent, NativeSyntheticEvent, NativeScrollEvent, TextLayoutEventData } from 'react-native';
 import { router } from 'expo-router';
@@ -9,28 +9,27 @@ import { GradientShade } from './GradientShade';
 import { getPostAuthorAvatar, getPostAuthorName, getPostTag, type PostWithAuthor } from '../services/posts';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+// Unificado con el espacio izquierdo/derecho del resto del feed (historias,
+// carrusel de catálogo, anuncios) -- ver CLAUDE.md/pedido de diseño del feed.
+const CARD_MARGIN = 6;
+// Redondeado a un entero: si el ancho de cada foto (usado en `image` y en el
+// ScrollView) queda con decimales, `pagingEnabled` snapea a un múltiplo del
+// ancho del propio ScrollView (calculado por Yoga con su propio redondeo) que
+// puede diferir por una fracción de píxel del ancho declarado aquí -- ese
+// desfase se acumula foto a foto y se ve como una franja de la imagen vecina
+// al volver atrás en el carrusel.
+const CARD_WIDTH = Math.round(SCREEN_WIDTH - CARD_MARGIN * 2);
+const PHOTO_SWIPE_THRESHOLD = 10;
 
 export function PostCard({
   post,
   detailHref,
   userRole = 'client',
-  showTopShadow = true,
-  showBottomShadow = true,
-  topFadeFromHeader = false,
   viewerBusinessId,
 }: {
   post: PostWithAuthor;
   detailHref: string;
   userRole?: 'client' | 'business';
-  // Cuando este post (sin imagen) queda pegado a otro bloque "de fondo"
-  // (catálogo u otro post sin imagen), HomeFeed apaga la sombra del lado
-  // compartido para que ambos se vean como un solo fondo gris continuo en
-  // vez de dos tarjetas hundidas por separado.
-  showTopShadow?: boolean;
-  showBottomShadow?: boolean;
-  // Cuando este post es el primero del feed (nada arriba salvo el header
-  // blanco), se funde de blanco a gris en vez de mostrar la sombra normal.
-  topFadeFromHeader?: boolean;
   // Negocio del propio usuario (dueño o empleado, ver getMyWorkBusiness) --
   // sin esto, un mecánico que ve una publicación de su propio taller se
   // trataba como un visitante cualquiera (solo se comparaba owner_id).
@@ -45,9 +44,25 @@ export function PostCard({
   const [expanded, setExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
+  // Un swipe corto y rápido para cambiar de foto puede terminar dentro del
+  // mismo Pressable sin que el ScrollView llegue a "reclamar" el gesto --
+  // Pressable no distingue eso de un tap real. Se guarda dónde empezó el
+  // toque y, si al soltar el dedo se movió más que PHOTO_SWIPE_THRESHOLD,
+  // se cancela la navegación (fue un swipe, no un tap).
+  const photoTouchStartXRef = useRef<number | null>(null);
 
   function handlePhotoScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH));
+    setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH));
+  }
+
+  function handlePhotoPressIn(e: GestureResponderEvent) {
+    photoTouchStartXRef.current = e.nativeEvent.pageX;
+  }
+
+  function handlePhotoPress(e: GestureResponderEvent) {
+    const startX = photoTouchStartXRef.current;
+    if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > PHOTO_SWIPE_THRESHOLD) return;
+    router.push(detailHref);
   }
 
   const caption = post.caption ?? '';
@@ -119,13 +134,7 @@ export function PostCard({
   // Pressable envolviendo todo, cada zona pulsable (foto, caption, etc.)
   // tiene su propio Pressable puntual.
   return (
-    <View style={[styles.card, !hasImage && styles.cardNoImage, !hasImage && !showBottomShadow && styles.cardNoBorder]}>
-      {!hasImage && topFadeFromHeader && (
-        <GradientShade position="top" height={24} maxOpacity={1} color={colors.background} />
-      )}
-      {!hasImage && !topFadeFromHeader && showTopShadow && (
-        <GradientShade position="top" height={8} maxOpacity={0.12} />
-      )}
+    <View style={styles.card}>
       <Pressable
         style={[styles.authorRow, hasImage && expanded && styles.authorRowExpanded]}
         onPress={handleAuthorPress}
@@ -184,10 +193,15 @@ export function PostCard({
               scrollEventThrottle={16}
             >
               {post.photos.map((url, index) => (
-                <Pressable key={`${url}-${index}`} onPress={() => router.push(detailHref)}>
+                <Pressable
+                  key={`${url}-${index}`}
+                  style={{ width: CARD_WIDTH }}
+                  onPressIn={handlePhotoPressIn}
+                  onPress={handlePhotoPress}
+                >
                   <Image
                     source={{ uri: url }}
-                    style={[styles.image, { width: SCREEN_WIDTH }]}
+                    style={[styles.image, { width: CARD_WIDTH }]}
                     resizeMode="cover"
                   />
                 </Pressable>
@@ -256,8 +270,6 @@ export function PostCard({
           </View>
         </View>
       )}
-
-      {!hasImage && showBottomShadow && <GradientShade position="bottom" height={8} maxOpacity={0.12} />}
     </View>
   );
 }
@@ -265,14 +277,12 @@ export function PostCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  cardNoImage: {
-    backgroundColor: colors.surface,
-  },
-  cardNoBorder: {
-    borderBottomWidth: 0,
+    marginHorizontal: CARD_MARGIN,
+    marginBottom: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
   authorRow: {
     flexDirection: 'row',
@@ -342,7 +352,10 @@ const styles = StyleSheet.create({
     aspectRatio: 3 / 4,
   },
   imageScroll: {
-    width: '100%',
+    // Ancho explícito en vez de '100%': tiene que ser el mismo entero que
+    // `CARD_WIDTH` (usado por cada página) para que `pagingEnabled` snapee
+    // exactamente al ancho de cada foto -- ver nota junto a CARD_WIDTH.
+    width: CARD_WIDTH,
     height: '100%',
   },
   image: {
