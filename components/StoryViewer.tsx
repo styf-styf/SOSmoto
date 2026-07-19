@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
@@ -37,13 +37,20 @@ export interface StoryViewerProps {
   loadStories: () => Promise<Story[]>;
   homeHref: string;
   contactBusinessId?: string;
+  // Solo lo pasan los dos wrappers que pueden estar viendo la propia historia
+  // (cliente viendo la suya, negocio viendo la suya) -- ver nota junto a
+  // los 4 wrappers en app/(client|business)/historia(-cliente)/[id].tsx.
+  // Eliminar ya no vive en una pantalla de gestión aparte: se hace desde
+  // acá, en la propia historia abierta.
+  canDelete?: boolean;
+  onDelete?: (storyId: string) => Promise<void>;
 }
 
 // Visor full-screen reutilizado tanto por (client)/historia/[businessId] y
 // (client)/historia-cliente/[clientId] como por sus equivalentes en
 // (business)/ -- la única diferencia entre esos 4 wrappers es de dónde
 // cargan las historias y a qué pantalla "Inicio" vuelven si no hay stack.
-export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryViewerProps) {
+export function StoryViewer({ loadStories, homeHref, contactBusinessId, canDelete, onDelete }: StoryViewerProps) {
   const { profile } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [index, setIndex] = useState(0);
@@ -122,6 +129,31 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryV
     router.push(href);
   }
 
+  function handleDeletePress() {
+    if (!current || !onDelete) return;
+    const storyId = current.id;
+    Alert.alert('Eliminar historia', '¿Eliminar esta historia? No se puede deshacer.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await onDelete(storyId);
+            setStories((prev) => {
+              const next = prev.filter((s) => s.id !== storyId);
+              setIndex((i) => Math.min(i, Math.max(0, next.length - 1)));
+              return next;
+            });
+          } catch (err) {
+            console.error('delete story error', err);
+            Alert.alert('Error', 'No se pudo eliminar la historia.');
+          }
+        },
+      },
+    ]);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -168,6 +200,12 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId }: StoryV
           </View>
         ))}
       </View>
+
+      {canDelete && (
+        <Pressable style={styles.deleteButton} onPress={handleDeletePress}>
+          <Ionicons name="trash-outline" size={24} color="#fff" />
+        </Pressable>
+      )}
 
       <Pressable style={styles.closeButton} onPress={closeViewer}>
         <Ionicons name="close" size={28} color="#fff" />
@@ -251,6 +289,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 62,
     right: 12,
+    padding: 6,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 62,
+    right: 56,
     padding: 6,
   },
   captionBox: {

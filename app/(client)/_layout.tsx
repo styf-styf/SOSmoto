@@ -31,9 +31,7 @@ export default function ClientLayout() {
             propio botón de regreso (StoryViewer / ChatHeader) -- header nativo apagado
             para no duplicarlo. */}
         <Stack.Screen name="historia/[businessId]" options={{ headerShown: false }} />
-        <Stack.Screen name="historias" options={{ title: 'Mis historias' }} />
         <Stack.Screen name="historia-cliente/[clientId]" options={{ headerShown: false }} />
-        <Stack.Screen name="publicaciones" options={{ title: 'Mis publicaciones' }} />
         <Stack.Screen name="publicacion/[id]" options={{ title: 'Publicación' }} />
         <Stack.Screen name="anuncio/[id]" options={{ title: 'Anuncio' }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
@@ -41,6 +39,7 @@ export default function ClientLayout() {
         <Stack.Screen name="vehiculos" options={{ title: 'Vehículos' }} />
         <Stack.Screen name="historial" options={{ title: 'Historial' }} />
         <Stack.Screen name="mis-compras" options={{ title: 'Mis compras' }} />
+        <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones' }} />
         <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
         <Stack.Screen name="datos-personales" options={{ title: 'Perfil personal' }} />
         <Stack.Screen name="cambiar-password" options={{ title: 'Contraseña' }} />

@@ -70,9 +70,7 @@ export default function ConfiguracionScreen() {
         <MenuRow icon="bicycle-outline" label="Mis motos" onPress={() => router.push('/(client)/vehiculos')} />
         <MenuRow icon="calendar-outline" label="Mis citas" onPress={() => router.push('/(client)/citas')} />
         <MenuRow icon="bag-handle-outline" label="Mis compras" onPress={() => router.push('/(client)/mis-compras')} />
-        <MenuRow icon="time-outline" label="Historial de servicios" onPress={() => router.push('/(client)/historial')} />
-        <MenuRow icon="film-outline" label="Mis historias" onPress={() => router.push('/(client)/historias')} />
-        <MenuRow icon="images-outline" label="Publicaciones" onPress={() => router.push('/(client)/publicaciones')} last />
+        <MenuRow icon="time-outline" label="Historial de servicios" onPress={() => router.push('/(client)/historial')} last />
       </View>
 
       <Text style={styles.sectionTitle}>Sistema</Text>

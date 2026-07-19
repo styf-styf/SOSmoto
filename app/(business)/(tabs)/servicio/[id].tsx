@@ -250,7 +250,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginRight: 12,
+    // El header lo renderiza react-native-screens (nativo), no el
+    // HeaderButton de @react-navigation/elements -- ese valor (8) no era el
+    // real y quedó pegado al borde. Subido a mano según feedback visual.
+    marginRight: 20,
   },
   center: {
     flex: 1,

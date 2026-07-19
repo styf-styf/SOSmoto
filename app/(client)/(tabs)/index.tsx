@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { colors } from '../../../constants/colors';
@@ -35,7 +36,9 @@ import {
   groupStoriesByAuthor,
   type StoryFeedItem,
 } from '../../../services/stories';
+import { CreateClientStoryModal } from '../../../components/CreateClientStoryModal';
 import { CreatePostBox } from '../../../components/CreatePostBox';
+import { GradientShade } from '../../../components/GradientShade';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
 import {
@@ -51,6 +54,21 @@ const bizTypeLabel: Record<string, string> = {
   store: 'Tienda',
 };
 const MIN_FOLLOWS_FOR_FEED = 4;
+const DESCUBRE_CARD_WIDTH = 140;
+const DESCUBRE_CARD_HEIGHT = DESCUBRE_CARD_WIDTH;
+
+function ratingStarIcons(rating: number): Array<'star' | 'star-half' | 'star-outline'> {
+  const icons: Array<'star' | 'star-half' | 'star-outline'> = [];
+  for (let i = 1; i <= 5; i++) {
+    if (rating >= i) icons.push('star');
+    else if (rating >= i - 0.5) icons.push('star-half');
+    else icons.push('star-outline');
+  }
+  return icons;
+}
+// Mismo problema que en StoriesRow/FeedCatalogStrip: un swipe corto en el
+// carrusel puede colarse como tap antes de que el ScrollView reclame el gesto.
+const DESCUBRE_SWIPE_THRESHOLD = 10;
 
 export default function ClientHomeScreen() {
   const { profile } = useAuth();
@@ -66,6 +84,7 @@ export default function ClientHomeScreen() {
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(
     null,
   );
+  const [showCreateStory, setShowCreateStory] = useState(false);
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<
     MaintenanceAlert[]
   >([]);
@@ -75,6 +94,7 @@ export default function ClientHomeScreen() {
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
   const didInitialLoadRef = useRef(false);
+  const descubreTouchStartXRef = useRef<number | null>(null);
 
   const dragX = useRef(new Animated.Value(0)).current;
   const siguiendoTranslateX = useRef(
@@ -231,15 +251,39 @@ export default function ClientHomeScreen() {
     }).start();
   }
 
-  async function handleCompleteAlert(alert: MaintenanceAlert) {
-    try {
-      await markCompleted(alert.suggestionId, alert.vehicleMileage);
-      setMaintenanceAlerts((prev) =>
-        prev.filter((a) => a.suggestionId !== alert.suggestionId),
-      );
-    } catch (err) {
-      console.error('complete maintenance alert error', err);
-    }
+  function handleCompleteAlert(alert: MaintenanceAlert) {
+    // Se borra la alerta sin poder deshacerlo -- confirmar antes evita perder
+    // el recordatorio por un toque accidental (el ícono no tiene etiqueta).
+    Alert.alert(
+      '¿Marcar como completado?',
+      `${alert.serviceName} · ${alert.vehicleLabel}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Marcar completado',
+          onPress: async () => {
+            try {
+              await markCompleted(alert.suggestionId, alert.vehicleMileage);
+              setMaintenanceAlerts((prev) =>
+                prev.filter((a) => a.suggestionId !== alert.suggestionId),
+              );
+            } catch (err) {
+              console.error('complete maintenance alert error', err);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function handleDescubrePressIn(e: GestureResponderEvent) {
+    descubreTouchStartXRef.current = e.nativeEvent.pageX;
+  }
+
+  function handleDescubrePress(e: GestureResponderEvent, businessId: string) {
+    const startX = descubreTouchStartXRef.current;
+    if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > DESCUBRE_SWIPE_THRESHOLD) return;
+    router.push(`/(client)/business/${businessId}`);
   }
 
   if (loading) {
@@ -281,12 +325,9 @@ export default function ClientHomeScreen() {
           hasStory: ownHasStory,
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
-          onPress: () =>
-            router.push(
-              ownHasStory && profile
-                ? `/(client)/historia-cliente/${profile.id}`
-                : '/(client)/historias',
-            ),
+          onAddPress: () => setShowCreateStory(true),
+          onViewPress: () =>
+            profile && router.push(`/(client)/historia-cliente/${profile.id}`),
         }}
         items={feedItems.map((item) => ({
           ...item,
@@ -324,12 +365,9 @@ export default function ClientHomeScreen() {
           hasStory: ownHasStory,
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
-          onPress: () =>
-            router.push(
-              ownHasStory && profile
-                ? `/(client)/historia-cliente/${profile.id}`
-                : '/(client)/historias',
-            ),
+          onAddPress: () => setShowCreateStory(true),
+          onViewPress: () =>
+            profile && router.push(`/(client)/historia-cliente/${profile.id}`),
         }}
         items={feedItemsFollowing.map((item) => ({
           ...item,
@@ -432,28 +470,24 @@ export default function ClientHomeScreen() {
                     contentContainerStyle={styles.descubreRow}
                   >
                     {nearbyNew.map((biz) => (
-                      <Pressable
-                        key={biz.id}
-                        style={styles.descubreCard}
-                        onPress={() =>
-                          router.push(`/(client)/business/${biz.id}`)
-                        }
-                      >
-                        <View style={styles.descubreAvatarWrap}>
-                          <View style={styles.descubreAvatar}>
-                            {biz.logo_url ? (
-                              <Image
-                                source={{ uri: biz.logo_url }}
-                                style={styles.descubreAvatarImage}
-                              />
-                            ) : (
-                              <Ionicons
-                                name="storefront"
-                                size={22}
-                                color={colors.primary}
-                              />
-                            )}
-                          </View>
+                      <View key={biz.id} style={styles.descubreCardShadow}>
+                        <Pressable
+                          style={styles.descubreCard}
+                          onPressIn={handleDescubrePressIn}
+                          onPress={(e) => handleDescubrePress(e, biz.id)}
+                        >
+                          {biz.logo_url ? (
+                            <Image
+                              source={{ uri: biz.logo_url }}
+                              style={styles.descubreImage}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View style={[styles.descubreImage, styles.descubreImagePlaceholder]}>
+                              <Ionicons name="storefront" size={28} color={colors.primary} />
+                            </View>
+                          )}
+                          <GradientShade height={Math.round(DESCUBRE_CARD_HEIGHT * 0.6)} />
                           {biz.is_verified && (
                             <View style={styles.descubreVerifiedDot}>
                               <Ionicons
@@ -463,22 +497,27 @@ export default function ClientHomeScreen() {
                               />
                             </View>
                           )}
-                        </View>
-                        <Text numberOfLines={1} style={styles.descubreName}>
-                          {biz.name}
-                        </Text>
-                        <Text numberOfLines={1} style={styles.descubreMeta}>
-                          {bizTypeLabel[biz.business_type] ?? 'Negocio'}
-                          {biz.distance_km !== null
-                            ? ` · ${biz.distance_km.toFixed(1)} km`
-                            : ''}
-                        </Text>
-                        {biz.rating_avg > 0 && (
-                          <Text style={styles.descubreRating}>
-                            ★ {biz.rating_avg.toFixed(1)}
+                          <Text numberOfLines={1} style={styles.descubreName}>
+                            {biz.name}
                           </Text>
-                        )}
-                      </Pressable>
+                          <Text numberOfLines={1} style={styles.descubreMeta}>
+                            {bizTypeLabel[biz.business_type] ?? 'Negocio'}
+                            {biz.distance_km !== null
+                              ? ` · ${biz.distance_km.toFixed(1)} km`
+                              : ''}
+                          </Text>
+                          {biz.rating_avg > 0 && (
+                            <View style={styles.descubreRatingRow}>
+                              {ratingStarIcons(biz.rating_avg).map((icon, i) => (
+                                <Ionicons key={i} name={icon} size={11} color="#fff" />
+                              ))}
+                              <Text style={styles.descubreRating}>
+                                {biz.rating_avg.toFixed(1)}
+                              </Text>
+                            </View>
+                          )}
+                        </Pressable>
+                      </View>
                     ))}
                   </ScrollView>
                 </View>
@@ -508,6 +547,15 @@ export default function ClientHomeScreen() {
           />
         </Animated.View>
       )}
+
+      <CreateClientStoryModal
+        visible={showCreateStory}
+        onClose={() => setShowCreateStory(false)}
+        onCreated={(story) => {
+          setOwnHasStory(true);
+          setOwnPreviewImageUrl(story.image_url);
+        }}
+      />
     </View>
   );
 }
@@ -589,61 +637,98 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   descubreRow: {
-    gap: 10,
-    paddingHorizontal: 10,
+    // Unificado con el espacio entre tarjetas de Historias/carrusel de
+    // catálogo (gap: 6).
+    gap: 6,
+    // Izquierda y derecha unificadas con Historias/carrusel de catálogo.
+    paddingLeft: 6,
+    paddingRight: 6,
     paddingBottom: 4,
   },
-  descubreCard: {
-    width: 140,
-    backgroundColor: colors.surface,
+  // Mismo patrón que StoriesRow/FeedCatalogStrip: la sombra vive en el
+  // wrapper exterior (sin overflow) y el recorte de bordes redondeados en el
+  // interior -- la imagen del negocio llena toda la tarjeta, con un degradado
+  // oscuro y el nombre/tipo/distancia/calificación sobrepuestos en blanco.
+  descubreCardShadow: {
+    width: DESCUBRE_CARD_WIDTH,
+    height: DESCUBRE_CARD_HEIGHT,
     borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  descubreAvatarWrap: {
-    position: 'relative',
-    marginBottom: 8,
+  descubreCard: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
-  descubreAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  descubreImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  descubreImagePlaceholder: {
     backgroundColor: '#FFF1E6',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  descubreAvatarImage: {
-    width: 52,
-    height: 52,
   },
   descubreVerifiedDot: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    top: 6,
+    right: 6,
     backgroundColor: '#fff',
     borderRadius: 8,
   },
   descubreName: {
-    fontSize: 13,
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 48,
+    fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 2,
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   descubreMeta: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 29,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  descubreRatingRow: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   descubreRating: {
-    fontSize: 11,
-    color: colors.warning,
-    fontWeight: '600',
-    marginTop: 4,
+    marginLeft: 4,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   createPostWrap: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 6,
     paddingBottom: 16,
   },
   limitedNotice: {
@@ -664,6 +749,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-    paddingHorizontal: 20,
+    // Alineado con el margen izquierdo de 6px del resto del feed (el
+    // carrusel de "Nuevos cerca de ti" ya arranca en 6px desde el cambio
+    // anterior; el título estaba desalineado con 20px).
+    paddingHorizontal: 6,
   },
 });

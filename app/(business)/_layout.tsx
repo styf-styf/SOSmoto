@@ -39,7 +39,6 @@ export default function BusinessLayout() {
         name="historia-cliente/[clientId]"
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="publicaciones" options={{ title: 'Publicaciones' }} />
       <Stack.Screen
         name="publicacion/[id]"
         options={{ title: 'Publicación' }}
@@ -80,7 +79,7 @@ export default function BusinessLayout() {
       />
       <Stack.Screen name="inventario" options={{ title: 'Inventario' }} />
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
-      <Stack.Screen name="historias" options={{ title: 'Historias' }} />
+      <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
       <Stack.Screen
         name="datos-negocio"

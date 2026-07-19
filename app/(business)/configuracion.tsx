@@ -207,16 +207,6 @@ export default function BusinessConfiguracionScreen() {
           icon="people-outline"
           label="Clientes"
           onPress={() => router.push('/(business)/clientes')}
-        />
-        <MenuRow
-          icon="film-outline"
-          label="Historias"
-          onPress={() => router.push('/(business)/historias')}
-        />
-        <MenuRow
-          icon="images-outline"
-          label="Publicaciones"
-          onPress={() => router.push('/(business)/publicaciones')}
           last={business.business_type === 'brand_advertiser'}
         />
         {business.business_type === 'workshop' && (

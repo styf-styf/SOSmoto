@@ -14,11 +14,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { Button } from '../../../components/Button';
+import { GradientShade } from '../../../components/GradientShade';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -58,6 +60,7 @@ import {
   type StoryFeedItem,
 } from '../../../services/stories';
 import { CreateBusinessPostBox } from '../../../components/CreateBusinessPostBox';
+import { CreateBusinessStoryModal } from '../../../components/CreateBusinessStoryModal';
 import { HomeFeed, type HomeFeedHandle } from '../../../components/HomeFeed';
 import { StoriesRow } from '../../../components/StoriesRow';
 import type {
@@ -74,6 +77,21 @@ import { markProductoServicioStacksForReset } from '../../../utils/productoServi
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const MIN_FOLLOWS_FOR_FEED = 4;
+const DESCUBRE_CARD_WIDTH = 140;
+const DESCUBRE_CARD_HEIGHT = DESCUBRE_CARD_WIDTH;
+// Mismo problema que en StoriesRow/FeedCatalogStrip: un swipe corto en el
+// carrusel puede colarse como tap antes de que el ScrollView reclame el gesto.
+const DESCUBRE_SWIPE_THRESHOLD = 10;
+
+function ratingStarIcons(rating: number): Array<'star' | 'star-half' | 'star-outline'> {
+  const icons: Array<'star' | 'star-half' | 'star-outline'> = [];
+  for (let i = 1; i <= 5; i++) {
+    if (rating >= i) icons.push('star');
+    else if (rating >= i - 0.5) icons.push('star-half');
+    else icons.push('star-outline');
+  }
+  return icons;
+}
 
 export default function BusinessHomeScreen() {
   const { profile, refreshProfile } = useAuth();
@@ -100,11 +118,13 @@ export default function BusinessHomeScreen() {
   const [ownPreviewImageUrl, setOwnPreviewImageUrl] = useState<string | null>(
     null,
   );
+  const [showCreateStory, setShowCreateStory] = useState(false);
   const [growthSuggestion, setGrowthSuggestion] =
     useState<GrowthSuggestion | null>(null);
   const homeFeedRef = useRef<HomeFeedHandle>(null);
   const limitCheckedRef = useRef(false);
   const didInitialLoadRef = useRef(false);
+  const descubreTouchStartXRef = useRef<number | null>(null);
 
   // Un taller puede seguir tiendas (relación B2B, ver BusinessProfileView) --
   // por eso solo el home de un taller gana el toggle Para ti/Siguiendo y el
@@ -297,6 +317,16 @@ export default function BusinessHomeScreen() {
     }
   }
 
+  function handleDescubrePressIn(e: GestureResponderEvent) {
+    descubreTouchStartXRef.current = e.nativeEvent.pageX;
+  }
+
+  function handleDescubrePress(e: GestureResponderEvent, businessId: string) {
+    const startX = descubreTouchStartXRef.current;
+    if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > DESCUBRE_SWIPE_THRESHOLD) return;
+    router.push(`/(business)/business/${businessId}`);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -336,12 +366,8 @@ export default function BusinessHomeScreen() {
     hasStory: activeStories > 0,
     avatarUrl: business.logo_url,
     previewImageUrl: ownPreviewImageUrl,
-    onPress: () =>
-      router.push(
-        activeStories > 0
-          ? `/(business)/historia/${business.id}`
-          : '/(business)/historias',
-      ),
+    onAddPress: () => setShowCreateStory(true),
+    onViewPress: () => router.push(`/(business)/historia/${business.id}`),
   };
 
   const growthCard = growthSuggestion && (
@@ -385,39 +411,50 @@ export default function BusinessHomeScreen() {
 
   if (!isWorkshop) {
     return (
-      <HomeFeed
-        ref={homeFeedRef}
-        role="business"
-        city={business.city}
-        viewerBusinessId={business.id}
-        onRefresh={load}
-        hideCatalogPool={business.business_type === 'brand_advertiser'}
-        ListHeaderComponent={
-          <View>
-            <View style={styles.brandHeaderRow}>
-              <View style={styles.brandHeaderSide} />
-              <Text style={styles.brandTitle}>SOSmoto</Text>
-              <View style={styles.brandHeaderSide} />
+      <>
+        <HomeFeed
+          ref={homeFeedRef}
+          role="business"
+          city={business.city}
+          viewerBusinessId={business.id}
+          onRefresh={load}
+          hideCatalogPool={business.business_type === 'brand_advertiser'}
+          ListHeaderComponent={
+            <View>
+              <View style={styles.brandHeaderRow}>
+                <View style={styles.brandHeaderSide} />
+                <Text style={styles.brandTitle}>SOSmoto</Text>
+                <View style={styles.brandHeaderSide} />
+              </View>
+              <View style={styles.storiesWrap}>
+                <StoriesRow
+                  own={storiesRowOwn}
+                  items={feedItems.map((item) => ({
+                    ...item,
+                    onPress: () =>
+                      router.push(
+                        item.kind === 'business'
+                          ? `/(business)/historia/${item.id}`
+                          : `/(business)/historia-cliente/${item.id}`,
+                      ),
+                  }))}
+                />
+              </View>
+              {growthCard}
+              {createPostBox}
             </View>
-            <View style={styles.storiesWrap}>
-              <StoriesRow
-                own={storiesRowOwn}
-                items={feedItems.map((item) => ({
-                  ...item,
-                  onPress: () =>
-                    router.push(
-                      item.kind === 'business'
-                        ? `/(business)/historia/${item.id}`
-                        : `/(business)/historia-cliente/${item.id}`,
-                    ),
-                }))}
-              />
-            </View>
-            {growthCard}
-            {createPostBox}
-          </View>
-        }
-      />
+          }
+        />
+        <CreateBusinessStoryModal
+          visible={showCreateStory}
+          businessId={business.id}
+          onClose={() => setShowCreateStory(false)}
+          onCreated={(story) => {
+            setActiveStories((prev) => prev + 1);
+            setOwnPreviewImageUrl(story.image_url);
+          }}
+        />
+      </>
     );
   }
 
@@ -477,26 +514,24 @@ export default function BusinessHomeScreen() {
             contentContainerStyle={styles.descubreRow}
           >
             {nearbyNewStores.map((biz) => (
-              <Pressable
-                key={biz.id}
-                style={styles.descubreCard}
-                onPress={() => router.push(`/(business)/business/${biz.id}`)}
-              >
-                <View style={styles.descubreAvatarWrap}>
-                  <View style={styles.descubreAvatar}>
-                    {biz.logo_url ? (
-                      <Image
-                        source={{ uri: biz.logo_url }}
-                        style={styles.descubreAvatarImage}
-                      />
-                    ) : (
-                      <Ionicons
-                        name="storefront"
-                        size={22}
-                        color={colors.primary}
-                      />
-                    )}
-                  </View>
+              <View key={biz.id} style={styles.descubreCardShadow}>
+                <Pressable
+                  style={styles.descubreCard}
+                  onPressIn={handleDescubrePressIn}
+                  onPress={(e) => handleDescubrePress(e, biz.id)}
+                >
+                  {biz.logo_url ? (
+                    <Image
+                      source={{ uri: biz.logo_url }}
+                      style={styles.descubreImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.descubreImage, styles.descubreImagePlaceholder]}>
+                      <Ionicons name="storefront" size={28} color={colors.primary} />
+                    </View>
+                  )}
+                  <GradientShade height={Math.round(DESCUBRE_CARD_HEIGHT * 0.6)} />
                   {biz.is_verified && (
                     <View style={styles.descubreVerifiedDot}>
                       <Ionicons
@@ -506,22 +541,27 @@ export default function BusinessHomeScreen() {
                       />
                     </View>
                   )}
-                </View>
-                <Text numberOfLines={1} style={styles.descubreName}>
-                  {biz.name}
-                </Text>
-                <Text numberOfLines={1} style={styles.descubreMeta}>
-                  Tienda
-                  {biz.distance_km !== null
-                    ? ` · ${biz.distance_km.toFixed(1)} km`
-                    : ''}
-                </Text>
-                {biz.rating_avg > 0 && (
-                  <Text style={styles.descubreRating}>
-                    ★ {biz.rating_avg.toFixed(1)}
+                  <Text numberOfLines={1} style={styles.descubreName}>
+                    {biz.name}
                   </Text>
-                )}
-              </Pressable>
+                  <Text numberOfLines={1} style={styles.descubreMeta}>
+                    Tienda
+                    {biz.distance_km !== null
+                      ? ` · ${biz.distance_km.toFixed(1)} km`
+                      : ''}
+                  </Text>
+                  {biz.rating_avg > 0 && (
+                    <View style={styles.descubreRatingRow}>
+                      {ratingStarIcons(biz.rating_avg).map((icon, i) => (
+                        <Ionicons key={i} name={icon} size={11} color="#fff" />
+                      ))}
+                      <Text style={styles.descubreRating}>
+                        {biz.rating_avg.toFixed(1)}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -596,6 +636,16 @@ export default function BusinessHomeScreen() {
           />
         </Animated.View>
       )}
+
+      <CreateBusinessStoryModal
+        visible={showCreateStory}
+        businessId={business.id}
+        onClose={() => setShowCreateStory(false)}
+        onCreated={(story) => {
+          setActiveStories((prev) => prev + 1);
+          setOwnPreviewImageUrl(story.image_url);
+        }}
+      />
     </View>
   );
 }
@@ -1240,58 +1290,95 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   descubreRow: {
-    gap: 10,
-    paddingHorizontal: 10,
+    // Unificado con el espacio entre tarjetas de Historias/carrusel de
+    // catálogo (gap: 6).
+    gap: 6,
+    // Izquierda y derecha unificadas con Historias/carrusel de catálogo.
+    paddingLeft: 6,
+    paddingRight: 6,
     paddingBottom: 4,
   },
-  descubreCard: {
-    width: 140,
-    backgroundColor: colors.surface,
+  // Mismo patrón que StoriesRow/FeedCatalogStrip: la sombra vive en el
+  // wrapper exterior (sin overflow) y el recorte de bordes redondeados en el
+  // interior -- la imagen del negocio llena toda la tarjeta, con un degradado
+  // oscuro y el nombre/tipo/distancia/calificación sobrepuestos en blanco.
+  descubreCardShadow: {
+    width: DESCUBRE_CARD_WIDTH,
+    height: DESCUBRE_CARD_HEIGHT,
     borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  descubreAvatarWrap: {
-    position: 'relative',
-    marginBottom: 8,
+  descubreCard: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
-  descubreAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  descubreImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  descubreImagePlaceholder: {
     backgroundColor: '#FFF1E6',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  descubreAvatarImage: {
-    width: 52,
-    height: 52,
   },
   descubreVerifiedDot: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    top: 6,
+    right: 6,
     backgroundColor: '#fff',
     borderRadius: 8,
   },
   descubreName: {
-    fontSize: 13,
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 48,
+    fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 2,
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   descubreMeta: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 29,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  descubreRatingRow: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   descubreRating: {
-    fontSize: 11,
-    color: colors.warning,
-    fontWeight: '600',
-    marginTop: 4,
+    marginLeft: 4,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   growthWrap: {
     paddingHorizontal: 20,
@@ -1322,7 +1409,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   createPostWrap: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 6,
     paddingBottom: 16,
   },
   limitedNotice: {
@@ -1433,7 +1520,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-    paddingHorizontal: 20,
+    // Alineado con el margen izquierdo de 6px del resto del feed.
+    paddingHorizontal: 6,
   },
   typeSelector: {
     flexDirection: 'row',

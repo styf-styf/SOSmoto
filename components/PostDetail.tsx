@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
@@ -329,6 +329,13 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
     }
   }
 
+  function handleShare() {
+    if (!post) return;
+    const url = `https://so-smoto.vercel.app/post/${post.id}`;
+    const text = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
+    Share.share({ message: `${text}\n${url}`, url }).catch(() => {});
+  }
+
   function handleTagPress() {
     if (!tag) return;
     // Si el negocio etiquetado es el propio (dueño o empleado, ver
@@ -357,9 +364,14 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           options={{
             headerRight: () =>
               isOwner ? (
-                <Pressable onPress={openEditModal} hitSlop={8}>
-                  <Ionicons name="create-outline" size={22} color={colors.text} />
-                </Pressable>
+                <View style={styles.headerActions}>
+                  <Pressable onPress={handleShare} hitSlop={8}>
+                    <Ionicons name="share-social-outline" size={22} color={colors.text} />
+                  </Pressable>
+                  <Pressable onPress={openEditModal} hitSlop={8}>
+                    <Ionicons name="create-outline" size={22} color={colors.text} />
+                  </Pressable>
+                </View>
               ) : (
                 <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
                   <Ionicons name="flag-outline" size={22} color={colors.text} />
@@ -442,6 +454,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
       )}
 
       <Modal visible={showEditModal} animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Editar publicación</Text>
@@ -584,6 +597,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
             <Text style={styles.deleteLinkText}>Eliminar publicación</Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <ReportModal
@@ -597,6 +611,18 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    // El header lo renderiza react-native-screens (nativo), no el
+    // HeaderButton de @react-navigation/elements -- ese valor (8) no era el
+    // real y quedó pegado al borde. Subido a mano según feedback visual.
+    marginRight: 20,
+  },
   center: {
     flex: 1,
     alignItems: 'center',
