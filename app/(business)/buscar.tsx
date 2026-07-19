@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -9,16 +10,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AdGridCard } from '../../components/AdGridCard';
-import { BusinessListItem } from '../../components/BusinessListItem';
+import { BusinessDiscoverCard } from '../../components/BusinessDiscoverCard';
 import { FeedCatalogStrip } from '../../components/FeedCatalogStrip';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
-import { getSearchAdsForBusinessViewer, type AdWithBusiness } from '../../services/ads';
+import { searchActiveAds } from '../../services/ads';
 import {
   B2B_ALLOWED_SELLER_TYPES,
   getMyWorkBusiness,
@@ -28,12 +27,22 @@ import {
 } from '../../services/businesses';
 import { searchCatalog, type FeedCatalogItem } from '../../services/catalog';
 import type { BusinessType } from '../../types/database';
-import { applyFreshnessOrder } from '../../utils/feedOrdering';
 
 // Este buscador es exclusivo de taller/tienda (la marca no tiene boton de
 // acceso -- no le compra a nadie, ver BusinessProfileView). Regla de quien
 // ve a quien: B2B_ALLOWED_SELLER_TYPES (services/businesses.ts).
 const ALLOWED_TARGET_TYPES = B2B_ALLOWED_SELLER_TYPES;
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CONTAINER_PADDING = 20;
+const DISCOVER_GRID_GAP = 10;
+// Math.floor (no Math.round): con Math.round, 2*ancho + gap puede superar
+// por 1px el ancho real de pantalla (frecuente en Android) y ese único
+// píxel de más hace que flexWrap mande la segunda tarjeta a la siguiente
+// línea -- la grilla "colapsa" a 1 columna.
+const DISCOVER_CARD_WIDTH = Math.floor(
+  (SCREEN_WIDTH - CONTAINER_PADDING * 2 - DISCOVER_GRID_GAP) / 2
+);
 
 const TYPE_FILTER_LABELS: Record<BusinessType, string> = {
   workshop: 'Talleres',
@@ -46,6 +55,15 @@ const ratingFilters = [
   { label: '4+ ★', value: 4 },
   { label: '4.5+ ★', value: 4.5 },
 ];
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <View style={styles.emptyState}>
+      <Ionicons name="search-outline" size={28} color={colors.textMuted} />
+      <Text style={styles.placeholder}>{text}</Text>
+    </View>
+  );
+}
 
 export default function BusinessBuscarScreen() {
   const { profile } = useAuth();
@@ -65,12 +83,11 @@ export default function BusinessBuscarScreen() {
   const [only24h, setOnly24h] = useState(false);
   const [results, setResults] = useState<BusinessWithDistance[]>([]);
   const [catalogResults, setCatalogResults] = useState<FeedCatalogItem[]>([]);
-  const [featuredAds, setFeaturedAds] = useState<AdWithBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const lastSeenAdAt = useRef<string | null>(null);
   const didInitialSearchRef = useRef(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -85,30 +102,11 @@ export default function BusinessBuscarScreen() {
       });
   }, [profile]);
 
-  const loadAds = useCallback(async () => {
-    try {
-      const city = await getNearestCity(coords);
-      const ads = await getSearchAdsForBusinessViewer(city);
-      setFeaturedAds(applyFreshnessOrder(ads, (ad) => ad.created_at, lastSeenAdAt));
-    } catch (err) {
-      console.error('load search ads error', err);
-    }
-  }, [coords]);
-
-  useEffect(() => {
-    loadAds();
-  }, [loadAds]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadAds().catch((err) => console.error('refresh search ads error', err));
-    }, [loadAds])
-  );
-
   const search = useCallback(async () => {
     if (!allowedTypes || allowedTypes.length === 0) return;
     try {
-      const [result, catalog] = await Promise.all([
+      const city = await getNearestCity(coords);
+      const [result, catalog, matchingAd] = await Promise.all([
         searchBusinesses({
           query: query || undefined,
           businessType,
@@ -120,9 +118,14 @@ export default function BusinessBuscarScreen() {
         query.trim()
           ? searchCatalog({ query, kinds: ['product'], businessTypeIn: allowedTypes })
           : Promise.resolve([]),
+        // Un anuncio activo que coincida con lo buscado se muestra como el
+        // primer resultado de la sección (ya no aparte, en "Publicidad").
+        query.trim()
+          ? searchActiveAds(query, city, { kinds: ['product'], businessTypeIn: allowedTypes })
+          : Promise.resolve(null),
       ]);
       setResults(result);
-      setCatalogResults(catalog);
+      setCatalogResults(matchingAd ? [matchingAd, ...catalog] : catalog);
     } catch (err) {
       console.error('search businesses error', err);
     }
@@ -139,12 +142,19 @@ export default function BusinessBuscarScreen() {
     }
   }, [search]);
 
-  const hasActiveFilters = !!query || !!businessType || !!minRating || only24h;
+  const hasActiveFilterParams = !!businessType || !!minRating || only24h;
+  const hasActiveFilters = !!query || hasActiveFilterParams;
+  // Resumen de los filtros del panel para mostrar algo cuando está cerrado.
+  const activeFilterLabels = [
+    businessType ? typeFilters.find((f) => f.value === businessType)?.label : null,
+    minRating ? ratingFilters.find((f) => f.value === minRating)?.label : null,
+    only24h ? '24/7' : null,
+  ].filter((label): label is string => !!label);
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      await Promise.all([loadAds(), search()]);
+      await search();
     } catch (err) {
       console.error('refresh search screen error', err);
     } finally {
@@ -170,43 +180,63 @@ export default function BusinessBuscarScreen() {
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
+          onFocus={() => setShowFilters(false)}
         />
+        <Pressable
+          style={[styles.filterToggleButton, hasActiveFilterParams && styles.filterToggleButtonActive]}
+          onPress={() => setShowFilters((prev) => !prev)}
+        >
+          <Ionicons name="options-outline" size={20} color={hasActiveFilterParams ? '#fff' : colors.primary} />
+        </Pressable>
         <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona este buscador" />
       </View>
 
-      <View style={styles.filterRow}>
-        {typeFilters.map((filter) => (
-          <Pressable
-            key={filter.label}
-            onPress={() => setBusinessType(filter.value)}
-            style={[styles.filterChip, businessType === filter.value && styles.filterChipSelected]}
-          >
-            <Text style={[styles.filterChipText, businessType === filter.value && styles.filterChipTextSelected]}>
-              {filter.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      {showFilters && (
+        <>
+          <View style={styles.filterRow}>
+            {typeFilters.map((filter) => (
+              <Pressable
+                key={filter.label}
+                onPress={() => setBusinessType(filter.value)}
+                style={[styles.filterChip, businessType === filter.value && styles.filterChipSelected]}
+              >
+                <Text style={[styles.filterChipText, businessType === filter.value && styles.filterChipTextSelected]}>
+                  {filter.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-      <View style={styles.filterRow}>
-        {ratingFilters.map((filter) => (
-          <Pressable
-            key={filter.label}
-            onPress={() => setMinRating(filter.value)}
-            style={[styles.filterChip, minRating === filter.value && styles.filterChipSelected]}
-          >
-            <Text style={[styles.filterChipText, minRating === filter.value && styles.filterChipTextSelected]}>
-              {filter.label}
-            </Text>
-          </Pressable>
-        ))}
-        <Pressable
-          onPress={() => setOnly24h((prev) => !prev)}
-          style={[styles.filterChip, only24h && styles.filterChipSelected]}
-        >
-          <Text style={[styles.filterChipText, only24h && styles.filterChipTextSelected]}>24/7</Text>
+          <View style={styles.filterRow}>
+            {ratingFilters.map((filter) => (
+              <Pressable
+                key={filter.label}
+                onPress={() => setMinRating(filter.value)}
+                style={[styles.filterChip, minRating === filter.value && styles.filterChipSelected]}
+              >
+                <Text style={[styles.filterChipText, minRating === filter.value && styles.filterChipTextSelected]}>
+                  {filter.label}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => setOnly24h((prev) => !prev)}
+              style={[styles.filterChip, only24h && styles.filterChipSelected]}
+            >
+              <Text style={[styles.filterChipText, only24h && styles.filterChipTextSelected]}>24/7</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
+
+      {!showFilters && activeFilterLabels.length > 0 && (
+        <Pressable style={styles.activeFiltersRow} onPress={() => setShowFilters(true)}>
+          <Text style={styles.activeFiltersText} numberOfLines={1}>
+            {activeFilterLabels.join(' · ')}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={colors.primary} />
         </Pressable>
-      </View>
+      )}
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={styles.loading} />
@@ -214,37 +244,59 @@ export default function BusinessBuscarScreen() {
         <ScrollView
           contentContainerStyle={styles.results}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          // onTouchStart (no onPress) para que cierre el panel de filtros
+          // con cualquier toque en esta zona -- scroll, tarjetas de la
+          // grilla, anuncios, etc. -- sin bloquear el gesto real de cada uno
+          // (a diferencia de la responder chain de onPress, el touch crudo
+          // no le quita el toque al hijo que termine reclamándolo).
+          onTouchStart={() => setShowFilters(false)}
         >
-          {featuredAds.length > 0 && (
-            <View style={styles.adsGrid}>
-              {featuredAds.map((ad) => (
-                <AdGridCard key={ad.id} ad={ad} detailHref={`/(business)/anuncio/${ad.id}`} />
+          <Text style={styles.sectionTitle}>{hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}</Text>
+          {hasActiveFilters ? (
+            results.length === 0 && catalogResults.length === 0 ? (
+              <EmptyState
+                text={
+                  query.trim()
+                    ? `No se encontraron resultados para "${query.trim()}".`
+                    : 'No encontramos negocios con esos filtros.'
+                }
+              />
+            ) : (
+              <>
+                {results.length > 0 && (
+                  <View style={styles.discoverGrid}>
+                    {results.map((business) => (
+                      <BusinessDiscoverCard
+                        key={business.id}
+                        business={business}
+                        width={DISCOVER_CARD_WIDTH}
+                        hrefPrefix="/(business)"
+                      />
+                    ))}
+                  </View>
+                )}
+                {catalogResults.length > 0 && (
+                  <FeedCatalogStrip
+                    items={catalogResults.filter((item) => item.photoUrl)}
+                    listItems={catalogResults.filter((item) => !item.photoUrl)}
+                    role="business"
+                  />
+                )}
+              </>
+            )
+          ) : results.length === 0 ? (
+            <EmptyState text="No encontramos negocios con esos filtros." />
+          ) : (
+            <View style={styles.discoverGrid}>
+              {results.map((business) => (
+                <BusinessDiscoverCard
+                  key={business.id}
+                  business={business}
+                  width={DISCOVER_CARD_WIDTH}
+                  hrefPrefix="/(business)"
+                />
               ))}
             </View>
-          )}
-          <Text style={styles.sectionTitle}>{hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}</Text>
-          {results.length === 0 ? (
-            <Text style={styles.placeholder}>No encontramos negocios con esos filtros.</Text>
-          ) : (
-            results.map((business) => (
-              <BusinessListItem
-                key={business.id}
-                business={business}
-                distanceKm={business.distance_km}
-                hrefPrefix="/(business)"
-              />
-            ))
-          )}
-
-          {query.trim().length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, styles.catalogSectionTitle]}>Productos</Text>
-              {catalogResults.length === 0 ? (
-                <Text style={styles.placeholder}>No encontramos productos con ese nombre.</Text>
-              ) : (
-                <FeedCatalogStrip items={[]} listItems={catalogResults} role="business" />
-              )}
-            </>
           )}
         </ScrollView>
       )}
@@ -308,6 +360,17 @@ const styles = StyleSheet.create({
   searchInputFlex: {
     flex: 1,
   },
+  filterToggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterToggleButtonActive: {
+    backgroundColor: colors.primary,
+  },
   limitedContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -323,9 +386,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-  },
-  catalogSectionTitle: {
-    marginTop: 20,
   },
   filterRow: {
     flexDirection: 'row',
@@ -352,21 +412,38 @@ const styles = StyleSheet.create({
   filterChipTextSelected: {
     color: colors.primary,
   },
+  activeFiltersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  activeFiltersText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    flexShrink: 1,
+  },
   loading: {
     marginTop: 40,
   },
   results: {
     paddingTop: 4,
   },
-  adsGrid: {
+  discoverGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
+    gap: DISCOVER_GRID_GAP,
   },
   placeholder: {
     color: colors.textMuted,
     fontSize: 14,
-    marginTop: 12,
+    textAlign: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 20,
   },
 });
