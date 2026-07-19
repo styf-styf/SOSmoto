@@ -87,7 +87,7 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
       </View>
 
       <View style={styles.imageWrap}>
-        <Image source={{ uri: ad.image_url }} style={styles.image} resizeMode="cover" />
+        <Image source={{ uri: ad.photos[0] }} style={styles.image} resizeMode="cover" />
         <GradientShade height={100} />
         <View style={styles.adChip}>
           <Ionicons name="megaphone" size={12} color="#fff" />
@@ -110,8 +110,14 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    // Horizontal unificado con el resto del feed (historias, carrusel de
+    // catálogo, publicaciones); vertical sin cambios.
+    marginHorizontal: 6,
+    marginBottom: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.surface,
+    overflow: 'hidden',
   },
   authorRow: {
     flexDirection: 'row',

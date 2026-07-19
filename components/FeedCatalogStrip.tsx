@@ -1,8 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { GradientShade } from './GradientShade';
+import { registerAdClick, registerAdImpression } from '../services/ads';
 import type { FeedCatalogItem } from '../services/catalog';
 
 // No es un feed propio (sin comentarios/compartir) -- es un banner de
@@ -16,25 +19,22 @@ const CARD_PEEK = 20; // franja de la 4ta tarjeta visible como pista de scroll
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING - GAP * VISIBLE_CARDS - CARD_PEEK) / VISIBLE_CARDS);
 const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
+// Ver PostCard.tsx: mismo problema con un carrusel horizontal de Pressables --
+// un swipe corto puede colarse como tap antes de que el FlatList reclame el
+// gesto. Se cancela la navegación si hubo desplazamiento al soltar el dedo.
+const CARD_SWIPE_THRESHOLD = 10;
 
 export function FeedCatalogStrip({
   items,
   listItems,
   role = 'client',
-  grayBackground = false,
-  showTopShadow = true,
-  showBottomShadow = true,
 }: {
   items: FeedCatalogItem[];
   listItems: FeedCatalogItem[];
   role?: 'client' | 'business';
-  grayBackground?: boolean;
-  showTopShadow?: boolean;
-  showBottomShadow?: boolean;
 }) {
   return (
-    <View style={[styles.container, grayBackground && styles.containerGray]}>
-      {grayBackground && showTopShadow && <GradientShade position="top" height={8} maxOpacity={0.12} />}
+    <View style={styles.container}>
       {items.length > 0 && (
         <FlatList
           data={items}
@@ -52,7 +52,6 @@ export function FeedCatalogStrip({
           ))}
         </View>
       )}
-      {grayBackground && showBottomShadow && <GradientShade position="bottom" height={8} maxOpacity={0.12} />}
     </View>
   );
 }
@@ -75,22 +74,52 @@ function BusinessAvatar({ logoUrl, size = 16 }: { logoUrl?: string; size?: numbe
 
 function CatalogCard({ item, role = 'client' }: { item: FeedCatalogItem; role?: 'client' | 'business' }) {
   const prefix = role === 'business' ? '/(business)' : '/(client)';
-  const href = item.kind === 'service' ? `${prefix}/servicio/${item.id}` : `${prefix}/producto/${item.id}`;
+  const href = item.isAd
+    ? `${prefix}/anuncio/${item.adId}`
+    : item.kind === 'service'
+      ? `${prefix}/servicio/${item.id}`
+      : `${prefix}/producto/${item.id}`;
+  const touchStartXRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (item.isAd && item.adId) registerAdImpression(item.adId);
+    // Solo al montar -- una impresión por vez que la tarjeta aparece en pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handlePressIn(e: GestureResponderEvent) {
+    touchStartXRef.current = e.nativeEvent.pageX;
+  }
+
+  function handlePress(e: GestureResponderEvent) {
+    const startX = touchStartXRef.current;
+    if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > CARD_SWIPE_THRESHOLD) return;
+    if (item.isAd && item.adId) registerAdClick(item.adId);
+    router.push(href);
+  }
+
   return (
-    <Pressable style={styles.card} onPress={() => router.push(href)}>
-      <Image source={{ uri: item.photoUrl }} style={styles.cardImage} resizeMode="cover" />
-      <GradientShade height={Math.round(CARD_HEIGHT * 0.45)} />
-      <View style={styles.businessBadge}>
-        <BusinessAvatar logoUrl={item.businessLogoUrl} />
-        <Text numberOfLines={1} style={styles.businessName}>
-          {item.businessName}
+    <View style={styles.cardShadow}>
+      <Pressable style={styles.card} onPressIn={handlePressIn} onPress={handlePress}>
+        <Image source={{ uri: item.photoUrl }} style={styles.cardImage} resizeMode="cover" />
+        <GradientShade height={Math.round(CARD_HEIGHT * 0.45)} />
+        <View style={[styles.businessBadge, item.isAd && styles.businessBadgeWithAdChip]}>
+          <BusinessAvatar logoUrl={item.businessLogoUrl} />
+          <Text numberOfLines={1} style={styles.businessName}>
+            {item.businessName}
+          </Text>
+        </View>
+        {item.isAd && (
+          <View style={styles.adChip}>
+            <Ionicons name="megaphone" size={11} color="#fff" />
+          </View>
+        )}
+        <Text numberOfLines={1} style={styles.cardName}>
+          {item.name}
         </Text>
-      </View>
-      <Text numberOfLines={1} style={styles.cardName}>
-        {item.name}
-      </Text>
-      <Text style={styles.cardPrice}>{formatPrice(item.referencePrice)}</Text>
-    </Pressable>
+        <Text style={styles.cardPrice}>{formatPrice(item.referencePrice)}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -117,21 +146,32 @@ function CatalogListRow({ item, role = 'client' }: { item: FeedCatalogItem; role
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-  },
-  containerGray: {
-    backgroundColor: colors.surface,
-  },
+  container: {},
   list: {
     gap: GAP,
     paddingLeft: SIDE_PADDING,
     paddingRight: SIDE_PADDING,
     paddingVertical: 8,
   },
-  card: {
+  // Mismo patrón que PostCard/AdBanner: la sombra vive en el wrapper exterior
+  // (sin overflow) y el recorte de bordes redondeados en el interior, porque
+  // overflow:'hidden' en la misma vista que la sombra la recorta también.
+  // Cada tarjeta del carrusel es su propia tarjeta flotante (no el carrusel
+  // completo) -- los items sin foto (listItems) se quedan como filas simples
+  // sobre el fondo gris del feed, sin caja blanca.
+  cardShadow: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  card: {
+    flex: 1,
     borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -157,6 +197,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
   },
+  // Dejar espacio a la derecha para el chip "Anuncio" (ver adChip) cuando la
+  // tarjeta es un anuncio mezclado en el carrusel de catálogo.
+  businessBadgeWithAdChip: {
+    right: 30,
+  },
+  adChip: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 10,
+    padding: 4,
+  },
   businessAvatar: {
     backgroundColor: colors.surface,
     alignItems: 'center',
@@ -168,6 +221,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   cardName: {
     position: 'absolute',
@@ -177,6 +233,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   cardPrice: {
     position: 'absolute',
@@ -186,6 +245,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   listWrap: {
     paddingHorizontal: SIDE_PADDING,

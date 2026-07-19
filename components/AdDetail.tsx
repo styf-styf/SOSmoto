@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAccountLimited } from '../hooks/useAccountLimited';
 import { useAuth } from '../hooks/useAuth';
+import { PhotoCarousel } from './PhotoCarousel';
 import {
   createAdComment,
   getAdById,
@@ -107,7 +108,7 @@ export function AdDetail({ adId }: { adId: string }) {
         </View>
 
         <View style={styles.imageWrap}>
-          <Image source={{ uri: ad.image_url }} style={styles.image} resizeMode="cover" />
+          <PhotoCarousel photos={ad.photos} sidePadding={0} />
           <View style={styles.adChip}>
             <Ionicons name="megaphone" size={12} color="#fff" />
             <Text style={styles.adChipText}>Anuncio</Text>
@@ -214,19 +215,11 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.surface,
   },
   adChip: {
     position: 'absolute',
     left: 10,
-    bottom: 10,
+    top: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

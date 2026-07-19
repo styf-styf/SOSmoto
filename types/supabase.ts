@@ -717,8 +717,13 @@ export interface Database {
         Row: {
           id: string;
           business_id: string;
+          kind: 'product' | 'service';
+          category_id: string | null;
+          item_name: string;
+          product_id: string | null;
+          service_id: string | null;
           title: string;
-          image_url: string;
+          photos: string[];
           link_url: string | null;
           target_city: string | null;
           status: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
@@ -733,8 +738,13 @@ export interface Database {
         Insert: {
           id?: string;
           business_id: string;
+          kind?: 'product' | 'service';
+          category_id?: string | null;
+          item_name: string;
+          product_id?: string | null;
+          service_id?: string | null;
           title: string;
-          image_url: string;
+          photos?: string[];
           link_url?: string | null;
           target_city?: string | null;
           status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
@@ -749,8 +759,13 @@ export interface Database {
         Update: {
           id?: string;
           business_id?: string;
+          kind?: 'product' | 'service';
+          category_id?: string | null;
+          item_name?: string;
+          product_id?: string | null;
+          service_id?: string | null;
           title?: string;
-          image_url?: string;
+          photos?: string[];
           link_url?: string | null;
           target_city?: string | null;
           status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
@@ -1378,6 +1393,36 @@ export interface Database {
           admin_notes?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          body: string;
+          data: Record<string, unknown> | null;
+          read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          body: string;
+          data?: Record<string, unknown> | null;
+          read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          body?: string;
+          data?: Record<string, unknown> | null;
+          read?: boolean;
           created_at?: string;
         };
         Relationships: [];

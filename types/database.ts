@@ -333,11 +333,20 @@ export interface Review {
 
 export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
 
+export type AdKind = 'product' | 'service';
+
 export interface Ad {
   id: string;
   business_id: string;
+  kind: AdKind;
+  category_id: string | null;
+  // Nombre del producto/servicio anunciado, usado para el match de búsqueda
+  // -- distinto de `title`, que es el texto promocional libre.
+  item_name: string;
+  product_id: string | null;
+  service_id: string | null;
   title: string;
-  image_url: string;
+  photos: string[];
   link_url: string | null;
   target_city: string | null;
   status: AdStatus;

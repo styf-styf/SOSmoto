@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
+import { CategoryPicker } from '../../components/CategoryPicker';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
+import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice } from '../../services/ads';
 import { getMyWorkBusiness } from '../../services/businesses';
+import { getActiveProducts, getActiveServices } from '../../services/catalog';
 import { pickAndUploadBusinessImage } from '../../services/storage';
-import type { Ad, AdPricing, Business } from '../../types/database';
+import type { Ad, AdKind, AdPricing, Business, Product, Service } from '../../types/database';
 
 const SIDE_PADDING = 20;
 const GRID_GAP = 12;
@@ -17,6 +21,7 @@ const GRID_COLUMNS = 2;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
+const MAX_AD_PHOTOS = 3;
 
 const statusLabel: Record<Ad['status'], string> = {
   pending_review: 'Pendiente de revisión',
@@ -43,11 +48,23 @@ interface PublicidadData {
 
 export default function PublicidadScreen() {
   const { profile } = useAuth();
-  const [showForm, setShowForm] = useState(false);
+  const params = useLocalSearchParams<{ openForm?: string }>();
+  // Llegada desde el botón "Crear campaña" de Crece tu negocio -- abre el
+  // formulario directo en vez de dejar al negocio con un segundo toque en
+  // "+ Crear campaña" para llegar a donde ya quería ir.
+  const [showForm, setShowForm] = useState(!!params.openForm);
 
   const [national, setNational] = useState(true);
+  const [kind, setKind] = useState<AdKind>('product');
+  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [existingProducts, setExistingProducts] = useState<Product[]>([]);
+  const [existingServices, setExistingServices] = useState<Service[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemCategoryId, setNewItemCategoryId] = useState('');
   const [title, setTitle] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [linkUrl, setLinkUrl] = useState('');
   const [durationDays, setDurationDays] = useState('7');
   const [saving, setSaving] = useState(false);
@@ -68,6 +85,25 @@ export default function PublicidadScreen() {
   const isOwner = data?.isOwner ?? false;
   const ads = data?.ads ?? [];
   const pricing = data?.pricing ?? null;
+  // Tienda/marca no ofrece servicios -- solo un taller puede anunciar uno
+  // (misma regla que el catálogo, ver CLAUDE.md).
+  const canChooseKind = business?.business_type === 'workshop';
+
+  // Tienda/marca siempre queda en 'product' (único válido) aunque el chip no se muestre.
+  useEffect(() => {
+    if (!canChooseKind) setKind('product');
+  }, [canChooseKind]);
+
+  useEffect(() => {
+    if (!business || mode !== 'existing') return;
+    setSelectedItemId(null);
+    setLoadingCatalog(true);
+    const request = kind === 'product' ? getActiveProducts(business.id) : getActiveServices(business.id);
+    request
+      .then((items) => (kind === 'product' ? setExistingProducts(items as Product[]) : setExistingServices(items as Service[])))
+      .catch((err) => console.error('load catalog for ad error', err))
+      .finally(() => setLoadingCatalog(false));
+  }, [business, kind, mode]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -81,11 +117,11 @@ export default function PublicidadScreen() {
   }
 
   async function handlePickImage() {
-    if (!business) return;
+    if (!business || photos.length >= MAX_AD_PHOTOS) return;
     setUploadingImage(true);
     try {
       const url = await pickAndUploadBusinessImage(business.id);
-      if (url) setImageUrl(url);
+      if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload ad image error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo subir la imagen.');
@@ -94,16 +130,46 @@ export default function PublicidadScreen() {
     }
   }
 
+  function handleRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const existingItems: { id: string; name: string }[] = kind === 'product' ? existingProducts : existingServices;
+  const selectedItem = existingItems.find((item) => item.id === selectedItemId) ?? null;
+
   const parsedDays = Number(durationDays);
   const validDays = Number.isFinite(parsedDays) && parsedDays > 0;
   const price = validDays && pricing
     ? quoteAdPrice(pricing, { targetCity: national ? undefined : business?.city, durationDays: parsedDays })
     : 0;
 
+  function resetForm() {
+    setMode('existing');
+    setSelectedItemId(null);
+    setNewItemName('');
+    setNewItemCategoryId('');
+    setTitle('');
+    setPhotos([]);
+    setLinkUrl('');
+    setDurationDays('7');
+  }
+
   async function handleCreate() {
     if (!business) return;
-    if (!title.trim() || !imageUrl.trim()) {
-      Alert.alert('Faltan datos', 'Completa el título y selecciona una imagen para el anuncio.');
+    if (mode === 'existing' && !selectedItemId) {
+      Alert.alert('Falta elegir', kind === 'product' ? 'Elige un producto de tu catálogo.' : 'Elige un servicio de tu catálogo.');
+      return;
+    }
+    if (mode === 'new' && (!newItemName.trim() || !newItemCategoryId)) {
+      Alert.alert('Faltan datos', 'Ingresa el nombre y la categoría de lo que quieres anunciar.');
+      return;
+    }
+    if (!title.trim()) {
+      Alert.alert('Faltan datos', 'Completa el texto del anuncio.');
+      return;
+    }
+    if (photos.length === 0) {
+      Alert.alert('Falta la imagen', 'Sube al menos una foto para el anuncio.');
       return;
     }
     if (linkUrl.trim() && !/^(https?:\/\/|tel:|mailto:)/i.test(linkUrl.trim())) {
@@ -121,13 +187,19 @@ export default function PublicidadScreen() {
     try {
       const { checkoutUrl } = await createAdCampaign({
         businessId: business.id,
+        kind,
+        productId: mode === 'existing' && kind === 'product' ? selectedItemId! : undefined,
+        serviceId: mode === 'existing' && kind === 'service' ? selectedItemId! : undefined,
+        categoryId: mode === 'new' ? newItemCategoryId : undefined,
+        itemName: mode === 'existing' ? selectedItem?.name ?? '' : newItemName.trim(),
         title: title.trim(),
-        imageUrl: imageUrl.trim(),
+        photos,
         linkUrl: linkUrl.trim() || undefined,
         targetCity: national ? undefined : business.city,
         durationDays: parsedDays,
       });
       setShowForm(false);
+      resetForm();
       await Linking.openURL(checkoutUrl);
     } catch (err) {
       console.error('create ad campaign error', err);
@@ -198,17 +270,70 @@ export default function PublicidadScreen() {
             </Pressable>
           </View>
 
-          <TextField label="Título" placeholder="20% de descuento en cambio de aceite" value={title} onChangeText={setTitle} />
+          {canChooseKind && (
+            <>
+              <Text style={styles.fieldLabel}>¿Qué quieres anunciar?</Text>
+              <View style={styles.chipRow}>
+                <Pressable onPress={() => setKind('product')} style={[styles.chip, kind === 'product' && styles.chipSelected]}>
+                  <Text style={[styles.chipText, kind === 'product' && styles.chipTextSelected]}>Producto</Text>
+                </Pressable>
+                <Pressable onPress={() => setKind('service')} style={[styles.chip, kind === 'service' && styles.chipSelected]}>
+                  <Text style={[styles.chipText, kind === 'service' && styles.chipTextSelected]}>Servicio</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
 
-          <Text style={styles.fieldLabel}>Imagen</Text>
-          {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.preview} resizeMode="cover" /> : null}
-          <Button
-            title={imageUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
-            variant="secondary"
-            onPress={handlePickImage}
-            loading={uploadingImage}
-            style={styles.imageButton}
-          />
+          <Text style={styles.fieldLabel}>{kind === 'product' ? 'Producto a anunciar' : 'Servicio a anunciar'}</Text>
+          <View style={styles.chipRow}>
+            <Pressable onPress={() => setMode('existing')} style={[styles.chip, mode === 'existing' && styles.chipSelected]}>
+              <Text style={[styles.chipText, mode === 'existing' && styles.chipTextSelected]}>Ya publicado</Text>
+            </Pressable>
+            <Pressable onPress={() => setMode('new')} style={[styles.chip, mode === 'new' && styles.chipSelected]}>
+              <Text style={[styles.chipText, mode === 'new' && styles.chipTextSelected]}>Nuevo, solo para este anuncio</Text>
+            </Pressable>
+          </View>
+
+          {mode === 'existing' ? (
+            loadingCatalog ? (
+              <ActivityIndicator color={colors.primary} style={styles.catalogLoading} />
+            ) : existingItems.length === 0 ? (
+              <Text style={styles.placeholder}>
+                {kind === 'product' ? 'No tienes productos activos en tu catálogo.' : 'No tienes servicios activos en tu catálogo.'}
+              </Text>
+            ) : (
+              <View style={styles.chipRow}>
+                {existingItems.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setSelectedItemId(item.id)}
+                    style={[styles.chip, selectedItemId === item.id && styles.chipSelected]}
+                  >
+                    <Text style={[styles.chipText, selectedItemId === item.id && styles.chipTextSelected]}>{item.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )
+          ) : (
+            <>
+              <TextField
+                label={kind === 'product' ? 'Nombre del producto' : 'Nombre del servicio'}
+                placeholder={kind === 'product' ? 'Casco MT' : 'Cambio de aceite'}
+                value={newItemName}
+                onChangeText={setNewItemName}
+              />
+              <CategoryPicker kind={kind} value={newItemCategoryId} onChange={(id) => setNewItemCategoryId(id)} />
+            </>
+          )}
+
+          <TextField label="Texto del anuncio" placeholder="20% de descuento en cambio de aceite" value={title} onChangeText={setTitle} />
+
+          <Text style={styles.fieldLabel}>
+            Fotos ({photos.length}/{MAX_AD_PHOTOS})
+          </Text>
+          <View style={styles.photosRow}>
+            <MultiPhotoPicker photos={photos} onRemove={handleRemovePhoto} onAdd={handlePickImage} max={MAX_AD_PHOTOS} uploading={uploadingImage} />
+          </View>
 
           <TextField
             label="Link al tocar el anuncio (opcional)"
@@ -228,7 +353,7 @@ export default function PublicidadScreen() {
               loading={saving}
               style={styles.flexButton}
             />
-            <Button title="Cancelar" variant="secondary" onPress={() => setShowForm(false)} style={styles.flexButton} />
+            <Button title="Cancelar" variant="secondary" onPress={() => { setShowForm(false); resetForm(); }} style={styles.flexButton} />
           </View>
         </View>
       )}
@@ -241,7 +366,7 @@ export default function PublicidadScreen() {
           {ads.map((ad) => (
             <View key={ad.id} style={styles.gridItem}>
               <View style={styles.gridImageWrap}>
-                <Image source={{ uri: ad.image_url }} style={styles.gridImage} resizeMode="cover" />
+                <Image source={{ uri: ad.photos[0] }} style={styles.gridImage} resizeMode="cover" />
                 <View style={[styles.statusBadgeOverlay, { backgroundColor: statusColor[ad.status] }]}>
                   <Text style={styles.statusBadgeOverlayText}>{statusLabel[ad.status]}</Text>
                 </View>
@@ -270,7 +395,15 @@ export default function PublicidadScreen() {
       )}
 
       <InfoModal visible={showInfo} title="Cómo funciona la publicidad" onClose={() => setShowInfo(false)}>
-        <InfoStep number={1} title="Cómo se calcula el precio">
+        <InfoStep number={1} title="Anuncias un producto o servicio real">
+          <Text style={infoTextStyles.text}>
+            Puedes elegir un producto o servicio que ya tengas publicado (la categoría se asigna sola), o crear uno
+            nuevo solo para este anuncio -- ese ítem nuevo no aparece en tu catálogo normal, existe únicamente para la
+            campaña.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={2} title="Cómo se calcula el precio">
           <Text style={infoTextStyles.text}>
             El total es <Text style={infoTextStyles.bold}>precio por día × cantidad de días</Text>. El precio por día
             es distinto según el alcance que elijas: "Nacional" cuesta más por día que "Solo tu ciudad".
@@ -296,7 +429,7 @@ export default function PublicidadScreen() {
           </InfoExample>
         </InfoStep>
 
-        <InfoStep number={2} title="Pagas primero, se revisa después">
+        <InfoStep number={3} title="Pagas primero, se revisa después">
           <Text style={infoTextStyles.text}>
             Pagas de una sola vez (vía Payphone) al crear la campaña. Después, un admin de SOSmoto la revisa antes de
             mostrarla a nadie -- para evitar contenido inapropiado o competencia desleal. El estado pasa de
@@ -304,21 +437,29 @@ export default function PublicidadScreen() {
           </Text>
         </InfoStep>
 
-        <InfoStep number={3} title="No eliges dónde aparece">
+        <InfoStep number={4} title="Dónde aparece">
           <Text style={infoTextStyles.text}>
-            Una vez aprobada, se muestra automáticamente en el inicio, en búsquedas y en perfiles relevantes, según su
-            alcance -- no hay forma de elegir una posición específica dentro de la app.
+            Una vez aprobada, se muestra automáticamente en el inicio (mezclada con el carrusel de productos/
+            servicios) y como el primer resultado cuando alguien busca justo lo que anuncias -- no hay forma de elegir
+            una posición específica.
           </Text>
         </InfoStep>
 
-        <InfoStep number={4} title="Impresiones y clics">
+        <InfoStep number={5} title="Termina sola">
+          <Text style={infoTextStyles.text}>
+            Al llegar la fecha de fin, la campaña se marca como "Finalizada" y deja de mostrarse sola, sin que tengas
+            que hacer nada.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={6} title="Impresiones y clics">
           <Text style={infoTextStyles.text}>
             Cada campaña activa muestra cuántas veces se vio (impresiones) y cuántas veces la tocaron (clics), para
             que midas si está funcionando.
           </Text>
         </InfoStep>
 
-        <InfoStep number={5} title='"Pausar" no devuelve el dinero'>
+        <InfoStep number={7} title='"Pausar" no devuelve el dinero'>
           <Text style={infoTextStyles.text}>
             Pausar detiene que la campaña se siga mostrando, pero no reembolsa lo ya pagado -- revisa bien la
             duración antes de pagar.
@@ -409,14 +550,10 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.primary,
   },
-  preview: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: colors.background,
+  catalogLoading: {
+    marginBottom: 16,
   },
-  imageButton: {
+  photosRow: {
     marginBottom: 16,
   },
   priceText: {

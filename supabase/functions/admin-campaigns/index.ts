@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       const { data, error } = await supabase
         .from('ads')
-        .select('id, title, image_url, link_url, target_city, starts_at, ends_at, business_id, businesses(name)')
+        .select('id, kind, item_name, title, photos, link_url, target_city, starts_at, ends_at, business_id, businesses(name)')
         .eq('status', 'pending_review')
         .order('created_at', { ascending: true });
       if (error) return json({ error: error.message }, 500);

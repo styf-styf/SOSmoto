@@ -78,8 +78,13 @@ async function createAdFromPayment(supabase: ReturnType<typeof createClient>, pa
 
   await supabase.from('ads').insert({
     business_id: payment.business_id,
+    kind: m.kind,
+    category_id: m.categoryId ?? null,
+    item_name: m.itemName,
+    product_id: m.productId ?? null,
+    service_id: m.serviceId ?? null,
     title: m.title,
-    image_url: m.imageUrl,
+    photos: m.photos ?? [],
     link_url: m.linkUrl ?? null,
     target_city: m.targetCity ?? null,
     status: 'pending_review',

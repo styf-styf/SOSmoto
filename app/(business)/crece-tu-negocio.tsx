@@ -12,8 +12,10 @@ import type { GrowthSuggestion } from '../../types/database';
 const SUGGESTION_ROUTE: Record<GrowthSuggestion['type'], string> = {
   upgrade_plan_limit_reached: '/(business)/suscripcion',
   upgrade_plan_near_limit: '/(business)/suscripcion',
-  advertise_low_visibility: '/(business)/publicidad',
-  advertise_new_business: '/(business)/publicidad',
+  // openForm=1: abre el formulario de crear campaña directo, sin el paso
+  // extra de tocar "+ Crear campaña" en la pantalla de Publicidad.
+  advertise_low_visibility: '/(business)/publicidad?openForm=1',
+  advertise_new_business: '/(business)/publicidad?openForm=1',
 };
 
 const SUGGESTION_CTA: Record<GrowthSuggestion['type'], string> = {

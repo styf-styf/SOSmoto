@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import type { ReactElement } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/colors';
-import { getFeedAds, type AdWithBusiness } from '../services/ads';
+import { getActiveAdsCatalogItems, getFeedAds, type AdWithBusiness } from '../services/ads';
 import { getFeedCatalogPool, type FeedCatalogItem } from '../services/catalog';
 import { getFollowingFeedPage, getPublicFeedPage, type PostWithAuthor } from '../services/posts';
 import { applyFreshnessOrder } from '../utils/feedOrdering';
@@ -68,57 +68,6 @@ function buildRows(
   return rows;
 }
 
-type DecoratedRow = FeedRow & {
-  gray: boolean;
-  showTopShadow: boolean;
-  showBottomShadow: boolean;
-  topFadeFromHeader?: boolean;
-};
-
-function isGrayPost(row: FeedRow | null): boolean {
-  return !!row && row.kind === 'post' && row.post.photos.length === 0;
-}
-
-// Catálogo y posts sin imagen comparten la misma sensación de "fondo": si un
-// carrusel de catálogo queda pegado (arriba o abajo) a un post sin imagen, se
-// pinta gris también y se apaga la sombra del lado compartido, para que se
-// vean como un solo bloque continuo en vez de dos tarjetas hundidas
-// separadas. Los anuncios quedan fuera de este merge a propósito (siempre
-// "elevados").
-function decorateRows(rows: FeedRow[]): DecoratedRow[] {
-  return rows.map((row, i) => {
-    const prev = i > 0 ? rows[i - 1] : null;
-    const next = i < rows.length - 1 ? rows[i + 1] : null;
-
-    if (row.kind === 'post') {
-      const gray = row.post.photos.length === 0;
-      if (!gray) return { ...row, gray: false, showTopShadow: true, showBottomShadow: true };
-      const isFirst = i === 0;
-      const prevGray = isGrayPost(prev) || prev?.kind === 'catalog';
-      const nextGray = isGrayPost(next) || next?.kind === 'catalog';
-      // i === 0: no hay nada arriba en el feed salvo el header (blanco) -- en
-      // vez de la sombra normal (o nada), se funde de blanco a gris para que
-      // el cambio de fondo se vea como una transición, no como un escalón.
-      return {
-        ...row,
-        gray: true,
-        showTopShadow: !prevGray && !isFirst,
-        showBottomShadow: !nextGray,
-        topFadeFromHeader: isFirst,
-      };
-    }
-
-    if (row.kind === 'catalog') {
-      const prevGray = isGrayPost(prev);
-      const nextGray = isGrayPost(next);
-      const gray = prevGray || nextGray;
-      return { ...row, gray, showTopShadow: !prevGray, showBottomShadow: !nextGray };
-    }
-
-    return { ...row, gray: false, showTopShadow: true, showBottomShadow: true };
-  });
-}
-
 export interface HomeFeedHandle {
   refresh: () => Promise<void>;
 }
@@ -171,13 +120,17 @@ export const HomeFeed = forwardRef<
         ? await getFollowingFeedPage(clientId, { limit: PAGE_SIZE, excludeBrand })
         : await getPublicFeedPage({ limit: PAGE_SIZE, excludeBrand });
 
-    const [catalog, ads] = await Promise.all([
+    const [catalog, adsCatalogItems, ads] = await Promise.all([
       hideCatalogPool ? Promise.resolve([]) : getFeedCatalogPool(30, { excludeBrand }),
+      hideCatalogPool ? Promise.resolve([]) : getActiveAdsCatalogItems(city, 5, { excludeBrand }),
       getFeedAds(city),
     ]);
 
     setPosts(postsPage);
-    const orderedCatalog = applyFreshnessOrder(catalog, (item) => item.createdAt, lastSeenCatalogAt);
+    // Los anuncios activos se mezclan como tarjetas más del carrusel de
+    // catálogo (con su chip "Anuncio", ver FeedCatalogStrip) -- aparte del
+    // banner de publicidad de siempre (adPool más abajo, sin cambios).
+    const orderedCatalog = applyFreshnessOrder([...catalog, ...adsCatalogItems], (item) => item.createdAt, lastSeenCatalogAt);
     setCatalogPoolPhoto(orderedCatalog.filter((item) => item.photoUrl));
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(ads, (item) => item.created_at, lastSeenAdAt));
@@ -248,7 +201,7 @@ export const HomeFeed = forwardRef<
   }
 
   const rows = useMemo(
-    () => decorateRows(buildRows(posts, catalogPoolPhoto, catalogPoolNoPhoto, adPool)),
+    () => buildRows(posts, catalogPoolPhoto, catalogPoolNoPhoto, adPool),
     [posts, catalogPoolPhoto, catalogPoolNoPhoto, adPool]
   );
 
@@ -271,24 +224,12 @@ export const HomeFeed = forwardRef<
               post={item.post}
               detailHref={`/(${role})/publicacion/${item.post.id}`}
               userRole={role}
-              showTopShadow={item.showTopShadow}
-              showBottomShadow={item.showBottomShadow}
-              topFadeFromHeader={item.topFadeFromHeader}
               viewerBusinessId={viewerBusinessId}
             />
           );
         }
         if (item.kind === 'catalog') {
-          return (
-            <FeedCatalogStrip
-              items={item.items}
-              listItems={item.listItems}
-              role={role}
-              grayBackground={item.gray}
-              showTopShadow={item.showTopShadow}
-              showBottomShadow={item.showBottomShadow}
-            />
-          );
+          return <FeedCatalogStrip items={item.items} listItems={item.listItems} role={role} />;
         }
         return <AdBanner ad={item.ad} detailHref={`/(${role})/anuncio/${item.ad.id}`} />;
       }}

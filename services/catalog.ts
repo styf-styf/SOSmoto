@@ -284,6 +284,13 @@ export interface FeedCatalogItem {
   meta?: string;
   photoUrl?: string;
   createdAt: string;
+  // Presente cuando esta tarjeta en realidad es un anuncio (ver
+  // services/ads.ts getActiveAdsCatalogItems/searchActiveAds) mezclado entre
+  // productos/servicios reales -- FeedCatalogStrip usa esto para mostrar el
+  // chip "Anuncio", llevar al detalle del anuncio en vez del producto/
+  // servicio, y registrar impresión/clic en vez de vistas de catálogo.
+  isAd?: boolean;
+  adId?: string;
 }
 
 // Muestra global de catálogo (no filtrada por seguidos/cercanía) para

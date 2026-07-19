@@ -7,7 +7,9 @@ import { AdReviewActions } from './AdReviewActions';
 const PAGE_SIZE = 12;
 
 const AD_SELECT =
-  'id, business_id, title, image_url, link_url, target_city, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name)';
+  'id, business_id, kind, item_name, title, photos, link_url, target_city, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name)';
+
+const kindLabel: Record<string, string> = { product: 'Producto', service: 'Servicio' };
 
 export default async function PublicidadPage({
   searchParams,
@@ -54,10 +56,12 @@ export default async function PublicidadPage({
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {pending.map((ad) => (
           <div key={ad.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <img src={ad.image_url} alt="" className="h-40 w-full object-cover" />
+            <img src={ad.photos[0]} alt="" className="h-40 w-full object-cover" />
             <div className="p-3">
               <p className="text-sm font-semibold">{ad.title}</p>
-              <p className="text-xs text-gray-500">{ad.businesses?.name ?? 'Negocio'}</p>
+              <p className="text-xs text-gray-500">
+                {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
+              </p>
               <p className="mt-1 text-xs text-gray-400">{ad.target_city ?? 'Nacional'}</p>
               <p className="text-xs text-gray-400">
                 {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
@@ -83,10 +87,12 @@ export default async function PublicidadPage({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {active.map((ad) => (
           <div key={ad.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <img src={ad.image_url} alt="" className="h-40 w-full object-cover" />
+            <img src={ad.photos[0]} alt="" className="h-40 w-full object-cover" />
             <div className="p-3">
               <p className="text-sm font-semibold">{ad.title}</p>
-              <p className="text-xs text-gray-500">{ad.businesses?.name ?? 'Negocio'}</p>
+              <p className="text-xs text-gray-500">
+                {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
+              </p>
               <p className="mt-1 text-xs text-gray-400">{ad.target_city ?? 'Nacional'}</p>
               <p className="text-xs text-gray-400">
                 {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}

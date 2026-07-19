@@ -83,8 +83,10 @@ export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | '
 export interface AdminAdRow {
   id: string;
   business_id: string;
+  kind: 'product' | 'service';
+  item_name: string;
   title: string;
-  image_url: string;
+  photos: string[];
   link_url: string | null;
   target_city: string | null;
   status: AdStatus;
