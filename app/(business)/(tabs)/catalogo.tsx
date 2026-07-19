@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../../components/Button';
 import { CategoryPicker } from '../../../components/CategoryPicker';
 import { GradientShade } from '../../../components/GradientShade';
@@ -50,7 +51,7 @@ const GRID_GAP = 10;
 const GRID_COLUMNS = 2;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 // Math.floor (no Math.round): evita que 2*CARD_WIDTH + GRID_GAP supere por
-// 1px el ancho disponible y el grid colapse a 1 columna (ver AdGridCard.tsx).
+// 1px el ancho disponible y el grid colapse a 1 columna.
 const CARD_WIDTH = Math.floor((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
 
@@ -285,18 +286,29 @@ export default function CatalogoScreen() {
     setForm({ kind: 'product', product: null });
   }
 
+  // Si se llegó acá desde el botón "Editar" de la página de producto/servicio
+  // (editId en la URL), cerrar el formulario debe devolver a esa página en
+  // vez de dejar al usuario en el Catálogo -- que es donde vive este modal,
+  // pero no de donde vino.
+  function closeForm() {
+    setForm(null);
+    if (editId && router.canGoBack()) {
+      router.back();
+    }
+  }
+
   function applyService(service: Service) {
     setServices((prev) =>
       prev.some((s) => s.id === service.id) ? prev.map((s) => (s.id === service.id ? service : s)) : [service, ...prev]
     );
-    setForm(null);
+    closeForm();
   }
 
   function applyProduct(product: Product) {
     setProducts((prev) =>
       prev.some((p) => p.id === product.id) ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev]
     );
-    setForm(null);
+    closeForm();
   }
 
   function confirmDeleteService(service: Service) {
@@ -423,13 +435,13 @@ export default function CatalogoScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={!!form} animationType="slide" onRequestClose={() => setForm(null)}>
+      <Modal visible={!!form} animationType="slide" onRequestClose={closeForm}>
         {form?.kind === 'service' && (
           <ServiceForm
             businessId={business.id}
             service={form.service}
             limits={limits}
-            onCancel={() => setForm(null)}
+            onCancel={closeForm}
             onSaved={applyService}
             onDelete={form.service ? () => confirmDeleteService(form.service!) : undefined}
           />
@@ -439,7 +451,7 @@ export default function CatalogoScreen() {
             businessId={business.id}
             product={form.product}
             limits={limits}
-            onCancel={() => setForm(null)}
+            onCancel={closeForm}
             onSaved={applyProduct}
             onDelete={form.product ? () => confirmDeleteProduct(form.product!) : undefined}
           />
@@ -754,15 +766,16 @@ function ServiceForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>{isEdit ? 'Editar servicio' : 'Nuevo servicio'}</Text>
-        <Pressable onPress={onCancel}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </Pressable>
-      </View>
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
+      <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{isEdit ? 'Editar servicio' : 'Nuevo servicio'}</Text>
+          <Pressable onPress={onCancel}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </Pressable>
+        </View>
 
-      <TextField label="Nombre" placeholder="Cambio de aceite" value={name} onChangeText={setName} />
+        <TextField label="Nombre" placeholder="Cambio de aceite" value={name} onChangeText={setName} />
       <TextField
         label="Descripción (opcional)"
         placeholder="Incluye filtro y revisión básica"
@@ -823,7 +836,8 @@ function ServiceForm({
           <Text style={styles.deleteLinkText}>Eliminar servicio</Text>
         </Pressable>
       )}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1086,15 +1100,16 @@ function ProductForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>{isEdit ? 'Editar producto' : 'Nuevo producto'}</Text>
-        <Pressable onPress={onCancel}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </Pressable>
-      </View>
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
+      <ScrollView contentContainerStyle={styles.modalContainer} keyboardShouldPersistTaps="handled">
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{isEdit ? 'Editar producto' : 'Nuevo producto'}</Text>
+          <Pressable onPress={onCancel}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </Pressable>
+        </View>
 
-      <TextField label="Nombre" placeholder="Casco MT" value={name} onChangeText={setName} />
+        <TextField label="Nombre" placeholder="Casco MT" value={name} onChangeText={setName} />
       <TextField
         label="Descripción (opcional)"
         placeholder="Casco abatible talla M"
@@ -1319,11 +1334,15 @@ function ProductForm({
           <Text style={styles.deleteLinkText}>Eliminar producto</Text>
         </Pressable>
       )}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
