@@ -18,6 +18,7 @@ export default function EstadisticasScreen() {
   const [planName, setPlanName] = useState('free');
   const [stats, setStats] = useState<BusinessDashboardStats | null>(null);
   const [isBrand, setIsBrand] = useState(false);
+  const [canHaveServices, setCanHaveServices] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -26,6 +27,7 @@ export default function EstadisticasScreen() {
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
     setIsBrand(work.business.business_type === 'brand_advertiser');
+    setCanHaveServices(work.business.business_type === 'workshop');
     const [limits, dashboardStats] = await Promise.all([
       getPlanLimits(work.business.id),
       getBusinessDashboardStats(work.business.id),
@@ -107,7 +109,7 @@ export default function EstadisticasScreen() {
             stats.topProducts.map((p) => <RankedRow key={p.id} name={p.name} value={p.views} />)
           )}
 
-          {!isBrand && (
+          {canHaveServices && (
             <>
               <Text style={styles.sectionTitle}>Servicios más vistos</Text>
               {stats.topServices.length === 0 ? (
