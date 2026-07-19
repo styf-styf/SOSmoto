@@ -57,6 +57,12 @@ async function optimizeImage(asset: ImagePicker.ImagePickerAsset): Promise<strin
   return result.uri;
 }
 
+export async function pickAndUploadBusinessImage(businessId: string, aspect?: [number, number] | null): Promise<string | null> {
+  const asset = await pickImageFromLibrary(aspect);
+  if (!asset) return null;
+  return uploadBusinessImage(asset, businessId);
+}
+
 export async function uploadBusinessImage(asset: ImagePicker.ImagePickerAsset, businessId: string): Promise<string> {
   const optimizedUri = await optimizeImage(asset);
   const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
@@ -70,12 +76,6 @@ export async function uploadBusinessImage(asset: ImagePicker.ImagePickerAsset, b
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
-}
-
-export async function pickAndUploadBusinessImage(businessId: string): Promise<string | null> {
-  const asset = await pickImageFromLibrary();
-  if (!asset) return null;
-  return uploadBusinessImage(asset, businessId);
 }
 
 // Historias de negocio -- recorte completo/libre, sin forzar 3:4 (ver nota
@@ -143,8 +143,10 @@ export async function uploadUserAvatar(asset: ImagePicker.ImagePickerAsset, user
   return data.publicUrl;
 }
 
+// Foto de perfil -- recorte 1:1 (a diferencia del resto de la app, que usa
+// 3:4 por defecto), porque el avatar siempre se muestra en un círculo.
 export async function pickAndUploadUserAvatar(userId: string): Promise<string | null> {
-  const asset = await pickImageFromLibrary();
+  const asset = await pickImageFromLibrary([1, 1]);
   if (!asset) return null;
   return uploadUserAvatar(asset, userId);
 }
