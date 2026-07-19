@@ -89,6 +89,8 @@ export interface AdminAdRow {
   photos: string[];
   link_url: string | null;
   target_city: string | null;
+  target_scope: 'national' | 'city' | 'radius';
+  target_radius_km: number | null;
   status: AdStatus;
   starts_at: string;
   ends_at: string;
@@ -191,6 +193,10 @@ export interface AdminMaintenanceRuleRow {
 export interface AdminAdPricingRow {
   price_per_day_city: number;
   price_per_day_national: number;
+  // Anclas en KM (no en dólares) para interpolar el precio del alcance
+  // "Radio" entre ciudad y nacional -- ver AdPricingForm.tsx.
+  radius_reference_km: number;
+  radius_cap_km: number;
 }
 
 export type CategoryKind = 'product' | 'service';

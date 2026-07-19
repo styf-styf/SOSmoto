@@ -18,7 +18,10 @@ export default async function ConfiguracionPage() {
 
   const [plansResult, pricingResult, rulesResult, settingsResult] = await Promise.all([
     supabase.from('subscription_plans').select('*'),
-    supabase.from('ad_pricing').select('price_per_day_city, price_per_day_national').single(),
+    supabase
+      .from('ad_pricing')
+      .select('price_per_day_city, price_per_day_national, radius_reference_km, radius_cap_km')
+      .single(),
     supabase.from('maintenance_rules').select('*').order('moto_type').order('interval_km'),
     supabase.from('system_settings').select('default_aid_radius_km').single(),
   ]);

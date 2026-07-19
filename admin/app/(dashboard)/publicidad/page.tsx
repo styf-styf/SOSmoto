@@ -7,9 +7,15 @@ import { AdReviewActions } from './AdReviewActions';
 const PAGE_SIZE = 12;
 
 const AD_SELECT =
-  'id, business_id, kind, item_name, title, photos, link_url, target_city, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name)';
+  'id, business_id, kind, item_name, title, photos, link_url, target_city, target_scope, target_radius_km, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name)';
 
 const kindLabel: Record<string, string> = { product: 'Producto', service: 'Servicio' };
+
+function scopeLabel(ad: AdminAdRow): string {
+  if (ad.target_scope === 'radius') return `Radio ${ad.target_radius_km} km`;
+  if (ad.target_scope === 'city') return ad.target_city ?? 'Ciudad';
+  return 'Nacional';
+}
 
 export default async function PublicidadPage({
   searchParams,
@@ -62,7 +68,7 @@ export default async function PublicidadPage({
               <p className="text-xs text-gray-500">
                 {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
               </p>
-              <p className="mt-1 text-xs text-gray-400">{ad.target_city ?? 'Nacional'}</p>
+              <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
               <p className="text-xs text-gray-400">
                 {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
               </p>
@@ -93,7 +99,7 @@ export default async function PublicidadPage({
               <p className="text-xs text-gray-500">
                 {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
               </p>
-              <p className="mt-1 text-xs text-gray-400">{ad.target_city ?? 'Nacional'}</p>
+              <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
               <p className="text-xs text-gray-400">
                 {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
               </p>
