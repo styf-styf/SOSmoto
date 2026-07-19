@@ -233,7 +233,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const showFollowButton = showFollowClient || canBusinessFollowTarget;
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, mode === 'public' && styles.containerWithHeader]}>
+    <ScrollView style={styles.flex} contentContainerStyle={[styles.container, mode === 'public' && styles.containerWithHeader]}>
       {mode === 'public' && (
         <Stack.Screen
           options={{
@@ -578,6 +578,10 @@ function ProfileActionButton({
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

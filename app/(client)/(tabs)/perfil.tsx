@@ -78,7 +78,7 @@ export default function ClientPerfilScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
+    <ScrollView style={styles.flex} contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.headerRow}>
         <Pressable style={styles.avatarWrap} onPress={handleChangeAvatar} disabled={uploadingAvatar}>
           <View style={styles.avatar}>
@@ -233,6 +233,10 @@ export default function ClientPerfilScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: SIDE_PADDING,
