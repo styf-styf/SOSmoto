@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -222,6 +223,7 @@ export default function NuevaCitaScreen() {
     : [];
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 
       {/* Buscador unificado */}
@@ -378,10 +380,14 @@ export default function NuevaCitaScreen() {
 
       <Button title="Crear cita" onPress={handleSubmit} loading={saving} style={styles.submitBtn} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background,
   },

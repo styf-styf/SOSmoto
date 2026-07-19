@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { type Region } from 'react-native-maps';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -212,6 +213,7 @@ export default function DatosNegocioScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView
       contentContainerStyle={styles.container}
       refreshControl={
@@ -433,10 +435,14 @@ export default function DatosNegocioScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

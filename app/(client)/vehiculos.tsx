@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -70,6 +71,7 @@ export default function VehiclesScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {vehicles.length === 0 && !showForm && (
         <Text style={styles.placeholder}>Aún no tienes motos registradas.</Text>
@@ -98,6 +100,7 @@ export default function VehiclesScreen() {
         <Button title="+ Agregar moto" variant="secondary" onPress={() => setShowForm(true)} />
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -397,6 +400,9 @@ function AddVehicleForm({
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

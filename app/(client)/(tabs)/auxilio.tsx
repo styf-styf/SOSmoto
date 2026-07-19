@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import MapView from 'react-native-maps';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../../components/Button';
 import { CircleActionButton } from '../../../components/CircleActionButton';
@@ -652,7 +652,7 @@ function CompletedRequestCard({
   }
 
   return (
-    <View style={styles.center}>
+    <KeyboardAvoidingView style={styles.center} behavior="padding">
       <Text style={styles.statusTitle}>Auxilio completado</Text>
       <View style={styles.businessCard}>
         <Text style={styles.businessName}>
@@ -689,7 +689,7 @@ function CompletedRequestCard({
           />
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

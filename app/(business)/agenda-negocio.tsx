@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollVi
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, Stack, useFocusEffect } from 'expo-router';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
@@ -300,6 +301,7 @@ export default function AgendaNegocioScreen() {
 
   return (
     <>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
       <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.topBtns}>
         <Pressable style={[styles.newCitaBtn, { flex: 1 }]} onPress={() => router.push('/(business)/nueva-cita')}>
@@ -586,6 +588,7 @@ export default function AgendaNegocioScreen() {
         }))
       }
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <InfoModal visible={showInfo} title="Cómo funciona el flujo de citas" onClose={() => setShowInfo(false)}>
         <InfoStep number={1} title="Cómo llega una cita nueva">
@@ -672,6 +675,9 @@ function statusTextStyle(a: BusinessAppointment) {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

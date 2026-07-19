@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -128,6 +129,7 @@ export default function AgendarScreen() {
   })();
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.placeholder}>{business?.name}</Text>
       <Text style={styles.hint}>
@@ -229,10 +231,14 @@ export default function AgendarScreen() {
 
       <Button title="Enviar solicitud y abrir chat" onPress={handleSubmit} loading={saving} style={styles.submitButton} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

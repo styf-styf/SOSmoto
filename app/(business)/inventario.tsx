@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
@@ -264,6 +265,7 @@ export default function InventarioScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {/* Resumen */}
       <View style={styles.summaryRow}>
@@ -367,6 +369,7 @@ export default function InventarioScreen() {
         );
       })}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 
   function renderMovementPanel() {
@@ -492,6 +495,7 @@ export default function InventarioScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },

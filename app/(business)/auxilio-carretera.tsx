@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -150,6 +151,7 @@ export default function AuxilioCarreteraScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView
       contentContainerStyle={styles.container}
       refreshControl={
@@ -209,10 +211,14 @@ export default function AuxilioCarreteraScreen() {
         />
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { TextField } from '../../components/TextField';
@@ -142,6 +143,7 @@ export default function EmpleadosScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.headerRow}>
         <Text style={[styles.helperText, styles.headerRowText]}>
@@ -262,6 +264,7 @@ export default function EmpleadosScreen() {
         </InfoExample>
       </InfoModal>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -528,6 +531,9 @@ function AddEmployeeForm({
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -34,6 +35,7 @@ export default function CambiarPasswordScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container}>
       <TextField
         label="Nueva contraseña"
@@ -50,10 +52,14 @@ export default function CambiarPasswordScreen() {
       />
       <Button title="Actualizar contraseña" onPress={handleSave} loading={saving} style={styles.saveButton} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: 20,

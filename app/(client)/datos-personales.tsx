@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -39,6 +40,7 @@ export default function DatosPersonalesScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container}>
       <TextField label="Nombre completo" value={fullName} onChangeText={setFullName} />
       <TextField label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
@@ -47,10 +49,14 @@ export default function DatosPersonalesScreen() {
       </View>
       <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: 20,

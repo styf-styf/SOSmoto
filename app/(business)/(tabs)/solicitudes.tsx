@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import MapView from 'react-native-maps';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../../components/Button';
 import { CircleActionButton } from '../../../components/CircleActionButton';
@@ -313,7 +314,7 @@ export default function SolicitudesScreen() {
 
   if (ratingTarget) {
     return (
-      <View style={styles.center}>
+      <KeyboardAvoidingView style={styles.center} behavior="padding">
         <Text style={styles.screenTitle}>Auxilio completado</Text>
         <View style={styles.ratingCard}>
           <Text style={styles.cardName}>Califica al cliente</Text>
@@ -352,7 +353,7 @@ export default function SolicitudesScreen() {
             />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 

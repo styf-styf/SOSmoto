@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from './Button';
 import { colors } from '../constants/colors';
 
@@ -36,7 +37,7 @@ export function ReportModal({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={handleCancel}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView style={styles.overlay} behavior="padding">
         <View style={styles.card}>
           <View style={styles.header}>
             <Text style={styles.title}>Reportar {targetLabel}</Text>
@@ -59,7 +60,7 @@ export function ReportModal({
             <Button title="Reportar" onPress={handleSubmit} loading={sending} style={styles.flexButton} />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
