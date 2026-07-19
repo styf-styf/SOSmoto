@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -121,7 +121,12 @@ export default function ClientTabsLayout() {
         name="perfil"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) =>
+            profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+            ) : (
+              <Ionicons name="person-circle" size={size} color={color} />
+            ),
         }}
       />
       <Tabs.Screen name="producto" options={{ href: null }} />

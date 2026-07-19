@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,11 +29,15 @@ export default function BusinessTabsLayout() {
   const hasUnreadMessages = useUnreadMessages(profile);
   const insets = useSafeAreaInsets();
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+  const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
     getMyWorkBusiness(profile.id)
-      .then((work) => setBusinessType(work?.business?.business_type ?? null))
+      .then((work) => {
+        setBusinessType(work?.business?.business_type ?? null);
+        setBusinessLogoUrl(work?.business?.logo_url ?? null);
+      })
       .catch(() => {});
   }, [profile]);
 
@@ -128,8 +132,13 @@ export default function BusinessTabsLayout() {
       <Tabs.Screen
         name="perfil"
         options={{
-          title: 'Negocio',
-          tabBarIcon: ({ color, size }) => <Ionicons name="business" size={size} color={color} />,
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) =>
+            businessLogoUrl ? (
+              <Image source={{ uri: businessLogoUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+            ) : (
+              <Ionicons name="person-circle" size={size} color={color} />
+            ),
         }}
       />
       <Tabs.Screen name="producto" options={{ href: null }} />
