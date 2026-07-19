@@ -13,7 +13,7 @@ import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice }
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getActiveProducts, getActiveServices } from '../../services/catalog';
 import { pickAndUploadBusinessImage } from '../../services/storage';
-import type { Ad, AdKind, AdPricing, Business, Product, Service } from '../../types/database';
+import type { Ad, AdKind, AdPricing, AdTargetScope, Business, Product, Service } from '../../types/database';
 
 const SIDE_PADDING = 20;
 const GRID_GAP = 12;
@@ -54,7 +54,8 @@ export default function PublicidadScreen() {
   // "+ Crear campaña" para llegar a donde ya quería ir.
   const [showForm, setShowForm] = useState(!!params.openForm);
 
-  const [national, setNational] = useState(true);
+  const [scope, setScope] = useState<AdTargetScope>('national');
+  const [radiusKm, setRadiusKm] = useState('10');
   const [kind, setKind] = useState<AdKind>('product');
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
@@ -97,6 +98,8 @@ export default function PublicidadScreen() {
   useEffect(() => {
     if (!business || mode !== 'existing') return;
     setSelectedItemId(null);
+    setTitle('');
+    setPhotos([]);
     setLoadingCatalog(true);
     const request = kind === 'product' ? getActiveProducts(business.id) : getActiveServices(business.id);
     request
@@ -104,6 +107,16 @@ export default function PublicidadScreen() {
       .catch((err) => console.error('load catalog for ad error', err))
       .finally(() => setLoadingCatalog(false));
   }, [business, kind, mode]);
+
+  // Al elegir un producto/servicio ya publicado, precarga su info real en el
+  // formulario (fotos + descripcion como texto del anuncio) para no obligar
+  // al negocio a repetir manualmente lo que ya escribio en su catalogo --
+  // sigue siendo editable despues, solo es un punto de partida.
+  function handleSelectExistingItem(item: Product | Service) {
+    setSelectedItemId(item.id);
+    setTitle(item.description?.trim() || item.name);
+    setPhotos(item.photos.slice(0, MAX_AD_PHOTOS));
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -134,13 +147,20 @@ export default function PublicidadScreen() {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const existingItems: { id: string; name: string }[] = kind === 'product' ? existingProducts : existingServices;
+  const existingItems: (Product | Service)[] = kind === 'product' ? existingProducts : existingServices;
   const selectedItem = existingItems.find((item) => item.id === selectedItemId) ?? null;
+
+  const parsedRadius = Number(radiusKm);
+  const validRadius = scope !== 'radius' || (Number.isFinite(parsedRadius) && parsedRadius > 0 && parsedRadius <= 200);
 
   const parsedDays = Number(durationDays);
   const validDays = Number.isFinite(parsedDays) && parsedDays > 0;
-  const price = validDays && pricing
-    ? quoteAdPrice(pricing, { targetCity: national ? undefined : business?.city, durationDays: parsedDays })
+  const price = validDays && validRadius && pricing
+    ? quoteAdPrice(pricing, {
+        targetScope: scope,
+        targetRadiusKm: scope === 'radius' ? parsedRadius : undefined,
+        durationDays: parsedDays,
+      })
     : 0;
 
   function resetForm() {
@@ -152,6 +172,8 @@ export default function PublicidadScreen() {
     setPhotos([]);
     setLinkUrl('');
     setDurationDays('7');
+    setScope('national');
+    setRadiusKm('10');
   }
 
   async function handleCreate() {
@@ -183,6 +205,10 @@ export default function PublicidadScreen() {
       Alert.alert('Duración inválida', 'Ingresa un número de días válido.');
       return;
     }
+    if (!validRadius) {
+      Alert.alert('Radio inválido', 'Ingresa un radio en km entre 1 y 200.');
+      return;
+    }
     setSaving(true);
     try {
       const { checkoutUrl } = await createAdCampaign({
@@ -195,7 +221,9 @@ export default function PublicidadScreen() {
         title: title.trim(),
         photos,
         linkUrl: linkUrl.trim() || undefined,
-        targetCity: national ? undefined : business.city,
+        targetScope: scope,
+        targetCity: scope === 'city' ? business.city : undefined,
+        targetRadiusKm: scope === 'radius' ? parsedRadius : undefined,
         durationDays: parsedDays,
       });
       setShowForm(false);
@@ -262,13 +290,20 @@ export default function PublicidadScreen() {
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Alcance</Text>
           <View style={styles.chipRow}>
-            <Pressable onPress={() => setNational(true)} style={[styles.chip, national && styles.chipSelected]}>
-              <Text style={[styles.chipText, national && styles.chipTextSelected]}>Nacional</Text>
+            <Pressable onPress={() => setScope('national')} style={[styles.chip, scope === 'national' && styles.chipSelected]}>
+              <Text style={[styles.chipText, scope === 'national' && styles.chipTextSelected]}>Nacional</Text>
             </Pressable>
-            <Pressable onPress={() => setNational(false)} style={[styles.chip, !national && styles.chipSelected]}>
-              <Text style={[styles.chipText, !national && styles.chipTextSelected]}>Solo {business.city}</Text>
+            <Pressable onPress={() => setScope('city')} style={[styles.chip, scope === 'city' && styles.chipSelected]}>
+              <Text style={[styles.chipText, scope === 'city' && styles.chipTextSelected]}>Solo {business.city}</Text>
+            </Pressable>
+            <Pressable onPress={() => setScope('radius')} style={[styles.chip, scope === 'radius' && styles.chipSelected]}>
+              <Text style={[styles.chipText, scope === 'radius' && styles.chipTextSelected]}>Radio</Text>
             </Pressable>
           </View>
+
+          {scope === 'radius' && (
+            <TextField label="Radio (km, desde tu negocio)" keyboardType="numeric" value={radiusKm} onChangeText={setRadiusKm} />
+          )}
 
           {canChooseKind && (
             <>
@@ -306,7 +341,7 @@ export default function PublicidadScreen() {
                 {existingItems.map((item) => (
                   <Pressable
                     key={item.id}
-                    onPress={() => setSelectedItemId(item.id)}
+                    onPress={() => handleSelectExistingItem(item)}
                     style={[styles.chip, selectedItemId === item.id && styles.chipSelected]}
                   >
                     <Text style={[styles.chipText, selectedItemId === item.id && styles.chipTextSelected]}>{item.name}</Text>
@@ -406,7 +441,8 @@ export default function PublicidadScreen() {
         <InfoStep number={2} title="Cómo se calcula el precio">
           <Text style={infoTextStyles.text}>
             El total es <Text style={infoTextStyles.bold}>precio por día × cantidad de días</Text>. El precio por día
-            es distinto según el alcance que elijas: "Nacional" cuesta más por día que "Solo tu ciudad".
+            depende del alcance: "Nacional" es el más caro, "Solo tu ciudad" es intermedio, y "Radio" depende de
+            cuántos km elijas -- entre más chico el radio, más barato (nunca más caro que Nacional).
           </Text>
           <InfoExample label="Ejemplo con los precios de hoy">
             {pricing && (
@@ -414,6 +450,13 @@ export default function PublicidadScreen() {
                 <Text style={infoTextStyles.exampleText}>
                   Nacional: ${Number(pricing.price_per_day_national).toFixed(2)}/día · Solo tu ciudad: $
                   {Number(pricing.price_per_day_city).toFixed(2)}/día
+                </Text>
+                <Text style={infoTextStyles.exampleText}>
+                  Radio de 10 km → $
+                  {quoteAdPrice(pricing, { targetScope: 'radius', targetRadiusKm: 10, durationDays: 1 }).toFixed(2)}/día · Radio de{' '}
+                  {pricing.radius_reference_km} km → $
+                  {quoteAdPrice(pricing, { targetScope: 'radius', targetRadiusKm: pricing.radius_reference_km, durationDays: 1 }).toFixed(2)}
+                  /día (igual a "Solo tu ciudad")
                 </Text>
                 <Text style={infoTextStyles.exampleText}>
                   Campaña nacional de 7 días → 7 × ${Number(pricing.price_per_day_national).toFixed(2)} = $
@@ -441,7 +484,8 @@ export default function PublicidadScreen() {
           <Text style={infoTextStyles.text}>
             Una vez aprobada, se muestra automáticamente en el inicio (mezclada con el carrusel de productos/
             servicios) y como el primer resultado cuando alguien busca justo lo que anuncias -- no hay forma de elegir
-            una posición específica.
+            una posición específica. Con "Radio", solo la ven personas cuya ubicación real esté dentro de los km que
+            elegiste, aunque estén en otra ciudad -- y si alguien de tu misma ciudad está fuera de ese radio, no la ve.
           </Text>
         </InfoStep>
 

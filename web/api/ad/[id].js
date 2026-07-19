@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
   const supabase = supabaseAdmin();
   const { data: ad } = await supabase
     .from('ads')
-    .select('id, title, image_url, status, business:businesses(name)')
+    .select('id, title, photos, status, business:businesses(name)')
     .eq('id', id)
     .maybeSingle();
 
@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
     renderPreviewPage({
       kicker: businessName,
       title: ad.title || businessName,
-      image: ad.image_url,
+      image: ad.photos?.[0],
       appLink,
       og: { title: `${businessName} en SOSmoto`, description: title, url: universalLink, type: 'article' },
     })

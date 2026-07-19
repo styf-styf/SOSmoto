@@ -390,6 +390,7 @@ export default function ClientHomeScreen() {
           ref={homeFeedRef}
           role="client"
           city={city}
+          coords={coords}
           feedMode="all"
           clientId={profile?.id}
           onRefresh={load}
@@ -539,6 +540,7 @@ export default function ClientHomeScreen() {
           <HomeFeed
             role="client"
             city={city}
+            coords={coords}
             feedMode="following"
             clientId={profile?.id}
             emptyMessage="Los negocios que sigues aún no han publicado nada."

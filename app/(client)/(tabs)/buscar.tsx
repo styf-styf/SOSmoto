@@ -92,7 +92,7 @@ export default function BuscarScreen() {
         // Un anuncio activo que coincida con lo buscado se muestra como el
         // primer resultado de la sección (ya no aparte, en "Publicidad").
         query.trim()
-          ? searchActiveAds(query, city, { kinds: ['product', 'service'], businessTypeIn: ['workshop', 'store'] })
+          ? searchActiveAds(query, city, coords, { kinds: ['product', 'service'], businessTypeIn: ['workshop', 'store'] })
           : Promise.resolve(null),
       ]);
       setResults(result);

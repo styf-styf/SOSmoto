@@ -77,6 +77,11 @@ export const HomeFeed = forwardRef<
   {
     role: 'client' | 'business';
     city: string | null;
+    // Ubicación real del que mira el feed -- se usa solo para elegibilidad de
+    // anuncios con alcance "Radio" (ver services/ads.ts getEligibleAds). Nula
+    // mientras se resuelve el permiso/GPS; los anuncios nacional/ciudad no la
+    // necesitan.
+    coords?: { latitude: number; longitude: number } | null;
     feedMode?: 'all' | 'following';
     clientId?: string;
     emptyMessage?: string;
@@ -97,7 +102,7 @@ export const HomeFeed = forwardRef<
     hideCatalogPool?: boolean;
   }
 >(function HomeFeed(
-  { role, city, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId, hideCatalogPool },
+  { role, city, coords = null, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId, hideCatalogPool },
   ref
 ) {
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
@@ -122,8 +127,8 @@ export const HomeFeed = forwardRef<
 
     const [catalog, adsCatalogItems, ads] = await Promise.all([
       hideCatalogPool ? Promise.resolve([]) : getFeedCatalogPool(30, { excludeBrand }),
-      hideCatalogPool ? Promise.resolve([]) : getActiveAdsCatalogItems(city, 5, { excludeBrand }),
-      getFeedAds(city),
+      hideCatalogPool ? Promise.resolve([]) : getActiveAdsCatalogItems(city, coords, 5, { excludeBrand }),
+      getFeedAds(city, coords),
     ]);
 
     setPosts(postsPage);
@@ -135,7 +140,7 @@ export const HomeFeed = forwardRef<
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(ads, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
-  }, [city, feedMode, clientId, excludeBrand, hideCatalogPool]);
+  }, [city, coords, feedMode, clientId, excludeBrand, hideCatalogPool]);
 
   // loadInitial depende de city/clientId, que llegan como prop desde la
   // pantalla padre y arrancan en null/undefined hasta que se resuelven

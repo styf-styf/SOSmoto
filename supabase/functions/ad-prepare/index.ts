@@ -47,11 +47,26 @@ Deno.serve(async (req) => {
       title,
       photos,
       linkUrl,
+      targetScope,
       targetCity,
+      targetRadiusKm,
       durationDays,
     } = await req.json();
     if (!businessId || !kind || !itemName || !title || !durationDays) {
       return json({ error: 'Faltan datos' }, 400);
+    }
+    if (!['national', 'city', 'radius'].includes(targetScope)) {
+      return json({ error: 'Alcance inválido' }, 400);
+    }
+    if (targetScope === 'city' && !targetCity) {
+      return json({ error: 'Falta la ciudad para el alcance "Solo tu ciudad".' }, 400);
+    }
+    let radiusKm: number | null = null;
+    if (targetScope === 'radius') {
+      radiusKm = Number(targetRadiusKm);
+      if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 200) {
+        return json({ error: 'El radio debe ser un número entre 1 y 200 km.' }, 400);
+      }
     }
     if (kind !== 'product' && kind !== 'service') {
       return json({ error: 'Tipo de anuncio inválido' }, 400);
@@ -80,7 +95,7 @@ Deno.serve(async (req) => {
 
     const { data: business, error: businessError } = await supabase
       .from('businesses')
-      .select('id, owner_id, is_limited, business_type')
+      .select('id, owner_id, is_limited, business_type, latitude, longitude')
       .eq('id', businessId)
       .single();
     if (businessError || !business || business.owner_id !== userData.user.id) {
@@ -117,14 +132,35 @@ Deno.serve(async (req) => {
 
     const { data: pricing, error: pricingError } = await supabase
       .from('ad_pricing')
-      .select('price_per_day_city, price_per_day_national')
+      .select('price_per_day_city, price_per_day_national, radius_reference_km, radius_cap_km')
       .single();
     if (pricingError || !pricing) {
       return json({ error: 'No se pudo calcular el precio' }, 500);
     }
 
-    const isNational = !targetCity;
-    const pricePerDay = isNational ? pricing.price_per_day_national : pricing.price_per_day_city;
+    // El radio anuncia siempre desde la ubicación real del negocio -- nunca
+    // se acepta un lat/lng elegido por el cliente.
+    let targetLat: number | null = null;
+    let targetLng: number | null = null;
+    if (targetScope === 'radius') {
+      if (business.latitude == null || business.longitude == null) {
+        return json({ error: 'Tu negocio no tiene ubicación configurada -- no puedes usar el alcance por radio.' }, 400);
+      }
+      targetLat = business.latitude;
+      targetLng = business.longitude;
+    }
+
+    let pricePerDay: number;
+    if (targetScope === 'national') {
+      pricePerDay = pricing.price_per_day_national;
+    } else if (targetScope === 'city') {
+      pricePerDay = pricing.price_per_day_city;
+    } else {
+      const span = pricing.radius_cap_km - pricing.radius_reference_km;
+      const rate = span > 0 ? (pricing.price_per_day_national - pricing.price_per_day_city) / span : 0;
+      const base = pricing.price_per_day_city - rate * pricing.radius_reference_km;
+      pricePerDay = Math.min(Math.max(base + rate * radiusKm!, 0), pricing.price_per_day_national);
+    }
     const amount = Math.round(pricePerDay * days * 100) / 100;
 
     const paymentId = crypto.randomUUID();
@@ -146,7 +182,11 @@ Deno.serve(async (req) => {
         title,
         photos,
         linkUrl: linkUrl || null,
-        targetCity: targetCity || null,
+        targetScope,
+        targetCity: targetScope === 'city' ? targetCity : null,
+        targetLat,
+        targetLng,
+        targetRadiusKm: targetScope === 'radius' ? radiusKm : null,
         durationDays: days,
       },
     });

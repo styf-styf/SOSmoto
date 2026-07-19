@@ -726,6 +726,10 @@ export interface Database {
           photos: string[];
           link_url: string | null;
           target_city: string | null;
+          target_scope: 'national' | 'city' | 'radius';
+          target_lat: number | null;
+          target_lng: number | null;
+          target_radius_km: number | null;
           status: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
           starts_at: string;
           ends_at: string;
@@ -747,6 +751,10 @@ export interface Database {
           photos?: string[];
           link_url?: string | null;
           target_city?: string | null;
+          target_scope?: 'national' | 'city' | 'radius';
+          target_lat?: number | null;
+          target_lng?: number | null;
+          target_radius_km?: number | null;
           status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
           starts_at: string;
           ends_at: string;
@@ -768,6 +776,10 @@ export interface Database {
           photos?: string[];
           link_url?: string | null;
           target_city?: string | null;
+          target_scope?: 'national' | 'city' | 'radius';
+          target_lat?: number | null;
+          target_lng?: number | null;
+          target_radius_km?: number | null;
           status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
           starts_at?: string;
           ends_at?: string;
@@ -776,6 +788,30 @@ export interface Database {
           clicks?: number;
           comments_count?: number;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      ad_pricing: {
+        Row: {
+          id: boolean;
+          price_per_day_city: number;
+          price_per_day_national: number;
+          radius_reference_km: number;
+          radius_cap_km: number;
+        };
+        Insert: {
+          id?: boolean;
+          price_per_day_city?: number;
+          price_per_day_national?: number;
+          radius_reference_km?: number;
+          radius_cap_km?: number;
+        };
+        Update: {
+          id?: boolean;
+          price_per_day_city?: number;
+          price_per_day_national?: number;
+          radius_reference_km?: number;
+          radius_cap_km?: number;
         };
         Relationships: [];
       };

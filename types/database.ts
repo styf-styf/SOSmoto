@@ -335,6 +335,8 @@ export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | '
 
 export type AdKind = 'product' | 'service';
 
+export type AdTargetScope = 'national' | 'city' | 'radius';
+
 export interface Ad {
   id: string;
   business_id: string;
@@ -349,6 +351,13 @@ export interface Ad {
   photos: string[];
   link_url: string | null;
   target_city: string | null;
+  target_scope: AdTargetScope;
+  // Solo se llenan cuando target_scope es 'radius' -- lat/lng son siempre la
+  // ubicación real del negocio (no un punto elegido en el mapa), radius_km es
+  // lo único que el negocio configura.
+  target_lat: number | null;
+  target_lng: number | null;
+  target_radius_km: number | null;
   status: AdStatus;
   starts_at: string;
   ends_at: string;
@@ -426,6 +435,10 @@ export interface Payment {
 export interface AdPricing {
   price_per_day_city: number;
   price_per_day_national: number;
+  // Anclas en KM (no en dólares) para interpolar el precio del radio entre
+  // ciudad y nacional -- ver quoteAdPrice en services/ads.ts.
+  radius_reference_km: number;
+  radius_cap_km: number;
 }
 
 export type MotoType = 'scooter' | 'street' | 'naked' | 'enduro' | 'sport' | 'cruiser';

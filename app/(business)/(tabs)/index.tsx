@@ -372,25 +372,25 @@ export default function BusinessHomeScreen() {
 
   const growthCard = growthSuggestion && (
     <View style={styles.growthWrap}>
-      <View style={styles.growthCard}>
+      <Pressable style={styles.growthCard} onPress={() => router.push('/(business)/crece-tu-negocio')}>
         <Ionicons name="trending-up" size={20} color={colors.primary} />
         <View style={styles.growthCardText}>
           <Text style={styles.growthCardTitle}>{growthSuggestion.title}</Text>
           <Text style={styles.growthCardBody}>{growthSuggestion.body}</Text>
         </View>
-        <Pressable
-          style={styles.growthCardAction}
-          onPress={() => router.push('/(business)/crece-tu-negocio')}
-        >
+        <View style={styles.growthCardAction}>
           <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-        </Pressable>
+        </View>
         <Pressable
           style={styles.growthCardAction}
-          onPress={handleDismissSuggestion}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleDismissSuggestion();
+          }}
         >
           <Ionicons name="close" size={16} color={colors.textMuted} />
         </Pressable>
-      </View>
+      </Pressable>
     </View>
   );
 
@@ -416,6 +416,7 @@ export default function BusinessHomeScreen() {
           ref={homeFeedRef}
           role="business"
           city={business.city}
+          coords={coords}
           viewerBusinessId={business.id}
           onRefresh={load}
           hideCatalogPool={business.business_type === 'brand_advertiser'}
@@ -610,6 +611,7 @@ export default function BusinessHomeScreen() {
           ref={homeFeedRef}
           role="business"
           city={business.city}
+          coords={coords}
           feedMode="all"
           clientId={profile?.id}
           viewerBusinessId={business.id}
@@ -627,6 +629,7 @@ export default function BusinessHomeScreen() {
           <HomeFeed
             role="business"
             city={business.city}
+            coords={coords}
             feedMode="following"
             clientId={profile?.id}
             viewerBusinessId={business.id}
