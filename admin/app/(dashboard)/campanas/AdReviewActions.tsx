@@ -12,7 +12,7 @@ export function AdReviewActions({ adId }: { adId: string }) {
     if (decision === 'rejected' && !window.confirm('¿Rechazar esta campaña?')) return;
     setLoading(decision);
     setError(null);
-    const res = await fetch(`/api/anuncios/${adId}/review`, {
+    const res = await fetch(`/api/campanas/${adId}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ decision }),

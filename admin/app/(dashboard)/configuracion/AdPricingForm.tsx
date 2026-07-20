@@ -48,7 +48,7 @@ export function AdPricingForm({ pricing }: { pricing: AdminAdPricingRow }) {
     }
 
     setSaving(true);
-    const res = await fetch('/api/publicidad-precios', {
+    const res = await fetch('/api/precios-campanas', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

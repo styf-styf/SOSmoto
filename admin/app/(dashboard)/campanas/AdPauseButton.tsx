@@ -12,7 +12,7 @@ export function AdPauseButton({ adId }: { adId: string }) {
     if (!window.confirm('¿Pausar esta campaña? Dejará de mostrarse de inmediato.')) return;
     setLoading(true);
     setError(null);
-    const res = await fetch(`/api/anuncios/${adId}/pause`, { method: 'POST' });
+    const res = await fetch(`/api/campanas/${adId}/pause`, { method: 'POST' });
     setLoading(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
