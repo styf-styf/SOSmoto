@@ -93,19 +93,28 @@ export default async function PublicidadPage({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {active.map((ad) => (
           <div key={ad.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <img src={ad.photos[0]} alt="" className="h-40 w-full object-cover" />
-            <div className="p-3">
-              <p className="text-sm font-semibold">{ad.title}</p>
-              <p className="text-xs text-gray-500">
-                {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
-              </p>
-              <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
-              <p className="text-xs text-gray-400">
-                {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                {ad.impressions} impresiones · {ad.clicks} clics
-              </p>
+            <a
+              href={`https://so-smoto.vercel.app/ad/${ad.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="block hover:opacity-90"
+            >
+              <img src={ad.photos[0]} alt="" className="h-40 w-full object-cover" />
+              <div className="p-3 pb-0">
+                <p className="text-sm font-semibold">{ad.title}</p>
+                <p className="text-xs text-gray-500">
+                  {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
+                <p className="text-xs text-gray-400">
+                  {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {ad.impressions} impresiones · {ad.clicks} clics
+                </p>
+              </div>
+            </a>
+            <div className="px-3 pb-3">
               <AdPauseButton adId={ad.id} />
             </div>
           </div>
