@@ -15,6 +15,7 @@ import { getMyWorkBusiness } from '../../services/businesses';
 import { getActiveProducts, getActiveServices } from '../../services/catalog';
 import { pickAndUploadBusinessImage } from '../../services/storage';
 import type { Ad, AdKind, AdPricing, AdTargetScope, Business, Product, Service } from '../../types/database';
+import { toWhatsappLink } from '../../utils/whatsapp';
 
 const SIDE_PADDING = 20;
 const GRID_GAP = 12;
@@ -212,7 +213,7 @@ export default function PublicidadScreen() {
       );
       return;
     }
-    setLinkUrl(`https://wa.me/${business.whatsapp.replace(/\D/g, '')}`);
+    setLinkUrl(toWhatsappLink(business.whatsapp));
     setLinkLabel('WhatsApp');
   }
 

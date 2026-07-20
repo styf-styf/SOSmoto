@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getClientsWithUpcomingMaintenance, type ClientMaintenanceItem } from '../../services/maintenanceOutreach';
 import { notifyUser } from '../../services/notifications';
+import { toWhatsappLink } from '../../utils/whatsapp';
 
 export default function MantenimientoProactivoScreen() {
   const { profile } = useAuth();
@@ -140,9 +141,7 @@ export default function MantenimientoProactivoScreen() {
               {item.clientPhone && (
                 <Pressable
                   style={[styles.actionBtn, styles.actionBtnSecondary]}
-                  onPress={() =>
-                    Linking.openURL(`https://wa.me/${item.clientPhone?.replace(/\D/g, '')}`)
-                  }
+                  onPress={() => Linking.openURL(toWhatsappLink(item.clientPhone))}
                 >
                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
                   <Text style={styles.actionBtnText}>WhatsApp</Text>

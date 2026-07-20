@@ -12,6 +12,7 @@ import { getActiveClientAppointments, type ActiveClientAppointment } from '../..
 import { getBusinessClientReports, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { getVehicles } from '../../../services/vehicles';
 import { getClientProductIntents, updateIntentStatus } from '../../../services/productIntents';
+import { toWhatsappLink } from '../../../utils/whatsapp';
 import { formatVehicle, type Vehicle, type ProductIntentWithProduct } from '../../../types/database';
 
 function formatDate(iso: string): string {
@@ -171,7 +172,7 @@ export default function ClienteDetailScreen() {
         {client.phone && (
           <Pressable
             style={styles.actionBtn}
-            onPress={() => Linking.openURL(`https://wa.me/${client.phone?.replace(/\D/g, '')}`)}
+            onPress={() => Linking.openURL(toWhatsappLink(client.phone))}
           >
             <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
             <Text style={styles.actionLabel}>WhatsApp</Text>

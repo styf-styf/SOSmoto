@@ -7,6 +7,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessProductIntents, updateIntentStatus } from '../../../services/productIntents';
+import { toWhatsappLink } from '../../../utils/whatsapp';
 import type { ProductIntentWithDetails, ProductIntentStatus } from '../../../types/database';
 
 function fmtDate(iso: string) {
@@ -153,7 +154,7 @@ export default function PedidosScreen() {
             {intent.client_phone && (
               <Pressable
                 style={styles.phoneRow}
-                onPress={() => Linking.openURL(`https://wa.me/${intent.client_phone?.replace(/\D/g, '')}`)}
+                onPress={() => Linking.openURL(toWhatsappLink(intent.client_phone))}
               >
                 <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
                 <Text style={styles.phoneText}>{intent.client_phone}</Text>

@@ -17,6 +17,7 @@ import {
   type ExternalVehicle,
 } from '../../services/businessClients';
 import { getExternalClientData, type ExternalClientData } from '../../services/history';
+import { toWhatsappLink } from '../../utils/whatsapp';
 
 const ACTIVE_STATUSES = new Set(['pending', 'scheduled', 'confirmed']);
 
@@ -338,7 +339,7 @@ export default function ClienteExternoScreen() {
         {displayPhone && (
           <Pressable
             style={styles.actionBtn}
-            onPress={() => Linking.openURL(`https://wa.me/${displayPhone.replace(/\D/g, '')}`)}
+            onPress={() => Linking.openURL(toWhatsappLink(displayPhone))}
           >
             <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
             <Text style={styles.actionLabel}>WhatsApp</Text>
