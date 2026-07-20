@@ -1,10 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 const { escapeHtml } = require('./_lib/webPage');
 
-// Recibe tanto el regreso del navegador (GET, con id/clientTransactionId en
-// la query) como el webhook servidor-a-servidor de Payphone (POST) cuando el
-// pago se completa. Vive en el mismo dominio que el checkout (Vercel) para
-// que coincida con "Dominio web" registrado en el panel de Payphone.
+// Recibe el regreso del navegador (GET, con id/clientTransactionId en la
+// query) tras el pago -- ahí mismo se confirma con Payphone (ver `confirm`).
+// El handler POST queda por si Payphone algún día manda una notificación
+// server-a-servidor real (feature "External Notification" de su doc, no
+// configurada hoy en el panel -- solo tenemos "Dominio web" y "URL de
+// respuesta"), pero el camino real de confirmación es el GET. Vive en el
+// mismo dominio que el checkout (Vercel) para que coincida con "Dominio web"
+// registrado en el panel de Payphone.
 const CONFIRM_URL = `${process.env.SUPABASE_URL}/functions/v1/payphone-confirm`;
 const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
@@ -32,29 +36,6 @@ async function confirm(id, clientTransactionId, transactionStatus) {
     console.error('confirm call error', err);
     return { success: false };
   }
-}
-
-// EcuaPred (integración de Payphone previa, probada en producción incluyendo
-// el handoff a la app nativa) NUNCA llama a V3/Confirm desde la página de
-// retorno del navegador -- solo desde el webhook server-to-server. La
-// página de retorno solo refleja lo que el webhook ya haya confirmado. Acá
-// hacemos lo mismo: en vez de volver a llamar a V3/Confirm desde el GET (que
-// tiene un bug confirmado con Payphone para pagos via handoff a la app),
-// esperamos un poco a que el webhook (que corre en paralelo) actualice la
-// fila en `payments` y solo leemos su estado.
-async function waitForPaymentStatus(clientTransactionId, { attempts = 6, delayMs = 1000 } = {}) {
-  const supabase = supabaseAdmin();
-  for (let i = 0; i < attempts; i++) {
-    const { data } = await supabase
-      .from('payments')
-      .select('status, gateway_transaction_id')
-      .eq('client_transaction_id', clientTransactionId)
-      .maybeSingle();
-    if (data && data.status === 'completed') return { success: true, payment: data };
-    if (data && data.status === 'failed') return { success: false, payment: data };
-    await new Promise((r) => setTimeout(r, delayMs));
-  }
-  return { success: false, payment: null, timedOut: true };
 }
 
 module.exports = async (req, res) => {
@@ -104,16 +85,18 @@ module.exports = async (req, res) => {
 
   const clientTransactionId = req.query.clientTransactionId;
   const id = req.query.id;
-  let wait = clientTransactionId ? await waitForPaymentStatus(clientTransactionId) : { success: false, payment: null };
-  if (wait.timedOut && clientTransactionId && id) {
-    // El webhook no llego a tiempo -- ANTES esto confiaba a ciegas en que el
-    // navegador solo redirige aqui tras un pago real (activateByTrust marcaba
-    // el pago 'completed' sin verificar nada con Payphone). Eso permitia a
-    // cualquiera con su propio clientTransactionId -- visible ANTES de pagar,
-    // ver payphone-checkout.js -- activar un plan o campaña sin pagar. Ahora
-    // se pide la misma verificacion real con Payphone que usa el webhook
-    // (V3/Confirm, vía la función payphone-confirm): si el pago nunca se
-    // hizo, Payphone lo rechaza limpio y no se activa nada.
+  // La Cajita de Pagos no manda un webhook servidor-a-servidor aparte (según
+  // la documentación oficial: docs.payphone.app/cajita-de-pagos-payphone) --
+  // la confirmación real es este mismo llamado, que debe ocurrir dentro de
+  // los primeros 5 minutos tras el pago o Payphone reversa la transacción
+  // sola. Antes se perdían ~6s esperando un webhook que nunca iba a llegar
+  // antes de recién confirmar -- ya no hace falta esperar nada.
+  let wait = { success: false, payment: null };
+  if (clientTransactionId && id) {
+    // No confiamos ciegamente en que el navegador solo redirige aqui tras un
+    // pago real (eso permitía activar un plan/campaña con un
+    // clientTransactionId propio sin pagar, ver git history) -- siempre se
+    // verifica con Payphone antes de activar nada.
     const confirmResult = await confirm(id, clientTransactionId, undefined);
     if (confirmResult && confirmResult.success) {
       const { data: payment } = await supabaseAdmin()

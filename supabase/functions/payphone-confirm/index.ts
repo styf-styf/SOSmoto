@@ -1,7 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const PAYPHONE_TOKEN = Deno.env.get('PAYPHONE_TOKEN')!;
-const PAYPHONE_BASE = 'https://pay.payphonetodoesposible.com/api';
+// Endpoint real de confirmación de la Cajita de Pagos (Payment Box), según
+// la documentación oficial (docs.payphone.app/cajita-de-pagos-payphone) --
+// NO es el mismo que "Botón de Pago por redirección" (pay.../button/V3/Confirm,
+// con query params). Es un producto distinto de Payphone, con su propio
+// endpoint (paymentbox.../api/confirm) y su propio formato de body (JSON,
+// campo "clientTxId" no "clientTransactionId", "id" numérico no string en la
+// URL). Confundir los dos hacía que CADA confirmación fallara -- no era un
+// bug de Payphone, era el endpoint equivocado para nuestro widget.
+const PAYPHONE_CONFIRM_URL = 'https://paymentbox.payphonetodoesposible.com/api/confirm';
 
 type PaymentRow = {
   id: string;
@@ -86,6 +94,7 @@ async function createAdFromPayment(supabase: ReturnType<typeof createClient>, pa
     title: m.title,
     photos: m.photos ?? [],
     link_url: m.linkUrl ?? null,
+    link_label: m.linkLabel ?? null,
     target_city: m.targetCity ?? null,
     target_scope: m.targetScope ?? 'national',
     target_lat: m.targetLat ?? null,
@@ -96,6 +105,23 @@ async function createAdFromPayment(supabase: ReturnType<typeof createClient>, pa
     ends_at: endsAt.toISOString(),
     payment_id: payment.id,
   });
+
+  // Si el anuncio se ancló a un producto/servicio ya publicado que todavía
+  // no tenía ninguna foto propia, se le copian las del anuncio -- sin esto,
+  // el botón "Ver producto/servicio" del anuncio llevaba a una ficha vacía
+  // de fotos aunque el anuncio sí mostrara una.
+  const photos = Array.isArray(m.photos) ? m.photos : [];
+  if (photos.length > 0 && m.productId) {
+    const { data: product } = await supabase.from('products').select('photos').eq('id', m.productId).maybeSingle();
+    if (product && (!product.photos || product.photos.length === 0)) {
+      await supabase.from('products').update({ photos }).eq('id', m.productId);
+    }
+  } else if (photos.length > 0 && m.serviceId) {
+    const { data: service } = await supabase.from('services').select('photos').eq('id', m.serviceId).maybeSingle();
+    if (service && (!service.photos || service.photos.length === 0)) {
+      await supabase.from('services').update({ photos }).eq('id', m.serviceId);
+    }
+  }
 }
 
 async function fulfillPayment(
@@ -141,32 +167,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // V3/Confirm recibe id y clientTransactionId como query params, sin body
-    // (igual que el flujo de Cajita de Pagos en producción).
-    const confirmUrl = `${PAYPHONE_BASE}/button/V3/Confirm?id=${encodeURIComponent(id)}&clientTransactionId=${encodeURIComponent(clientTransactionId)}`;
-    const confirmResponse = await fetch(confirmUrl, {
+    const confirmResponse = await fetch(PAYPHONE_CONFIRM_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${PAYPHONE_TOKEN}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ id: Number(id), clientTxId: clientTransactionId }),
     });
 
     if (!confirmResponse.ok) {
       const detail = await confirmResponse.text();
-      console.error('payphone V3/Confirm not ok', confirmResponse.status, detail);
+      console.error('payphone confirm not ok', confirmResponse.status, detail);
 
-      // Bug confirmado de Payphone: V3/Confirm devuelve un error generico de
-      // IIS/ASP.NET (no JSON) para transacciones reales completadas vía el
-      // handoff a la app nativa de Payphone -- el cobro SI se hizo, solo su
-      // endpoint de verificacion revienta. Si quien nos llama (el webhook de
-      // Payphone, no el navegador) ya nos dijo 'Approved', confiamos en eso
-      // en vez de bloquear al negocio por un bug del lado de Payphone.
+      // Si quien nos llama (el webhook de Payphone, no el navegador) ya nos
+      // dijo 'Approved', confiamos en eso en vez de bloquear al negocio --
+      // pero con el endpoint/formato correctos, esta rama ya no debería
+      // activarse en el camino feliz.
       if (hintedStatus === 'Approved') {
-        console.warn('V3/Confirm fallo pero transactionStatus=Approved fue confirmado por el webhook; activando de todas formas', { id, clientTransactionId });
+        console.warn('Confirm fallo pero transactionStatus=Approved fue confirmado por el webhook; activando de todas formas', { id, clientTransactionId });
         await fulfillPayment(supabase, payment as PaymentRow, id);
         return new Response(
-          JSON.stringify({ success: true, status: 'Approved', note: 'V3/Confirm fallo, activado por transactionStatus del webhook' }),
+          JSON.stringify({ success: true, status: 'Approved', note: 'Confirm fallo, activado por transactionStatus del webhook' }),
           { headers: { 'Content-Type': 'application/json' } }
         );
       }
