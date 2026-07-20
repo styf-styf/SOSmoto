@@ -109,14 +109,12 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     // Horizontal unificado con el resto del feed (historias, carrusel de
     // catálogo, publicaciones); vertical sin cambios.
     marginHorizontal: 6,
     marginBottom: 8,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.surface,
     overflow: 'hidden',
   },
   authorRow: {

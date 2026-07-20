@@ -276,12 +276,10 @@ export function PostCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     marginHorizontal: CARD_MARGIN,
     marginBottom: 8,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
   },
   authorRow: {
