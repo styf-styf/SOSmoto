@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
@@ -56,6 +58,20 @@ function tagIconForKind(kind: EditTagSelection['kind']): keyof typeof Ionicons.g
 export function PostDetail({ postId, userRole = 'client' }: { postId: string; userRole?: 'client' | 'business' }) {
   const { profile } = useAuth();
   const { isLimited } = useAccountLimited();
+  // El header nativo (react-native-screens) vive fuera del árbol de React
+  // Native, así que KeyboardAvoidingView no lo "ve" en su propia medición de
+  // layout -- sin este offset, el padding calculado queda corto exactamente
+  // por la altura del header y la barra de comentario termina tapada por el
+  // teclado. No aplica al KeyboardAvoidingView del modal de editar (ese vive
+  // dentro de un <Modal>, sin header nativo encima).
+  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+  // El margen inferior de seguridad solo hace falta en reposo (para no
+  // quedar detrás de los botones de navegación) -- con el teclado abierto ya
+  // no hay botones que esquivar, así que ese margen solo agregaría un hueco
+  // vacío entre el campo y el teclado.
+  const isKeyboardVisible = useKeyboardState((state) => state.isVisible);
+  const bottomInsetSpace = isKeyboardVisible ? 0 : insets.bottom;
   const [post, setPost] = useState<PostWithAuthor | null>(null);
   const [comments, setComments] = useState<PostCommentWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -380,8 +396,8 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           }}
         />
       )}
-      <KeyboardAvoidingView style={styles.flex} behavior="padding">
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={headerHeight}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.authorRow} onPress={handleAuthorPress}>
           <View style={styles.avatar}>
             {avatarUrl ? (
@@ -434,17 +450,19 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
       </ScrollView>
 
       {isLimited ? (
-        <View style={styles.limitedNotice}>
+        <View style={[styles.limitedNotice, { paddingBottom: 10 + bottomInsetSpace }]}>
           <Text style={styles.limitedNoticeText}>Tu cuenta está limitada: no puedes comentar.</Text>
         </View>
       ) : (
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: 6 + bottomInsetSpace }]}>
           <TextInput
             style={styles.input}
             placeholder="Escribe un comentario…"
             placeholderTextColor={colors.textMuted}
             value={text}
             onChangeText={setText}
+            multiline
+            blurOnSubmit={false}
           />
           <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
             <Ionicons name="send" size={18} color="#fff" />
@@ -732,17 +750,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   input: {
     flex: 1,
-    height: 44,
+    minHeight: 44,
+    maxHeight: 120,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 16,
+    paddingVertical: 10,
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.surface,
@@ -756,7 +776,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   limitedNotice: {
-    padding: 14,
+    padding: 10,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: '#FBE8E8',
