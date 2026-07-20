@@ -139,6 +139,8 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
           placeholderTextColor={colors.textMuted}
           value={caption}
           onChangeText={setCaption}
+          multiline
+          blurOnSubmit={false}
         />
         <Pressable style={[styles.sendButton, !canPublish && styles.sendButtonDisabled]} onPress={handlePublish} disabled={!canPublish}>
           {posting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
@@ -201,7 +203,7 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: 6,
   },
   iconCircle: {
@@ -217,11 +219,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: 38,
+    minHeight: 38,
+    maxHeight: 120,
     borderRadius: 19,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
+    paddingVertical: 9,
     fontSize: 14,
     color: colors.text,
     backgroundColor: colors.background,

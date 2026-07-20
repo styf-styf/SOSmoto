@@ -9,6 +9,12 @@ interface TextFieldProps extends TextInputProps {
 }
 
 export function TextField({ label, error, style, rightIcon, ...inputProps }: TextFieldProps) {
+  // Se despliega hacia abajo (como el input del chat) para que un texto mas
+  // largo que el ancho del campo siga siendo visible completo, en vez de
+  // recortarse. secureTextEntry queda afuera a proposito: React Native no
+  // soporta multiline + secureTextEntry juntos (el enmascarado de contraseña
+  // se rompe), así que esos campos se quedan de una sola línea.
+  const allowMultiline = !inputProps.secureTextEntry;
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -16,6 +22,8 @@ export function TextField({ label, error, style, rightIcon, ...inputProps }: Tex
         <TextInput
           style={[styles.input, error && styles.inputError, rightIcon && styles.inputWithIcon, style]}
           placeholderTextColor={colors.textMuted}
+          multiline={allowMultiline}
+          blurOnSubmit={!allowMultiline}
           {...inputProps}
         />
         {rightIcon && (
@@ -43,11 +51,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   input: {
-    height: 50,
+    minHeight: 50,
+    maxHeight: 120,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
+    paddingVertical: 14,
     fontSize: 16,
     color: colors.text,
     backgroundColor: colors.surface,
