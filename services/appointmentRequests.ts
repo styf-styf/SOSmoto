@@ -137,14 +137,6 @@ export async function cancelAppointmentRequest(
     .eq('id', request.id);
   if (error) throw error;
 
-  // Mensaje automático en el chat
-  await supabase.from('messages').insert({
-    client_id: request.client_id,
-    business_id: request.business_id,
-    sender_id: request.client_id,
-    body: '❌ El cliente canceló la solicitud de cita.',
-  });
-
   // Push al taller
   const { data: biz } = await supabase
     .from('businesses')

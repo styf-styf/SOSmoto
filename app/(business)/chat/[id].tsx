@@ -38,6 +38,7 @@ import {
 } from '../../../services/storage';
 import {
   getPendingIntentsForBusinessClient,
+  subscribeToProductIntentCancelled,
   updateIntentStatus,
 } from '../../../services/productIntents';
 import {
@@ -128,6 +129,13 @@ export default function ChatScreen() {
     ServiceIntentWithService[]
   >([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
+
+  // Avisos de cancelación (apartado o cita cancelados por el cliente en
+  // vivo) -- reemplazan el mensaje automático que antes se mandaba al chat;
+  // solo viven en memoria mientras el chat está abierto, con su propia (X).
+  const [cancelledBanners, setCancelledBanners] = useState<
+    { key: string; label: string }[]
+  >([]);
 
   // Solicitud de cita pendiente
   const [appointmentRequest, setAppointmentRequest] =
@@ -308,11 +316,37 @@ export default function ChatScreen() {
         } else {
           setAppointmentRequest(null);
           setShowApproveForm(false);
+          if (req.status === 'cancelled') {
+            const key = `cancelledreq:${req.id}`;
+            setCancelledBanners((prev) =>
+              prev.some((b) => b.key === key)
+                ? prev
+                : [...prev, { key, label: req.service_name ?? 'la cita' }],
+            );
+          }
         }
       },
     );
     return unsubscribe;
   }, [clientId, businessId]);
+
+  // Suscripción a cancelaciones de apartados de producto (no aplica cuando
+  // compro como negocio, mismo motivo que la suscripción de citas de arriba).
+  useEffect(() => {
+    if (!clientId || !businessId || isBuyerMode) return;
+    const unsubscribe = subscribeToProductIntentCancelled(
+      businessId,
+      clientId,
+      (intentId, label) => {
+        setIntents((prev) => prev.filter((i) => i.id !== intentId));
+        const key = `cancelledintent:${intentId}`;
+        setCancelledBanners((prev) =>
+          prev.some((b) => b.key === key) ? prev : [...prev, { key, label }],
+        );
+      },
+    );
+    return unsubscribe;
+  }, [clientId, businessId, isBuyerMode]);
 
   useEffect(() => {
     if (!businessId || !clientId) return;
@@ -575,7 +609,8 @@ export default function ChatScreen() {
     intents.some((i) => !dismissedBanners.has(`intent:${i.id}`)) ||
     serviceIntents.some((i) => !dismissedBanners.has(`svcintent:${i.id}`)) ||
     (appointmentRequest !== null &&
-      !dismissedBanners.has(`req:${appointmentRequest.id}`));
+      !dismissedBanners.has(`req:${appointmentRequest.id}`)) ||
+    cancelledBanners.length > 0;
   const approveDateTime = (() => {
     const dt = new Date(approvePickerDate);
     dt.setHours(
@@ -819,6 +854,39 @@ export default function ChatScreen() {
                   </View>
                 </View>
               ))}
+
+            {/* Apartados/citas que el cliente canceló en vivo */}
+            {cancelledBanners.map((banner) => (
+              <View key={banner.key} style={styles.intentCard}>
+                <View style={styles.intentCardTopRow}>
+                  <Pressable
+                    style={styles.dismissBannerBtn}
+                    onPress={() =>
+                      setCancelledBanners((prev) =>
+                        prev.filter((b) => b.key !== banner.key),
+                      )
+                    }
+                  >
+                    <Ionicons
+                      name="close"
+                      size={16}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                  <View style={styles.intentInfo}>
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={16}
+                      color={colors.danger}
+                    />
+                    <Text style={styles.intentText} numberOfLines={1}>
+                      Cancelado:{' '}
+                      <Text style={styles.intentName}>{banner.label}</Text>
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 

@@ -129,14 +129,6 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
     const qtyPrefix = intent.quantity > 1 ? `${intent.quantity} x ` : '';
     const buyerLabel = await getBuyerLabel(intent.client_id);
 
-    // Mensaje automático en el chat (mismo patrón que cancelAppointmentRequest)
-    await supabase.from('messages').insert({
-      client_id: intent.client_id,
-      business_id: intent.business_id,
-      sender_id: intent.client_id,
-      body: `❌ ${buyerLabel} canceló el apartado: ${qtyPrefix}${productName}`,
-    });
-
     if (business?.owner_id) {
       await notifyUser(
         business.owner_id,
@@ -302,6 +294,40 @@ export function subscribeToClientProductIntentsForBusiness(
       (payload) => {
         const row = (payload.new ?? payload.old) as ProductIntent;
         if (row.business_id === businessId) onChange();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+// Lado negocio: avisa con la etiqueta ya armada ("2 x Casco MT") cuando el
+// cliente cancela un apartado pendiente -- reemplaza el mensaje automático
+// que antes se insertaba en el chat (ver cancelProductIntent) por un aviso
+// en vivo para la tarjeta "Cancelado" del banner de apartados.
+export function subscribeToProductIntentCancelled(
+  businessId: string,
+  clientId: string,
+  onCancelled: (intentId: string, label: string) => void
+) {
+  const channel = supabase
+    .channel(`product_intent_cancel_${businessId}_${clientId}_${Math.random().toString(36).slice(2)}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'product_intents', filter: `business_id=eq.${businessId}` },
+      async (payload) => {
+        const row = payload.new as ProductIntent;
+        if (row.client_id !== clientId || row.status !== 'cancelled_by_client') return;
+        const { data: product } = await supabase.from('products').select('name').eq('id', row.product_id).maybeSingle();
+        let variantLabel: string | null = null;
+        if (row.variant_id) {
+          const { data: variant } = await supabase.from('product_variants').select('label').eq('id', row.variant_id).maybeSingle();
+          variantLabel = variant?.label ?? null;
+        }
+        const qtyPrefix = row.quantity > 1 ? `${row.quantity} × ` : '';
+        onCancelled(row.id, `${qtyPrefix}${withVariantLabel(product?.name ?? 'un producto', variantLabel)}`);
       }
     )
     .subscribe();
