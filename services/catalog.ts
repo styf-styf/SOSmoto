@@ -291,6 +291,11 @@ export interface FeedCatalogItem {
   // servicio, y registrar impresión/clic en vez de vistas de catálogo.
   isAd?: boolean;
   adId?: string;
+  // Cuando isAd es true y el anuncio está vinculado a un producto/servicio ya
+  // publicado (no uno creado solo para la campaña), el id real de ese
+  // producto/servicio -- se usa para ocultar su tarjeta orgánica en otras
+  // partes del mismo pool y evitar que se vea duplicado.
+  linkedItemId?: string;
 }
 
 // Muestra global de catálogo (no filtrada por seguidos/cercanía) para
@@ -299,7 +304,15 @@ export interface FeedCatalogItem {
 // banner de descubrimiento mezclado entre negocios. Devuelve ordenado por más
 // reciente primero -- el propio HomeFeed decide si lo muestra en ese orden
 // (primera carga) o mezclado (recargas sin nada nuevo).
-export async function getFeedCatalogPool(limit = 30, opts: { excludeBrand?: boolean } = {}): Promise<FeedCatalogItem[]> {
+export interface ExcludedCatalogId {
+  kind: 'product' | 'service';
+  id: string;
+}
+
+export async function getFeedCatalogPool(
+  limit = 30,
+  opts: { excludeBrand?: boolean; excludeIds?: ExcludedCatalogId[] } = {}
+): Promise<FeedCatalogItem[]> {
   const [servicesResult, productsResult] = await Promise.all([
     supabase
       .from('services')
@@ -351,7 +364,17 @@ export async function getFeedCatalogPool(limit = 30, opts: { excludeBrand?: bool
     createdAt: row.created_at,
   }));
 
-  const merged = [...services, ...products].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  let merged = [...services, ...products].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
+  // Un producto/servicio con un anuncio activo vinculado ya se muestra vía
+  // ese anuncio (mezclado aparte en el mismo pool, ver getHomeAds en
+  // services/ads.ts) -- sin esto, saldría dos veces: su tarjeta orgánica y la
+  // del anuncio.
+  if (opts.excludeIds?.length) {
+    const excluded = new Set(opts.excludeIds.map((item) => `${item.kind}:${item.id}`));
+    merged = merged.filter((item) => !excluded.has(`${item.kind}:${item.id}`));
+  }
+
   return merged.slice(0, limit);
 }
 

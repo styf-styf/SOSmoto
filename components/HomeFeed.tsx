@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import type { ReactElement } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/colors';
-import { getActiveAdsCatalogItems, getFeedAds, type AdWithBusiness } from '../services/ads';
+import { getHomeAds, type AdWithBusiness } from '../services/ads';
 import { getFeedCatalogPool, type FeedCatalogItem } from '../services/catalog';
 import { getFollowingFeedPage, getPublicFeedPage, type PostWithAuthor } from '../services/posts';
 import { applyFreshnessOrder } from '../utils/feedOrdering';
@@ -120,25 +120,32 @@ export const HomeFeed = forwardRef<
   const excludeBrand = role === 'client';
 
   const loadInitial = useCallback(async () => {
-    const postsPage =
+    const [postsPage, homeAds] = await Promise.all([
       feedMode === 'following' && clientId
-        ? await getFollowingFeedPage(clientId, { limit: PAGE_SIZE, excludeBrand })
-        : await getPublicFeedPage({ limit: PAGE_SIZE, excludeBrand });
-
-    const [catalog, adsCatalogItems, ads] = await Promise.all([
-      hideCatalogPool ? Promise.resolve([]) : getFeedCatalogPool(30, { excludeBrand }),
-      hideCatalogPool ? Promise.resolve([]) : getActiveAdsCatalogItems(city, coords, 5, { excludeBrand }),
-      getFeedAds(city, coords),
+        ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE, excludeBrand })
+        : getPublicFeedPage({ limit: PAGE_SIZE, excludeBrand }),
+      hideCatalogPool
+        ? Promise.resolve({ bannerAds: [], carouselItems: [], linkedCatalogIds: [] })
+        : getHomeAds(city, coords, { excludeBrand }),
     ]);
+
+    // getFeedCatalogPool depende de homeAds.linkedCatalogIds (para no
+    // mostrar la tarjeta orgánica de un producto/servicio que ya tiene su
+    // propio anuncio activo en el mismo pool) -- por eso va después, no en
+    // el mismo Promise.all.
+    const catalog = hideCatalogPool
+      ? []
+      : await getFeedCatalogPool(30, { excludeBrand, excludeIds: homeAds.linkedCatalogIds });
 
     setPosts(postsPage);
     // Los anuncios activos se mezclan como tarjetas más del carrusel de
     // catálogo (con su chip "Anuncio", ver FeedCatalogStrip) -- aparte del
-    // banner de publicidad de siempre (adPool más abajo, sin cambios).
-    const orderedCatalog = applyFreshnessOrder([...catalog, ...adsCatalogItems], (item) => item.createdAt, lastSeenCatalogAt);
+    // banner de publicidad de siempre (adPool más abajo, sin cambios). Los
+    // dos ya vienen repartidos sin superposición desde getHomeAds.
+    const orderedCatalog = applyFreshnessOrder([...catalog, ...homeAds.carouselItems], (item) => item.createdAt, lastSeenCatalogAt);
     setCatalogPoolPhoto(orderedCatalog.filter((item) => item.photoUrl));
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
-    setAdPool(applyFreshnessOrder(ads, (item) => item.created_at, lastSeenAdAt));
+    setAdPool(applyFreshnessOrder(homeAds.bannerAds, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
   }, [city, coords, feedMode, clientId, excludeBrand, hideCatalogPool]);
 

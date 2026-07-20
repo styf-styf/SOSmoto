@@ -1,49 +1,34 @@
 import { supabase } from './supabase';
 import { distanceKm } from '../utils/distance';
 import type { FeedCatalogItem } from './catalog';
-import type { Ad, AdComment, AdKind, AdPricing, AdTargetScope, BusinessType } from '../types/database';
+import type { Ad, AdKind, AdPricing, AdTargetScope, BusinessType } from '../types/database';
 
 type Coords = { latitude: number; longitude: number };
 
 export interface AdWithBusiness extends Ad {
-  business: { name: string; logo_url: string | null; is_verified: boolean; business_type?: BusinessType } | null;
+  business: {
+    name: string;
+    logo_url: string | null;
+    is_verified: boolean;
+    business_type?: BusinessType;
+    owner_id?: string;
+  } | null;
 }
 
-// El anuncio se ve y se comporta como una publicación del feed (con
-// comentarios) -- mismo patrón que getPostById/getComments/createComment en
-// services/posts.ts.
+// Incluye owner_id del negocio para poder abrir un chat directo desde
+// AdDetail cuando el anuncio no está vinculado a ningún producto/servicio
+// real (ver handleChat en AdDetail.tsx). El anuncio ya no tiene comentarios
+// propios (ver ad_comments -- la tabla se deja intacta, solo se dejó de leer/
+// escribir desde la app, era una interacción huérfana que no aportaba a la
+// conversión real del anuncio).
 export async function getAdById(adId: string): Promise<AdWithBusiness | null> {
   const { data, error } = await supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url, is_verified)')
+    .select('*, business:businesses(name, logo_url, is_verified, owner_id)')
     .eq('id', adId)
     .maybeSingle();
   if (error) throw error;
   return (data ?? null) as unknown as AdWithBusiness | null;
-}
-
-export interface AdCommentWithAuthor extends AdComment {
-  users: { id: string; full_name: string; avatar_url: string | null } | null;
-}
-
-export async function getAdComments(adId: string): Promise<AdCommentWithAuthor[]> {
-  const { data, error } = await supabase
-    .from('ad_comments')
-    .select('*, users(id, full_name, avatar_url)')
-    .eq('ad_id', adId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as unknown as AdCommentWithAuthor[];
-}
-
-export async function createAdComment(adId: string, authorId: string, body: string): Promise<AdComment> {
-  const { data, error } = await supabase
-    .from('ad_comments')
-    .insert({ ad_id: adId, author_id: authorId, body: body.trim() })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return data as AdComment;
 }
 
 export interface QuoteAdParams {
@@ -101,6 +86,9 @@ export interface CreateAdCampaignParams {
   title: string;
   photos: string[];
   linkUrl?: string;
+  // Obligatorio del lado de la app cuando linkUrl está presente (ver
+  // publicidad.tsx) -- texto del botón, ej. "WhatsApp", "Sitio web".
+  linkLabel?: string;
   targetScope: AdTargetScope;
   // Solo aplica cuando targetScope es 'city'.
   targetCity?: string;
@@ -128,6 +116,7 @@ export async function createAdCampaign(
       title: params.title,
       photos: params.photos,
       linkUrl: params.linkUrl,
+      linkLabel: params.linkLabel,
       targetScope: params.targetScope,
       targetCity: params.targetCity,
       targetRadiusKm: params.targetRadiusKm,
@@ -238,19 +227,6 @@ function pickRandom<T>(ads: T[], count: number): T[] {
   return copy.slice(0, count);
 }
 
-// Las superficies (inicio, búsqueda, perfil de negocio) usan la misma
-// elegibilidad por ciudad -- la única diferencia es de dónde sale la
-// "ciudad relevante" para cada pantalla: en el perfil es la ciudad del
-// negocio que se está viendo; en inicio/búsqueda es la ciudad del negocio
-// más cercano al cliente (ver getNearestCity en services/businesses.ts).
-// getFeedAds devuelve varios (no solo 1) ordenados por más reciente primero
-// -- el propio HomeFeed decide si los muestra en ese orden (primera carga) o
-// mezclados (recargas), para darle prioridad a contenido nuevo sin perder
-// variedad cuando no hay nada nuevo.
-export async function getFeedAds(city: string | null, coords: Coords | null = null, count = 15): Promise<AdWithBusiness[]> {
-  return (await getEligibleAds(city, coords)).slice(0, count);
-}
-
 export async function getActiveProfileAds(city: string | null): Promise<AdWithBusiness[]> {
   return pickRandom(await getEligibleAds(city), 3);
 }
@@ -268,23 +244,58 @@ function adToFeedCatalogItem(ad: AdWithBusiness): FeedCatalogItem {
     createdAt: ad.created_at,
     isAd: true,
     adId: ad.id,
+    // Si el anuncio está vinculado a un producto/servicio ya publicado (no
+    // uno creado solo para la campaña), este es su id real -- Home/Buscar lo
+    // usan para ocultar la tarjeta orgánica de ese mismo ítem y que no se
+    // vea duplicado (la tarjeta del anuncio ya lleva a esa misma ficha).
+    linkedItemId: ad.product_id ?? ad.service_id ?? undefined,
   };
 }
 
-// Anuncios activos mezclados como si fueran tarjetas de catálogo más, para
-// el carrusel de productos/servicios del home (ver components/HomeFeed.tsx)
-// -- a diferencia de getFeedAds (banner separado en el feed, que se
-// mantiene tal cual), acá compiten visualmente con productos/servicios
-// reales, marcados con el chip "Anuncio" (ver FeedCatalogStrip.tsx).
-export async function getActiveAdsCatalogItems(
+export interface LinkedCatalogId {
+  kind: AdKind;
+  id: string;
+}
+
+function getLinkedCatalogIds(ads: AdWithBusiness[]): LinkedCatalogId[] {
+  return ads
+    .filter((ad) => ad.product_id || ad.service_id)
+    .map((ad) => ({ kind: ad.kind, id: (ad.product_id ?? ad.service_id)! }));
+}
+
+export interface HomeAdsResult {
+  // Banner tipo publicación, mezclado entre posts (ver AdBanner.tsx en HomeFeed).
+  bannerAds: AdWithBusiness[];
+  // Tarjetas mezcladas en el carrusel de catálogo, con chip "Anuncio".
+  carouselItems: FeedCatalogItem[];
+  // Ids de producto/servicio con un anuncio activo vinculado -- para excluir
+  // su tarjeta orgánica del pool de catálogo (ver getFeedCatalogPool).
+  linkedCatalogIds: LinkedCatalogId[];
+}
+
+// Reparte los anuncios elegibles entre banner y carrusel SIN superposición:
+// primero se sortea el cupo del carrusel, y el banner se arma con el resto
+// -- así un mismo anuncio nunca aparece a la vez como banner grande Y como
+// tarjeta del carrusel en la misma sesión de scroll (antes cada superficie
+// pedía su propio sorteo/orden sobre el mismo pool completo, sin excluirse
+// entre sí).
+export async function getHomeAds(
   city: string | null,
   coords: Coords | null,
-  limit = 5,
-  opts: { excludeBrand?: boolean } = {}
-): Promise<FeedCatalogItem[]> {
+  opts: { excludeBrand?: boolean; bannerCount?: number; carouselCount?: number } = {}
+): Promise<HomeAdsResult> {
   const ads = await getEligibleAds(city, coords);
   const filtered = opts.excludeBrand ? ads.filter((ad) => ad.business?.business_type !== 'brand_advertiser') : ads;
-  return pickRandom(filtered, limit).map(adToFeedCatalogItem);
+
+  const carouselAds = pickRandom(filtered, opts.carouselCount ?? 5);
+  const carouselIds = new Set(carouselAds.map((ad) => ad.id));
+  const bannerAds = filtered.filter((ad) => !carouselIds.has(ad.id)).slice(0, opts.bannerCount ?? 15);
+
+  return {
+    bannerAds,
+    carouselItems: carouselAds.map(adToFeedCatalogItem),
+    linkedCatalogIds: getLinkedCatalogIds(filtered),
+  };
 }
 
 // Un solo anuncio activo que coincida con lo que el cliente está buscando

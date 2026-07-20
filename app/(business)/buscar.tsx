@@ -125,7 +125,13 @@ export default function BusinessBuscarScreen() {
           : Promise.resolve(null),
       ]);
       setResults(result);
-      setCatalogResults(matchingAd ? [matchingAd, ...catalog] : catalog);
+      // Si el anuncio que coincide está vinculado a un producto ya publicado,
+      // ese mismo ítem también puede venir en `catalog` (resultado orgánico)
+      // -- se excluye para no mostrarlo duplicado.
+      const filteredCatalog = matchingAd?.linkedItemId
+        ? catalog.filter((item) => !(item.kind === matchingAd.kind && item.id === matchingAd.linkedItemId))
+        : catalog;
+      setCatalogResults(matchingAd ? [matchingAd, ...filteredCatalog] : filteredCatalog);
     } catch (err) {
       console.error('search businesses error', err);
     }
