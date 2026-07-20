@@ -725,6 +725,7 @@ export interface Database {
           title: string;
           photos: string[];
           link_url: string | null;
+          link_label: string | null;
           target_city: string | null;
           target_scope: 'national' | 'city' | 'radius';
           target_lat: number | null;
@@ -750,6 +751,7 @@ export interface Database {
           title: string;
           photos?: string[];
           link_url?: string | null;
+          link_label?: string | null;
           target_city?: string | null;
           target_scope?: 'national' | 'city' | 'radius';
           target_lat?: number | null;
@@ -775,6 +777,7 @@ export interface Database {
           title?: string;
           photos?: string[];
           link_url?: string | null;
+          link_label?: string | null;
           target_city?: string | null;
           target_scope?: 'national' | 'city' | 'radius';
           target_lat?: number | null;

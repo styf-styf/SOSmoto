@@ -350,6 +350,10 @@ export interface Ad {
   title: string;
   photos: string[];
   link_url: string | null;
+  // Texto del botón del link (ej. "WhatsApp", "Sitio web") -- obligatorio en
+  // la app cuando se agrega link_url, pero nullable acá porque anuncios
+  // creados antes de este campo no lo tienen (fallback a "Ver más").
+  link_label: string | null;
   target_city: string | null;
   target_scope: AdTargetScope;
   // Solo se llenan cuando target_scope es 'radius' -- lat/lng son siempre la

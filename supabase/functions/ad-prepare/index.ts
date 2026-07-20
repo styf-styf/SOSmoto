@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
       title,
       photos,
       linkUrl,
+      linkLabel,
       targetScope,
       targetCity,
       targetRadiusKm,
@@ -54,6 +55,9 @@ Deno.serve(async (req) => {
     } = await req.json();
     if (!businessId || !kind || !itemName || !title || !durationDays) {
       return json({ error: 'Faltan datos' }, 400);
+    }
+    if (linkUrl && !linkLabel) {
+      return json({ error: 'Falta el texto del botón del link.' }, 400);
     }
     if (!['national', 'city', 'radius'].includes(targetScope)) {
       return json({ error: 'Alcance inválido' }, 400);
@@ -182,6 +186,7 @@ Deno.serve(async (req) => {
         title,
         photos,
         linkUrl: linkUrl || null,
+        linkLabel: linkUrl ? linkLabel : null,
         targetScope,
         targetCity: targetScope === 'city' ? targetCity : null,
         targetLat,

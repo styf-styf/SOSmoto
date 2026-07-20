@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { CategoryPicker } from '../../components/CategoryPicker';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
@@ -67,11 +68,16 @@ export default function PublicidadScreen() {
   const [title, setTitle] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [linkUrl, setLinkUrl] = useState('');
+  const [linkLabel, setLinkLabel] = useState('');
   const [durationDays, setDurationDays] = useState('7');
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  // Al relanzar un anuncio expirado ya vinculado a un producto/servicio, el
+  // catálogo todavía no terminó de cargar cuando se intenta seleccionarlo --
+  // este ref guarda el id pendiente hasta que el efecto de carga termine.
+  const pendingSelectIdRef = useRef<string | null>(null);
 
   const cacheKey = profile ? `publicidad-${profile.id}` : null;
   const { data, loading, reload, setData } = useCachedLoad<PublicidadData>(cacheKey, async () => {
@@ -97,13 +103,26 @@ export default function PublicidadScreen() {
 
   useEffect(() => {
     if (!business || mode !== 'existing') return;
-    setSelectedItemId(null);
-    setTitle('');
-    setPhotos([]);
+    const pendingId = pendingSelectIdRef.current;
+    // Si viene de "Relanzar" (ver handleRelaunch), no se resetea lo que ya se
+    // precargó del anuncio viejo -- solo se espera a que cargue el catálogo
+    // para seleccionar el ítem correcto.
+    if (!pendingId) {
+      setSelectedItemId(null);
+      setTitle('');
+      setPhotos([]);
+    }
     setLoadingCatalog(true);
     const request = kind === 'product' ? getActiveProducts(business.id) : getActiveServices(business.id);
     request
-      .then((items) => (kind === 'product' ? setExistingProducts(items as Product[]) : setExistingServices(items as Service[])))
+      .then((items) => {
+        if (kind === 'product') setExistingProducts(items as Product[]);
+        else setExistingServices(items as Service[]);
+        if (pendingId) {
+          setSelectedItemId(pendingId);
+          pendingSelectIdRef.current = null;
+        }
+      })
       .catch((err) => console.error('load catalog for ad error', err))
       .finally(() => setLoadingCatalog(false));
   }, [business, kind, mode]);
@@ -171,9 +190,30 @@ export default function PublicidadScreen() {
     setTitle('');
     setPhotos([]);
     setLinkUrl('');
+    setLinkLabel('');
     setDurationDays('7');
     setScope('national');
     setRadiusKm('10');
+  }
+
+  // Arma el link de WhatsApp a partir del número ya guardado en el negocio
+  // (Datos del negocio) -- mismo patrón de wa.me que ya usa el resto de la
+  // app (ver pedidos.tsx, cliente/[id].tsx), para no obligar al negocio a
+  // escribir/copiar el link a mano.
+  function handleUseWhatsapp() {
+    if (!business?.whatsapp) {
+      Alert.alert(
+        'Falta tu WhatsApp',
+        'Agrega tu número de WhatsApp en Datos del negocio para poder usar este atajo.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Ir a Datos del negocio', onPress: () => router.push('/(business)/datos-negocio') },
+        ]
+      );
+      return;
+    }
+    setLinkUrl(`https://wa.me/${business.whatsapp.replace(/\D/g, '')}`);
+    setLinkLabel('WhatsApp');
   }
 
   async function handleCreate() {
@@ -201,6 +241,10 @@ export default function PublicidadScreen() {
       );
       return;
     }
+    if (linkUrl.trim() && !linkLabel.trim()) {
+      Alert.alert('Falta el texto del botón', 'Escribe cómo se debe llamar el botón del link (ej. "WhatsApp", "Sitio web").');
+      return;
+    }
     if (!validDays) {
       Alert.alert('Duración inválida', 'Ingresa un número de días válido.');
       return;
@@ -221,6 +265,7 @@ export default function PublicidadScreen() {
         title: title.trim(),
         photos,
         linkUrl: linkUrl.trim() || undefined,
+        linkLabel: linkUrl.trim() ? linkLabel.trim() : undefined,
         targetScope: scope,
         targetCity: scope === 'city' ? business.city : undefined,
         targetRadiusKm: scope === 'radius' ? parsedRadius : undefined,
@@ -235,6 +280,30 @@ export default function PublicidadScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Relanzar = precargar el formulario de "Crear campaña" con los datos del
+  // anuncio expirado, para que el negocio no tenga que volver a escribir
+  // todo -- sigue siendo una campaña NUEVA (paga de nuevo, queda en revisión
+  // de nuevo), no reactiva la fila vieja sin cobrar.
+  function handleRelaunch(ad: Ad) {
+    setScope(ad.target_scope);
+    setRadiusKm(ad.target_radius_km ? String(ad.target_radius_km) : '10');
+    setTitle(ad.title);
+    setPhotos(ad.photos);
+    setLinkUrl(ad.link_url ?? '');
+    setLinkLabel(ad.link_label ?? '');
+    setDurationDays('7');
+    setKind(ad.kind);
+    if (ad.product_id || ad.service_id) {
+      pendingSelectIdRef.current = ad.product_id ?? ad.service_id;
+      setMode('existing');
+    } else {
+      setMode('new');
+      setNewItemName(ad.item_name);
+      setNewItemCategoryId(ad.category_id ?? '');
+    }
+    setShowForm(true);
   }
 
   async function handlePause(ad: Ad) {
@@ -370,6 +439,10 @@ export default function PublicidadScreen() {
             <MultiPhotoPicker photos={photos} onRemove={handleRemovePhoto} onAdd={handlePickImage} max={MAX_AD_PHOTOS} uploading={uploadingImage} />
           </View>
 
+          <Pressable style={styles.whatsappButton} onPress={handleUseWhatsapp}>
+            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+            <Text style={styles.whatsappButtonText}>Usar el WhatsApp del negocio</Text>
+          </Pressable>
           <TextField
             label="Link al tocar el anuncio (opcional)"
             placeholder="https://wa.me/..."
@@ -377,6 +450,14 @@ export default function PublicidadScreen() {
             onChangeText={setLinkUrl}
             autoCapitalize="none"
           />
+          {linkUrl.trim() && (
+            <TextField
+              label="Texto del botón"
+              placeholder="WhatsApp"
+              value={linkLabel}
+              onChangeText={setLinkLabel}
+            />
+          )}
           <TextField label="Duración (días)" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
 
           <Text style={styles.priceText}>{validDays ? `Total: $${price.toFixed(2)}` : 'Ingresa una duración válida'}</Text>
@@ -421,6 +502,14 @@ export default function PublicidadScreen() {
                   title="Pausar"
                   variant="secondary"
                   onPress={() => handlePause(ad)}
+                  style={styles.gridPauseButton}
+                />
+              )}
+              {ad.status === 'expired' && isOwner && (
+                <Button
+                  title="Relanzar"
+                  variant="secondary"
+                  onPress={() => handleRelaunch(ad)}
                   style={styles.gridPauseButton}
                 />
               )}
@@ -489,10 +578,11 @@ export default function PublicidadScreen() {
           </Text>
         </InfoStep>
 
-        <InfoStep number={5} title="Termina sola">
+        <InfoStep number={5} title="Termina sola (y se puede relanzar)">
           <Text style={infoTextStyles.text}>
             Al llegar la fecha de fin, la campaña se marca como "Finalizada" y deja de mostrarse sola, sin que tengas
-            que hacer nada.
+            que hacer nada. Desde ahí puedes tocar "Relanzar" para volver a pagarla con los mismos datos -- es una
+            campaña nueva (vuelve a quedar en revisión), no una reactivación gratis de la anterior.
           </Text>
         </InfoStep>
 
@@ -574,6 +664,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  whatsappButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#25D366',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  whatsappButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   chip: {
     paddingHorizontal: 14,
