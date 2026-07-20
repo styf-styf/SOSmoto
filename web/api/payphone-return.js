@@ -91,24 +91,39 @@ module.exports = async (req, res) => {
   // los primeros 5 minutos tras el pago o Payphone reversa la transacción
   // sola. Antes se perdían ~6s esperando un webhook que nunca iba a llegar
   // antes de recién confirmar -- ya no hace falta esperar nada.
-  let wait = { success: false, payment: null };
+  // Se busca el pago por clientTransactionId (generado antes de pagar, ver
+  // payphone-prepare/ad-prepare) sin importar si el confirm sale bien o mal
+  // -- así el botón "Volver a SOSmoto" sabe a qué pantalla mandar al negocio
+  // (suscripción o publicidad) incluso cuando el pago falló.
+  let payment = null;
+  if (clientTransactionId) {
+    const { data } = await supabaseAdmin()
+      .from('payments')
+      .select('id, business_id, plan_id, status, type')
+      .eq('client_transaction_id', clientTransactionId)
+      .maybeSingle();
+    payment = data;
+  }
+
+  let wait = { success: false, payment };
   if (clientTransactionId && id) {
     // No confiamos ciegamente en que el navegador solo redirige aqui tras un
     // pago real (eso permitía activar un plan/campaña con un
     // clientTransactionId propio sin pagar, ver git history) -- siempre se
     // verifica con Payphone antes de activar nada.
     const confirmResult = await confirm(id, clientTransactionId, undefined);
-    if (confirmResult && confirmResult.success) {
-      const { data: payment } = await supabaseAdmin()
-        .from('payments')
-        .select('id, business_id, plan_id, status, type')
-        .eq('client_transaction_id', clientTransactionId)
-        .maybeSingle();
-      wait = { success: true, payment };
-    } else {
-      wait = { success: false, payment: null, confirmResult };
-    }
+    wait =
+      confirmResult && confirmResult.success
+        ? { success: true, payment }
+        : { success: false, payment, confirmResult };
   }
+
+  const appLink =
+    payment?.type === 'advertising'
+      ? 'sosmoto://pago-resultado?tipo=advertising'
+      : payment?.type === 'subscription'
+        ? 'sosmoto://pago-resultado?tipo=subscription'
+        : 'sosmoto://';
 
   const debugLine = wait.success
     ? ''
@@ -121,19 +136,20 @@ module.exports = async (req, res) => {
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SOSmoto · Pago</title>
 <style>body{font-family:-apple-system,sans-serif;text-align:center;padding:60px 24px;background:#f5f5f5;}
-h1{font-size:20px;} a{color:#FF6B00;font-weight:600;text-decoration:none;}</style>
+h1{font-size:20px;}
+.button{display:inline-block;margin-top:24px;background:#FF6B00;color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:24px;}</style>
 </head>
 <body>
 <h1>${wait.success ? 'Pago aprobado ✅' : 'No pudimos confirmar el pago todavía'}</h1>
 <p>${
     wait.success
-      ? wait.payment && wait.payment.type === 'advertising'
+      ? payment && payment.type === 'advertising'
         ? 'Tu campaña quedó registrada y en revisión. Te avisaremos cuando esté aprobada.'
         : 'Tu plan se actualizó.'
       : 'Si ya pagaste, espera un momento y vuelve a la app — la confirmación llega por separado y puede tardar unos segundos más.'
   }</p>
 ${debugLine}
-<a href="/api/suscripcion">Volver a mi suscripción</a>
+<a class="button" href="${appLink}">Volver a SOSmoto</a>
 </body>
 </html>`;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');

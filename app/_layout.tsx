@@ -44,6 +44,7 @@ export default function RootLayout() {
             <Stack.Screen name="ad/[id]" />
             <Stack.Screen name="product/[id]" />
             <Stack.Screen name="service/[id]" />
+            <Stack.Screen name="pago-resultado" />
           </Stack>
         </KeyboardProvider>
       </AuthProvider>
