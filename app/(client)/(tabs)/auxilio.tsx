@@ -361,7 +361,7 @@ export default function AuxilioScreen() {
               ? businessCoords &&
                 business && (
                   <MapNamedMarker
-                    key={businessLabel}
+                    key={business.id}
                     coordinate={businessCoords}
                     label={businessLabel}
                     color={colors.primary}

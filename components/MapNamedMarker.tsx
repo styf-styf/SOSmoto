@@ -74,6 +74,11 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    // Tope de ancho (no ancho fijo) -- un ancho fijo en todo el wrapper hacía
+    // que el marcador entero (chip + círculo) desapareciera en algunos casos.
+    // Con solo el chip acotado, el texto largo trunca con "..." en vez de
+    // desbordar, y el resto del marcador queda intacto.
+    maxWidth: 140,
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.18,
@@ -101,6 +106,13 @@ const styles = StyleSheet.create({
     width: CIRC - 6,
     height: CIRC - 6,
     borderRadius: (CIRC - 6) / 2,
+    // 'cover' (el default) recorta al centro geométrico de la imagen -- si
+    // la foto de perfil/logo no es cuadrada (ej. fotos subidas antes del
+    // recorte 1:1 forzado, o cualquier fuente externa), y el sujeto no está
+    // justo en ese centro, termina cortando la parte de arriba/abajo que
+    // interesa. 'contain' muestra la imagen completa siempre, sin recortar
+    // nada, sin importar la proporción real de la fuente.
+    resizeMode: 'contain',
   },
   fallback: {
     width: CIRC - 6,

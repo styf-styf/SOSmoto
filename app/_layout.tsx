@@ -28,7 +28,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <KeyboardProvider>
-          <StatusBar style="auto" />
+          {/* Fijo a "dark" en vez de "auto": "auto" no muestrea el color real
+              debajo de la barra, sigue el tema del sistema -- en algunos
+              Android terminaba pintando iconos blancos sobre fondo claro,
+              invisibles a simple vista aunque técnicamente estuvieran ahí. */}
+          <StatusBar style="dark" />
           {/* animation: 'none' -- este Stack solo enruta por rol (auth/cliente/negocio)
               tras el splash; sin esto, la transición nativa por defecto se ve como un
               slide justo cuando aparece Home, dando la sensación de un salto raro. */}
