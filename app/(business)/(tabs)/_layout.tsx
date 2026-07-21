@@ -3,11 +3,21 @@ import { Image, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import type { BusinessType } from '../../../types/database';
+
+interface CachedBusinessTabMeta {
+  businessType: BusinessType | null;
+  logoUrl: string | null;
+}
+
+function businessTabMetaCacheKey(userId: string) {
+  return `business-tab-meta-${userId}`;
+}
 
 // Solo las pestañas reales viven en este navegador de Tabs -- el resto de
 // pantallas se registran como Stack.Screen en app/(business)/_layout.tsx,
@@ -33,12 +43,44 @@ export default function BusinessTabsLayout() {
 
   useEffect(() => {
     if (!profile) return;
-    getMyWorkBusiness(profile.id)
-      .then((work) => {
-        setBusinessType(work?.business?.business_type ?? null);
-        setBusinessLogoUrl(work?.business?.logo_url ?? null);
+    let cancelled = false;
+    // Sin esto, cada apertura fría de la app mostraba la pestaña
+    // "Solicitudes" (taller) y el logo real del negocio con un instante de
+    // retraso -- mientras getMyWorkBusiness viaja por red, businessType y
+    // businessLogoUrl siguen en null, así que la tab bar nace "asumiendo no
+    // taller" (ver el condicional de href de "catalogo"/"solicitudes" abajo)
+    // y el ícono de Perfil nace genérico, hasta que la respuesta llega y
+    // ambos "saltan" a su valor real. AsyncStorage resuelve en unos ms (vs.
+    // el round-trip de red), así que pintar primero el último valor conocido
+    // elimina el salto en la práctica para cualquier apertura que no sea la
+    // primera vez que este usuario entra como negocio en este dispositivo.
+    const fetchedRealValueRef = { current: false };
+    AsyncStorage.getItem(businessTabMetaCacheKey(profile.id))
+      .then((raw) => {
+        if (cancelled || fetchedRealValueRef.current || !raw) return;
+        const cached = JSON.parse(raw) as CachedBusinessTabMeta;
+        setBusinessType(cached.businessType);
+        setBusinessLogoUrl(cached.logoUrl);
       })
       .catch(() => {});
+
+    getMyWorkBusiness(profile.id)
+      .then((work) => {
+        if (cancelled) return;
+        fetchedRealValueRef.current = true;
+        const meta: CachedBusinessTabMeta = {
+          businessType: work?.business?.business_type ?? null,
+          logoUrl: work?.business?.logo_url ?? null,
+        };
+        setBusinessType(meta.businessType);
+        setBusinessLogoUrl(meta.logoUrl);
+        AsyncStorage.setItem(businessTabMetaCacheKey(profile.id), JSON.stringify(meta)).catch(() => {});
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, [profile]);
 
   const isWorkshop = businessType === 'workshop';
