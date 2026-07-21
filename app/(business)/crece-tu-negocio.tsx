@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,7 @@ export default function CreceTuNegocioScreen() {
   const { profile } = useAuth();
   const [suggestion, setSuggestion] = useState<GrowthSuggestion | null>(null);
   const [loading, setLoading] = useState(true);
+  const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -39,9 +40,19 @@ export default function CreceTuNegocioScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load()
-        .catch((err) => console.error('load crece tu negocio error', err))
-        .finally(() => setLoading(false));
+      // Sin este guard, volver de Suscripción o Publicidad tras tocar la
+      // sugerencia recargaba la pantalla entera con spinner de nuevo -- solo
+      // la primera vez debe mostrar loading, después se refresca en silencio
+      // (mismo patrón que buscar.tsx y mantenimiento-proactivo.tsx).
+      if (!didInitialLoadRef.current) {
+        didInitialLoadRef.current = true;
+        setLoading(true);
+        load()
+          .catch((err) => console.error('load crece tu negocio error', err))
+          .finally(() => setLoading(false));
+      } else {
+        load().catch((err) => console.error('load crece tu negocio error', err));
+      }
     }, [load])
   );
 

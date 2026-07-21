@@ -39,7 +39,9 @@ export default function ClientLayout() {
         <Stack.Screen name="vehiculos" options={{ title: 'Vehículos' }} />
         <Stack.Screen name="historial" options={{ title: 'Historial' }} />
         <Stack.Screen name="mis-compras" options={{ title: 'Mis compras' }} />
-        <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones' }} />
+        {/* Distinto de "notificaciones-preferencias" (mismo texto "Notificaciones"
+            confundía: acá es el feed de recibidas, no el ajuste por tipo). */}
+        <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones recibidas' }} />
         <Stack.Screen name="notificaciones-preferencias" options={{ title: 'Notificaciones' }} />
         <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
         <Stack.Screen name="datos-personales" options={{ title: 'Perfil personal' }} />

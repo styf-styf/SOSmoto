@@ -12,6 +12,11 @@ export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    // En la entrada fría, expo-router entrega el parámetro undefined en el
+    // primer render (antes de hidratarlo) aunque el tipo lo declare string --
+    // sin este guard se alcanzaba a ver "ya no está disponible" una fracción
+    // de segundo, igual que ya se evita en BusinessProfileView.
+    if (!adId) return;
     setAd(await getAdById(adId));
   }, [adId]);
 

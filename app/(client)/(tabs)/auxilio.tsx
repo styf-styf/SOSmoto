@@ -61,6 +61,9 @@ export default function AuxilioScreen() {
     completedRequest,
     clearCompletedRequest,
     refresh: refreshActiveRequest,
+    externallyClosedNotice,
+    clearExternallyClosedNotice,
+    markSelfClosed,
   } = useActiveHelpRequestContext();
 
   const [loading, setLoading] = useState(true);
@@ -226,6 +229,7 @@ export default function AuxilioScreen() {
         description: description.trim() || undefined,
       });
       setActiveRequest(request);
+      clearExternallyClosedNotice();
     } catch (err) {
       console.error('create help request error', err);
       Alert.alert('Error', 'No se pudo enviar la solicitud.');
@@ -237,6 +241,10 @@ export default function AuxilioScreen() {
   async function runCancel() {
     if (!activeRequest) return;
     try {
+      // Antes del propio cambio en DB -- evita que el realtime de esta misma
+      // cancelación (ver useActiveHelpRequest) le muestre al cliente el
+      // aviso de "se cerró sola" sobre algo que acaba de hacer él mismo.
+      markSelfClosed();
       await cancelHelpRequest(activeRequest.id);
       setActiveRequest(null);
     } catch (err) {
@@ -518,6 +526,17 @@ export default function AuxilioScreen() {
             </View>
           ) : (
             <>
+              {externallyClosedNotice && (
+                <Pressable
+                  style={styles.externallyClosedBanner}
+                  onPress={clearExternallyClosedNotice}
+                >
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+                  <Text style={styles.externallyClosedText}>{externallyClosedNotice}</Text>
+                  <Ionicons name="close" size={16} color={colors.danger} />
+                </Pressable>
+              )}
+
               <Text style={styles.fieldLabel}>Tu moto</Text>
               <View style={styles.vehicleSelector}>
                 {vehicles.map((vehicle) => (
@@ -836,6 +855,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  externallyClosedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FBE8E8',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  externallyClosedText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.danger,
   },
   reopenedNotice: {
     fontSize: 13,

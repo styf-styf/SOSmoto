@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
+import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { getMyWorkBusiness } from '../../../services/businesses';
-import { getBusinessProductIntents, updateIntentStatus } from '../../../services/productIntents';
+import { getBusinessProductIntents } from '../../../services/productIntents';
 import { toWhatsappLink } from '../../../utils/whatsapp';
 import type { ProductIntentWithDetails, ProductIntentStatus } from '../../../types/database';
 
@@ -54,7 +55,7 @@ export default function PedidosScreen() {
   const [intents, setIntents] = useState<ProductIntentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const { processingId, handleAction } = useProductIntentAction(setIntents);
 
   const load = useCallback(async (id: string) => {
     const result = await getBusinessProductIntents(id);
@@ -86,30 +87,6 @@ export default function PedidosScreen() {
       load(businessId).catch((err) => console.error('reload pedidos on focus', err));
     }, [businessId, load])
   );
-
-  async function runIntentAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
-    setProcessingId(intentId);
-    try {
-      await updateIntentStatus(intentId, status);
-      setIntents((prev) => prev.map((i) => (i.id === intentId ? { ...i, status } : i)));
-    } catch (err) {
-      console.error('update pedido status error', err);
-      Alert.alert('Error', 'No se pudo actualizar el pedido.');
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  function handleAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
-    if (status !== 'cancelled_no_show') {
-      runIntentAction(intentId, status);
-      return;
-    }
-    Alert.alert('Cancelar venta', '¿Seguro que quieres cancelar esta venta?', [
-      { text: 'No cancelar', style: 'cancel' },
-      { text: 'Sí, cancelar', style: 'destructive', onPress: () => runIntentAction(intentId, status) },
-    ]);
-  }
 
   if (loading) {
     return (

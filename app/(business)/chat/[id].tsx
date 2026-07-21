@@ -114,6 +114,10 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
+  // chat/asistente.tsx ya tenía este guard (if (!profile || sending) return);
+  // acá faltaba, dejando una ventana breve para mandar el mismo mensaje dos
+  // veces con un doble-toque.
+  const [sending, setSending] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(
     null,
   );
@@ -532,8 +536,9 @@ export default function ChatScreen() {
 
   async function handleSend(overrideBody?: string) {
     const body = overrideBody ?? text.trim();
-    if (!profile || !clientId || !businessId) return;
+    if (!profile || !clientId || !businessId || sending) return;
     if (!body && !pendingImage && !overrideBody) return;
+    setSending(true);
     if (!overrideBody) setText('');
     const imageToSend = overrideBody ? null : pendingImage;
     if (imageToSend) setPendingImage(null);
@@ -574,6 +579,8 @@ export default function ChatScreen() {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       if (!overrideBody) setText(body);
       if (imageToSend) setPendingImage(imageToSend);
+    } finally {
+      setSending(false);
     }
   }
 
@@ -1300,7 +1307,7 @@ export default function ChatScreen() {
               <Pressable
                 style={styles.sendButton}
                 onPress={() => handleSend()}
-                disabled={!text.trim() && !pendingImage}
+                disabled={(!text.trim() && !pendingImage) || sending}
               >
                 <Ionicons name="send" size={18} color="#fff" />
               </Pressable>

@@ -9,6 +9,9 @@ interface ActiveHelpRequestContextValue {
   completedRequest: HelpRequest | null;
   clearCompletedRequest: () => void;
   refresh: () => Promise<void>;
+  externallyClosedNotice: string | null;
+  clearExternallyClosedNotice: () => void;
+  markSelfClosed: () => void;
 }
 
 const ActiveHelpRequestContext = createContext<ActiveHelpRequestContextValue | null>(null);

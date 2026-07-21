@@ -1,17 +1,18 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
+import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { supabase } from '../../../services/supabase';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getClientProfileForBusiness, getBusinessHistory, type HistoryItem, type ClientProfileForBusiness } from '../../../services/history';
 import { getActiveClientAppointments, type ActiveClientAppointment } from '../../../services/appointments';
 import { getBusinessClientReports, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { getVehicles } from '../../../services/vehicles';
-import { getClientProductIntents, updateIntentStatus } from '../../../services/productIntents';
+import { getClientProductIntents } from '../../../services/productIntents';
 import { toWhatsappLink } from '../../../utils/whatsapp';
 import { formatVehicle, type Vehicle, type ProductIntentWithProduct } from '../../../types/database';
 
@@ -34,7 +35,7 @@ export default function ClienteDetailScreen() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingIntentId, setProcessingIntentId] = useState<string | null>(null);
+  const { processingId: processingIntentId, handleAction: handleIntentAction } = useProductIntentAction(setProductIntents);
   const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -70,30 +71,6 @@ export default function ClienteDetailScreen() {
     setClientReports(reports);
     setClientVehicles(vehs);
   }, [profile, id]);
-
-  async function runIntentAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
-    setProcessingIntentId(intentId);
-    try {
-      await updateIntentStatus(intentId, status);
-      setProductIntents((prev) => prev.map((i) => (i.id === intentId ? { ...i, status } : i)));
-    } catch (err) {
-      console.error('update intent status error', err);
-      Alert.alert('Error', 'No se pudo actualizar el pedido.');
-    } finally {
-      setProcessingIntentId(null);
-    }
-  }
-
-  function handleIntentAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
-    if (status !== 'cancelled_no_show') {
-      runIntentAction(intentId, status);
-      return;
-    }
-    Alert.alert('Cancelar venta', '¿Seguro que quieres cancelar esta venta?', [
-      { text: 'No cancelar', style: 'cancel' },
-      { text: 'Sí, cancelar', style: 'destructive', onPress: () => runIntentAction(intentId, status) },
-    ]);
-  }
 
   async function handleRefresh() {
     setRefreshing(true);

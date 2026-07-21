@@ -32,6 +32,9 @@ export function ClientProfileView({
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    // Ver AdDetail.tsx: en la entrada fría el parámetro llega undefined en
+    // el primer render pese a que el tipo lo declara string.
+    if (!userId) return;
     const [profileRes, postsData] = await Promise.all([
       supabase.from('users').select('id, full_name, avatar_url').eq('id', userId).maybeSingle(),
       getMyClientPosts(userId),

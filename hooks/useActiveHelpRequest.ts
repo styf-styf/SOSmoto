@@ -39,7 +39,23 @@ export function useActiveHelpRequest(clientId: string | undefined) {
       // poder mostrarle al cliente el prompt de calificación.
       return getHelpRequestById(requestId)
         .then((updated) => {
-          if (updated?.status === 'completed') setCompletedRequest(updated);
+          if (updated?.status === 'completed') {
+            setCompletedRequest(updated);
+          } else if (updated?.status === 'cancelled') {
+            // Si el cliente la canceló él mismo, auxilio.tsx ya llamó a
+            // markSelfClosed() antes -- no hace falta avisarle de algo que
+            // acaba de hacer. Cualquier otro cierre a 'cancelled' (hoy solo
+            // ocurre si un admin lo hiciera desde el panel -- ver
+            // admin/app/api/auxilio/[id]/route.ts, que de momento no toca
+            // status) sí lo hizo alguien más, así que se explica.
+            if (selfClosedRef.current) {
+              selfClosedRef.current = false;
+            } else {
+              setExternallyClosedNotice(
+                'Tu solicitud de auxilio se cerró y ya no sigue activa. Si todavía necesitas ayuda, pide un nuevo auxilio.',
+              );
+            }
+          }
         })
         .catch((err) =>
           console.error('check completed help request error', err),
@@ -72,5 +88,10 @@ export function useActiveHelpRequest(clientId: string | undefined) {
     completedRequest,
     clearCompletedRequest: () => setCompletedRequest(null),
     refresh,
+    externallyClosedNotice,
+    clearExternallyClosedNotice: () => setExternallyClosedNotice(null),
+    markSelfClosed: () => {
+      selfClosedRef.current = true;
+    },
   };
 }

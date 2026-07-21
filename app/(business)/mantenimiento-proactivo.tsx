@@ -14,6 +14,11 @@ export default function MantenimientoProactivoScreen() {
   const [items, setItems] = useState<ClientMaintenanceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifying, setNotifying] = useState<string | null>(null);
+  // Solo se deshabilitaba mientras el envío estaba en curso -- después volvía
+  // a verse igual que antes, así que era fácil reenviar el mismo aviso al
+  // mismo cliente sin darse cuenta. No hay columna en BD para esto (es solo
+  // una guarda de UI, no un dato que deba persistir entre sesiones).
+  const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const didInitialLoadRef = useRef(false);
 
@@ -53,6 +58,7 @@ export default function MantenimientoProactivoScreen() {
         `Tu ${item.vehicleLabel} necesita: ${item.serviceName}. ¡Agenda con nosotros!`,
         { type: 'maintenance_reminder', vehicleId: item.vehicleId }
       );
+      setNotifiedIds((prev) => new Set(prev).add(item.suggestionId));
       Alert.alert('Aviso enviado', `Se notificó a ${item.clientName} sobre el ${item.serviceName}.`);
     } catch (err) {
       console.error('notify client maintenance error', err);
@@ -118,16 +124,25 @@ export default function MantenimientoProactivoScreen() {
 
             <View style={styles.actions}>
               <Pressable
-                style={[styles.actionBtn, styles.actionBtnPrimary]}
-                disabled={notifying === item.suggestionId}
+                style={[
+                  styles.actionBtn,
+                  notifiedIds.has(item.suggestionId) ? styles.actionBtnSecondary : styles.actionBtnPrimary,
+                ]}
+                disabled={notifying === item.suggestionId || notifiedIds.has(item.suggestionId)}
                 onPress={() => handleNotify(item)}
               >
                 {notifying === item.suggestionId ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Ionicons name="notifications-outline" size={16} color="#fff" />
+                  <Ionicons
+                    name={notifiedIds.has(item.suggestionId) ? 'checkmark' : 'notifications-outline'}
+                    size={16}
+                    color={notifiedIds.has(item.suggestionId) ? colors.textMuted : '#fff'}
+                  />
                 )}
-                <Text style={styles.actionBtnTextWhite}>Avisar</Text>
+                <Text style={notifiedIds.has(item.suggestionId) ? styles.actionBtnText : styles.actionBtnTextWhite}>
+                  {notifiedIds.has(item.suggestionId) ? 'Avisado' : 'Avisar'}
+                </Text>
               </Pressable>
 
               <Pressable

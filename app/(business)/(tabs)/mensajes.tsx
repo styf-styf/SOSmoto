@@ -19,6 +19,11 @@ interface ConversationRow {
   lastMessage: string;
   lastMessageAt: string;
   unread: boolean;
+  // Un chat de auxilio activo se veía igual que uno de venta cualquiera --
+  // una negociación urgente de emergencia se confundía con una consulta de
+  // precio. No hay contexto por mensaje, así que se marca por separado
+  // consultando help_requests directamente.
+  hasActiveAid: boolean;
 }
 
 export default function BusinessMensajesScreen() {
@@ -55,6 +60,13 @@ export default function BusinessMensajesScreen() {
       businessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url, is_verified: b.is_verified });
     });
 
+    const { data: aidRows } = await supabase
+      .from('help_requests')
+      .select('client_id')
+      .eq('accepted_business_id', work.business.id)
+      .in('status', ['accepted', 'in_progress']);
+    const activeAidClientIds = new Set((aidRows ?? []).map((r: { client_id: string }) => r.client_id));
+
     setConversations(
       summaries.map((s) => {
         const client = clientById.get(s.otherId);
@@ -68,6 +80,7 @@ export default function BusinessMensajesScreen() {
           lastMessage: s.lastMessage,
           lastMessageAt: s.lastMessageAt,
           unread: s.lastSenderId === s.otherId && s.lastReadAt === null,
+          hasActiveAid: activeAidClientIds.has(s.otherId),
         };
       })
     );
@@ -145,9 +158,17 @@ export default function BusinessMensajesScreen() {
             </View>
             <View style={styles.rowContent}>
               <View style={styles.rowTopLine}>
-                <Text style={[styles.rowName, row.unread && styles.rowNameUnread]} numberOfLines={1}>
-                  {row.clientName}
-                </Text>
+                <View style={styles.rowNameWrap}>
+                  {row.hasActiveAid && (
+                    <View style={styles.aidBadge}>
+                      <Ionicons name="warning" size={10} color="#fff" />
+                      <Text style={styles.aidBadgeText}>Auxilio</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.rowName, row.unread && styles.rowNameUnread]} numberOfLines={1}>
+                    {row.clientName}
+                  </Text>
+                </View>
                 <Text style={[styles.rowTime, row.unread && styles.rowTimeUnread]}>
                   {formatConversationTimestamp(row.lastMessageAt)}
                 </Text>
@@ -232,6 +253,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
+  },
+  rowNameWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
+  aidBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.sos,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  aidBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
   },
   rowBottomLine: {
     flexDirection: 'row',

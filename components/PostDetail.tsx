@@ -107,6 +107,9 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   }, [userRole, profile]);
 
   const load = useCallback(async () => {
+    // Ver AdDetail.tsx: en la entrada fría el parámetro llega undefined en
+    // el primer render pese a que el tipo lo declara string.
+    if (!postId) return;
     const [postResult, commentsResult] = await Promise.all([getPostById(postId), getComments(postId)]);
     setPost(postResult);
     setComments(commentsResult);

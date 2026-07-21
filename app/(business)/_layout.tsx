@@ -79,7 +79,9 @@ export default function BusinessLayout() {
       />
       <Stack.Screen name="inventario" options={{ title: 'Inventario' }} />
       <Stack.Screen name="publicidad" options={{ title: 'Publicidad' }} />
-      <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones' }} />
+      {/* Distinto de "notificaciones-preferencias" (mismo texto "Notificaciones"
+          confundía: acá es el feed de recibidas, no el ajuste por tipo). */}
+      <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones recibidas' }} />
       <Stack.Screen name="notificaciones-preferencias" options={{ title: 'Notificaciones' }} />
       <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
       <Stack.Screen

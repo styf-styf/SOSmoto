@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,8 +12,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessDiscoverCard } from '../../components/BusinessDiscoverCard';
 import { FeedCatalogStrip } from '../../components/FeedCatalogStrip';
+import { FilterChip } from '../../components/FilterChip';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
+import { SearchEmptyState } from '../../components/SearchEmptyState';
 import { colors } from '../../constants/colors';
+import { ratingFilters } from '../../constants/searchFilters';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
 import { searchActiveAds } from '../../services/ads';
@@ -27,43 +29,22 @@ import {
 } from '../../services/businesses';
 import { searchCatalog, type FeedCatalogItem } from '../../services/catalog';
 import type { BusinessType } from '../../types/database';
+import { getDiscoverCardWidth } from '../../utils/discoverGrid';
 
 // Este buscador es exclusivo de taller/tienda (la marca no tiene boton de
 // acceso -- no le compra a nadie, ver BusinessProfileView). Regla de quien
 // ve a quien: B2B_ALLOWED_SELLER_TYPES (services/businesses.ts).
 const ALLOWED_TARGET_TYPES = B2B_ALLOWED_SELLER_TYPES;
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const CONTAINER_PADDING = 20;
 const DISCOVER_GRID_GAP = 10;
-// Math.floor (no Math.round): con Math.round, 2*ancho + gap puede superar
-// por 1px el ancho real de pantalla (frecuente en Android) y ese único
-// píxel de más hace que flexWrap mande la segunda tarjeta a la siguiente
-// línea -- la grilla "colapsa" a 1 columna.
-const DISCOVER_CARD_WIDTH = Math.floor(
-  (SCREEN_WIDTH - CONTAINER_PADDING * 2 - DISCOVER_GRID_GAP) / 2
-);
+const DISCOVER_CARD_WIDTH = getDiscoverCardWidth(CONTAINER_PADDING, DISCOVER_GRID_GAP);
 
 const TYPE_FILTER_LABELS: Record<BusinessType, string> = {
   workshop: 'Talleres',
   store: 'Tiendas',
   brand_advertiser: 'Marcas',
 };
-
-const ratingFilters = [
-  { label: 'Todas', value: undefined },
-  { label: '4+ ★', value: 4 },
-  { label: '4.5+ ★', value: 4.5 },
-];
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <View style={styles.emptyState}>
-      <Ionicons name="search-outline" size={28} color={colors.textMuted} />
-      <Text style={styles.placeholder}>{text}</Text>
-    </View>
-  );
-}
 
 export default function BusinessBuscarScreen() {
   const { profile } = useAuth();
@@ -201,36 +182,25 @@ export default function BusinessBuscarScreen() {
         <>
           <View style={styles.filterRow}>
             {typeFilters.map((filter) => (
-              <Pressable
+              <FilterChip
                 key={filter.label}
+                label={filter.label}
+                selected={businessType === filter.value}
                 onPress={() => setBusinessType(filter.value)}
-                style={[styles.filterChip, businessType === filter.value && styles.filterChipSelected]}
-              >
-                <Text style={[styles.filterChipText, businessType === filter.value && styles.filterChipTextSelected]}>
-                  {filter.label}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
 
           <View style={styles.filterRow}>
             {ratingFilters.map((filter) => (
-              <Pressable
+              <FilterChip
                 key={filter.label}
+                label={filter.label}
+                selected={minRating === filter.value}
                 onPress={() => setMinRating(filter.value)}
-                style={[styles.filterChip, minRating === filter.value && styles.filterChipSelected]}
-              >
-                <Text style={[styles.filterChipText, minRating === filter.value && styles.filterChipTextSelected]}>
-                  {filter.label}
-                </Text>
-              </Pressable>
+              />
             ))}
-            <Pressable
-              onPress={() => setOnly24h((prev) => !prev)}
-              style={[styles.filterChip, only24h && styles.filterChipSelected]}
-            >
-              <Text style={[styles.filterChipText, only24h && styles.filterChipTextSelected]}>24/7</Text>
-            </Pressable>
+            <FilterChip label="24/7" selected={only24h} onPress={() => setOnly24h((prev) => !prev)} />
           </View>
         </>
       )}
@@ -260,7 +230,7 @@ export default function BusinessBuscarScreen() {
           <Text style={styles.sectionTitle}>{hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}</Text>
           {hasActiveFilters ? (
             results.length === 0 && catalogResults.length === 0 ? (
-              <EmptyState
+              <SearchEmptyState
                 text={
                   query.trim()
                     ? `No se encontraron resultados para "${query.trim()}".`
@@ -291,7 +261,7 @@ export default function BusinessBuscarScreen() {
               </>
             )
           ) : results.length === 0 ? (
-            <EmptyState text="No encontramos negocios con esos filtros." />
+            <SearchEmptyState text="No encontramos negocios con esos filtros." />
           ) : (
             <View style={styles.discoverGrid}>
               {results.map((business) => (
@@ -399,25 +369,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  filterChipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  filterChipTextSelected: {
-    color: colors.primary,
-  },
   activeFiltersRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -441,15 +392,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: DISCOVER_GRID_GAP,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 20,
   },
 });
