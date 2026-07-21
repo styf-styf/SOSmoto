@@ -5,11 +5,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
+import { getPaymentHistory, type PaymentHistoryRow } from '../../services/payments';
 import type { Business } from '../../types/database';
+
+const paymentTypeLabel: Record<PaymentHistoryRow['type'], string> = {
+  subscription: 'Suscripción',
+  advertising: 'Publicidad',
+};
+
+const paymentStatusLabel: Record<PaymentHistoryRow['status'], string> = {
+  pending: 'Pendiente',
+  completed: 'Pagado',
+  failed: 'Rechazado',
+  refunded: 'Reembolsado',
+};
+
+const paymentStatusColor: Record<PaymentHistoryRow['status'], string> = {
+  pending: colors.warning,
+  completed: colors.success,
+  failed: colors.danger,
+  refunded: colors.textMuted,
+};
 
 export default function EstadoCuentaScreen() {
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [payments, setPayments] = useState<PaymentHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const didInitialLoadRef = useRef(false);
 
@@ -17,6 +38,7 @@ export default function EstadoCuentaScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     setBusiness(work?.business ?? null);
+    setPayments(work?.business ? await getPaymentHistory(work.business.id) : []);
   }, [profile]);
 
   useFocusEffect(
@@ -105,6 +127,30 @@ export default function EstadoCuentaScreen() {
         </>
       ) : (
         <Text style={styles.helperText}>Tu negocio está activo, sin restricciones.</Text>
+      )}
+
+      <Text style={[styles.sectionTitle, styles.historyTitle]}>Historial de pagos</Text>
+      {payments.length === 0 ? (
+        <Text style={styles.helperText}>Todavía no tienes pagos registrados.</Text>
+      ) : (
+        <View style={styles.list}>
+          {payments.map((payment) => (
+            <View key={payment.id} style={styles.paymentRow}>
+              <View style={styles.paymentInfo}>
+                <Text style={styles.paymentType}>{paymentTypeLabel[payment.type] ?? payment.type}</Text>
+                <Text style={styles.paymentDate}>
+                  {new Date(payment.created_at).toLocaleDateString('es-EC', { dateStyle: 'medium' })}
+                </Text>
+              </View>
+              <Text style={styles.paymentAmount}>
+                {payment.currency} {payment.amount.toFixed(2)}
+              </Text>
+              <Text style={[styles.paymentStatus, { color: paymentStatusColor[payment.status] }]}>
+                {paymentStatusLabel[payment.status] ?? payment.status}
+              </Text>
+            </View>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -204,5 +250,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
+  },
+  historyTitle: {
+    marginTop: 24,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  paymentInfo: {
+    flex: 1,
+  },
+  paymentType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  paymentDate: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  paymentAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  paymentStatus: {
+    fontSize: 12,
+    fontWeight: '700',
+    minWidth: 78,
+    textAlign: 'right',
   },
 });

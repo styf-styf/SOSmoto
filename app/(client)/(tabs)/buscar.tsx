@@ -62,6 +62,15 @@ export default function BuscarScreen() {
   const [query, setQuery] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType | undefined>(undefined);
   const [serviceFilter, setServiceFilter] = useState<string | undefined>(params.service);
+
+  // La pestaña Buscar no se desmonta (lazy: false en (tabs)/_layout.tsx), así
+  // que tocar un segundo aviso de mantenimiento para OTRO servicio navega
+  // aquí con un nuevo params.service sin remontar el componente -- sin este
+  // efecto, el useState de arriba (que solo lee el valor inicial) se queda
+  // con el filtro del primer aviso.
+  useEffect(() => {
+    if (params.service !== undefined) setServiceFilter(params.service);
+  }, [params.service]);
   const [minRating, setMinRating] = useState<number | undefined>(undefined);
   const [only24h, setOnly24h] = useState(false);
   const [showFilters, setShowFilters] = useState(false);

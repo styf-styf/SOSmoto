@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,7 +17,7 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { signOut } from '../../services/auth';
-import { getMyWorkBusiness } from '../../services/businesses';
+import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/businesses';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
 import { getPendingRequests } from '../../services/helpRequests';
@@ -39,8 +41,10 @@ export default function BusinessConfiguracionScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [togglingDeactivated, setTogglingDeactivated] = useState(false);
+
   const cacheKey = profile ? `business-config-${profile.id}` : null;
-  const { data, loading, reload } = useCachedLoad<BusinessConfigData>(
+  const { data, loading, reload, setData } = useCachedLoad<BusinessConfigData>(
     cacheKey,
     async () => {
       if (!profile)
@@ -97,6 +101,60 @@ export default function BusinessConfiguracionScreen() {
       console.error('sign out error', err);
       setSigningOut(false);
     }
+  }
+
+  function handleToggleDeactivated() {
+    if (!business) return;
+    const goingInactive = !business.is_deactivated;
+    Alert.alert(
+      goingInactive ? 'Desactivar negocio' : 'Reactivar negocio',
+      goingInactive
+        ? 'Tu negocio dejará de aparecer en búsquedas y en solicitudes de auxilio hasta que lo reactives. Nada de tu catálogo, historial o seguidores se borra.'
+        : 'Tu negocio volverá a aparecer en búsquedas y solicitudes de auxilio de inmediato.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: goingInactive ? 'Desactivar' : 'Reactivar',
+          style: goingInactive ? 'destructive' : 'default',
+          onPress: async () => {
+            setTogglingDeactivated(true);
+            try {
+              await setBusinessDeactivated(business.id, goingInactive);
+              setData((prev) =>
+                prev && prev.business ? { ...prev, business: { ...prev.business, is_deactivated: goingInactive } } : prev
+              );
+            } catch (err) {
+              console.error('toggle business deactivated error', err);
+              Alert.alert('Error', 'No se pudo actualizar el estado del negocio. Intenta de nuevo.');
+            } finally {
+              setTogglingDeactivated(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Eliminar cuenta',
+      'Para eliminar tu cuenta y la de tu negocio, escríbenos a soporte. Te confirmaremos por correo cuando se complete.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Escribir a soporte',
+          onPress: () => {
+            const subject = encodeURIComponent('Eliminar mi cuenta de negocio');
+            const body = encodeURIComponent(
+              `Hola, quiero eliminar mi cuenta y la de mi negocio "${business?.name ?? ''}" (${profile?.email ?? ''}).`
+            );
+            Linking.openURL(`mailto:soporte@sosmoto.app?subject=${subject}&body=${body}`).catch((err) =>
+              console.error('open mail error', err)
+            );
+          },
+        },
+      ]
+    );
   }
 
   if (loading) {
@@ -267,6 +325,28 @@ export default function BusinessConfiguracionScreen() {
           badge={business.is_limited ? 'Limitado' : undefined}
           badgeDanger={business.is_limited}
           onPress={() => router.push('/(business)/estado-cuenta')}
+        />
+        <MenuRow
+          icon="notifications-outline"
+          label="Notificaciones"
+          onPress={() => router.push('/(business)/notificaciones-preferencias')}
+          last
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>General</Text>
+      <View style={styles.menuGroup}>
+        <MenuRow
+          icon={business.is_deactivated ? 'eye-outline' : 'eye-off-outline'}
+          label={business.is_deactivated ? 'Reactivar negocio' : 'Desactivar negocio temporalmente'}
+          badge={business.is_deactivated ? 'Desactivado' : undefined}
+          badgeDanger={business.is_deactivated}
+          onPress={togglingDeactivated ? () => {} : handleToggleDeactivated}
+        />
+        <MenuRow
+          icon="trash-outline"
+          label="Eliminar cuenta"
+          onPress={handleDeleteAccount}
           last
         />
       </View>

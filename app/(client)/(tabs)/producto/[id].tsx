@@ -96,7 +96,7 @@ export default function ProductDetailScreen() {
     });
   }, [profile?.id, id, product, hasVariants, variantId]);
 
-  async function handleApartar() {
+  async function runApartar() {
     if (!profile || !product) return;
     setApartando(true);
     try {
@@ -124,6 +124,17 @@ export default function ProductDetailScreen() {
     } finally {
       setApartando(false);
     }
+  }
+
+  function handleApartar() {
+    if (!intent) {
+      runApartar();
+      return;
+    }
+    Alert.alert('Cancelar apartado', '¿Seguro que quieres cancelar este apartado?', [
+      { text: 'No cancelar', style: 'cancel' },
+      { text: 'Sí, cancelar', style: 'destructive', onPress: runApartar },
+    ]);
   }
 
   function handleShare() {

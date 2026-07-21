@@ -24,6 +24,7 @@ async function findNearbyWorkshops(
     .select('*')
     .eq('business_type', 'workshop')
     .eq('is_available_for_aid', true)
+    .eq('is_deactivated', false)
     .not('aid_radius_km', 'is', null);
   if (error) throw error;
 
@@ -135,6 +136,7 @@ export async function createHelpRequest(
             type: 'help_request',
             helpRequestId: helpRequest.id,
           },
+          'auxilio',
         ),
       ),
     );
@@ -207,6 +209,7 @@ export async function cancelHelpRequest(id: string): Promise<void> {
     'El cliente canceló el auxilio',
     'El cliente canceló la solicitud de auxilio que estabas atendiendo.',
     { type: 'help_request_cancelled_by_client', helpRequestId: id },
+    'auxilio',
   );
 }
 
@@ -386,6 +389,7 @@ export async function acceptHelpRequest(
     'Un taller va en camino',
     'Aceptaron tu solicitud de auxilio. Te avisaremos el tiempo estimado de llegada en cuanto lo tengamos.',
     { type: 'help_request_accepted', helpRequestId: acceptedRequest.id },
+    'auxilio',
   );
 }
 
@@ -432,6 +436,7 @@ export async function businessCancelAcceptedRequest(
     'El taller canceló tu solicitud',
     `${name} canceló tu solicitud de auxilio. Seguimos buscando otro taller cercano que pueda ayudarte.`,
     { type: 'help_request_reopened', helpRequestId: request.id },
+    'auxilio',
   );
 }
 
@@ -456,6 +461,7 @@ export async function completeHelpRequest(
       'Auxilio completado',
       'El taller marcó tu auxilio como completado. Ya puedes calificar el servicio.',
       { type: 'help_request_completed', helpRequestId },
+      'auxilio',
     );
     return;
   }
@@ -474,6 +480,7 @@ export async function completeHelpRequest(
     'Auxilio completado',
     'El cliente marcó el auxilio como completado. Ya puedes calificarlo.',
     { type: 'help_request_completed', helpRequestId },
+    'auxilio',
   );
 }
 

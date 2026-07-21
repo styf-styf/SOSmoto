@@ -55,17 +55,20 @@ Deno.serve(async () => {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('push_token')
+      .select('push_token, notification_prefs')
       .eq('id', business.owner_id)
       .maybeSingle();
     const pushToken: string | null = owner?.push_token ?? null;
+    // Categoría 'pagos' de Configuración > Notificaciones -- solo apaga el
+    // push, el downgrade/reversión de plan sigue pasando igual.
+    const pagosEnabled = (owner?.notification_prefs as Record<string, boolean> | null)?.pagos !== false;
 
     if (daysLeft <= 0) {
       await supabase.from('business_subscriptions').update({ status: 'expired' }).eq('id', sub.id);
       if (freePlan) {
         await supabase.from('businesses').update({ plan_id: freePlan.id }).eq('id', sub.business_id);
       }
-      if (pushToken) {
+      if (pushToken && pagosEnabled) {
         await sendPush(
           pushToken,
           'Tu suscripción venció',
@@ -77,7 +80,7 @@ Deno.serve(async () => {
       continue;
     }
 
-    if (daysLeft <= REMINDER_DAYS_BEFORE && !sub.reminder_sent_at && pushToken) {
+    if (daysLeft <= REMINDER_DAYS_BEFORE && !sub.reminder_sent_at && pushToken && pagosEnabled) {
       await sendPush(
         pushToken,
         'Tu suscripción está por vencer',

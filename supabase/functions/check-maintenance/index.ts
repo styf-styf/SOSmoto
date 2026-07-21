@@ -68,11 +68,15 @@ Deno.serve(async () => {
   for (const vehicle of vehicles) {
     const { data: userRow } = await supabase
       .from('users')
-      .select('push_token')
+      .select('push_token, notification_prefs')
       .eq('id', vehicle.user_id)
       .maybeSingle();
     const pushToken: string | null = userRow?.push_token ?? null;
     if (!pushToken) continue;
+    // Categoría 'mantenimiento' de Configuración > Notificaciones -- si el
+    // cliente la apagó, se salta este vehículo del todo (los recordatorios
+    // vuelven a generarse solos cuando la reactive).
+    if ((userRow?.notification_prefs as Record<string, boolean> | null)?.mantenimiento === false) continue;
 
     const lastUpdate = new Date(vehicle.last_mileage_update);
     const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / MS_PER_DAY;

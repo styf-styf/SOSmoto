@@ -14,6 +14,7 @@ export interface Database {
           push_token: string | null;
           is_limited: boolean;
           limitation_reason: string | null;
+          notification_prefs: Record<string, boolean>;
           created_at: string;
         };
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           push_token?: string | null;
           is_limited?: boolean;
           limitation_reason?: string | null;
+          notification_prefs?: Record<string, boolean>;
           created_at?: string;
         };
         Update: {
@@ -38,6 +40,7 @@ export interface Database {
           push_token?: string | null;
           is_limited?: boolean;
           limitation_reason?: string | null;
+          notification_prefs?: Record<string, boolean>;
           created_at?: string;
         };
         Relationships: [];
@@ -112,6 +115,7 @@ export interface Database {
           is_24h: boolean;
           is_limited: boolean;
           limitation_reason: string | null;
+          is_deactivated: boolean;
           promotion_claimed_at: string | null;
           created_at: string;
         };
@@ -139,6 +143,7 @@ export interface Database {
           is_24h?: boolean;
           is_limited?: boolean;
           limitation_reason?: string | null;
+          is_deactivated?: boolean;
           promotion_claimed_at?: string | null;
           created_at?: string;
         };
@@ -166,6 +171,7 @@ export interface Database {
           is_24h?: boolean;
           is_limited?: boolean;
           limitation_reason?: string | null;
+          is_deactivated?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -731,9 +737,10 @@ export interface Database {
           target_lat: number | null;
           target_lng: number | null;
           target_radius_km: number | null;
-          status: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
+          status: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired' | 'paused';
           starts_at: string;
           ends_at: string;
+          paused_at: string | null;
           payment_id: string | null;
           impressions: number;
           clicks: number;
@@ -757,9 +764,10 @@ export interface Database {
           target_lat?: number | null;
           target_lng?: number | null;
           target_radius_km?: number | null;
-          status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
+          status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired' | 'paused';
           starts_at: string;
           ends_at: string;
+          paused_at?: string | null;
           payment_id?: string | null;
           impressions?: number;
           clicks?: number;
@@ -783,9 +791,10 @@ export interface Database {
           target_lat?: number | null;
           target_lng?: number | null;
           target_radius_km?: number | null;
-          status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
+          status?: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired' | 'paused';
           starts_at?: string;
           ends_at?: string;
+          paused_at?: string | null;
           payment_id?: string | null;
           impressions?: number;
           clicks?: number;

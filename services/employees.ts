@@ -47,10 +47,22 @@ export async function addEmployeeByEmail(
 ): Promise<void> {
   const limits = await getPlanLimits(businessId);
   if (limits.maxEmployees !== null) {
+    // Cuenta también las invitaciones pendientes, no solo las ya aceptadas --
+    // si no, el dueño puede mandar varias invitaciones de más sin ninguna
+    // advertencia, y el rechazo aparece recién cuando el invitado intenta
+    // aceptar y ya no cabe (confuso para la persona reclutada, no para quien
+    // causó el problema).
+    const { count: pendingCount, error: pendingError } = await supabase
+      .from('employee_invitations')
+      .select('id', { count: 'exact', head: true })
+      .eq('business_id', businessId)
+      .eq('status', 'pending');
+    if (pendingError) throw pendingError;
+
     const current = await getEmployees(businessId);
-    if (current.length >= limits.maxEmployees) {
+    if (current.length + (pendingCount ?? 0) >= limits.maxEmployees) {
       throw new Error(
-        `Tu plan ${limits.planName} permite hasta ${limits.maxEmployees} personas adicionales en el equipo (sin contar al dueño). Sube de plan para agregar más.`
+        `Tu plan ${limits.planName} permite hasta ${limits.maxEmployees} personas adicionales en el equipo (sin contar al dueño), y ya cuenta contra ese tope cada invitación pendiente. Sube de plan o espera a que se resuelvan las invitaciones pendientes.`
       );
     }
   }

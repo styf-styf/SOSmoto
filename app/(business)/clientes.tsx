@@ -33,16 +33,20 @@ export default function ClientesScreen() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [isStore, setIsStore] = useState(false);
+  // Una marca vende al por mayor (solo productos, sin citas ni auxilio) --
+  // exactamente el mismo vínculo real que una tienda, así que reusa el mismo
+  // camino de CRM basado en product_intents en vez de caer en la rama de
+  // taller ("visitas", "cita o auxilio"), que no le aplica.
+  const [isStoreLike, setIsStoreLike] = useState(false);
   const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
-    const storeType = work.business.business_type === 'store';
-    setIsStore(storeType);
-    const result = storeType
+    const storeLike = work.business.business_type === 'store' || work.business.business_type === 'brand_advertiser';
+    setIsStoreLike(storeLike);
+    const result = storeLike
       ? await getCRMClientsForStore(work.business.id)
       : await getCRMClients(work.business.id);
     setClients(result);
@@ -110,7 +114,9 @@ export default function ClientesScreen() {
           <Ionicons name="people-outline" size={48} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>Sin clientes aún</Text>
           <Text style={styles.emptyHint}>
-            Aquí aparecerán los clientes que hayan completado una cita o auxilio contigo.
+            {isStoreLike
+              ? 'Aquí aparecerán los negocios/clientes que te hayan comprado productos.'
+              : 'Aquí aparecerán los clientes que hayan completado una cita o auxilio contigo.'}
           </Text>
         </View>
       ) : filtered.length === 0 ? (
@@ -178,7 +184,7 @@ export default function ClientesScreen() {
                       <View style={styles.visitBadge}>
                         <Text style={styles.visitCount}>{client.total_visits}</Text>
                         <Text style={styles.visitLabel}>
-                          {isStore
+                          {isStoreLike
                             ? (client.total_visits === 1 ? 'compra' : 'compras')
                             : (client.total_visits === 1 ? 'visita' : 'visitas')}
                         </Text>

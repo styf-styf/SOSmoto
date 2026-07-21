@@ -322,7 +322,7 @@ export default function NuevoInformeScreen() {
     }
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!businessId) return;
 
     const validServices = services.map((s) => s.trim()).filter(Boolean);
@@ -331,6 +331,21 @@ export default function NuevoInformeScreen() {
       return;
     }
 
+    // Enviar es irreversible -- no existe forma de editar o deshacer un
+    // informe ya enviado, así que se confirma antes en vez de dispararlo al
+    // primer toque.
+    Alert.alert(
+      'Enviar informe',
+      'El cliente podrá verlo de inmediato y no podrás editarlo después de enviarlo. ¿Seguro que quieres enviarlo?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sí, enviar', onPress: () => runSubmit(validServices) },
+      ],
+    );
+  }
+
+  async function runSubmit(validServices: string[]) {
+    if (!businessId) return;
     setSaving(true);
     try {
       const report = await createServiceReport({
@@ -753,6 +768,9 @@ export default function NuevoInformeScreen() {
         />
         {isLocked && (
           <Text style={styles.lockedHint}>Completa la cita para poder enviar el informe.</Text>
+        )}
+        {!isLocked && (
+          <Text style={styles.lockedHint}>No podrás editar el informe después de enviarlo.</Text>
         )}
       </View>
     </ScrollView>

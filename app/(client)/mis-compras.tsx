@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -8,7 +8,7 @@ import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { createReview } from '../../services/reviews';
-import { getMyProductPurchases, type MyProductPurchase } from '../../services/productIntents';
+import { cancelProductIntent, getMyProductPurchases, type MyProductPurchase } from '../../services/productIntents';
 import type { ProductIntentStatus } from '../../types/database';
 
 function fmtDate(iso: string) {
@@ -89,7 +89,7 @@ export default function MisComprasScreen() {
         <Text style={styles.placeholder}>Todavía no has apartado ningún producto.</Text>
       ) : (
         purchases.map((purchase) => (
-          <PurchaseCard key={purchase.id} purchase={purchase} onReviewed={load} />
+          <PurchaseCard key={purchase.id} purchase={purchase} onReviewed={load} onCancelled={load} />
         ))
       )}
     </ScrollView>
@@ -97,12 +97,43 @@ export default function MisComprasScreen() {
   );
 }
 
-function PurchaseCard({ purchase, onReviewed }: { purchase: MyProductPurchase; onReviewed: () => void }) {
+function PurchaseCard({
+  purchase,
+  onReviewed,
+  onCancelled,
+}: {
+  purchase: MyProductPurchase;
+  onReviewed: () => void;
+  onCancelled: () => void;
+}) {
   const { profile } = useAuth();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  function handleCancel() {
+    Alert.alert('Cancelar apartado', '¿Seguro que quieres cancelar este apartado?', [
+      { text: 'No cancelar', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          setCancelling(true);
+          try {
+            await cancelProductIntent(purchase.id);
+            onCancelled();
+          } catch (err) {
+            console.error('cancel purchase error', err);
+            Alert.alert('Error', 'No se pudo cancelar el apartado. Intenta de nuevo.');
+          } finally {
+            setCancelling(false);
+          }
+        },
+      },
+    ]);
+  }
 
   async function handleSubmit() {
     if (!profile) return;
@@ -139,6 +170,16 @@ function PurchaseCard({ purchase, onReviewed }: { purchase: MyProductPurchase; o
         {purchase.productPrice != null ? ` · $${(purchase.productPrice * purchase.quantity).toFixed(2)}` : ''}
       </Text>
       <Text style={styles.cardMeta}>{fmtDate(purchase.updatedAt)}</Text>
+
+      {(purchase.status === 'pending' || purchase.status === 'confirmed') && (
+        <Button
+          title="Cancelar apartado"
+          variant="secondary"
+          onPress={handleCancel}
+          loading={cancelling}
+          style={styles.reviewButton}
+        />
+      )}
 
       {purchase.status === 'sold' && (
         purchase.review ? (

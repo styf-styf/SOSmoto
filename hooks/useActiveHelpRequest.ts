@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getActiveHelpRequest,
   getHelpRequestById,
@@ -11,6 +11,13 @@ export function useActiveHelpRequest(clientId: string | undefined) {
   const [completedRequest, setCompletedRequest] = useState<HelpRequest | null>(
     null,
   );
+  // El cliente cancelando su propia solicitud ya limpia activeRequest de
+  // forma directa (ver auxilio.tsx) -- este flag evita que el realtime de
+  // esa misma cancelación dispare también el aviso de "se cerró sola".
+  const selfClosedRef = useRef(false);
+  const [externallyClosedNotice, setExternallyClosedNotice] = useState<
+    string | null
+  >(null);
 
   const load = useCallback(async () => {
     if (!clientId) {

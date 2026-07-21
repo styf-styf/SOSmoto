@@ -10,9 +10,9 @@ import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
-import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice } from '../../services/ads';
+import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice, resumeAd } from '../../services/ads';
 import { getMyWorkBusiness } from '../../services/businesses';
-import { getActiveProducts, getActiveServices } from '../../services/catalog';
+import { getActiveProducts, getActiveServices, getPlanLimits } from '../../services/catalog';
 import { pickAndUploadBusinessImage } from '../../services/storage';
 import type { Ad, AdKind, AdPricing, AdTargetScope, Business, Product, Service } from '../../types/database';
 import { toWhatsappLink } from '../../utils/whatsapp';
@@ -23,7 +23,7 @@ const GRID_COLUMNS = 2;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 const CARD_HEIGHT = Math.round(CARD_WIDTH * (4 / 3));
-const MAX_AD_PHOTOS = 3;
+const DEFAULT_MAX_AD_PHOTOS = 3;
 
 const statusLabel: Record<Ad['status'], string> = {
   pending_review: 'Pendiente de revisión',
@@ -31,6 +31,7 @@ const statusLabel: Record<Ad['status'], string> = {
   active: 'Activa',
   rejected: 'Rechazada',
   expired: 'Finalizada',
+  paused: 'Pausada',
 };
 
 const statusColor: Record<Ad['status'], string> = {
@@ -39,6 +40,7 @@ const statusColor: Record<Ad['status'], string> = {
   active: colors.success,
   rejected: colors.danger,
   expired: colors.textMuted,
+  paused: colors.warning,
 };
 
 interface PublicidadData {
@@ -46,6 +48,7 @@ interface PublicidadData {
   isOwner: boolean;
   ads: Ad[];
   pricing: AdPricing | null;
+  maxPhotos: number;
 }
 
 export default function PublicidadScreen() {
@@ -82,17 +85,32 @@ export default function PublicidadScreen() {
 
   const cacheKey = profile ? `publicidad-${profile.id}` : null;
   const { data, loading, reload, setData } = useCachedLoad<PublicidadData>(cacheKey, async () => {
-    const empty: PublicidadData = { business: null, isOwner: false, ads: [], pricing: null };
+    const empty: PublicidadData = { business: null, isOwner: false, ads: [], pricing: null, maxPhotos: DEFAULT_MAX_AD_PHOTOS };
     if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return empty;
-    const [businessAds, adPricing] = await Promise.all([getBusinessAds(work.business.id), getAdPricing()]);
-    return { business: work.business, isOwner: work.isOwner, ads: businessAds, pricing: adPricing };
+    const [businessAds, adPricing, limits] = await Promise.all([
+      getBusinessAds(work.business.id),
+      getAdPricing(),
+      getPlanLimits(work.business.id),
+    ]);
+    return {
+      business: work.business,
+      isOwner: work.isOwner,
+      ads: businessAds,
+      pricing: adPricing,
+      // Las fotos de un anuncio reusan el mismo tope 1/3/5 que ya promete la
+      // tabla de planes para productos/servicios (suscripcion.tsx) -- antes
+      // era un 3 fijo sin importar el plan, así que un negocio Pro nunca
+      // recibía las 5 fotos que su plan le ofrece.
+      maxPhotos: limits.maxPhotosPerItem ?? DEFAULT_MAX_AD_PHOTOS,
+    };
   });
   const business = data?.business ?? null;
   const isOwner = data?.isOwner ?? false;
   const ads = data?.ads ?? [];
   const pricing = data?.pricing ?? null;
+  const maxPhotos = data?.maxPhotos ?? DEFAULT_MAX_AD_PHOTOS;
   // Tienda/marca no ofrece servicios -- solo un taller puede anunciar uno
   // (misma regla que el catálogo, ver CLAUDE.md).
   const canChooseKind = business?.business_type === 'workshop';
@@ -101,6 +119,15 @@ export default function PublicidadScreen() {
   useEffect(() => {
     if (!canChooseKind) setKind('product');
   }, [canChooseKind]);
+
+  // Una marca se registra sin ciudad ni ubicación real (handleCreate en
+  // (tabs)/index.tsx la crea con QUITO_DEFAULT) -- "Solo {city}" quedaría
+  // vacío y "Radio" apuntaría siempre a Quito sin importar dónde opera de
+  // verdad la marca, así que el alcance queda fijo en nacional.
+  const isBrand = business?.business_type === 'brand_advertiser';
+  useEffect(() => {
+    if (isBrand) setScope('national');
+  }, [isBrand]);
 
   useEffect(() => {
     if (!business || mode !== 'existing') return;
@@ -135,7 +162,7 @@ export default function PublicidadScreen() {
   function handleSelectExistingItem(item: Product | Service) {
     setSelectedItemId(item.id);
     setTitle(item.description?.trim() || item.name);
-    setPhotos(item.photos.slice(0, MAX_AD_PHOTOS));
+    setPhotos(item.photos.slice(0, maxPhotos));
   }
 
   async function handleRefresh() {
@@ -150,7 +177,7 @@ export default function PublicidadScreen() {
   }
 
   async function handlePickImage() {
-    if (!business || photos.length >= MAX_AD_PHOTOS) return;
+    if (!business || photos.length >= maxPhotos) return;
     setUploadingImage(true);
     try {
       const url = await pickAndUploadBusinessImage(business.id);
@@ -288,7 +315,11 @@ export default function PublicidadScreen() {
   // todo -- sigue siendo una campaña NUEVA (paga de nuevo, queda en revisión
   // de nuevo), no reactiva la fila vieja sin cobrar.
   function handleRelaunch(ad: Ad) {
-    setScope(ad.target_scope);
+    // Una marca no puede quedar con scope 'city'/'radius' aunque el anuncio
+    // viejo lo tuviera (de antes de que el alcance se limitara a nacional
+    // para marcas) -- sin esto, el chip queda oculto pero el estado se
+    // relanza con el scope viejo igual.
+    setScope(isBrand ? 'national' : ad.target_scope);
     setRadiusKm(ad.target_radius_km ? String(ad.target_radius_km) : '10');
     setTitle(ad.title);
     setPhotos(ad.photos);
@@ -307,13 +338,36 @@ export default function PublicidadScreen() {
     setShowForm(true);
   }
 
-  async function handlePause(ad: Ad) {
+  function handlePause(ad: Ad) {
+    Alert.alert(
+      'Pausar campaña',
+      'La campaña deja de mostrarse de inmediato. Puedes reanudarla cuando quieras -- los días que estuvo pausada se suman al final, sin perder lo ya pagado.',
+      [
+        { text: 'No pausar', style: 'cancel' },
+        {
+          text: 'Sí, pausar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updated = await pauseAd(ad.id);
+              setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? updated : a)) } : prev));
+            } catch (err) {
+              console.error('pause ad error', err);
+              Alert.alert('Error', 'No se pudo pausar la campaña. Intenta de nuevo.');
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function handleResume(ad: Ad) {
     try {
-      const updated = await pauseAd(ad.id);
+      const updated = await resumeAd(ad.id);
       setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? updated : a)) } : prev));
     } catch (err) {
-      console.error('pause ad error', err);
-      Alert.alert('Error', 'No se pudo pausar la campaña. Intenta de nuevo.');
+      console.error('resume ad error', err);
+      Alert.alert('Error', 'No se pudo reanudar la campaña. Intenta de nuevo.');
     }
   }
 
@@ -358,21 +412,25 @@ export default function PublicidadScreen() {
 
       {isOwner && !business.is_limited && showForm && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Alcance</Text>
-          <View style={styles.chipRow}>
-            <Pressable onPress={() => setScope('national')} style={[styles.chip, scope === 'national' && styles.chipSelected]}>
-              <Text style={[styles.chipText, scope === 'national' && styles.chipTextSelected]}>Nacional</Text>
-            </Pressable>
-            <Pressable onPress={() => setScope('city')} style={[styles.chip, scope === 'city' && styles.chipSelected]}>
-              <Text style={[styles.chipText, scope === 'city' && styles.chipTextSelected]}>Solo {business.city}</Text>
-            </Pressable>
-            <Pressable onPress={() => setScope('radius')} style={[styles.chip, scope === 'radius' && styles.chipSelected]}>
-              <Text style={[styles.chipText, scope === 'radius' && styles.chipTextSelected]}>Radio</Text>
-            </Pressable>
-          </View>
+          {!isBrand && (
+            <>
+              <Text style={styles.fieldLabel}>Alcance</Text>
+              <View style={styles.chipRow}>
+                <Pressable onPress={() => setScope('national')} style={[styles.chip, scope === 'national' && styles.chipSelected]}>
+                  <Text style={[styles.chipText, scope === 'national' && styles.chipTextSelected]}>Nacional</Text>
+                </Pressable>
+                <Pressable onPress={() => setScope('city')} style={[styles.chip, scope === 'city' && styles.chipSelected]}>
+                  <Text style={[styles.chipText, scope === 'city' && styles.chipTextSelected]}>Solo {business.city}</Text>
+                </Pressable>
+                <Pressable onPress={() => setScope('radius')} style={[styles.chip, scope === 'radius' && styles.chipSelected]}>
+                  <Text style={[styles.chipText, scope === 'radius' && styles.chipTextSelected]}>Radio</Text>
+                </Pressable>
+              </View>
 
-          {scope === 'radius' && (
-            <TextField label="Radio (km, desde tu negocio)" keyboardType="numeric" value={radiusKm} onChangeText={setRadiusKm} />
+              {scope === 'radius' && (
+                <TextField label="Radio (km, desde tu negocio)" keyboardType="numeric" value={radiusKm} onChangeText={setRadiusKm} />
+              )}
+            </>
           )}
 
           {canChooseKind && (
@@ -434,10 +492,10 @@ export default function PublicidadScreen() {
           <TextField label="Texto del anuncio" placeholder="20% de descuento en cambio de aceite" value={title} onChangeText={setTitle} />
 
           <Text style={styles.fieldLabel}>
-            Fotos ({photos.length}/{MAX_AD_PHOTOS})
+            Fotos ({photos.length}/{maxPhotos})
           </Text>
           <View style={styles.photosRow}>
-            <MultiPhotoPicker photos={photos} onRemove={handleRemovePhoto} onAdd={handlePickImage} max={MAX_AD_PHOTOS} uploading={uploadingImage} />
+            <MultiPhotoPicker photos={photos} onRemove={handleRemovePhoto} onAdd={handlePickImage} max={maxPhotos} uploading={uploadingImage} />
           </View>
 
           <Pressable style={styles.whatsappButton} onPress={handleUseWhatsapp}>
@@ -498,6 +556,13 @@ export default function PublicidadScreen() {
               <Text style={styles.gridMeta}>
                 {ad.impressions} impresiones · {ad.clicks} clics
               </Text>
+              {ad.status === 'rejected' && (
+                <Text style={styles.rejectionReasonText}>
+                  {ad.rejection_reason?.trim()
+                    ? `Motivo: ${ad.rejection_reason}`
+                    : 'El equipo de SOSmoto rechazó esta campaña sin especificar un motivo.'}
+                </Text>
+              )}
               {(ad.status === 'active' || ad.status === 'approved') && isOwner && (
                 <Button
                   title="Pausar"
@@ -506,9 +571,25 @@ export default function PublicidadScreen() {
                   style={styles.gridPauseButton}
                 />
               )}
+              {ad.status === 'paused' && isOwner && (
+                <Button
+                  title="Reanudar"
+                  variant="secondary"
+                  onPress={() => handleResume(ad)}
+                  style={styles.gridPauseButton}
+                />
+              )}
               {ad.status === 'expired' && isOwner && (
                 <Button
                   title="Relanzar"
+                  variant="secondary"
+                  onPress={() => handleRelaunch(ad)}
+                  style={styles.gridPauseButton}
+                />
+              )}
+              {ad.status === 'rejected' && isOwner && (
+                <Button
+                  title="Corregir y reenviar"
                   variant="secondary"
                   onPress={() => handleRelaunch(ad)}
                   style={styles.gridPauseButton}
@@ -566,7 +647,8 @@ export default function PublicidadScreen() {
           <Text style={infoTextStyles.text}>
             Pagas de una sola vez (vía Payphone) al crear la campaña. Después, un admin de SOSmoto la revisa antes de
             mostrarla a nadie -- para evitar contenido inapropiado o competencia desleal. El estado pasa de
-            "Pendiente de revisión" a "Aprobada" (ya circulando) o "Rechazada".
+            "Pendiente de revisión" directo a "Activa" (ya circulando) o "Rechazada". Si la rechazan, verás el motivo
+            junto a la campaña y podrás tocar "Corregir y reenviar" para pagar de nuevo con los cambios ya hechos.
           </Text>
         </InfoStep>
 
@@ -594,10 +676,11 @@ export default function PublicidadScreen() {
           </Text>
         </InfoStep>
 
-        <InfoStep number={7} title='"Pausar" no devuelve el dinero'>
+        <InfoStep number={7} title='"Pausar" no devuelve el dinero, pero tampoco lo pierdes'>
           <Text style={infoTextStyles.text}>
-            Pausar detiene que la campaña se siga mostrando, pero no reembolsa lo ya pagado -- revisa bien la
-            duración antes de pagar.
+            Pausar detiene que la campaña se siga mostrando sin cancelarla -- puedes tocar "Reanudar" cuando quieras y
+            los días que estuvo pausada se suman al final, así que no pierdes lo ya pagado. Pausar no reembolsa nada;
+            revisa bien la duración antes de pagar.
           </Text>
         </InfoStep>
       </InfoModal>
@@ -775,6 +858,11 @@ const styles = StyleSheet.create({
   },
   gridPauseButton: {
     marginTop: 8,
+  },
+  rejectionReasonText: {
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: 6,
   },
   editActions: {
     flexDirection: 'row',

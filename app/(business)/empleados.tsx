@@ -129,13 +129,18 @@ export default function EmpleadosScreen() {
   }
 
   const allowedAdditional = limits?.maxEmployees ?? null;
-  const atLimit = allowedAdditional !== null && employees.length >= allowedAdditional;
+  // Cuenta también las invitaciones pendientes contra el tope -- si no, se
+  // pueden mandar varias invitaciones de más sin ninguna advertencia acá, y
+  // el rechazo aparece recién cuando el invitado intenta aceptar (ver
+  // addEmployeeByEmail en services/employees.ts, que valida lo mismo).
+  const usedSlots = employees.length + invitations.length;
+  const atLimit = allowedAdditional !== null && usedSlots >= allowedAdditional;
 
   function handleAddPress() {
     if (atLimit) {
       Alert.alert(
         'Límite de plan alcanzado',
-        `Tu plan ${limits?.planName} permite hasta ${limits?.maxEmployees} personas adicionales en el equipo (sin contar al dueño). Sube de plan para agregar más.`
+        `Tu plan ${limits?.planName} permite hasta ${limits?.maxEmployees} personas adicionales en el equipo (sin contar al dueño), y las invitaciones pendientes también cuentan contra ese tope. Sube de plan o espera a que se resuelvan.`
       );
       return;
     }
@@ -148,7 +153,9 @@ export default function EmpleadosScreen() {
       <View style={styles.headerRow}>
         <Text style={[styles.helperText, styles.headerRowText]}>
           {allowedAdditional !== null
-            ? `${employees.length}/${allowedAdditional} personas adicionales en el equipo (plan ${limits?.planName})`
+            ? `${usedSlots}/${allowedAdditional} personas adicionales en el equipo (plan ${limits?.planName})${
+                invitations.length > 0 ? ` · ${invitations.length} invitación(es) pendiente(s) incluida(s)` : ''
+              }`
             : `${employees.length} personas en el equipo (plan ${limits?.planName}, sin límite)`}
         </Text>
         <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Qué hace cada permiso" size={20} />
@@ -353,6 +360,7 @@ function EmployeeRow({
       onUpdated({ ...employee, [field]: value });
     } catch (err) {
       console.error('update employee permission error', err);
+      Alert.alert('Error', 'No se pudo actualizar el permiso. Intenta de nuevo.');
     } finally {
       setBusy(false);
     }
@@ -385,6 +393,7 @@ function EmployeeRow({
             onRemoved();
           } catch (err) {
             console.error('remove employee error', err);
+            Alert.alert('Error', 'No se pudo quitar a esta persona del equipo. Intenta de nuevo.');
           }
         },
       },

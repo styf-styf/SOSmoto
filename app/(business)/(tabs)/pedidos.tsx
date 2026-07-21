@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
@@ -87,16 +87,28 @@ export default function PedidosScreen() {
     }, [businessId, load])
   );
 
-  async function handleAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
+  async function runIntentAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
     setProcessingId(intentId);
     try {
       await updateIntentStatus(intentId, status);
       setIntents((prev) => prev.map((i) => (i.id === intentId ? { ...i, status } : i)));
     } catch (err) {
       console.error('update pedido status error', err);
+      Alert.alert('Error', 'No se pudo actualizar el pedido.');
     } finally {
       setProcessingId(null);
     }
+  }
+
+  function handleAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
+    if (status !== 'cancelled_no_show') {
+      runIntentAction(intentId, status);
+      return;
+    }
+    Alert.alert('Cancelar venta', '¿Seguro que quieres cancelar esta venta?', [
+      { text: 'No cancelar', style: 'cancel' },
+      { text: 'Sí, cancelar', style: 'destructive', onPress: () => runIntentAction(intentId, status) },
+    ]);
   }
 
   if (loading) {

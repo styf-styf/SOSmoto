@@ -169,6 +169,18 @@ export default function DatosNegocioScreen() {
       Alert.alert('Faltan datos', 'Completa nombre, dirección y ciudad.');
       return;
     }
+    // Una marca no tiene ubicación real (no recibe auxilio ni aparece en el
+    // mapa), pero un taller/tienda sí -- sin esta validación se podía
+    // guardar con el mapa nunca abierto, dejando el negocio sin coordenadas
+    // reales pese a que el esquema las declara obligatorias.
+    if (!isBrand && !selectedCoords) {
+      Alert.alert('Falta la ubicación', 'Marca tu ubicación en el mapa antes de guardar.');
+      return;
+    }
+    if (!isBrand && !phone.trim() && !whatsapp.trim()) {
+      Alert.alert('Falta contacto', 'Agrega al menos un teléfono o WhatsApp para que los clientes puedan contactarte.');
+      return;
+    }
     setSaving(true);
     try {
       const updated = await updateBusiness(business.id, {

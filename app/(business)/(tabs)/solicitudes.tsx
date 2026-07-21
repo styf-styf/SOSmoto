@@ -68,10 +68,23 @@ export default function SolicitudesScreen() {
   const [savingReview, setSavingReview] = useState(false);
   const [locationSharingFailed, setLocationSharingFailed] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [activeClientAvatar, setActiveClientAvatar] = useState<string | null>(
-    null,
-  );
+  // Se guarda por separado de `active` (en vez de leerlo directo de ahí)
+  // porque debe seguir disponible en la pantalla de calificación/informe
+  // aunque `active` ya se haya puesto en null al completar.
+  const [activeClientInfo, setActiveClientInfo] = useState<{
+    name: string | null;
+    avatarUrl: string | null;
+  } | null>(null);
   const [cancelledNotice, setCancelledNotice] = useState<string | null>(null);
+  // Ninguna otra tarjeta pendiente debe poder aceptar/rechazar mientras una
+  // aceptación está en curso -- si no, aceptar dos casi al mismo tiempo puede
+  // dejar la otra solicitud huérfana (getActiveBusinessRequest solo muestra
+  // la más reciente aceptada) hasta que expire sola.
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  // Bloquea el doble-toque en Cancelar/Completar del auxilio activo -- antes
+  // un doble tap disparaba la acción dos veces y la segunda mostraba un
+  // error aunque la primera ya hubiera funcionado.
+  const [activeActionBusy, setActiveActionBusy] = useState(false);
 
   const load = useCallback(async (id: string) => {
     const [pendingList, activeRequest] = await Promise.all([
@@ -174,14 +187,15 @@ export default function SolicitudesScreen() {
   }, [active?.id]);
 
   useEffect(() => {
-    if (!active?.client_id) {
-      setActiveClientAvatar(null);
+    const clientId = active?.client_id ?? ratingTarget?.client_id;
+    if (!clientId) {
+      setActiveClientInfo(null);
       return;
     }
-    getUserById(active.client_id)
-      .then((user) => setActiveClientAvatar(user?.avatar_url ?? null))
-      .catch((err) => console.error('load client avatar error', err));
-  }, [active?.client_id]);
+    getUserById(clientId)
+      .then((user) => setActiveClientInfo({ name: user?.full_name ?? null, avatarUrl: user?.avatar_url ?? null }))
+      .catch((err) => console.error('load client info error', err));
+  }, [active?.client_id, ratingTarget?.client_id]);
 
   const etaTriggeredForRef = useRef<string | null>(null);
 
@@ -218,7 +232,8 @@ export default function SolicitudesScreen() {
   );
 
   async function handleComplete() {
-    if (!active) return;
+    if (!active || activeActionBusy) return;
+    setActiveActionBusy(true);
     try {
       await completeHelpRequest(active.id, 'business');
       setRatingTarget(active);
@@ -227,6 +242,9 @@ export default function SolicitudesScreen() {
       setActive(null);
     } catch (err) {
       console.error('complete help request error', err);
+      Alert.alert('Error', 'No se pudo completar el auxilio. Intenta de nuevo.');
+    } finally {
+      setActiveActionBusy(false);
     }
   }
 
@@ -235,26 +253,42 @@ export default function SolicitudesScreen() {
     router.push(`/(business)/chat/${active.client_id}`);
   }
 
-  async function handleCancelActive() {
-    if (!active || !businessId) return;
-    try {
-      await businessCancelAcceptedRequest(
-        active.id,
-        businessId,
-        business?.name,
-      );
-      setActive(null);
-      if (businessId)
-        load(businessId).catch((err) =>
-          console.error('reload after cancel error', err),
-        );
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'No se pudo cancelar la solicitud.';
-      Alert.alert('Error', message);
-    }
+  function handleCancelActive() {
+    if (!active || !businessId || activeActionBusy) return;
+    Alert.alert(
+      'Cancelar auxilio',
+      'El cliente verá que ya no vas en camino y la solicitud vuelve a quedar disponible para otros talleres. ¿Seguro que quieres cancelar?',
+      [
+        { text: 'No cancelar', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            if (!active || !businessId || activeActionBusy) return;
+            setActiveActionBusy(true);
+            try {
+              await businessCancelAcceptedRequest(
+                active.id,
+                businessId,
+                business?.name,
+              );
+              setActive(null);
+              load(businessId).catch((err) =>
+                console.error('reload after cancel error', err),
+              );
+            } catch (err) {
+              const message =
+                err instanceof Error
+                  ? err.message
+                  : 'No se pudo cancelar la solicitud.';
+              Alert.alert('Error', message);
+            } finally {
+              setActiveActionBusy(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleSubmitReview() {
@@ -352,6 +386,12 @@ export default function SolicitudesScreen() {
               style={styles.flexButton}
             />
           </View>
+          <Button
+            title="Crear informe de este auxilio"
+            variant="secondary"
+            onPress={() => router.push(buildAidInformeUrl(ratingTarget, activeClientInfo?.name ?? null) as any)}
+            style={styles.createReportButton}
+          />
         </View>
       </KeyboardAvoidingView>
     );
@@ -415,7 +455,7 @@ export default function SolicitudesScreen() {
                   }}
                   label="Cliente"
                   color={colors.sos}
-                  avatarUrl={activeClientAvatar}
+                  avatarUrl={activeClientInfo?.avatarUrl ?? null}
                   fallbackIcon="person"
                   zIndex={2}
                 />
@@ -502,6 +542,7 @@ export default function SolicitudesScreen() {
                 label="Cancelar"
                 color={colors.danger}
                 onPress={handleCancelActive}
+                disabled={activeActionBusy}
               />
               <CircleActionButton
                 icon="chatbubble-outline"
@@ -509,12 +550,15 @@ export default function SolicitudesScreen() {
                 color={colors.primary}
                 variant="outline"
                 onPress={handleChatWithClient}
+                disabled={activeActionBusy}
               />
               <CircleActionButton
                 icon="checkmark"
                 label="Completar"
                 color={colors.primary}
                 onPress={handleComplete}
+                loading={activeActionBusy}
+                disabled={activeActionBusy}
               />
             </View>
           </View>
@@ -545,6 +589,8 @@ export default function SolicitudesScreen() {
                   businessId={businessId}
                   canAccept={canAccept}
                   onResolved={() => businessId && load(businessId)}
+                  acceptingId={acceptingId}
+                  onAcceptingChange={setAcceptingId}
                 />
               ))
             )}
@@ -642,16 +688,25 @@ function RequestCard({
   businessId,
   canAccept,
   onResolved,
+  acceptingId,
+  onAcceptingChange,
 }: {
   item: PendingHelpRequest;
   businessId: string;
   canAccept: boolean;
   onResolved: () => void;
+  acceptingId: string | null;
+  onAcceptingChange: (id: string | null) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  // Mientras cualquier tarjeta está aceptando, el resto se bloquea -- si no,
+  // aceptar dos solicitudes casi al mismo tiempo puede dejar una huérfana
+  // (getActiveBusinessRequest solo muestra la más reciente aceptada).
+  const blockedByOther = acceptingId !== null && acceptingId !== item.helpRequest.id;
 
   async function handleAccept() {
     setSaving(true);
+    onAcceptingChange(item.helpRequest.id);
     try {
       await acceptHelpRequest({
         helpRequestId: item.helpRequest.id,
@@ -665,6 +720,7 @@ function RequestCard({
       onResolved();
     } finally {
       setSaving(false);
+      onAcceptingChange(null);
     }
   }
 
@@ -675,6 +731,7 @@ function RequestCard({
       onResolved();
     } catch (err) {
       console.error('reject help request error', err);
+      Alert.alert('Error', 'No se pudo rechazar la solicitud. Intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -706,6 +763,7 @@ function RequestCard({
           color={colors.danger}
           onPress={handleReject}
           loading={saving}
+          disabled={blockedByOther}
         />
         {canAccept && (
           <CircleActionButton
@@ -714,6 +772,7 @@ function RequestCard({
             color={colors.primary}
             onPress={handleAccept}
             loading={saving}
+            disabled={blockedByOther}
           />
         )}
       </View>
@@ -722,7 +781,21 @@ function RequestCard({
           No tienes permiso para aceptar auxilios. Pídele acceso al dueño.
         </Text>
       )}
+      {blockedByOther && (
+        <Text style={styles.noPermission}>
+          Ya estás aceptando otra solicitud -- espera a que termine.
+        </Text>
+      )}
     </View>
+  );
+}
+
+function buildAidInformeUrl(helpRequest: HelpRequest, clientName: string | null): string {
+  return (
+    `/(business)/nuevo-informe?helpRequestId=${helpRequest.id}` +
+    `&appointmentStatus=completed` +
+    `&clientId=${helpRequest.client_id}` +
+    (clientName ? `&clientName=${encodeURIComponent(clientName)}` : '')
   );
 }
 
@@ -850,6 +923,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 12,
+  },
+  createReportButton: {
+    marginTop: 10,
   },
   circleActionsRow: {
     flexDirection: 'row',

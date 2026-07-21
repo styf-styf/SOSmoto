@@ -118,7 +118,7 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
     if (serviceBusinessIds.length === 0) return [];
   }
 
-  let query = supabase.from('businesses').select('*');
+  let query = supabase.from('businesses').select('*').eq('is_deactivated', false);
   if (serviceBusinessIds) query = query.in('id', serviceBusinessIds);
   if (params.businessType) query = query.eq('business_type', params.businessType);
   else if (params.businessTypeIn?.length) query = query.in('business_type', params.businessTypeIn);
@@ -135,9 +135,13 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
   const businesses = (data ?? []) as Business[];
   const withDistance: BusinessWithDistance[] = businesses.map((business) => ({
     ...business,
-    distance_km: params.coords
-      ? distanceKm(params.coords.latitude, params.coords.longitude, business.latitude, business.longitude)
-      : null,
+    // Una marca se registra sin ubicación real (coordenadas de relleno,
+    // QUITO_DEFAULT) -- calcularle una distancia real es inventada y engaña
+    // (ver getNewNearbyBusinesses, que ya la excluye por el mismo motivo).
+    distance_km:
+      params.coords && business.business_type !== 'brand_advertiser'
+        ? distanceKm(params.coords.latitude, params.coords.longitude, business.latitude, business.longitude)
+        : null,
   }));
 
   withDistance.sort((a, b) => {
@@ -285,6 +289,17 @@ export async function setBusinessAvailability(businessId: string, available: boo
   if (error) throw error;
 }
 
+// "Desactivar negocio temporalmente" (Configuración > General) -- oculta el
+// perfil de búsquedas y del matching de auxilio sin borrar nada; reactivar
+// deja todo (catálogo, historial, seguidores) exactamente como estaba.
+export async function setBusinessDeactivated(businessId: string, deactivated: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('businesses')
+    .update({ is_deactivated: deactivated })
+    .eq('id', businessId);
+  if (error) throw error;
+}
+
 export async function updateBusinessPlan(businessId: string, planId: string): Promise<Business> {
   const { data, error } = await supabase
     .from('businesses')
@@ -307,6 +322,7 @@ export async function getNewNearbyBusinesses(
   let query = supabase
     .from('businesses')
     .select('*')
+    .eq('is_deactivated', false)
     .neq('business_type', 'brand_advertiser')
     .or(`created_at.gte.${thirtyDaysAgo.toISOString()},followers_count.lt.5`)
     .limit(30);

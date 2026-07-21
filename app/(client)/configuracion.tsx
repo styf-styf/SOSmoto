@@ -85,9 +85,7 @@ export default function ConfiguracionScreen() {
         <MenuRow
           icon="notifications-outline"
           label="Notificaciones"
-          badge={profile?.push_token ? 'Activadas' : 'Inactivas'}
-          onPress={handleOpenSettings}
-          external
+          onPress={() => router.push('/(client)/notificaciones-preferencias')}
           last
         />
       </View>

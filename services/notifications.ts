@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { NotificationCategory, NotificationPrefs } from '../types/database';
 
 export async function updatePushToken(userId: string, token: string): Promise<void> {
   const { error } = await supabase.from('users').update({ push_token: token }).eq('id', userId);
@@ -13,6 +14,21 @@ export async function getPushToken(userId: string): Promise<string | null> {
     .maybeSingle();
   if (error) throw error;
   return data?.push_token ?? null;
+}
+
+export async function getNotificationPrefs(userId: string): Promise<NotificationPrefs> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('notification_prefs')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.notification_prefs as NotificationPrefs) ?? {};
+}
+
+export async function updateNotificationPrefs(userId: string, prefs: NotificationPrefs): Promise<void> {
+  const { error } = await supabase.from('users').update({ notification_prefs: prefs }).eq('id', userId);
+  if (error) throw error;
 }
 
 export async function sendPushNotification(
@@ -79,11 +95,13 @@ export async function notifyUser(
   userId: string,
   title: string,
   body: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
+  category?: NotificationCategory
 ): Promise<void> {
   // Deja registro en `notifications` (para la bandeja del perfil) además de
   // mandar el push -- un fallo al guardar el registro no debe impedir que el
-  // push salga.
+  // push salga, y la preferencia de categoría solo apaga el push, nunca el
+  // registro en la bandeja (el usuario sigue viendo su historial completo).
   supabase
     .from('notifications')
     .insert({ user_id: userId, title, body, data: data ?? null })
@@ -91,7 +109,16 @@ export async function notifyUser(
       if (error) console.error('insert notification error', error);
     });
 
-  const token = await getPushToken(userId);
-  if (!token) return;
-  await sendPushNotification(token, title, body, data);
+  const { data: userRow, error } = await supabase
+    .from('users')
+    .select('push_token, notification_prefs')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!userRow?.push_token) return;
+
+  const prefs = (userRow.notification_prefs as NotificationPrefs) ?? {};
+  if (category && prefs[category] === false) return;
+
+  await sendPushNotification(userRow.push_token, title, body, data);
 }

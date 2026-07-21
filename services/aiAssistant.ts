@@ -41,6 +41,11 @@ export function resolveAiChatAction(action: AiChatAction, ctx: ResolveAiChatActi
 
   switch (action.type) {
     case 'solicitar_auxilio':
+      // Solo el cliente pide auxilio -- un negocio no tiene esa pantalla en
+      // su propio navegador (a lo más ve solicitudes de otros en
+      // "Solicitudes"), así que no navega a nada en vez de mandarlo a un
+      // stack de otro rol.
+      if (role === 'business') return;
       router.push('/(client)/(tabs)/auxilio');
       return;
 

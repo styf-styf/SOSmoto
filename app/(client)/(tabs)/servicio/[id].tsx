@@ -127,19 +127,29 @@ export default function ServiceDetailScreen() {
     }
   }
 
-  async function handleCancelAppointment() {
+  function handleCancelAppointment() {
     if (!confirmedAppointmentId) return;
-    setCancellingAppointment(true);
-    try {
-      await cancelAppointment(confirmedAppointmentId, 'client');
-      setAppointmentRequest(null);
-      setConfirmedAppointmentId(null);
-    } catch (err) {
-      console.error('cancel appointment error', err);
-      Alert.alert('Error', 'No se pudo cancelar la cita. Intenta de nuevo.');
-    } finally {
-      setCancellingAppointment(false);
-    }
+    Alert.alert('Cancelar cita', '¿Seguro que quieres cancelar esta cita ya confirmada?', [
+      { text: 'No cancelar', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          if (!confirmedAppointmentId) return;
+          setCancellingAppointment(true);
+          try {
+            await cancelAppointment(confirmedAppointmentId, 'client');
+            setAppointmentRequest(null);
+            setConfirmedAppointmentId(null);
+          } catch (err) {
+            console.error('cancel appointment error', err);
+            Alert.alert('Error', 'No se pudo cancelar la cita. Intenta de nuevo.');
+          } finally {
+            setCancellingAppointment(false);
+          }
+        },
+      },
+    ]);
   }
 
   useEffect(() => {

@@ -350,8 +350,40 @@ export async function registerAdClick(adId: string): Promise<void> {
   if (error) console.error('registerAdClick error', error);
 }
 
+// Pausar deja de mostrar la campaña sin cancelarla para siempre -- guarda
+// paused_at para que resumeAd() pueda correr ends_at hacia adelante lo que
+// haya durado pausada, sin robarle días ya pagados al negocio.
 export async function pauseAd(adId: string): Promise<Ad> {
-  const { data, error } = await supabase.from('ads').update({ status: 'expired' }).eq('id', adId).select().single();
+  const { data, error } = await supabase
+    .from('ads')
+    .update({ status: 'paused', paused_at: new Date().toISOString() })
+    .eq('id', adId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Ad;
+}
+
+export async function resumeAd(adId: string): Promise<Ad> {
+  const { data: current, error: fetchError } = await supabase
+    .from('ads')
+    .select('ends_at, paused_at')
+    .eq('id', adId)
+    .single();
+  if (fetchError) throw fetchError;
+
+  let endsAt = current.ends_at;
+  if (current.paused_at) {
+    const pausedMs = Math.max(0, Date.now() - new Date(current.paused_at).getTime());
+    endsAt = new Date(new Date(current.ends_at).getTime() + pausedMs).toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('ads')
+    .update({ status: 'active', paused_at: null, ends_at: endsAt })
+    .eq('id', adId)
+    .select()
+    .single();
   if (error) throw error;
   return data as Ad;
 }

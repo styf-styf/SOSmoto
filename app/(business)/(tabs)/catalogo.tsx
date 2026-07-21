@@ -324,6 +324,7 @@ export default function CatalogoScreen() {
             setForm(null);
           } catch (err) {
             console.error('delete service error', err);
+            Alert.alert('Error', 'No se pudo eliminar el servicio. Intenta de nuevo.');
           }
         },
       },
@@ -343,6 +344,7 @@ export default function CatalogoScreen() {
             setForm(null);
           } catch (err) {
             console.error('delete product error', err);
+            Alert.alert('Error', 'No se pudo eliminar el producto. Intenta de nuevo.');
           }
         },
       },

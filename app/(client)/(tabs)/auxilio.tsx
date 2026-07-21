@@ -234,14 +234,36 @@ export default function AuxilioScreen() {
     }
   }
 
-  async function handleCancel() {
+  async function runCancel() {
     if (!activeRequest) return;
     try {
       await cancelHelpRequest(activeRequest.id);
       setActiveRequest(null);
     } catch (err) {
       console.error('cancel help request error', err);
+      Alert.alert('Error', 'No se pudo cancelar la solicitud.');
     }
+  }
+
+  function handleCancel() {
+    if (!activeRequest) return;
+    // Solo se confirma si ya hay un taller asignado (viene en camino) --
+    // mientras sigue "pending" (buscando talleres) cancelar es de bajo
+    // riesgo, nadie se comprometió todavía.
+    if (activeRequest.status === 'pending') {
+      runCancel();
+      return;
+    }
+    Alert.alert(
+      'Cancelar auxilio',
+      business
+        ? `${business.name} ya aceptó tu solicitud. ¿Seguro que quieres cancelar?`
+        : '¿Seguro que quieres cancelar tu solicitud de auxilio?',
+      [
+        { text: 'No cancelar', style: 'cancel' },
+        { text: 'Sí, cancelar', style: 'destructive', onPress: runCancel },
+      ],
+    );
   }
 
   async function handleCompleteFromClient() {

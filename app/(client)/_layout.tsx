@@ -40,6 +40,7 @@ export default function ClientLayout() {
         <Stack.Screen name="historial" options={{ title: 'Historial' }} />
         <Stack.Screen name="mis-compras" options={{ title: 'Mis compras' }} />
         <Stack.Screen name="notificaciones" options={{ title: 'Notificaciones' }} />
+        <Stack.Screen name="notificaciones-preferencias" options={{ title: 'Notificaciones' }} />
         <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
         <Stack.Screen name="datos-personales" options={{ title: 'Perfil personal' }} />
         <Stack.Screen name="cambiar-password" options={{ title: 'Contraseña' }} />

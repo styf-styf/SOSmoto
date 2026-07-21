@@ -218,13 +218,23 @@ export default function AgendaNegocioScreen() {
     }
   }
 
-  async function handleReject(id: string) {
-    try {
-      await rejectAppointment(id);
-      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'rejected' } : a)));
-    } catch (err) {
-      console.error('reject appointment error', err);
-    }
+  function handleReject(id: string) {
+    Alert.alert('Rechazar cita', '¿Seguro que quieres rechazar esta cita? El cliente será notificado.', [
+      { text: 'No rechazar', style: 'cancel' },
+      {
+        text: 'Sí, rechazar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await rejectAppointment(id);
+            setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'rejected' } : a)));
+          } catch (err) {
+            console.error('reject appointment error', err);
+            Alert.alert('Error', 'No se pudo rechazar la cita.');
+          }
+        },
+      },
+    ]);
   }
 
   async function handleComplete(id: string) {
@@ -236,13 +246,23 @@ export default function AgendaNegocioScreen() {
     }
   }
 
-  async function handleCancel(id: string) {
-    try {
-      await cancelAppointment(id, 'business');
-      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)));
-    } catch (err) {
-      console.error('cancel appointment error', err);
-    }
+  function handleCancel(id: string) {
+    Alert.alert('Cancelar cita', '¿Seguro que quieres cancelar esta cita? El cliente será notificado.', [
+      { text: 'No cancelar', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelAppointment(id, 'business');
+            setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)));
+          } catch (err) {
+            console.error('cancel appointment error', err);
+            Alert.alert('Error', 'No se pudo cancelar la cita.');
+          }
+        },
+      },
+    ]);
   }
 
   function startRating(id: string) {

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { getServiceReport, type ServiceReportWithBusiness } from '../../../services/serviceReports';
@@ -47,7 +47,13 @@ export default function InformeNegocioScreen() {
     );
   }
 
-  if (!report) return null;
+  if (!report) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>Este informe ya no está disponible.</Text>
+      </View>
+    );
+  }
 
   return (
     <ServiceReportView
@@ -65,5 +71,6 @@ export default function InformeNegocioScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background, padding: 20 },
+  placeholder: { color: colors.textMuted, fontSize: 14 },
 });

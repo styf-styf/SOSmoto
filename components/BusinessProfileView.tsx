@@ -259,6 +259,15 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
           </Text>
         </View>
       )}
+      {mode === 'self' && business.is_deactivated && (
+        <View style={styles.suspendedBanner}>
+          <Ionicons name="eye-off" size={18} color={colors.danger} />
+          <Text style={styles.suspendedBannerText}>
+            Desactivaste tu negocio: no aparece en búsquedas ni recibe solicitudes de auxilio. Reactívalo desde
+            Configuración cuando quieras volver a estar visible.
+          </Text>
+        </View>
+      )}
       <View style={styles.headerRow}>
         {mode === 'self' ? (
           <Pressable style={styles.avatarWrap} onPress={handleChangeLogo} disabled={!isOwner || uploadingLogo}>
@@ -295,9 +304,14 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             {business.is_verified && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
           </View>
           {mode === 'public' && <Text style={styles.subtitle}>{businessTypeLabel[business.business_type]}</Text>}
-          <Text style={styles.subtitle}>
-            {business.address}, {business.city}
-          </Text>
+          {/* Una marca no tiene dirección ni ciudad real -- sin este
+              condicional se veía literalmente "," incluso en su propio
+              perfil (ver auditoría UX). */}
+          {(business.address || business.city) && (
+            <Text style={styles.subtitle}>
+              {[business.address, business.city].filter(Boolean).join(', ')}
+            </Text>
+          )}
         </View>
         {mode === 'self' && (
           <View style={styles.headerIconsRow}>
@@ -404,7 +418,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         </View>
       )}
 
-      {mode === 'public' && (
+      {mode === 'public' && business.business_type !== 'brand_advertiser' && (
         <View style={styles.section}>
           <View style={styles.scheduleHeaderRow}>
             <Text style={styles.sectionTitle}>Horario</Text>

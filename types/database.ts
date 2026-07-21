@@ -1,5 +1,14 @@
 export type UserRole = 'client' | 'business' | 'admin';
 
+// Categorías reales con notificaciones push implementadas (ver
+// services/notifications.ts, check-maintenance/check-subscription-expiry/
+// check-business-growth) -- no incluye todo lo que CLAUDE.md menciona (ej.
+// "promos de seguidos" todavía no existe como notificación real).
+export type NotificationCategory = 'auxilio' | 'mensajes' | 'mantenimiento' | 'pagos' | 'upselling';
+
+// Ausencia de una clave = activada (objeto vacío por default no apaga nada).
+export type NotificationPrefs = Partial<Record<NotificationCategory, boolean>>;
+
 export interface User {
   id: string;
   email: string;
@@ -10,6 +19,7 @@ export interface User {
   push_token: string | null;
   is_limited: boolean;
   limitation_reason: string | null;
+  notification_prefs: NotificationPrefs;
   created_at: string;
 }
 
@@ -70,6 +80,9 @@ export interface Business {
   is_24h: boolean;
   is_limited: boolean;
   limitation_reason: string | null;
+  // Distinto de is_limited (lo impone el admin, no oculta el perfil) --
+  // este lo activa el propio dueño para volverse invisible temporalmente.
+  is_deactivated: boolean;
   promotion_claimed_at: string | null;
   created_at: string;
 }
@@ -331,7 +344,7 @@ export interface Review {
   created_at: string;
 }
 
-export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
+export type AdStatus = 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired' | 'paused';
 
 export type AdKind = 'product' | 'service';
 
@@ -365,6 +378,12 @@ export interface Ad {
   status: AdStatus;
   starts_at: string;
   ends_at: string;
+  // Solo se llena mientras status === 'paused' -- resumeAd() lo usa para
+  // correr ends_at hacia adelante lo que duró pausada.
+  paused_at: string | null;
+  // Solo se llena cuando status === 'rejected' -- razón que el admin escribe
+  // al rechazar, para que el negocio sepa qué corregir antes de reenviar.
+  rejection_reason: string | null;
   payment_id: string | null;
   impressions: number;
   clicks: number;

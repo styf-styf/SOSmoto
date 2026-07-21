@@ -9,13 +9,18 @@ export function AdReviewActions({ adId }: { adId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function review(decision: 'active' | 'rejected') {
-    if (decision === 'rejected' && !window.confirm('¿Rechazar esta campaña?')) return;
+    let reason: string | undefined;
+    if (decision === 'rejected') {
+      const input = window.prompt('Razón del rechazo (el negocio la verá para poder corregir y reenviar):');
+      if (input === null) return;
+      reason = input;
+    }
     setLoading(decision);
     setError(null);
     const res = await fetch(`/api/campanas/${adId}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision }),
+      body: JSON.stringify({ decision, reason }),
     });
     setLoading(null);
     if (!res.ok) {

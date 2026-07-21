@@ -118,11 +118,15 @@ module.exports = async (req, res) => {
         : { success: false, payment, confirmResult };
   }
 
+  // "ok" viaja en el deep link para que pago-resultado.tsx pueda avisar si
+  // el cobro no se confirmó -- antes se navegaba a la pantalla sin decir
+  // nada, y un pago rechazado/pendiente se veía idéntico a uno cancelado.
+  const okParam = wait.success ? '1' : '0';
   const appLink =
     payment?.type === 'advertising'
-      ? 'sosmoto://pago-resultado?tipo=advertising'
+      ? `sosmoto://pago-resultado?tipo=advertising&ok=${okParam}`
       : payment?.type === 'subscription'
-        ? 'sosmoto://pago-resultado?tipo=subscription'
+        ? `sosmoto://pago-resultado?tipo=subscription&ok=${okParam}`
         : 'sosmoto://';
 
   const debugLine = wait.success
