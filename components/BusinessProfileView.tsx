@@ -396,11 +396,23 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
               active={following}
             />
           )}
-          {showFollowClient && (
+          {showFollowButton && (
+            // showFollowButton (no solo showFollowClient) -- un taller viendo
+            // el perfil de una tienda/marca (o una tienda viendo el de una
+            // marca) sí puede interactuar con ella (ver canBusinessFollowTarget
+            // arriba, mismo B2B del buscador), pero antes este botón solo
+            // aparecía para clientes: un taller nunca veía forma de escribirle
+            // desde el perfil. Negocio->negocio necesita sellerBusinessId (yo
+            // soy el lado "cliente" de ese hilo específico, ver resolveThread
+            // en chat/[id].tsx) -- mismo patrón que AdDetail.tsx.handleChat.
             <ProfileActionButton
               icon="chatbubble-outline"
               label="Mensaje"
-              onPress={() => router.push(`${viewerPrefix}/chat/${business.id}`)}
+              onPress={() =>
+                canBusinessFollowTarget
+                  ? router.push(`/(business)/chat/${business.owner_id}?sellerBusinessId=${business.id}`)
+                  : router.push(`${viewerPrefix}/chat/${business.id}`)
+              }
             />
           )}
           {showFollowClient && business.business_type === 'workshop' && (

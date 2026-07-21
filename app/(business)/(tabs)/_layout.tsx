@@ -44,6 +44,14 @@ export default function BusinessTabsLayout() {
   useEffect(() => {
     if (!profile) return;
     let cancelled = false;
+    // Al cambiar de cuenta (cerrar sesión y entrar con otra) este efecto
+    // vuelve a correr, pero sin este reset businessType/businessLogoUrl se
+    // quedaban con el valor de la cuenta ANTERIOR hasta que la lectura de
+    // AsyncStorage/red de la cuenta nueva resolvía -- se veían por un
+    // instante las pestañas y el logo del negocio de antes, no los de la
+    // cuenta recién ingresada.
+    setBusinessType(null);
+    setBusinessLogoUrl(null);
     // Sin esto, cada apertura fría de la app mostraba la pestaña
     // "Solicitudes" (taller) y el logo real del negocio con un instante de
     // retraso -- mientras getMyWorkBusiness viaja por red, businessType y
