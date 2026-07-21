@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
+import { Button } from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../constants/colors';
 import { consumePendingDeepLink, type PendingDeepLinkKind } from '../utils/pendingDeepLink';
@@ -14,7 +15,7 @@ const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
 };
 
 export default function Index() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, profileFetchError, refreshProfile } = useAuth();
   const [pendingChecked, setPendingChecked] = useState(false);
   const [handledPending, setHandledPending] = useState(false);
 
@@ -46,6 +47,22 @@ export default function Index() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Antes, si el fetch del perfil fallaba por falta de red (session sigue
+  // siendo válida, se lee de AsyncStorage sin tocar la red), esta pantalla
+  // igual mandaba a login -- un usuario logueado se veía "deslogueado" solo
+  // por no tener internet. Si el problema es de red, no sabemos si el
+  // perfil existe o no, así que no se trata igual que "no hay sesión".
+  if (session && !profile && profileFetchError) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
+        <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center' }}>
+          No pudimos conectarnos. Revisa tu conexión a internet e intenta de nuevo.
+        </Text>
+        <Button title="Reintentar" onPress={refreshProfile} />
       </View>
     );
   }

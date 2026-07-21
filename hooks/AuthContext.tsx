@@ -8,6 +8,12 @@ interface AuthContextValue {
   session: Session | null;
   profile: User | null;
   loading: boolean;
+  // true solo cuando el fetch del perfil rechazó (sin red) -- distinto de un
+  // fetch que resolvió con un error real (perfil no encontrado/sin permiso).
+  // Deja que las pantallas que deciden "sin sesión -> a login" (app/index.tsx,
+  // los resolvers de deep link) no confundan "no hay sesión" con "no se pudo
+  // preguntar" -- ver el comentario en el efecto de abajo.
+  profileFetchError: boolean;
   refreshProfile: () => Promise<void>;
 }
 
@@ -36,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // link se volvió visible (mandaba a login a un usuario que sí tenía
   // sesión activa).
   const [profileLoading, setProfileLoading] = useState(true);
+  const [profileFetchError, setProfileFetchError] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(
@@ -62,12 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!session?.user) {
       setProfile(null);
+      setProfileFetchError(false);
       setProfileLoading(false);
       return;
     }
 
     let isCurrent = true;
     setProfileLoading(true);
+    setProfileFetchError(false);
 
     supabase
       .from('users')
@@ -90,9 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // {error} (poco común, pero no imposible con fallas de red de bajo
           // nivel) -- sin este handler, profileLoading se quedaba en true
           // para siempre y toda la app mostraba el spinner de carga sin fin.
+          // A diferencia de un error resuelto (el servidor sí respondió: no
+          // hay perfil, no hay permiso), un rechazo significa que ni siquiera
+          // se pudo contactar al servidor -- no sabemos si el perfil existe,
+          // así que no se debe tratar igual que "no hay sesión" (ver
+          // app/index.tsx, que antes mandaba a login a un usuario logueado
+          // solo porque no tenía internet).
           if (!isCurrent) return;
           console.error('profile fetch rejected', err);
-          setProfile(null);
+          setProfileFetchError(true);
           setProfileLoading(false);
         }
       );
@@ -106,11 +121,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!session?.user) return;
-    const { data, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
-    if (!error && data) setProfile(data as User);
+    try {
+      const { data, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+      if (error) {
+        console.error('refreshProfile error', error);
+        return;
+      }
+      setProfile(data as User);
+      setProfileFetchError(false);
+    } catch (err) {
+      console.error('refreshProfile rejected', err);
+      setProfileFetchError(true);
+    }
   }, [session?.user?.id]);
 
-  return <AuthContext.Provider value={{ session, profile, loading, refreshProfile }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ session, profile, loading, profileFetchError, refreshProfile }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
