@@ -142,27 +142,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('id', session.user.id)
       .single()
       .then(
-        ({ data, error }) => {
+        ({ data, error, status }) => {
           if (!isCurrent) return;
           if (error) {
-            console.error('profile fetch error', error);
+            console.error('profile fetch error', error, 'status', status);
             setProfile(null);
+            // postgrest-js NUNCA rechaza la promesa ante un fallo de red (a
+            // diferencia de lo que se asumía acá antes) -- por defecto
+            // atrapa cualquier fallo de fetch y lo resuelve igual que un
+            // error de servidor normal, con status:0 como única marca real
+            // de que la petición nunca llegó a tocar el servidor (cualquier
+            // respuesta real, incluso un error del servidor, trae un status
+            // HTTP verdadero). Por eso profileFetchError nunca se activaba
+            // sin internet: se estaba revisando un rechazo que nunca ocurre.
+            setProfileFetchError(status === 0);
           } else {
             setProfile(data as User);
+            setProfileFetchError(false);
           }
           setProfileLoading(false);
         },
         (err: unknown) => {
-          // Si el thenable de Supabase llega a rechazar en vez de resolver
-          // {error} (poco común, pero no imposible con fallas de red de bajo
-          // nivel) -- sin este handler, profileLoading se quedaba en true
-          // para siempre y toda la app mostraba el spinner de carga sin fin.
-          // A diferencia de un error resuelto (el servidor sí respondió: no
-          // hay perfil, no hay permiso), un rechazo significa que ni siquiera
-          // se pudo contactar al servidor -- no sabemos si el perfil existe,
-          // así que no se debe tratar igual que "no hay sesión" (ver
-          // app/index.tsx, que antes mandaba a login a un usuario logueado
-          // solo porque no tenía internet).
+          // Camino de respaldo -- con el cliente por defecto esto en teoría
+          // nunca debería dispararse (ver arriba), pero sin este handler
+          // profileLoading se quedaba en true para siempre si algún día sí
+          // llega a pasar.
           if (!isCurrent) return;
           console.error('profile fetch rejected', err);
           setProfileFetchError(true);
@@ -180,9 +184,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!session?.user) return;
     try {
-      const { data, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+      const { data, error, status } = await supabase.from('users').select('*').eq('id', session.user.id).single();
       if (error) {
-        console.error('refreshProfile error', error);
+        console.error('refreshProfile error', error, 'status', status);
+        // Ver el efecto de arriba -- status:0 es la única marca real de que
+        // fue un fallo de red, no una respuesta del servidor.
+        setProfileFetchError(status === 0);
         return;
       }
       setProfile(data as User);
