@@ -91,18 +91,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      setSessionLoaded(true);
       if (newSession) {
+        setSession(newSession);
+        setSessionLoaded(true);
         setSessionAmbiguous(false);
         AsyncStorage.setItem(HAD_SESSION_KEY, '1').catch(() => {});
-      } else if (event === 'SIGNED_OUT') {
+        return;
+      }
+      if (event === 'SIGNED_OUT') {
         // Cierre de sesión real y explícito (el propio signOut(), o el token
         // fue revocado del lado del servidor) -- ahí sí se limpia la marca,
         // a diferencia de un simple fallo de red.
+        setSession(null);
+        setSessionLoaded(true);
         setSessionAmbiguous(false);
         AsyncStorage.removeItem(HAD_SESSION_KEY).catch(() => {});
+        return;
       }
+      // Bug real encontrado: supabase-js dispara este callback con
+      // newSession:null también para 'INITIAL_SESSION' cuando su propio
+      // getSession() interno falla al renovar el token por falta de red --
+      // exactamente el mismo caso que loadSession() ya maneja con cuidado.
+      // Sin este `return` a loadSession(), este handler pisaba `session` a
+      // null directo (sin revisar HAD_SESSION_KEY) y a veces le ganaba la
+      // carrera a loadSession(), mandando a login a un usuario que sí tenía
+      // sesión, igual que antes de este fix.
+      loadSession();
     });
 
     return () => listener.subscription.unsubscribe();
