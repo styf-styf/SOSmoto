@@ -14,13 +14,36 @@ const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
   service: '(tabs)/servicio',
 };
 
-function RetryScreen({ onRetry }: { onRetry: () => void }) {
+function RetryScreen({ onRetry, stillFailing }: { onRetry: () => Promise<void>; stillFailing: boolean }) {
+  const [retrying, setRetrying] = useState(false);
+  // Antes el botón no daba ningún indicio de que el tap se había registrado
+  // -- si seguía sin internet, reintentaba y fallaba igual, pero la
+  // pantalla se quedaba exactamente igual, así que parecía que no hacía
+  // nada. `attempted` habilita el aviso de abajo recién después del primer
+  // intento (para no mostrarlo antes de tiempo).
+  const [attempted, setAttempted] = useState(false);
+
+  async function handleRetry() {
+    setRetrying(true);
+    try {
+      await onRetry();
+    } finally {
+      setRetrying(false);
+      setAttempted(true);
+    }
+  }
+
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
       <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center' }}>
         No pudimos conectarnos. Revisa tu conexión a internet e intenta de nuevo.
       </Text>
-      <Button title="Reintentar" onPress={onRetry} />
+      {attempted && stillFailing && (
+        <Text style={{ fontSize: 13, color: colors.danger, textAlign: 'center' }}>
+          Seguimos sin poder conectarnos.
+        </Text>
+      )}
+      <Button title="Reintentar" onPress={handleRetry} loading={retrying} />
     </View>
   );
 }
@@ -68,14 +91,14 @@ export default function Index() {
   // AuthContext) y no se manda a un usuario logueado a login solo por estar
   // sin internet.
   if (sessionAmbiguous) {
-    return <RetryScreen onRetry={retrySession} />;
+    return <RetryScreen onRetry={retrySession} stillFailing={sessionAmbiguous} />;
   }
 
   // Mismo caso pero un paso más adelante: la sesión sí cargó, pero el fetch
   // del perfil falló por red (ver AuthContext) -- tampoco se trata como
   // "no hay sesión".
   if (session && !profile && profileFetchError) {
-    return <RetryScreen onRetry={refreshProfile} />;
+    return <RetryScreen onRetry={refreshProfile} stillFailing={profileFetchError} />;
   }
 
   if (!session || !profile) {
