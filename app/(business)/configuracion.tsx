@@ -12,12 +12,19 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { signOut } from '../../services/auth';
 import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/businesses';
+
+// Ver app/(client)/configuracion.tsx -- mismo motivo: diagnosticar si el
+// dispositivo ya aplicó la última actualización OTA o sigue en la anterior.
+const buildInfo = Updates.isEmbeddedLaunch
+  ? 'Build de fábrica (sin actualización OTA aplicada)'
+  : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
 import { getPendingRequests } from '../../services/helpRequests';
@@ -370,6 +377,8 @@ export default function BusinessConfiguracionScreen() {
           {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </Text>
       </Pressable>
+
+      <Text style={styles.buildInfo}>{buildInfo}</Text>
     </ScrollView>
   );
 }
@@ -537,5 +546,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.danger,
+  },
+  buildInfo: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

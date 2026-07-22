@@ -2,9 +2,19 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { signOut } from '../../services/auth';
+
+// Identifica qué actualización OTA corre de verdad en el dispositivo -- útil
+// para diagnosticar "publiqué un fix pero el celular sigue mostrando el bug
+// viejo" (las actualizaciones de eas update no se aplican al instante, ver
+// https://docs.expo.dev/versions/latest/sdk/updates -- solo se descargan en
+// segundo plano y se usan recién en la SIGUIENTE apertura de la app).
+const buildInfo = Updates.isEmbeddedLaunch
+  ? 'Build de fábrica (sin actualización OTA aplicada)'
+  : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
 
 export default function ConfiguracionScreen() {
   const { profile } = useAuth();
@@ -106,6 +116,8 @@ export default function ConfiguracionScreen() {
       </Pressable>
 
       {/* Eliminar cuenta — oculto temporalmente */}
+
+      <Text style={styles.buildInfo}>{buildInfo}</Text>
     </ScrollView>
   );
 }
@@ -235,5 +247,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.danger,
+  },
+  buildInfo: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
