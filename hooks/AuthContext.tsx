@@ -1,13 +1,27 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import type { User } from '../types/database';
+
+// Marca liviana, propia de la app -- no es la sesión real (esa vive en el
+// storage interno de supabase-js). Sirve para distinguir "nunca hubo sesión
+// en este dispositivo" de "hubo sesión, ahora getSession() dice null". Ver
+// el porqué en el efecto de abajo.
+const HAD_SESSION_KEY = 'auth-had-session';
 
 interface AuthContextValue {
   session: Session | null;
   profile: User | null;
   loading: boolean;
+  // true cuando getSession() devuelve/rechaza sin sesión PERO este
+  // dispositivo sí tuvo una antes -- el access token expiró y no se pudo
+  // renovar por falta de red (getSession() intenta renovarlo internamente
+  // si está vencido, y sin internet esa renovación falla). No es un cierre
+  // de sesión real, así que no debe tratarse igual (ver app/index.tsx).
+  sessionAmbiguous: boolean;
+  retrySession: () => Promise<void>;
   // true solo cuando el fetch del perfil rechazó (sin red) -- distinto de un
   // fetch que resolvió con un error real (perfil no encontrado/sin permiso).
   // Deja que las pantallas que deciden "sin sesión -> a login" (app/index.tsx,
@@ -43,26 +57,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // sesión activa).
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileFetchError, setProfileFetchError] = useState(false);
+  const [sessionAmbiguous, setSessionAmbiguous] = useState(false);
+
+  const loadSession = useCallback(async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setSession(data.session);
+        setSessionAmbiguous(false);
+        AsyncStorage.setItem(HAD_SESSION_KEY, '1').catch(() => {});
+      } else {
+        // getSession() puede devolver session:null tanto si de verdad no hay
+        // sesión como si el access token expiró y el intento de renovarlo
+        // (que getSession() hace internamente cuando está vencido) falló por
+        // falta de red -- en ambos casos el resultado es el mismo objeto
+        // {session: null}, sin distinción. Si este dispositivo sí tuvo una
+        // sesión antes, se asume que es el segundo caso.
+        const hadSession = await AsyncStorage.getItem(HAD_SESSION_KEY).catch(() => null);
+        setSession(null);
+        setSessionAmbiguous(hadSession === '1');
+      }
+    } catch (err) {
+      console.error('getSession rejected', err);
+      const hadSession = await AsyncStorage.getItem(HAD_SESSION_KEY).catch(() => null);
+      setSession(null);
+      setSessionAmbiguous(hadSession === '1');
+    } finally {
+      setSessionLoaded(true);
+    }
+  }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(
-      ({ data }) => {
-        setSession(data.session);
-        setSessionLoaded(true);
-      },
-      (err: unknown) => {
-        console.error('getSession rejected', err);
-        setSessionLoaded(true);
-      }
-    );
+    loadSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setSessionLoaded(true);
+      if (newSession) {
+        setSessionAmbiguous(false);
+        AsyncStorage.setItem(HAD_SESSION_KEY, '1').catch(() => {});
+      } else if (event === 'SIGNED_OUT') {
+        // Cierre de sesión real y explícito (el propio signOut(), o el token
+        // fue revocado del lado del servidor) -- ahí sí se limpia la marca,
+        // a diferencia de un simple fallo de red.
+        setSessionAmbiguous(false);
+        AsyncStorage.removeItem(HAD_SESSION_KEY).catch(() => {});
+      }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [loadSession]);
 
   useEffect(() => {
     if (!sessionLoaded) return;
@@ -136,7 +180,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, profileFetchError, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ session, profile, loading, sessionAmbiguous, retrySession: loadSession, profileFetchError, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

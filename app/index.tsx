@@ -14,8 +14,19 @@ const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
   service: '(tabs)/servicio',
 };
 
+function RetryScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center' }}>
+        No pudimos conectarnos. Revisa tu conexión a internet e intenta de nuevo.
+      </Text>
+      <Button title="Reintentar" onPress={onRetry} />
+    </View>
+  );
+}
+
 export default function Index() {
-  const { session, profile, loading, profileFetchError, refreshProfile } = useAuth();
+  const { session, profile, loading, sessionAmbiguous, retrySession, profileFetchError, refreshProfile } = useAuth();
   const [pendingChecked, setPendingChecked] = useState(false);
   const [handledPending, setHandledPending] = useState(false);
 
@@ -51,20 +62,20 @@ export default function Index() {
     );
   }
 
-  // Antes, si el fetch del perfil fallaba por falta de red (session sigue
-  // siendo válida, se lee de AsyncStorage sin tocar la red), esta pantalla
-  // igual mandaba a login -- un usuario logueado se veía "deslogueado" solo
-  // por no tener internet. Si el problema es de red, no sabemos si el
-  // perfil existe o no, así que no se trata igual que "no hay sesión".
+  // getSession() puede devolver "sin sesión" tanto si de verdad no hay una
+  // como si el access token expiró y no se pudo renovar por falta de red --
+  // si este dispositivo sí tuvo sesión antes, se asume lo segundo (ver
+  // AuthContext) y no se manda a un usuario logueado a login solo por estar
+  // sin internet.
+  if (sessionAmbiguous) {
+    return <RetryScreen onRetry={retrySession} />;
+  }
+
+  // Mismo caso pero un paso más adelante: la sesión sí cargó, pero el fetch
+  // del perfil falló por red (ver AuthContext) -- tampoco se trata como
+  // "no hay sesión".
   if (session && !profile && profileFetchError) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
-        <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center' }}>
-          No pudimos conectarnos. Revisa tu conexión a internet e intenta de nuevo.
-        </Text>
-        <Button title="Reintentar" onPress={refreshProfile} />
-      </View>
-    );
+    return <RetryScreen onRetry={refreshProfile} />;
   }
 
   if (!session || !profile) {
