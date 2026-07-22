@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../constants/colors';
@@ -21,6 +22,40 @@ function RetryScreen({ onRetry }: { onRetry: () => void }) {
         No pudimos conectarnos. Revisa tu conexión a internet e intenta de nuevo.
       </Text>
       <Button title="Reintentar" onPress={onRetry} />
+    </View>
+  );
+}
+
+// DIAGNÓSTICO TEMPORAL -- quitar una vez encontrada la causa real de por qué
+// sessionAmbiguous no se activa en el reporte del usuario (build confirmado
+// como el correcto, así que el bug tiene que estar en el estado real).
+function DebugRedirectScreen({
+  session,
+  profile,
+  sessionAmbiguous,
+  profileFetchError,
+}: {
+  session: unknown;
+  profile: unknown;
+  sessionAmbiguous: boolean;
+  profileFetchError: boolean;
+}) {
+  const [hadSessionRaw, setHadSessionRaw] = useState<string | null>('cargando…');
+  useEffect(() => {
+    AsyncStorage.getItem('auth-had-session')
+      .then((v) => setHadSessionRaw(v === null ? 'null' : v))
+      .catch((err) => setHadSessionRaw(`error: ${String(err)}`));
+  }, []);
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 }}>
+      <Text style={{ fontSize: 13, color: colors.text, textAlign: 'center' }}>
+        session: {session ? 'sí' : 'no'}{'\n'}
+        profile: {profile ? 'sí' : 'no'}{'\n'}
+        sessionAmbiguous: {String(sessionAmbiguous)}{'\n'}
+        profileFetchError: {String(profileFetchError)}{'\n'}
+        AsyncStorage[auth-had-session]: {hadSessionRaw}
+      </Text>
+      <Button title="Ir a login" onPress={() => router.replace('/(auth)/login')} />
     </View>
   );
 }
@@ -79,7 +114,14 @@ export default function Index() {
   }
 
   if (!session || !profile) {
-    return <Redirect href="/(auth)/login" />;
+    return (
+      <DebugRedirectScreen
+        session={session}
+        profile={profile}
+        sessionAmbiguous={sessionAmbiguous}
+        profileFetchError={profileFetchError}
+      />
+    );
   }
 
   if (profile.role === 'business') {
