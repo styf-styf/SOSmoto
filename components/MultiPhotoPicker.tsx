@@ -47,6 +47,7 @@ export function MultiPhotoPicker({
 const styles = StyleSheet.create({
   row: {
     gap: 8,
+    paddingTop: 8,
   },
   thumbWrap: {
     position: 'relative',

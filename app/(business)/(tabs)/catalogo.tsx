@@ -1659,6 +1659,7 @@ const styles = StyleSheet.create({
   photosRow: {
     gap: 10,
     marginBottom: 6,
+    paddingTop: 8,
   },
   photoThumbWrap: {
     position: 'relative',

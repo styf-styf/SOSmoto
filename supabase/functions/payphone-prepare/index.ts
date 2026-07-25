@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const { data: business, error: businessError } = await supabase
       .from('businesses')
-      .select('id, owner_id')
+      .select('id, owner_id, business_type')
       .eq('id', businessId)
       .single();
     if (businessError || !business || business.owner_id !== userData.user.id) {
@@ -56,11 +56,14 @@ Deno.serve(async (req) => {
 
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('id, name, price_monthly')
+      .select('id, name, business_type, price_monthly')
       .eq('id', planId)
       .single();
     if (planError || !plan) {
       return json({ error: 'Plan no encontrado' }, 404);
+    }
+    if (plan.business_type !== business.business_type) {
+      return json({ error: 'Ese plan no corresponde al tipo de negocio (taller/tienda).' }, 400);
     }
     if (plan.price_monthly <= 0) {
       return json({ error: 'Este plan no requiere pago' }, 400);

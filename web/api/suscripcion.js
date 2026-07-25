@@ -141,7 +141,11 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const { data: plans } = await sb.from('subscription_plans').select('*').order('price_monthly', { ascending: true });
+    const { data: plans } = await sb
+      .from('subscription_plans')
+      .select('*')
+      .eq('business_type', business.business_type)
+      .order('price_monthly', { ascending: true });
     const { data: activeSub } = await sb
       .from('business_subscriptions')
       .select('expires_at')
@@ -216,15 +220,28 @@ module.exports = async (req, res) => {
     const plansEl = document.getElementById('plans');
     plansEl.innerHTML = (plans || []).map((plan) => {
       const isCurrent = plan.id === business.plan_id;
-      const features = [
-        { label: 'Productos: ' + limitLabel(plan.max_products), available: true },
-        { label: 'Servicios: ' + limitLabel(plan.max_services), available: true },
-        { label: 'Fotos por producto/servicio/publicación: ' + plan.max_photos_per_item, available: true },
-        { label: 'Personas en el equipo: ' + limitLabel(plan.max_employees), available: true },
-        { label: 'Historias activas: ' + limitLabel(plan.max_active_stories), available: true },
-        { label: 'Dashboard/métricas: ' + (dashboardTierLabel[plan.name] || plan.name), available: true },
-        { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
-      ];
+      const isStorePlan = plan.business_type === 'store';
+      const features = isStorePlan
+        ? [
+            { label: 'Productos: ' + limitLabel(plan.max_products), available: true },
+            { label: 'Fotos por producto/publicación: ' + plan.max_photos_per_item, available: true },
+            { label: 'Variantes de producto', available: plan.allow_variants },
+            { label: 'Precio por volumen', available: plan.allow_price_tiers },
+            { label: 'Cantidad mínima de pedido', available: true },
+            { label: plan.max_employees === 0 ? 'Personas en el equipo' : 'Personas en el equipo: ' + limitLabel(plan.max_employees), available: plan.max_employees !== 0 },
+            { label: 'Historias activas: ' + limitLabel(plan.max_active_stories), available: true },
+            { label: 'Dashboard/métricas: ' + (dashboardTierLabel[plan.name] || plan.name), available: true },
+            { label: 'Insignia de verificado', available: plan.name !== 'free' },
+          ]
+        : [
+            { label: 'Productos: ' + limitLabel(plan.max_products), available: true },
+            { label: 'Servicios: ' + limitLabel(plan.max_services), available: true },
+            { label: 'Fotos por producto/servicio/publicación: ' + plan.max_photos_per_item, available: true },
+            { label: plan.max_employees === 0 ? 'Personas en el equipo' : 'Personas en el equipo: ' + limitLabel(plan.max_employees), available: plan.max_employees !== 0 },
+            { label: 'Historias activas: ' + limitLabel(plan.max_active_stories), available: true },
+            { label: 'Dashboard/métricas: ' + (dashboardTierLabel[plan.name] || plan.name), available: true },
+            { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
+          ];
       return '<div class="card ' + (isCurrent ? 'current' : '') + '">' +
         '<div class="card-header"><span class="card-title">' + (planLabel[plan.name] || plan.name) + '</span>' +
         (isCurrent ? '<span class="badge">Tu plan actual</span>' : '') + '</div>' +
