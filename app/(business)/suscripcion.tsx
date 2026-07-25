@@ -264,18 +264,34 @@ export default function SuscripcionScreen() {
           isCurrent && plan.price_monthly > 0 && daysLeft !== null && daysLeft <= REMINDER_DAYS_BEFORE;
         const isPromoPlan = promotion?.plan_id === plan.id;
         const showPromoButton = isOwner && !isCurrent && isPromoPlan && canClaimPromotion;
-        const features = [
-          { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
-          { label: `Servicios: ${limitLabel(plan.max_services)}`, available: true },
-          { label: `Fotos por producto/servicio/publicación: ${plan.max_photos_per_item}`, available: true },
-          {
-            label: plan.max_employees === 0 ? 'Personas en el equipo' : `Personas en el equipo: ${limitLabel(plan.max_employees)}`,
-            available: plan.max_employees !== 0,
-          },
-          { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
-          { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
-          { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
-        ];
+        const isStorePlan = plan.business_type === 'store';
+        const features = isStorePlan
+          ? [
+              { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
+              { label: `Fotos por producto: ${plan.max_photos_per_item}`, available: true },
+              { label: 'Variantes de producto', available: plan.allow_variants },
+              { label: 'Precio por volumen (escalones)', available: plan.allow_price_tiers },
+              { label: 'Cantidad mínima de pedido (MOQ)', available: true },
+              {
+                label: plan.max_employees === 0 ? 'Personas en el equipo' : `Personas en el equipo: ${limitLabel(plan.max_employees)}`,
+                available: plan.max_employees !== 0,
+              },
+              { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
+              { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
+              { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
+            ]
+          : [
+              { label: `Productos: ${limitLabel(plan.max_products)}`, available: true },
+              { label: `Servicios: ${limitLabel(plan.max_services)}`, available: true },
+              { label: `Fotos por producto/servicio/publicación: ${plan.max_photos_per_item}`, available: true },
+              {
+                label: plan.max_employees === 0 ? 'Personas en el equipo' : `Personas en el equipo: ${limitLabel(plan.max_employees)}`,
+                available: plan.max_employees !== 0,
+              },
+              { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
+              { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
+              { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
+            ];
         return (
           <View key={plan.id} style={[styles.card, isCurrent && styles.cardCurrent]}>
             <View style={styles.cardHeader}>
