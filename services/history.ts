@@ -42,6 +42,18 @@ async function batchVehicles(ids: string[]): Promise<Map<string, RawVehicle>> {
   return new Map((data ?? []).map((v: any) => [v.id as string, v as RawVehicle]));
 }
 
+// Cuando el "cliente" en el CRM en realidad compra a nombre de su propio
+// negocio (ej. un taller comprándole al por mayor a esta tienda, sin cuenta
+// B2B separada -- compra con su usuario personal), su avatar_url personal
+// suele estar vacío (el dueño configura el logo del negocio, no una foto de
+// perfil personal). Este mapa sirve de respaldo: owner_id -> logo del negocio.
+async function batchOwnedBusinessLogos(ownerIds: string[]): Promise<Map<string, string | null>> {
+  if (ownerIds.length === 0) return new Map();
+  const { data, error } = await supabase.from('businesses').select('owner_id, logo_url').in('owner_id', ownerIds);
+  if (error) throw error;
+  return new Map((data ?? []).map((b: any) => [b.owner_id as string, b.logo_url ?? null]));
+}
+
 export async function getBusinessHistory(
   businessId: string,
   opts?: { clientId?: string; limit?: number }
@@ -251,12 +263,14 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
     .map((c: any) => c.client_id as string);
 
   let userMap = new Map<string, any>();
+  let businessLogoMap = new Map<string, string | null>();
   if (appIdsToFetch.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, full_name, phone, avatar_url')
-      .in('id', appIdsToFetch);
+    const [{ data: users }, logos] = await Promise.all([
+      supabase.from('users').select('id, full_name, phone, avatar_url').in('id', appIdsToFetch),
+      batchOwnedBusinessLogos(appIdsToFetch),
+    ]);
     userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
+    businessLogoMap = logos;
   }
 
   for (const bc of (bizClients ?? []) as any[]) {
@@ -270,7 +284,7 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
         id: bc.client_id,
         full_name: u.full_name,
         phone: status === 'pending' ? null : (u.phone ?? null),
-        avatar_url: status === 'pending' ? null : (u.avatar_url ?? null),
+        avatar_url: status === 'pending' ? null : (u.avatar_url ?? businessLogoMap.get(bc.client_id) ?? null),
         last_visit: visits?.lastVisit ?? bc.created_at,
         total_visits: visits?.total ?? 0,
         is_external: false,
@@ -296,17 +310,17 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
   // Paso 4: agregar clientes históricos no registrados explícitamente
   const historicalAppIds = [...appVisits.keys()].filter((id) => !addedAppIds.has(id));
   if (historicalAppIds.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, full_name, phone, avatar_url')
-      .in('id', historicalAppIds);
+    const [{ data: users }, historicalLogoMap] = await Promise.all([
+      supabase.from('users').select('id, full_name, phone, avatar_url').in('id', historicalAppIds),
+      batchOwnedBusinessLogos(historicalAppIds),
+    ]);
     for (const u of (users ?? []) as any[]) {
       const visits = appVisits.get(u.id)!;
       results.push({
         id: u.id,
         full_name: u.full_name,
         phone: u.phone ?? null,
-        avatar_url: u.avatar_url ?? null,
+        avatar_url: u.avatar_url ?? historicalLogoMap.get(u.id) ?? null,
         last_visit: visits.lastVisit,
         total_visits: visits.total,
         is_external: false,
@@ -373,12 +387,14 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
     .map((c: any) => c.client_id as string);
 
   let userMap = new Map<string, any>();
+  let businessLogoMap = new Map<string, string | null>();
   if (appIdsToFetch.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, full_name, phone, avatar_url')
-      .in('id', appIdsToFetch);
+    const [{ data: users }, logos] = await Promise.all([
+      supabase.from('users').select('id, full_name, phone, avatar_url').in('id', appIdsToFetch),
+      batchOwnedBusinessLogos(appIdsToFetch),
+    ]);
     userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
+    businessLogoMap = logos;
   }
 
   for (const bc of (bizClients ?? []) as any[]) {
@@ -392,7 +408,7 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
         id: bc.client_id,
         full_name: u.full_name,
         phone: status === 'pending' ? null : (u.phone ?? null),
-        avatar_url: status === 'pending' ? null : (u.avatar_url ?? null),
+        avatar_url: status === 'pending' ? null : (u.avatar_url ?? businessLogoMap.get(bc.client_id) ?? null),
         last_visit: visits?.lastVisit ?? bc.created_at,
         total_visits: visits?.total ?? 0,
         is_external: false,
@@ -414,17 +430,17 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
 
   const historicalAppIds = [...purchaseVisits.keys()].filter((id) => !addedAppIds.has(id));
   if (historicalAppIds.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, full_name, phone, avatar_url')
-      .in('id', historicalAppIds);
+    const [{ data: users }, historicalLogoMap] = await Promise.all([
+      supabase.from('users').select('id, full_name, phone, avatar_url').in('id', historicalAppIds),
+      batchOwnedBusinessLogos(historicalAppIds),
+    ]);
     for (const u of (users ?? []) as any[]) {
       const visits = purchaseVisits.get(u.id)!;
       results.push({
         id: u.id,
         full_name: u.full_name,
         phone: u.phone ?? null,
-        avatar_url: u.avatar_url ?? null,
+        avatar_url: u.avatar_url ?? historicalLogoMap.get(u.id) ?? null,
         last_visit: visits.lastVisit,
         total_visits: visits.total,
         is_external: false,

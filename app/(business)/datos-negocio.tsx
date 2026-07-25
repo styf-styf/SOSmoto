@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
-import MapView, { type Region } from 'react-native-maps';
+import MapView, { Marker, type Region } from 'react-native-maps';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
@@ -55,11 +56,37 @@ interface DatosNegocioData {
   isOwner: boolean;
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || '—'}</Text>
+    <View style={styles.infoCard}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function IconInfoRow({
+  icon,
+  label,
+  value,
+  iconColor,
+  last,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  iconColor?: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={[styles.iconRow, !last && styles.iconRowSpacing]}>
+      <View style={[styles.iconCircle, iconColor && { backgroundColor: `${iconColor}1A` }]}>
+        <Ionicons name={icon} size={18} color={iconColor ?? colors.primary} />
+      </View>
+      <View style={styles.iconRowText}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value || '—'}</Text>
+      </View>
     </View>
   );
 }
@@ -274,20 +301,36 @@ export default function DatosNegocioScreen() {
 
       {!editing ? (
         <>
-          <InfoRow label="Nombre" value={name} />
-          <InfoRow label="Descripción" value={description} />
-          <InfoRow label="Provincia" value={province} />
-          <InfoRow label="Ciudad" value={city} />
-          <InfoRow label="Dirección" value={address} />
-          <InfoRow label="Teléfono" value={phone} />
-          <InfoRow label="WhatsApp" value={whatsapp} />
+          <InfoCard title="Información">
+            <IconInfoRow icon="business-outline" label="Nombre" value={name} />
+            <IconInfoRow icon="document-text-outline" label="Descripción" value={description} last />
+          </InfoCard>
 
-          <Text style={styles.sectionTitle}>Ubicación en el mapa</Text>
-          <Text style={styles.helperText}>
-            {selectedCoords
-              ? `Lat: ${selectedCoords.latitude.toFixed(5)}, Lng: ${selectedCoords.longitude.toFixed(5)}`
-              : 'Sin ubicación guardada.'}
-          </Text>
+          <InfoCard title="Ubicación">
+            <IconInfoRow icon="map-outline" label="Provincia" value={province} />
+            <IconInfoRow icon="location-outline" label="Ciudad" value={city} />
+            <IconInfoRow icon="pin-outline" label="Dirección" value={address} last={!selectedCoords} />
+            {selectedCoords && (
+              <View style={styles.mapPreviewWrap}>
+                <MapView
+                  style={styles.mapPreview}
+                  initialRegion={{ ...selectedCoords, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                  pointerEvents="none"
+                >
+                  <Marker coordinate={selectedCoords} />
+                </MapView>
+              </View>
+            )}
+          </InfoCard>
+
+          <InfoCard title="Contacto">
+            <IconInfoRow icon="call-outline" label="Teléfono" value={phone} />
+            <IconInfoRow icon="logo-whatsapp" label="WhatsApp" value={whatsapp} iconColor="#25D366" last />
+          </InfoCard>
         </>
       ) : (
         <>
@@ -517,17 +560,57 @@ const styles = StyleSheet.create({
     color: colors.primary,
     paddingHorizontal: 4,
   },
-  infoRow: {
+  infoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 16,
   },
-  infoLabel: {
-    fontSize: 13,
+  cardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.textMuted,
-    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 14,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconRowSpacing: {
+    marginBottom: 14,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF6B001A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconRowText: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 2,
   },
   infoValue: {
     fontSize: 16,
     color: colors.text,
+    fontWeight: '500',
+  },
+  mapPreviewWrap: {
+    height: 140,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 14,
+  },
+  mapPreview: {
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 16,
