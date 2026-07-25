@@ -121,12 +121,15 @@ export default function ClienteDetailScreen() {
 
       {/* Header del cliente -- si esta persona compra a nombre de su propio
           negocio (ej. un taller comprándole al por mayor a esta tienda),
-          avatar y nombre llevan al perfil público de ESE negocio. Un cliente
-          final sin negocio propio no tiene perfil público al que ir. */}
+          avatar y nombre llevan al perfil público de ESE negocio. Si es un
+          cliente final, llevan a su perfil público de cliente (ClientProfileView). */}
       <Pressable
         style={styles.profileCard}
-        disabled={!client.ownedBusinessId}
-        onPress={() => router.push(`/(business)/business/${client.ownedBusinessId}`)}
+        onPress={() =>
+          client.ownedBusinessId
+            ? router.push(`/(business)/business/${client.ownedBusinessId}`)
+            : router.push(`/(business)/usuario/${client.id}`)
+        }
       >
         <View style={styles.avatarCircle}>
           {client.avatar_url ? (
@@ -140,9 +143,7 @@ export default function ClienteDetailScreen() {
           {client.phone && <Text style={styles.clientPhone}>{client.phone}</Text>}
           {client.email && <Text style={styles.clientPhone}>{client.email}</Text>}
         </View>
-        {client.ownedBusinessId && (
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        )}
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </Pressable>
 
       {/* Vehículos del cliente */}
