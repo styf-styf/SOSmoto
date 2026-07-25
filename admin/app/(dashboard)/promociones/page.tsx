@@ -1,11 +1,12 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
-import type { AdminPlanPromotionRow, AdminPromotionBeneficiaryRow, PlanName } from '../../../lib/types';
+import type { AdminPlanPromotionRow, AdminPromotionBeneficiaryRow, BusinessType, PlanName } from '../../../lib/types';
 import { PromotionToggleCard } from './PromotionToggleCard';
 import { PromotionScopeToggle } from './PromotionScopeToggle';
 import { AssignPlanForm } from './AssignPlanForm';
 import { BeneficiaryExpiryEditor } from './BeneficiaryExpiryEditor';
 
 const PLAN_LABELS: Record<PlanName, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
+const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = { workshop: 'Taller', store: 'Tienda', brand_advertiser: 'Marca' };
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 // Mientras está activa, remaining_days sigue "de referencia" desde
@@ -22,7 +23,7 @@ export default async function PromocionesPage() {
   const supabase = createAdminClient();
 
   const [plansResult, promotionsResult, beneficiariesResult, settingsResult] = await Promise.all([
-    supabase.from('subscription_plans').select('id, name').in('name', ['standard', 'pro']),
+    supabase.from('subscription_plans').select('id, name, business_type').in('name', ['standard', 'pro']),
     supabase
       .from('plan_promotions')
       .select('id, plan_id, duration_days, remaining_days, is_active, activated_at, created_at, subscription_plans(name)'),
@@ -35,7 +36,7 @@ export default async function PromocionesPage() {
     supabase.from('promotion_settings').select('applies_to_all_businesses').eq('id', true).maybeSingle(),
   ]);
 
-  const plans = (plansResult.data ?? []) as { id: string; name: PlanName }[];
+  const plans = (plansResult.data ?? []) as { id: string; name: PlanName; business_type: BusinessType }[];
   const promotions = (promotionsResult.data ?? []) as unknown as AdminPlanPromotionRow[];
   const beneficiaries = (beneficiariesResult.data ?? []) as unknown as AdminPromotionBeneficiaryRow[];
   const appliesToAll = !!(settingsResult.data as { applies_to_all_businesses: boolean } | null)?.applies_to_all_businesses;
@@ -61,6 +62,7 @@ export default async function PromocionesPage() {
               key={plan.id}
               planId={plan.id}
               planName={plan.name}
+              businessTypeLabel={BUSINESS_TYPE_LABELS[plan.business_type] ?? plan.business_type}
               isActive={isActive}
               otherPlanIsActive={!!activePromotion && !isActive}
               durationDays={promo?.duration_days ?? null}

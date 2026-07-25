@@ -107,7 +107,26 @@ moto-app/
 
 **Prioridad de implementación:** MVP solo incluye calificación Cliente → Negocio. La calificación Negocio → Cliente se implementa en fase 2, una vez validado el flujo de auxilio en carretera.
 
-## Planes de suscripción para negocios/talleres
+## Tipos de negocio: Taller y Tienda (marca se fusionó en tienda)
+
+Solo existen **2 tipos de negocio**: `workshop` (taller) y `store` (tienda). El
+tipo `brand_advertiser` (marca/proveedor) existió como categoría separada y se
+fusionó en `store` — una marca grande que se quiera registrar en SOSmoto lo
+hace como tienda (con ubicación real), con las mismas posibilidades que antes
+tenía una marca (catálogo grande, variantes, precios por volumen), ahora
+gateadas por plan en vez de por tipo. Razón: una marca grande ya tiene su
+propio catálogo/CRM/web y sus clientes la buscan por otros medios; la
+categoría "marca" solo le restaba protagonismo a la tienda de barrio real.
+`brand_advertiser` se mantiene como valor no usado del enum `business_type`
+en Postgres (por compatibilidad histórica), pero ningún negocio nuevo lo usa
+y no aparece en ningún selector de la app ni del admin.
+
+Los **planes de tienda están separados de los de taller** (mismos 3 nombres
+Free/Estándar/Pro, límites distintos, ver tablas abajo) — la tabla
+`subscription_plans` tiene una fila por combinación `(name, business_type)`,
+6 filas en total.
+
+## Planes de suscripción — Taller
 
 La publicidad **siempre es un pago independiente**, sin importar el plan (Free, Estándar o Pro). El plan solo controla límites de catálogo y visibilidad.
 
@@ -123,15 +142,32 @@ La publicidad **siempre es un pago independiente**, sin importar el plan (Free, 
 | Soporte | Estándar | Prioritario | Prioritario dedicado |
 | Insignia "verificado" | No | Opcional | Incluido |
 
-**Nota sobre auxilio en carretera:** el matching de solicitudes de auxilio no tiene prioridad por plan — todos los talleres dentro del radio de cobertura configurado reciben la solicitud al mismo tiempo, sin importar Free/Estándar/Pro. La única variable que determina quién la recibe es el radio (`aid_radius_km`).
+## Planes de suscripción — Tienda
 
-**Nota técnica importante:** la validación de límites de catálogo (productos/servicios) debe hacerse en el backend, no solo en el frontend — al intentar agregar un producto que excede el límite del plan, el sistema debe bloquear la acción y sugerir upgrade.
+| Característica | Free | Estándar | Pro |
+|---|---|---|---|
+| Productos en catálogo | Hasta 30 | Hasta 60 | Ilimitado |
+| Servicios en catálogo | No aplica (tienda nunca ofrece servicios) | | |
+| Fotos por producto | 1 | 3 | 5 |
+| Variantes de producto | No | No | Sí |
+| Precio por volumen (escalones) | No | Sí | Sí |
+| Cantidad mínima de pedido (MOQ) | Opcional (disponible en cualquier plan) | | |
+| Empleados vinculados | 0 adicionales | 3 adicionales | Ilimitado |
+| Historias activas | 1 | 3 | 5 |
+| Insignia "verificado" | No | Opcional | Incluido |
+| Dashboard/estadísticas | Básico | Intermedio | Avanzado |
 
-## Flujo de publicidad (pago independiente, aplica a negocios/talleres Y marcas anunciantes)
-1. **Registro como anunciante:** negocio/taller existente compra espacio publicitario, o una marca (ej. marca de aceite) se registra como tipo "Negocio" con sub-tipo "Marca/Proveedor" (sin ubicación de auxilio ni catálogo de servicios)
+**Nota sobre auxilio en carretera:** el matching de solicitudes de auxilio no tiene prioridad por plan — todos los talleres dentro del radio de cobertura configurado reciben la solicitud al mismo tiempo, sin importar Free/Estándar/Pro. La única variable que determina quién la recibe es el radio (`aid_radius_km`). Tienda nunca recibe solicitudes de auxilio (`aid_radius_km` solo aplica a taller).
+
+**Nota técnica importante:** la validación de límites de catálogo (productos/servicios/variantes/escalones) se hace en el backend vía triggers, no solo en el frontend — al intentar agregar algo que excede el límite del plan, el sistema bloquea la acción y sugiere upgrade.
+
+**Reglas B2B (quién le compra a quién):** taller le compra a tienda; tienda también le puede comprar a otra tienda. Nadie le compra a taller. Servicios siguen siendo exclusivos de taller (tienda nunca crea servicios, en ningún plan).
+
+## Flujo de publicidad (pago independiente, aplica a talleres y tiendas)
+1. **Registro como anunciante:** negocio/taller/tienda existente compra espacio publicitario. Una marca que se quiera anunciar se registra como tienda (con ubicación real) y compra publicidad igual que cualquier otro negocio.
 2. **Selección de campaña:** tipo de anuncio (banner home, destacado en búsquedas, anuncio en perfiles de talleres), duración y alcance (ciudad o nacional)
 3. **Carga de contenido:** imagen/banner, texto, link (sitio web, WhatsApp, o lista de talleres que venden su producto)
-4. **Pago vía pasarela** (negocio/marca → plataforma), pago único por campaña o recurrente
+4. **Pago vía pasarela** (negocio → plataforma), pago único por campaña o recurrente
 5. **Revisión/aprobación por admin** antes de publicar (evita contenido inapropiado o competencia desleal)
 6. **Visualización con métricas** (impresiones, clics) entregadas al anunciante como valor agregado
 
@@ -151,7 +187,7 @@ Panel separado para el dueño de la plataforma, pensado como **dashboard web** (
 - Aprobar/rechazar y otorgar insignia de "verificado"
 
 **3. Gestión de publicidad**
-- Cola de anuncios pendientes de aprobación (negocios y marcas anunciantes)
+- Cola de anuncios pendientes de aprobación
 - Aprobar/rechazar contenido antes de publicar
 - Ver/pausar campañas activas (ej. por queja o contenido inapropiado)
 - Dashboard de ingresos por publicidad
@@ -329,7 +365,7 @@ Se accede desde un ícono/botón (⚙️) dentro de la pantalla de Perfil de cad
 ```sql
 - id (uuid, PK)
 - owner_id (FK -> users)
-- business_type (enum: 'workshop', 'store', 'brand_advertiser')
+- business_type (enum: 'workshop', 'store' — 'brand_advertiser' existe en el enum de Postgres por compatibilidad histórica pero ya no se usa)
 - name, description, logo_url
 - address, city, latitude, longitude
 - phone, whatsapp
@@ -356,13 +392,18 @@ Se accede desde un ícono/botón (⚙️) dentro de la pantalla de Perfil de cad
 ```sql
 - id (uuid, PK)
 - name (enum: 'free', 'standard', 'pro')
+- business_type (enum: 'workshop', 'store') -- una fila por (name, business_type), 6 filas en total
 - max_products, max_services, max_photos_per_item
 - max_employees
 - has_priority_matching (bool)
 - has_featured_listing (bool)
-- has_stories (bool) -- futuro
+- has_stories (bool)
+- max_active_stories (int, nullable)
+- allow_variants (bool) -- solo revisado si business_type = 'store'
+- allow_price_tiers (bool) -- solo revisado si business_type = 'store'
 - price_monthly
 ```
+- unique (name, business_type)
 
 ### business_subscriptions (historial de pagos de plan)
 ```sql
@@ -492,6 +533,8 @@ Ya inicializado: Expo + TypeScript + Expo Router, estructura de carpetas (`app/(
 Nota técnica: el proyecto usa `.npmrc` con `legacy-peer-deps=true` porque `expo-router@56` trae dependencias web (`@radix-ui/*`, `vaul`) con conflictos de peer deps con React 19 que de otra forma rompen `npm install`.
 
 Nota técnica: ya no existe el grupo `app/(shared)/`. Las pantallas que antes vivían ahí (chat, perfil de negocio, vehículos, historial, catálogo detalle, configuración, citas, agenda, empleados, suscripción) se movieron dentro de `app/(client)/` y/o `app/(business)/` como `<Tabs.Screen ... options={{ href: null }}>` — así siguen siendo navegables (con su propio header) pero sin botón en la tab bar, y la tab bar nunca se desmonta al entrar a ellas. `chat/[id]` está duplicado en ambos grupos porque lo usan los dos roles.
+
+Nota técnica: `brand_advertiser` se fusionó en `store` (migración `0119_merge_brand_into_store.sql`) — ver sección "Tipos de negocio: Taller y Tienda" más arriba.
 
 ## Próximo paso
 1. Crear el proyecto real en Supabase, correr las migraciones de `supabase/migrations/`, y poner las credenciales reales en `.env` (ver `.env.example`).

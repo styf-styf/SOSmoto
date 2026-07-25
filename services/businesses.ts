@@ -8,15 +8,17 @@ export interface BusinessWithDistance extends Business {
 
 const SEARCH_RADIUS_KM = 60;
 
-// A quien le vende cada tipo de negocio, segun el flujo B2B de SOSmoto:
-// taller le compra a tienda y marca; tienda le compra solo a marca (nunca a
-// otro taller ni a otra tienda -- ninguno tiene caso de uso B2B ahi). Marca
-// no compra a nadie -- no aparece como clave aca a proposito. Fuente unica
-// de esta regla: la usan el buscador B2B (buscar.tsx), el boton de compra en
-// producto/[id].tsx, y la visibilidad de "Mis compras" en configuracion.tsx.
+// A quien le vende cada tipo de negocio, segun el flujo B2B de SOSmoto: taller
+// le compra a tienda; tienda TAMBIEN le compra a otra tienda (antes le
+// compraba solo a marca -- al fusionar marca en tienda, el antiguo rol de
+// "proveedor mayorista" ahora es simplemente una tienda con plan que permite
+// precio por volumen, no un tipo de negocio aparte). Nadie le compra a
+// taller. Fuente unica de esta regla: la usan el buscador B2B (buscar.tsx),
+// el boton de compra en producto/[id].tsx, y la visibilidad de "Mis compras"
+// en configuracion.tsx.
 export const B2B_ALLOWED_SELLER_TYPES: Partial<Record<BusinessType, BusinessType[]>> = {
-  workshop: ['store', 'brand_advertiser'],
-  store: ['brand_advertiser'],
+  workshop: ['store'],
+  store: ['store'],
 };
 
 export function canBuyFromBusinessType(
@@ -135,13 +137,9 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
   const businesses = (data ?? []) as Business[];
   const withDistance: BusinessWithDistance[] = businesses.map((business) => ({
     ...business,
-    // Una marca se registra sin ubicación real (coordenadas de relleno,
-    // QUITO_DEFAULT) -- calcularle una distancia real es inventada y engaña
-    // (ver getNewNearbyBusinesses, que ya la excluye por el mismo motivo).
-    distance_km:
-      params.coords && business.business_type !== 'brand_advertiser'
-        ? distanceKm(params.coords.latitude, params.coords.longitude, business.latitude, business.longitude)
-        : null,
+    distance_km: params.coords
+      ? distanceKm(params.coords.latitude, params.coords.longitude, business.latitude, business.longitude)
+      : null,
   }));
 
   withDistance.sort((a, b) => {
@@ -221,8 +219,12 @@ export async function getDefaultAidRadiusKm(): Promise<number> {
 }
 
 export async function createBusiness(params: CreateBusinessParams): Promise<Business> {
+  // Filtrar también por business_type es obligatorio desde que subscription_plans
+  // tiene una fila "free" por tipo de negocio (taller y tienda) -- sin esto,
+  // .single() falla siempre (PGRST116, más de una fila) para CUALQUIER
+  // registro nuevo (ver 0119_merge_brand_into_store.sql).
   const [{ data: plan, error: planError }, defaultAidRadiusKm] = await Promise.all([
-    supabase.from('subscription_plans').select('id').eq('name', 'free').single(),
+    supabase.from('subscription_plans').select('id').eq('name', 'free').eq('business_type', params.businessType).single(),
     getDefaultAidRadiusKm(),
   ]);
   if (planError) throw planError;
@@ -272,10 +274,14 @@ export async function updateBusiness(id: string, updates: UpdateBusinessParams):
   return data as Business;
 }
 
-export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+// businessType es obligatorio desde que hay una fila Free/Estándar/Pro por
+// tipo de negocio (taller y tienda, con límites distintos) -- sin filtrar,
+// esto devuelve las 6 filas mezcladas (ver 0119_merge_brand_into_store.sql).
+export async function getSubscriptionPlans(businessType: BusinessType): Promise<SubscriptionPlan[]> {
   const { data, error } = await supabase
     .from('subscription_plans')
     .select('*')
+    .eq('business_type', businessType)
     .order('price_monthly', { ascending: true });
   if (error) throw error;
   return (data ?? []) as SubscriptionPlan[];
@@ -323,7 +329,6 @@ export async function getNewNearbyBusinesses(
     .from('businesses')
     .select('*')
     .eq('is_deactivated', false)
-    .neq('business_type', 'brand_advertiser')
     .or(`created_at.gte.${thirtyDaysAgo.toISOString()},followers_count.lt.5`)
     .limit(30);
 

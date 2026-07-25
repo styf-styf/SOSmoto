@@ -106,11 +106,6 @@ export interface PostWithAuthor extends Post {
 export interface PublicFeedPageParams {
   limit?: number;
   before?: { createdAt: string; id: string };
-  // Un cliente nunca debe ver publicaciones de una Marca (B2B puro) en su
-  // feed -- taller/tienda sí, porque a ellos sí les vende. Filtrado en el
-  // cliente porque Supabase JS no filtra bien columnas de una relación
-  // embebida sin !inner (mismo patrón que getFeedCatalogPool/searchCatalog).
-  excludeBrand?: boolean;
 }
 
 export async function getFollowingFeedPage(
@@ -140,8 +135,7 @@ export async function getFollowingFeedPage(
 
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
-  const rows = (data ?? []) as unknown as PostWithAuthor[];
-  return params.excludeBrand ? rows.filter((row) => row.author_business?.business_type !== 'brand_advertiser') : rows;
+  return (data ?? []) as unknown as PostWithAuthor[];
 }
 
 // Feed público de publicaciones (de cualquier negocio o cliente) -- se usa
@@ -164,8 +158,7 @@ export async function getPublicFeedPage(params: PublicFeedPageParams = {}): Prom
   }
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
-  const rows = (data ?? []) as unknown as PostWithAuthor[];
-  return params.excludeBrand ? rows.filter((row) => row.author_business?.business_type !== 'brand_advertiser') : rows;
+  return (data ?? []) as unknown as PostWithAuthor[];
 }
 
 export async function getPostById(postId: string): Promise<PostWithAuthor | null> {

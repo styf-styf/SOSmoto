@@ -117,16 +117,14 @@ export const HomeFeed = forwardRef<
   const lastSeenAdAt = useRef<string | null>(null);
   const didInitialLoadRef = useRef(false);
 
-  const excludeBrand = role === 'client';
-
   const loadInitial = useCallback(async () => {
     const [postsPage, homeAds] = await Promise.all([
       feedMode === 'following' && clientId
-        ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE, excludeBrand })
-        : getPublicFeedPage({ limit: PAGE_SIZE, excludeBrand }),
+        ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE })
+        : getPublicFeedPage({ limit: PAGE_SIZE }),
       hideCatalogPool
         ? Promise.resolve({ bannerAds: [], carouselItems: [], linkedCatalogIds: [] })
-        : getHomeAds(city, coords, { excludeBrand }),
+        : getHomeAds(city, coords),
     ]);
 
     // getFeedCatalogPool depende de homeAds.linkedCatalogIds (para no
@@ -135,7 +133,7 @@ export const HomeFeed = forwardRef<
     // el mismo Promise.all.
     const catalog = hideCatalogPool
       ? []
-      : await getFeedCatalogPool(30, { excludeBrand, excludeIds: homeAds.linkedCatalogIds });
+      : await getFeedCatalogPool(30, { excludeIds: homeAds.linkedCatalogIds });
 
     setPosts(postsPage);
     // Los anuncios activos se mezclan como tarjetas más del carrusel de
@@ -147,7 +145,7 @@ export const HomeFeed = forwardRef<
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(homeAds.bannerAds, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
-  }, [city, coords, feedMode, clientId, excludeBrand, hideCatalogPool]);
+  }, [city, coords, feedMode, clientId, hideCatalogPool]);
 
   // loadInitial depende de city/clientId, que llegan como prop desde la
   // pantalla padre y arrancan en null/undefined hasta que se resuelven
@@ -196,12 +194,10 @@ export const HomeFeed = forwardRef<
           ? await getFollowingFeedPage(clientId, {
               limit: PAGE_SIZE,
               before: { createdAt: last.created_at, id: last.id },
-              excludeBrand,
             })
           : await getPublicFeedPage({
               limit: PAGE_SIZE,
               before: { createdAt: last.created_at, id: last.id },
-              excludeBrand,
             });
       setPosts((prev) => [...prev, ...nextPage]);
       setHasMore(nextPage.length === PAGE_SIZE);

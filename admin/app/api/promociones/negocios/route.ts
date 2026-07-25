@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, city')
+    .select('id, name, city, business_type')
     .ilike('name', `%${q}%`)
     .order('name')
     .limit(10);

@@ -142,6 +142,9 @@ export type PlanName = 'free' | 'standard' | 'pro';
 export interface SubscriptionPlan {
   id: string;
   name: PlanName;
+  // Una fila por (name, business_type) -- taller y tienda tienen límites
+  // distintos bajo el mismo nombre de plan (ver 0119_merge_brand_into_store.sql).
+  business_type: BusinessType;
   max_products: number | null;
   max_services: number | null;
   max_photos_per_item: number;
@@ -150,6 +153,9 @@ export interface SubscriptionPlan {
   has_featured_listing: boolean;
   has_stories: boolean;
   max_active_stories: number | null;
+  // Solo tienen efecto real para tienda -- taller nunca se revisa contra esto.
+  allow_variants: boolean;
+  allow_price_tiers: boolean;
   price_monthly: number;
 }
 

@@ -21,6 +21,13 @@ export interface CreateProductVariantParams {
 }
 
 export async function createProductVariant(params: CreateProductVariantParams): Promise<ProductVariant> {
+  const { data: product } = await supabase.from('products').select('business_id').eq('id', params.productId).maybeSingle();
+  if (product) {
+    const limits = await getPlanLimits(product.business_id);
+    assertVariantsAllowed(true, limits);
+    assertPriceTiersAllowed(params.priceTiers, limits);
+  }
+
   const { data, error } = await supabase
     .from('product_variants')
     .insert({
@@ -311,7 +318,7 @@ export interface ExcludedCatalogId {
 
 export async function getFeedCatalogPool(
   limit = 30,
-  opts: { excludeBrand?: boolean; excludeIds?: ExcludedCatalogId[] } = {}
+  opts: { excludeIds?: ExcludedCatalogId[] } = {}
 ): Promise<FeedCatalogItem[]> {
   const [servicesResult, productsResult] = await Promise.all([
     supabase
@@ -330,15 +337,8 @@ export async function getFeedCatalogPool(
   if (servicesResult.error) throw servicesResult.error;
   if (productsResult.error) throw productsResult.error;
 
-  // Filtrado en el cliente (ver comentario en searchCatalog): Supabase JS no
-  // filtra bien columnas de una relación embebida sin !inner. Un cliente
-  // nunca debe ver productos/servicios de una Marca (B2B puro) en su feed.
-  const servicesRows = opts.excludeBrand
-    ? (servicesResult.data ?? []).filter((row: any) => row.businesses?.business_type !== 'brand_advertiser')
-    : (servicesResult.data ?? []);
-  const productsRows = opts.excludeBrand
-    ? (productsResult.data ?? []).filter((row: any) => row.businesses?.business_type !== 'brand_advertiser')
-    : (productsResult.data ?? []);
+  const servicesRows = servicesResult.data ?? [];
+  const productsRows = productsResult.data ?? [];
 
   const services: FeedCatalogItem[] = servicesRows.map((row: any) => ({
     kind: 'service',
@@ -467,6 +467,11 @@ export interface PlanLimits {
   maxEmployees: number | null;
   maxActiveStories: number | null;
   maxPhotosPerItem: number | null;
+  // Solo tienen efecto real para tienda -- taller nunca se revisa contra
+  // esto (ver enforce_variant_limit/enforce_price_tier_limit en
+  // 0119_merge_brand_into_store.sql, que tampoco lo revisan para taller).
+  allowVariants: boolean;
+  allowPriceTiers: boolean;
   businessType: BusinessType | null;
 }
 
@@ -477,6 +482,8 @@ const FREE_PLAN_LIMITS: PlanLimits = {
   maxEmployees: 1,
   maxActiveStories: null,
   maxPhotosPerItem: 1,
+  allowVariants: true,
+  allowPriceTiers: true,
   businessType: null,
 };
 
@@ -484,7 +491,7 @@ export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   const { data, error } = await supabase
     .from('businesses')
     .select(
-      'business_type, subscription_plans(name, max_services, max_products, max_employees, max_active_stories, max_photos_per_item)'
+      'business_type, subscription_plans(name, max_services, max_products, max_employees, max_active_stories, max_photos_per_item, allow_variants, allow_price_tiers)'
     )
     .eq('id', businessId)
     .maybeSingle();
@@ -497,13 +504,12 @@ export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   return {
     planName: plan.name ?? 'free',
     maxServices: plan.max_services ?? null,
-    // Una marca vende al por mayor a talleres/tiendas, no al consumidor
-    // final -- su catalogo real suele tener muchos mas SKUs que un taller/
-    // tienda de barrio, asi que el limite de plan no le aplica.
-    maxProducts: businessType === 'brand_advertiser' ? null : (plan.max_products ?? null),
+    maxProducts: plan.max_products ?? null,
     maxEmployees: plan.max_employees ?? null,
     maxActiveStories: plan.max_active_stories ?? null,
     maxPhotosPerItem: plan.max_photos_per_item ?? null,
+    allowVariants: plan.allow_variants ?? true,
+    allowPriceTiers: plan.allow_price_tiers ?? true,
     businessType,
   };
 }
@@ -515,6 +521,18 @@ function assertPhotoLimit(photos: string[] | undefined, limits: PlanLimits) {
       `Tu plan ${limits.planName} permite hasta ${limits.maxPhotosPerItem} foto${limits.maxPhotosPerItem === 1 ? '' : 's'} por producto/servicio. Sube de plan para agregar más.`
     );
   }
+}
+
+// Solo se revisa para tienda -- taller nunca tuvo esta restricción y sigue
+// sin tenerla (ver PlanLimits.allowVariants).
+function assertVariantsAllowed(hasVariants: boolean, limits: PlanLimits) {
+  if (!hasVariants || limits.businessType !== 'store' || limits.allowVariants) return;
+  throw new Error(`Tu plan ${limits.planName} no incluye variantes de producto. Sube de plan para usarlas.`);
+}
+
+function assertPriceTiersAllowed(priceTiers: unknown[] | null | undefined, limits: PlanLimits) {
+  if (!priceTiers || priceTiers.length === 0 || limits.businessType !== 'store' || limits.allowPriceTiers) return;
+  throw new Error(`Tu plan ${limits.planName} no incluye precio por volumen. Sube de plan para usarlo.`);
 }
 
 export interface CreateServiceParams {
@@ -609,6 +627,7 @@ export async function createProduct(params: CreateProductParams): Promise<Produc
     }
   }
   assertPhotoLimit(params.photos, limits);
+  assertPriceTiersAllowed(params.priceTiers, limits);
 
   const { data, error } = await supabase
     .from('products')
@@ -643,9 +662,13 @@ export async function updateProduct(
     price_tiers: ProductPriceTier[] | null;
   }>
 ): Promise<Product> {
-  if (updates.photos) {
+  if (updates.photos || updates.price_tiers) {
     const { data: current } = await supabase.from('products').select('business_id').eq('id', id).maybeSingle();
-    if (current) assertPhotoLimit(updates.photos, await getPlanLimits(current.business_id));
+    if (current) {
+      const limits = await getPlanLimits(current.business_id);
+      if (updates.photos) assertPhotoLimit(updates.photos, limits);
+      if (updates.price_tiers) assertPriceTiersAllowed(updates.price_tiers, limits);
+    }
   }
 
   const { data, error } = await supabase.from('products').update(updates).eq('id', id).select().single();

@@ -35,13 +35,23 @@ export async function POST(req: Request) {
   const supabase = createAdminClient();
   const { data: business } = await supabase
     .from('businesses')
-    .select('id, owner_id, promotion_claimed_at')
+    .select('id, owner_id, business_type, promotion_claimed_at')
     .eq('id', businessId)
     .maybeSingle();
   if (!business) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
 
-  const { data: plan } = await supabase.from('subscription_plans').select('id, name').eq('id', planId).maybeSingle();
+  const { data: plan } = await supabase
+    .from('subscription_plans')
+    .select('id, name, business_type')
+    .eq('id', planId)
+    .maybeSingle();
   if (!plan) return NextResponse.json({ error: 'Plan no encontrado' }, { status: 404 });
+  if (plan.business_type !== business.business_type) {
+    return NextResponse.json(
+      { error: 'Ese plan no corresponde al tipo de negocio (taller/tienda) de este negocio.' },
+      { status: 400 }
+    );
+  }
 
   const { data: promo } = await supabase.from('plan_promotions').select('id').eq('plan_id', planId).maybeSingle();
   const now = new Date();

@@ -239,13 +239,11 @@ export default function BusinessConfiguracionScreen() {
             onPress={() => router.push('/(business)/auxilio-carretera')}
           />
         )}
-        {business.business_type !== 'brand_advertiser' && (
-          <MenuRow
-            icon="time-outline"
-            label="Horario"
-            onPress={() => router.push('/(business)/horario')}
-          />
-        )}
+        <MenuRow
+          icon="time-outline"
+          label="Horario"
+          onPress={() => router.push('/(business)/horario')}
+        />
         <MenuRow
           icon="people-circle-outline"
           label="Equipo"
@@ -272,7 +270,6 @@ export default function BusinessConfiguracionScreen() {
           icon="people-outline"
           label="Clientes"
           onPress={() => router.push('/(business)/clientes')}
-          last={business.business_type === 'brand_advertiser'}
         />
         {business.business_type === 'workshop' && (
           <MenuRow

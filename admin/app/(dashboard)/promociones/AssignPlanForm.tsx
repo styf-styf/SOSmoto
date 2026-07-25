@@ -7,16 +7,19 @@ interface BusinessResult {
   id: string;
   name: string;
   city: string;
+  business_type: string;
 }
 
 const PLAN_LABELS: Record<string, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
+const BUSINESS_TYPE_LABELS: Record<string, string> = { workshop: 'Taller', store: 'Tienda', brand_advertiser: 'Marca' };
 
-export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[] }) {
+export function AssignPlanForm({ plans }: { plans: { id: string; name: string; business_type: string }[] }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<BusinessResult[]>([]);
   const [selected, setSelected] = useState<BusinessResult | null>(null);
-  const [planId, setPlanId] = useState(plans[0]?.id ?? '');
+  const [planId, setPlanId] = useState('');
+  const assignablePlans = selected ? plans.filter((p) => p.business_type === selected.business_type) : [];
   const [expiresAt, setExpiresAt] = useState('');
   const [unlimited, setUnlimited] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,11 +47,13 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
     setSelected(business);
     setQuery(business.name);
     setResults([]);
+    setPlanId(plans.find((p) => p.business_type === business.business_type)?.id ?? '');
   }
 
   function handleClearSelection() {
     setSelected(null);
     setQuery('');
+    setPlanId('');
   }
 
   async function handleAssign() {
@@ -126,13 +131,17 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string }[
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-gray-500">Plan</label>
+          <label className="mb-1 block text-xs text-gray-500">
+            Plan{selected ? ` (${BUSINESS_TYPE_LABELS[selected.business_type] ?? selected.business_type})` : ''}
+          </label>
           <select
             value={planId}
             onChange={(e) => setPlanId(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
+            disabled={!selected}
+            className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
           >
-            {plans.map((plan) => (
+            {!selected && <option value="">Selecciona un negocio primero</option>}
+            {assignablePlans.map((plan) => (
               <option key={plan.id} value={plan.id}>
                 {PLAN_LABELS[plan.name] ?? plan.name}
               </option>

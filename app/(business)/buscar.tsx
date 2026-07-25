@@ -31,9 +31,7 @@ import { searchCatalog, type FeedCatalogItem } from '../../services/catalog';
 import type { BusinessType } from '../../types/database';
 import { getDiscoverCardWidth } from '../../utils/discoverGrid';
 
-// Este buscador es exclusivo de taller/tienda (la marca no tiene boton de
-// acceso -- no le compra a nadie, ver BusinessProfileView). Regla de quien
-// ve a quien: B2B_ALLOWED_SELLER_TYPES (services/businesses.ts).
+// Regla de quien ve a quien: B2B_ALLOWED_SELLER_TYPES (services/businesses.ts).
 const ALLOWED_TARGET_TYPES = B2B_ALLOWED_SELLER_TYPES;
 
 const CONTAINER_PADDING = 20;

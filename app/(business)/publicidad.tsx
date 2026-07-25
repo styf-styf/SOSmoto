@@ -120,15 +120,6 @@ export default function PublicidadScreen() {
     if (!canChooseKind) setKind('product');
   }, [canChooseKind]);
 
-  // Una marca se registra sin ciudad ni ubicación real (handleCreate en
-  // (tabs)/index.tsx la crea con QUITO_DEFAULT) -- "Solo {city}" quedaría
-  // vacío y "Radio" apuntaría siempre a Quito sin importar dónde opera de
-  // verdad la marca, así que el alcance queda fijo en nacional.
-  const isBrand = business?.business_type === 'brand_advertiser';
-  useEffect(() => {
-    if (isBrand) setScope('national');
-  }, [isBrand]);
-
   useEffect(() => {
     if (!business || mode !== 'existing') return;
     const pendingId = pendingSelectIdRef.current;
@@ -315,11 +306,7 @@ export default function PublicidadScreen() {
   // todo -- sigue siendo una campaña NUEVA (paga de nuevo, queda en revisión
   // de nuevo), no reactiva la fila vieja sin cobrar.
   function handleRelaunch(ad: Ad) {
-    // Una marca no puede quedar con scope 'city'/'radius' aunque el anuncio
-    // viejo lo tuviera (de antes de que el alcance se limitara a nacional
-    // para marcas) -- sin esto, el chip queda oculto pero el estado se
-    // relanza con el scope viejo igual.
-    setScope(isBrand ? 'national' : ad.target_scope);
+    setScope(ad.target_scope);
     setRadiusKm(ad.target_radius_km ? String(ad.target_radius_km) : '10');
     setTitle(ad.title);
     setPhotos(ad.photos);
@@ -412,25 +399,21 @@ export default function PublicidadScreen() {
 
       {isOwner && !business.is_limited && showForm && (
         <View style={styles.card}>
-          {!isBrand && (
-            <>
-              <Text style={styles.fieldLabel}>Alcance</Text>
-              <View style={styles.chipRow}>
-                <Pressable onPress={() => setScope('national')} style={[styles.chip, scope === 'national' && styles.chipSelected]}>
-                  <Text style={[styles.chipText, scope === 'national' && styles.chipTextSelected]}>Nacional</Text>
-                </Pressable>
-                <Pressable onPress={() => setScope('city')} style={[styles.chip, scope === 'city' && styles.chipSelected]}>
-                  <Text style={[styles.chipText, scope === 'city' && styles.chipTextSelected]}>Solo {business.city}</Text>
-                </Pressable>
-                <Pressable onPress={() => setScope('radius')} style={[styles.chip, scope === 'radius' && styles.chipSelected]}>
-                  <Text style={[styles.chipText, scope === 'radius' && styles.chipTextSelected]}>Radio</Text>
-                </Pressable>
-              </View>
+          <Text style={styles.fieldLabel}>Alcance</Text>
+          <View style={styles.chipRow}>
+            <Pressable onPress={() => setScope('national')} style={[styles.chip, scope === 'national' && styles.chipSelected]}>
+              <Text style={[styles.chipText, scope === 'national' && styles.chipTextSelected]}>Nacional</Text>
+            </Pressable>
+            <Pressable onPress={() => setScope('city')} style={[styles.chip, scope === 'city' && styles.chipSelected]}>
+              <Text style={[styles.chipText, scope === 'city' && styles.chipTextSelected]}>Solo {business.city}</Text>
+            </Pressable>
+            <Pressable onPress={() => setScope('radius')} style={[styles.chip, scope === 'radius' && styles.chipSelected]}>
+              <Text style={[styles.chipText, scope === 'radius' && styles.chipTextSelected]}>Radio</Text>
+            </Pressable>
+          </View>
 
-              {scope === 'radius' && (
-                <TextField label="Radio (km, desde tu negocio)" keyboardType="numeric" value={radiusKm} onChangeText={setRadiusKm} />
-              )}
-            </>
+          {scope === 'radius' && (
+            <TextField label="Radio (km, desde tu negocio)" keyboardType="numeric" value={radiusKm} onChangeText={setRadiusKm} />
           )}
 
           {canChooseKind && (

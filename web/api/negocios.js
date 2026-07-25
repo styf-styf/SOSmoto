@@ -10,8 +10,7 @@ const { escapeHtml, avatarHtml, renderPage } = require('./_lib/webPage');
 //
 // Sin GPS en la web (a diferencia de searchBusinesses() en la app), asi que
 // la busqueda es solo por texto (nombre/ciudad/direccion) -- sin orden por
-// cercania. Mismas exclusiones que getNewNearbyBusinesses en la app: sin
-// marcas/brand_advertiser, sin negocios suspendidos.
+// cercania. Excluye negocios suspendidos (is_limited).
 function supabaseAdmin() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -24,7 +23,6 @@ module.exports = async (req, res) => {
   let query = supabase
     .from('businesses')
     .select('id, name, city, address, logo_url, business_type')
-    .neq('business_type', 'brand_advertiser')
     .eq('is_limited', false)
     .order('created_at', { ascending: false })
     .limit(isHome ? 8 : 30);

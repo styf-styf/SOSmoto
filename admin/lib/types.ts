@@ -105,6 +105,7 @@ export type PlanName = 'free' | 'standard' | 'pro';
 export interface AdminSubscriptionPlanRow {
   id: string;
   name: PlanName;
+  business_type: BusinessType;
   max_products: number | null;
   max_services: number | null;
   max_photos_per_item: number;
@@ -113,6 +114,8 @@ export interface AdminSubscriptionPlanRow {
   has_featured_listing: boolean;
   has_stories: boolean;
   max_active_stories: number | null;
+  allow_variants: boolean;
+  allow_price_tiers: boolean;
   price_monthly: number;
 }
 

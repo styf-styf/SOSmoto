@@ -35,7 +35,6 @@ export default function ProductDetailScreen() {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
 
-  const isBrand = product?.business_type === 'brand_advertiser';
   const hasVariants = !!product && product.variants.length > 0;
   const selectedVariant = product?.variants.find((v) => v.id === selectedVariantId) ?? null;
   const effectivePrice = selectedVariant?.reference_price ?? product?.reference_price ?? null;
@@ -256,15 +255,7 @@ export default function ProductDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        {isBrand && (
-          <View style={styles.noticeBox}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
-            <Text style={styles.noticeText}>
-              Este producto lo vende {product.business_name} solo al por mayor a talleres y tiendas, no directo a clientes.
-            </Text>
-          </View>
-        )}
-        {effectiveStock > 0 && !isBrand && profile?.role === 'client' && (!hasVariants || !!selectedVariantId) && !intent && (
+        {effectiveStock > 0 && profile?.role === 'client' && (!hasVariants || !!selectedVariantId) && !intent && (
           <View style={styles.apartarRow}>
             <Button
               title="Apartar producto"
@@ -275,7 +266,7 @@ export default function ProductDetailScreen() {
             <QuantityStepper value={quantity} onChange={setQuantity} max={effectiveStock} />
           </View>
         )}
-        {!isBrand && profile?.role === 'client' && intent && (
+        {profile?.role === 'client' && intent && (
           <Button
             title="Cancelar apartado"
             onPress={handleApartar}
@@ -303,7 +294,7 @@ export default function ProductDetailScreen() {
             <Ionicons name="grid-outline" size={20} color={colors.text} />
             <Text style={styles.actionBtnLabel}>Ver catálogo</Text>
           </Pressable>
-          {!isBrand && profile?.role === 'client' && (
+          {profile?.role === 'client' && (
             <Pressable
               style={styles.actionBtn}
               onPress={() =>
@@ -476,20 +467,6 @@ const styles = StyleSheet.create({
   buttonGroup: {
     marginTop: 32,
     gap: 10,
-  },
-  noticeBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-  },
-  noticeText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 17,
   },
   apartarRow: {
     flexDirection: 'row',

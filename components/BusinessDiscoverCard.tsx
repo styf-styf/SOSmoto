@@ -8,7 +8,6 @@ import type { BusinessWithDistance } from '../services/businesses';
 const bizTypeLabel: Record<string, string> = {
   workshop: 'Taller',
   store: 'Tienda',
-  brand_advertiser: 'Marca',
 };
 
 function ratingStarIcons(rating: number): Array<'star' | 'star-half' | 'star-outline'> {

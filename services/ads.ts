@@ -282,19 +282,18 @@ export interface HomeAdsResult {
 export async function getHomeAds(
   city: string | null,
   coords: Coords | null,
-  opts: { excludeBrand?: boolean; bannerCount?: number; carouselCount?: number } = {}
+  opts: { bannerCount?: number; carouselCount?: number } = {}
 ): Promise<HomeAdsResult> {
   const ads = await getEligibleAds(city, coords);
-  const filtered = opts.excludeBrand ? ads.filter((ad) => ad.business?.business_type !== 'brand_advertiser') : ads;
 
-  const carouselAds = pickRandom(filtered, opts.carouselCount ?? 5);
+  const carouselAds = pickRandom(ads, opts.carouselCount ?? 5);
   const carouselIds = new Set(carouselAds.map((ad) => ad.id));
-  const bannerAds = filtered.filter((ad) => !carouselIds.has(ad.id)).slice(0, opts.bannerCount ?? 15);
+  const bannerAds = ads.filter((ad) => !carouselIds.has(ad.id)).slice(0, opts.bannerCount ?? 15);
 
   return {
     bannerAds,
     carouselItems: carouselAds.map(adToFeedCatalogItem),
-    linkedCatalogIds: getLinkedCatalogIds(filtered),
+    linkedCatalogIds: getLinkedCatalogIds(ads),
   };
 }
 

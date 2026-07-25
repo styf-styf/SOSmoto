@@ -29,6 +29,8 @@ export default async function ConfiguracionPage() {
   const plans = ((plansResult.data ?? []) as AdminSubscriptionPlanRow[]).sort(
     (a, b) => planOrder.indexOf(a.name) - planOrder.indexOf(b.name)
   );
+  const workshopPlans = plans.filter((p) => p.business_type === 'workshop');
+  const storePlans = plans.filter((p) => p.business_type === 'store');
   const pricing = pricingResult.data as AdminAdPricingRow | null;
   const rules = (rulesResult.data ?? []) as AdminMaintenanceRuleRow[];
   const settings = settingsResult.data as AdminSystemSettingsRow | null;
@@ -43,8 +45,17 @@ export default async function ConfiguracionPage() {
 
       <h2 className="mb-3 text-lg font-semibold">Precios y límites de planes</h2>
       {plansResult.error && <p className="text-sm text-red-600">Error: {plansResult.error.message}</p>}
+
+      <h3 className="mb-3 text-sm font-semibold text-gray-500">Talleres</h3>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {workshopPlans.map((plan) => (
+          <PlanEditForm key={plan.id} plan={plan} />
+        ))}
+      </div>
+
+      <h3 className="mb-3 text-sm font-semibold text-gray-500">Tiendas</h3>
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {plans.map((plan) => (
+        {storePlans.map((plan) => (
           <PlanEditForm key={plan.id} plan={plan} />
         ))}
       </div>

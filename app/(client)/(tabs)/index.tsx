@@ -147,7 +147,7 @@ export default function ClientHomeScreen() {
         newNearby,
         businessStoriesFollowed,
       ] = await Promise.all([
-        getVisibleBusinessStoriesGlobal({ excludeBrand: true }),
+        getVisibleBusinessStoriesGlobal(),
         getVisibleClientStories(),
         getNewNearbyBusinesses(coords),
         profile

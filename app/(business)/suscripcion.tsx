@@ -63,7 +63,7 @@ export default function SuscripcionScreen() {
     if (!work) return empty;
 
     const [allPlans, services, products, employees, activeSub, promotion] = await Promise.all([
-      getSubscriptionPlans(),
+      getSubscriptionPlans(work.business.business_type),
       getAllServices(work.business.id),
       getAllProducts(work.business.id),
       getEmployees(work.business.id),

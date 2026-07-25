@@ -17,7 +17,6 @@ export default function EstadisticasScreen() {
   const { profile } = useAuth();
   const [planName, setPlanName] = useState('free');
   const [stats, setStats] = useState<BusinessDashboardStats | null>(null);
-  const [isBrand, setIsBrand] = useState(false);
   const [canHaveServices, setCanHaveServices] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,7 +25,6 @@ export default function EstadisticasScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
-    setIsBrand(work.business.business_type === 'brand_advertiser');
     setCanHaveServices(work.business.business_type === 'workshop');
     const [limits, dashboardStats] = await Promise.all([
       getPlanLimits(work.business.id),
@@ -72,27 +70,18 @@ export default function EstadisticasScreen() {
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <View style={styles.planBadge}>
         <Text style={styles.planBadgeText}>
-          {isBrand ? 'Dashboard B2B' : 'Dashboard'} {planLabel[planName] ?? planLabel.free}
+          Dashboard {planLabel[planName] ?? planLabel.free}
         </Text>
       </View>
 
-      {isBrand ? (
-        <Text style={styles.upsell}>
-          Como Marca, tus compradores son talleres y tiendas, no clientes finales. Estas métricas reflejan cuánto te
-          descubren y compran negocios al por mayor.
-        </Text>
-      ) : (
-        <>
-          <View style={styles.row}>
-            <StatCard label="Auxilios recibidos" value={stats.helpRequestsTotal} />
-            <StatCard label="Auxilios completados" value={stats.helpRequestsCompleted} />
-          </View>
-          <View style={styles.row}>
-            <StatCard label="Citas recibidas" value={stats.appointmentsTotal} />
-            <StatCard label="Citas completadas" value={stats.appointmentsCompleted} />
-          </View>
-        </>
-      )}
+      <View style={styles.row}>
+        <StatCard label="Auxilios recibidos" value={stats.helpRequestsTotal} />
+        <StatCard label="Auxilios completados" value={stats.helpRequestsCompleted} />
+      </View>
+      <View style={styles.row}>
+        <StatCard label="Citas recibidas" value={stats.appointmentsTotal} />
+        <StatCard label="Citas completadas" value={stats.appointmentsCompleted} />
+      </View>
 
       {!showIntermedio && (
         <Text style={styles.upsell}>
@@ -102,7 +91,7 @@ export default function EstadisticasScreen() {
 
       {showIntermedio && (
         <>
-          <Text style={styles.sectionTitle}>{isBrand ? 'Productos más vistos por negocios' : 'Productos más vistos'}</Text>
+          <Text style={styles.sectionTitle}>Productos más vistos</Text>
           {stats.topProducts.length === 0 ? (
             <Text style={styles.placeholder}>Sin vistas registradas todavía.</Text>
           ) : (
@@ -132,7 +121,7 @@ export default function EstadisticasScreen() {
         </>
       )}
 
-      {showAvanzado && !isBrand && (
+      {showAvanzado && (
         <>
           <Text style={styles.sectionTitle}>Conversión</Text>
           <StatCard

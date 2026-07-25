@@ -215,21 +215,18 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     );
   }
 
-  // Un cliente nunca sigue a una Marca (B2B puro, nunca le vende directo al
-  // cliente) -- este chequeo es la última puerta: búsqueda/feed/historias ya
-  // no la muestran, pero si un cliente llega al perfil por un link directo,
-  // el botón de Seguir no debe aparecer igual.
-  const showFollowClient =
-    mode === 'public' && profile?.role === 'client' && business.business_type !== 'brand_advertiser';
-  // Mismo sentido B2B del buscador (ver app/(business)/buscar.tsx): taller
-  // sigue a tienda y marca; tienda sigue solo a marca; nadie sigue a un
-  // taller (no hay ninguna interacción B2B taller->taller ni ->tienda que
-  // justifique seguirlo).
+  // Toda tienda ya es client-facing (marca se fusionó en tienda) -- un
+  // cliente puede seguir a cualquier negocio salvo al propio taller/tienda
+  // que ya administra.
+  const showFollowClient = mode === 'public' && profile?.role === 'client';
+  // Mismo sentido B2B del buscador (ver B2B_ALLOWED_SELLER_TYPES en
+  // services/businesses.ts): taller sigue a tienda; tienda TAMBIÉN sigue a
+  // otra tienda (antes solo a marca) -- nadie sigue a un taller.
   const canBusinessFollowTarget =
     mode === 'public' &&
     profile?.role === 'business' &&
-    ((viewerBusinessType === 'workshop' && (business.business_type === 'store' || business.business_type === 'brand_advertiser')) ||
-      (viewerBusinessType === 'store' && business.business_type === 'brand_advertiser'));
+    (viewerBusinessType === 'workshop' || viewerBusinessType === 'store') &&
+    business.business_type === 'store';
   const showFollowButton = showFollowClient || canBusinessFollowTarget;
 
   return (
@@ -430,7 +427,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         </View>
       )}
 
-      {mode === 'public' && business.business_type !== 'brand_advertiser' && (
+      {mode === 'public' && (
         <View style={styles.section}>
           <View style={styles.scheduleHeaderRow}>
             <Text style={styles.sectionTitle}>Horario</Text>

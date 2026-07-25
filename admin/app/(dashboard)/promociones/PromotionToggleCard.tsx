@@ -8,6 +8,7 @@ const PLAN_LABELS: Record<string, string> = { free: 'Free', standard: 'Estándar
 export function PromotionToggleCard({
   planId,
   planName,
+  businessTypeLabel,
   isActive,
   otherPlanIsActive,
   durationDays,
@@ -15,13 +16,14 @@ export function PromotionToggleCard({
 }: {
   planId: string;
   planName: string;
+  businessTypeLabel: string;
   isActive: boolean;
   otherPlanIsActive: boolean;
   durationDays: number | null;
   remainingDays: number | null;
 }) {
   const router = useRouter();
-  const planLabel = PLAN_LABELS[planName] ?? planName;
+  const planLabel = `${PLAN_LABELS[planName] ?? planName} (${businessTypeLabel})`;
   const hasDaysSet = remainingDays !== null && remainingDays > 0;
   const [days, setDays] = useState(remainingDays ?? durationDays ?? 90);
   const [loading, setLoading] = useState<'toggle' | 'days' | null>(null);

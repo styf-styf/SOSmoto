@@ -312,6 +312,7 @@ export interface Database {
         Row: {
           id: string;
           name: 'free' | 'standard' | 'pro';
+          business_type: 'workshop' | 'store' | 'brand_advertiser';
           max_products: number | null;
           max_services: number | null;
           max_photos_per_item: number;
@@ -320,11 +321,14 @@ export interface Database {
           has_featured_listing: boolean;
           has_stories: boolean;
           max_active_stories: number | null;
+          allow_variants: boolean;
+          allow_price_tiers: boolean;
           price_monthly: number;
         };
         Insert: {
           id?: string;
           name: 'free' | 'standard' | 'pro';
+          business_type?: 'workshop' | 'store' | 'brand_advertiser';
           max_products?: number | null;
           max_services?: number | null;
           max_photos_per_item?: number;
@@ -333,11 +337,14 @@ export interface Database {
           has_featured_listing?: boolean;
           has_stories?: boolean;
           max_active_stories?: number | null;
+          allow_variants?: boolean;
+          allow_price_tiers?: boolean;
           price_monthly?: number;
         };
         Update: {
           id?: string;
           name?: 'free' | 'standard' | 'pro';
+          business_type?: 'workshop' | 'store' | 'brand_advertiser';
           max_products?: number | null;
           max_services?: number | null;
           max_photos_per_item?: number;
@@ -346,6 +353,8 @@ export interface Database {
           has_featured_listing?: boolean;
           has_stories?: boolean;
           max_active_stories?: number | null;
+          allow_variants?: boolean;
+          allow_price_tiers?: boolean;
           price_monthly?: number;
         };
         Relationships: [];

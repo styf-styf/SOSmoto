@@ -135,7 +135,7 @@ export default function VerificacionScreen() {
     );
   }
 
-  if (planName === 'free' && business.business_type !== 'brand_advertiser' && !business.is_verified) {
+  if (planName === 'free' && !business.is_verified) {
     return (
       <View style={styles.center}>
         <Ionicons name="lock-closed-outline" size={48} color={colors.textMuted} />
@@ -179,9 +179,7 @@ export default function VerificacionScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Text style={styles.helperText}>
-        {business.business_type === 'brand_advertiser'
-          ? 'Sube tu cédula o RUC y una foto de tu bodega/local. Talleres y tiendas confían más en marcas verificadas antes de comprarles al por mayor — un admin revisará tu solicitud.'
-          : 'Sube tu cédula o RUC y una foto del local. Un admin revisará tu solicitud y, si todo está en orden, tu negocio recibirá la insignia de "verificado".'}
+        Sube tu cédula o RUC y una foto del local. Un admin revisará tu solicitud y, si todo está en orden, tu negocio recibirá la insignia de "verificado".
       </Text>
 
       {latestRequest?.status === 'rejected' && (
@@ -199,7 +197,7 @@ export default function VerificacionScreen() {
       />
       <DocPicker label="RUC (opcional)" doc={rucDoc} onPress={() => handlePick('ruc-document', setRucDoc)} />
       <DocPicker
-        label={business.business_type === 'brand_advertiser' ? 'Foto de la bodega/local' : 'Foto del local'}
+        label="Foto del local"
         doc={storefrontPhoto}
         onPress={() => handlePick('storefront-photo', setStorefrontPhoto)}
       />

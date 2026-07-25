@@ -83,7 +83,7 @@ const RESPONSE_SCHEMA = {
 
 function buildSystemPrompt(
   role: 'client' | 'business',
-  businessType: 'workshop' | 'store' | 'brand_advertiser' | null,
+  businessType: 'workshop' | 'store' | null,
   context: Record<string, unknown>
 ): string {
   const contextJson = JSON.stringify(context, null, 2);
@@ -123,12 +123,7 @@ ${actionsCatalog}
 ${safetyDisclaimer}`;
   }
 
-  const businessTypeLabel =
-    businessType === 'workshop'
-      ? 'taller mecánico'
-      : businessType === 'store'
-        ? 'tienda de accesorios/repuestos'
-        : 'marca/proveedor anunciante';
+  const businessTypeLabel = businessType === 'workshop' ? 'taller mecánico' : 'tienda de accesorios/repuestos';
 
   return `Eres el Asistente virtual de SOSmoto, una app ecuatoriana que conecta motociclistas con talleres/tiendas y ofrece auxilio en carretera.
 

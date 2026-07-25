@@ -497,7 +497,7 @@ export default function CatalogoScreen() {
             </Text>
           </InfoStep>
 
-          {business.business_type === 'brand_advertiser' && (
+          {business.business_type === 'store' && (
             <>
               <InfoStep number={3} title="Cantidad mínima de pedido">
                 <Text style={styles.infoText}>
@@ -870,7 +870,13 @@ function ProductForm({
   const [priceTierRows, setPriceTierRows] = useState<PriceTierRow[]>(
     (product?.price_tiers ?? []).map((t) => ({ minQuantity: String(t.min_quantity), unitPrice: String(t.unit_price) }))
   );
-  const isBrand = limits?.businessType === 'brand_advertiser';
+  // Cantidad mínima de pedido, variantes y escalones de precio (venta al por
+  // mayor) son de tienda, no de taller -- MOQ está siempre disponible en
+  // cualquier plan de tienda; variantes y escalones dependen del plan (ver
+  // 0119_merge_brand_into_store.sql).
+  const isStore = limits?.businessType === 'store';
+  const canUseVariants = !isStore || (limits?.allowVariants ?? true);
+  const canUsePriceTiers = !isStore || (limits?.allowPriceTiers ?? true);
   const [photos, setPhotos] = useState<string[]>(product?.photos ?? []);
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -1137,7 +1143,7 @@ function ProductForm({
         </View>
       )}
 
-      {isBrand && (
+      {isStore && (
         <TextField
           label="Cantidad mínima de pedido (opcional)"
           placeholder="Ej. 12 (por caja)"
@@ -1147,7 +1153,13 @@ function ProductForm({
         />
       )}
 
-      {isBrand && (
+      {isStore && !canUsePriceTiers && (
+        <Text style={styles.upsellText}>
+          Sube a Estándar o Pro para vender por volumen (precio por cantidad).
+        </Text>
+      )}
+
+      {isStore && canUsePriceTiers && (
         <>
           <Text style={styles.fieldLabel}>Precio por volumen (opcional)</Text>
           <Text style={styles.variantHint}>
@@ -1198,6 +1210,12 @@ function ProductForm({
         </>
       )}
 
+      {isStore && !canUseVariants && (
+        <Text style={styles.upsellText}>Sube a Pro para agregar variantes (tallas, colores, presentaciones).</Text>
+      )}
+
+      {canUseVariants && (
+        <>
       <Text style={styles.fieldLabel}>Variantes (opcional)</Text>
       <Text style={styles.variantHint}>
         Ej. tallas o colores, cada una con su propio stock. Deja el precio vacío para heredar el precio general.
@@ -1241,7 +1259,7 @@ function ProductForm({
             </View>
           </View>
 
-          {isBrand && (
+          {canUsePriceTiers && (
             <View style={styles.variantTiersWrap}>
               <Text style={styles.variantFieldLabel}>Precio por volumen de esta variante (opcional)</Text>
               <Text style={styles.variantTierHint}>
@@ -1289,6 +1307,8 @@ function ProductForm({
         <Ionicons name="add" size={18} color={colors.primary} />
         <Text style={styles.addVariantBtnText}>Agregar variante</Text>
       </Pressable>
+        </>
+      )}
 
       <Text style={styles.fieldLabel}>
         Fotos ({photos.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})
@@ -1374,6 +1394,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 16,
+  },
+  upsellText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginBottom: 12,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

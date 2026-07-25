@@ -76,12 +76,10 @@ export default function EstadoCuentaScreen() {
   const businessTypeLabel: Record<string, string> = {
     workshop: 'Taller',
     store: 'Tienda',
-    brand_advertiser: 'Marca',
   };
-  const businessTypeIcon: Record<string, 'construct' | 'storefront' | 'megaphone'> = {
+  const businessTypeIcon: Record<string, 'construct' | 'storefront'> = {
     workshop: 'construct',
     store: 'storefront',
-    brand_advertiser: 'megaphone',
   };
   const typeLabel = businessTypeLabel[business.business_type] ?? business.business_type;
   const typeIcon = businessTypeIcon[business.business_type] ?? 'business';

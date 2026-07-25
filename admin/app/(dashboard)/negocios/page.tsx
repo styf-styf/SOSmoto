@@ -62,7 +62,6 @@ export default async function NegociosPage({
           <option value="">Todos los tipos</option>
           <option value="workshop">Taller</option>
           <option value="store">Tienda</option>
-          <option value="brand_advertiser">Marca/proveedor</option>
         </select>
         <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">
           Buscar
