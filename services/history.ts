@@ -18,6 +18,11 @@ export interface ClientProfileForBusiness {
   phone: string | null;
   email: string | null;
   avatar_url: string | null;
+  // Si esta "persona" en realidad compra a nombre de su propio negocio (ej.
+  // un taller comprándole al por mayor a una tienda), acá va el id de ESE
+  // negocio -- no existe una cuenta B2B separada, el dueño compra con su
+  // propio usuario. Null si es un cliente final sin negocio propio.
+  ownedBusinessId: string | null;
 }
 
 type RawClient = { id: string; full_name: string; phone: string | null };
@@ -499,11 +504,10 @@ export async function searchUsers(
 export async function getClientProfileForBusiness(
   clientId: string
 ): Promise<ClientProfileForBusiness | null> {
-  const { data: user, error: userErr } = await supabase
-    .from('users')
-    .select('id, full_name, phone, email, avatar_url')
-    .eq('id', clientId)
-    .maybeSingle();
+  const [{ data: user, error: userErr }, { data: ownedBusiness }] = await Promise.all([
+    supabase.from('users').select('id, full_name, phone, email, avatar_url').eq('id', clientId).maybeSingle(),
+    supabase.from('businesses').select('id').eq('owner_id', clientId).maybeSingle(),
+  ]);
   if (userErr) throw userErr;
   if (!user) return null;
 
@@ -513,5 +517,6 @@ export async function getClientProfileForBusiness(
     phone: (user as any).phone ?? null,
     email: (user as any).email ?? null,
     avatar_url: (user as any).avatar_url ?? null,
+    ownedBusinessId: (ownedBusiness as any)?.id ?? null,
   };
 }

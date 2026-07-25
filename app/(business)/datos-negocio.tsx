@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack } from 'expo-router';
 import MapView, { type Region } from 'react-native-maps';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
@@ -54,6 +55,15 @@ interface DatosNegocioData {
   isOwner: boolean;
 }
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value || '—'}</Text>
+    </View>
+  );
+}
+
 export default function DatosNegocioScreen() {
   const { profile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -89,6 +99,7 @@ export default function DatosNegocioScreen() {
     () => data?.business?.whatsapp ?? '',
   );
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
 
   // Map picker
@@ -161,6 +172,14 @@ export default function DatosNegocioScreen() {
     setShowMapPicker(false);
   }
 
+  // Descarta cualquier cambio sin guardar y vuelve a la vista de solo
+  // lectura -- populateForm(business) restaura los campos a los últimos
+  // valores persistidos, no a los que se alcanzaron a escribir en el form.
+  function handleCancelEdit() {
+    populateForm(business);
+    setEditing(false);
+  }
+
   async function handleSave() {
     if (!business) return;
     if (!name.trim() || !address.trim() || !city.trim()) {
@@ -193,6 +212,7 @@ export default function DatosNegocioScreen() {
           : {}),
       });
       setData((prev) => (prev ? { ...prev, business: updated } : prev));
+      setEditing(false);
       Alert.alert('Guardado', 'Los datos de tu negocio se actualizaron.');
     } catch (err) {
       console.error('update business error', err);
@@ -220,6 +240,20 @@ export default function DatosNegocioScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
+    <Stack.Screen
+      options={{
+        headerRight: () =>
+          !isOwner ? null : editing ? (
+            <Pressable onPress={handleCancelEdit} hitSlop={8}>
+              <Text style={styles.headerActionText}>Cancelar</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => setEditing(true)} hitSlop={8}>
+              <Ionicons name="create-outline" size={22} color={colors.primary} />
+            </Pressable>
+          ),
+      }}
+    />
     <ScrollView
       contentContainerStyle={styles.container}
       refreshControl={
@@ -238,154 +272,161 @@ export default function DatosNegocioScreen() {
         </View>
       )}
 
-      <TextField
-        label="Nombre"
-        value={name}
-        onChangeText={setName}
-        editable={isOwner}
-      />
-      <TextField
-        label="Descripción"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        editable={isOwner}
-      />
+      {!editing ? (
+        <>
+          <InfoRow label="Nombre" value={name} />
+          <InfoRow label="Descripción" value={description} />
+          <InfoRow label="Provincia" value={province} />
+          <InfoRow label="Ciudad" value={city} />
+          <InfoRow label="Dirección" value={address} />
+          <InfoRow label="Teléfono" value={phone} />
+          <InfoRow label="WhatsApp" value={whatsapp} />
 
-      <Text style={styles.fieldLabel}>Provincia</Text>
-      {isOwner ? (
-        <Pressable
-          style={styles.pickerButton}
-          onPress={() => setShowProvincePicker(true)}
-        >
-          <Text
-            style={[
-              styles.pickerButtonText,
-              !province && styles.pickerButtonPlaceholder,
-            ]}
-          >
-            {province || 'Selecciona una provincia'}
+          <Text style={styles.sectionTitle}>Ubicación en el mapa</Text>
+          <Text style={styles.helperText}>
+            {selectedCoords
+              ? `Lat: ${selectedCoords.latitude.toFixed(5)}, Lng: ${selectedCoords.longitude.toFixed(5)}`
+              : 'Sin ubicación guardada.'}
           </Text>
-          <Ionicons
-            name="chevron-down"
-            size={16}
-            color={colors.textMuted}
-          />
-        </Pressable>
+        </>
       ) : (
-        <Text style={styles.readOnlyValue}>{province || '—'}</Text>
-      )}
+        <>
+          <TextField
+            label="Nombre"
+            value={name}
+            onChangeText={setName}
+          />
+          <TextField
+            label="Descripción"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+          />
 
-      <TextField
-        label="Ciudad"
-        value={city}
-        onChangeText={setCity}
-        editable={isOwner}
-      />
-      <TextField
-        label="Dirección"
-        value={address}
-        onChangeText={setAddress}
-        editable={isOwner}
-      />
-      <TextField
-        label="Teléfono"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-        editable={isOwner}
-      />
-      <TextField
-        label="WhatsApp"
-        value={whatsapp}
-        onChangeText={setWhatsapp}
-        keyboardType="phone-pad"
-        editable={isOwner}
-      />
-
-      <Modal
-        visible={showProvincePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowProvincePicker(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setShowProvincePicker(false)}
-        >
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Selecciona la provincia</Text>
-            <FlatList
-              data={ECUADOR_PROVINCES_DN}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[
-                    styles.provinceItem,
-                    province === item && styles.provinceItemSelected,
-                  ]}
-                  onPress={() => {
-                    setProvince(item);
-                    setShowProvincePicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.provinceText,
-                      province === item && styles.provinceTextSelected,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                  {province === item && (
-                    <Ionicons
-                      name="checkmark"
-                      size={16}
-                      color={colors.primary}
-                    />
-                  )}
-                </Pressable>
-              )}
+          <Text style={styles.fieldLabel}>Provincia</Text>
+          <Pressable
+            style={styles.pickerButton}
+            onPress={() => setShowProvincePicker(true)}
+          >
+            <Text
+              style={[
+                styles.pickerButtonText,
+                !province && styles.pickerButtonPlaceholder,
+              ]}
+            >
+              {province || 'Selecciona una provincia'}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={colors.textMuted}
             />
-          </View>
-        </Pressable>
-      </Modal>
-
-      <Text style={styles.sectionTitle}>Ubicación en el mapa</Text>
-      {selectedCoords && (
-        <Text style={styles.helperText}>
-          Lat: {selectedCoords.latitude.toFixed(5)}, Lng:{' '}
-          {selectedCoords.longitude.toFixed(5)}
-        </Text>
-      )}
-      {isOwner ? (
-        selectedCoords ? (
-          <View style={styles.locationConfirmed}>
-            <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-            <Text style={styles.locationConfirmedText}>
-              Ubicación seleccionada
-            </Text>
-            <Pressable onPress={openMapPicker}>
-              <Text style={styles.locationChangeLink}>Cambiar</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
-            <Ionicons name="map-outline" size={18} color={colors.primary} />
-            <Text style={styles.mapPickerButtonText}>
-              Seleccionar en mapa
-            </Text>
           </Pressable>
-        )
-      ) : null}
 
-      {isOwner && (
-        <Button
-          title="Guardar cambios"
-          onPress={handleSave}
-          loading={saving}
-          style={styles.saveButton}
-        />
+          <TextField
+            label="Ciudad"
+            value={city}
+            onChangeText={setCity}
+          />
+          <TextField
+            label="Dirección"
+            value={address}
+            onChangeText={setAddress}
+          />
+          <TextField
+            label="Teléfono"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+          <TextField
+            label="WhatsApp"
+            value={whatsapp}
+            onChangeText={setWhatsapp}
+            keyboardType="phone-pad"
+          />
+
+          <Modal
+            visible={showProvincePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowProvincePicker(false)}
+          >
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => setShowProvincePicker(false)}
+            >
+              <View style={styles.modalSheet}>
+                <Text style={styles.modalTitle}>Selecciona la provincia</Text>
+                <FlatList
+                  data={ECUADOR_PROVINCES_DN}
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={[
+                        styles.provinceItem,
+                        province === item && styles.provinceItemSelected,
+                      ]}
+                      onPress={() => {
+                        setProvince(item);
+                        setShowProvincePicker(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.provinceText,
+                          province === item && styles.provinceTextSelected,
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                      {province === item && (
+                        <Ionicons
+                          name="checkmark"
+                          size={16}
+                          color={colors.primary}
+                        />
+                      )}
+                    </Pressable>
+                  )}
+                />
+              </View>
+            </Pressable>
+          </Modal>
+
+          <Text style={styles.sectionTitle}>Ubicación en el mapa</Text>
+          {selectedCoords && (
+            <Text style={styles.helperText}>
+              Lat: {selectedCoords.latitude.toFixed(5)}, Lng:{' '}
+              {selectedCoords.longitude.toFixed(5)}
+            </Text>
+          )}
+          {selectedCoords ? (
+            <View style={styles.locationConfirmed}>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={styles.locationConfirmedText}>
+                Ubicación seleccionada
+              </Text>
+              <Pressable onPress={openMapPicker}>
+                <Text style={styles.locationChangeLink}>Cambiar</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.mapPickerButton} onPress={openMapPicker}>
+              <Ionicons name="map-outline" size={18} color={colors.primary} />
+              <Text style={styles.mapPickerButtonText}>
+                Seleccionar en mapa
+              </Text>
+            </Pressable>
+          )}
+
+          <Button
+            title="Guardar cambios"
+            onPress={handleSave}
+            loading={saving}
+            style={styles.saveButton}
+          />
+        </>
       )}
 
       {/* Map picker */}
@@ -470,6 +511,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
   },
+  headerActionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+    paddingHorizontal: 4,
+  },
+  infoRow: {
+    marginBottom: 16,
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: colors.text,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -512,12 +571,6 @@ const styles = StyleSheet.create({
   },
   pickerButtonPlaceholder: {
     color: colors.textMuted,
-  },
-  readOnlyValue: {
-    fontSize: 16,
-    color: colors.textMuted,
-    marginBottom: 16,
-    paddingHorizontal: 4,
   },
   modalBackdrop: {
     flex: 1,

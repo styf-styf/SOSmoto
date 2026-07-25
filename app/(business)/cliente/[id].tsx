@@ -119,8 +119,15 @@ export default function ClienteDetailScreen() {
         </View>
       )}
 
-      {/* Header del cliente */}
-      <View style={styles.profileCard}>
+      {/* Header del cliente -- si esta persona compra a nombre de su propio
+          negocio (ej. un taller comprándole al por mayor a esta tienda),
+          avatar y nombre llevan al perfil público de ESE negocio. Un cliente
+          final sin negocio propio no tiene perfil público al que ir. */}
+      <Pressable
+        style={styles.profileCard}
+        disabled={!client.ownedBusinessId}
+        onPress={() => router.push(`/(business)/business/${client.ownedBusinessId}`)}
+      >
         <View style={styles.avatarCircle}>
           {client.avatar_url ? (
             <Image source={{ uri: client.avatar_url }} style={styles.avatarImage} />
@@ -133,7 +140,10 @@ export default function ClienteDetailScreen() {
           {client.phone && <Text style={styles.clientPhone}>{client.phone}</Text>}
           {client.email && <Text style={styles.clientPhone}>{client.email}</Text>}
         </View>
-      </View>
+        {client.ownedBusinessId && (
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        )}
+      </Pressable>
 
       {/* Vehículos del cliente */}
       {!isStore && clientVehicles.length > 0 && (

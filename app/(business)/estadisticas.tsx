@@ -74,14 +74,18 @@ export default function EstadisticasScreen() {
         </Text>
       </View>
 
-      <View style={styles.row}>
-        <StatCard label="Auxilios recibidos" value={stats.helpRequestsTotal} />
-        <StatCard label="Auxilios completados" value={stats.helpRequestsCompleted} />
-      </View>
-      <View style={styles.row}>
-        <StatCard label="Citas recibidas" value={stats.appointmentsTotal} />
-        <StatCard label="Citas completadas" value={stats.appointmentsCompleted} />
-      </View>
+      {canHaveServices && (
+        <>
+          <View style={styles.row}>
+            <StatCard label="Auxilios recibidos" value={stats.helpRequestsTotal} />
+            <StatCard label="Auxilios completados" value={stats.helpRequestsCompleted} />
+          </View>
+          <View style={styles.row}>
+            <StatCard label="Citas recibidas" value={stats.appointmentsTotal} />
+            <StatCard label="Citas completadas" value={stats.appointmentsCompleted} />
+          </View>
+        </>
+      )}
 
       {!showIntermedio && (
         <Text style={styles.upsell}>
@@ -121,7 +125,7 @@ export default function EstadisticasScreen() {
         </>
       )}
 
-      {showAvanzado && (
+      {showAvanzado && canHaveServices && (
         <>
           <Text style={styles.sectionTitle}>Conversión</Text>
           <StatCard

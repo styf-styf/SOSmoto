@@ -167,6 +167,11 @@ export default function CatalogoScreen() {
   const [showInventoryInfo, setShowInventoryInfo] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const didInitialLoadRef = useRef(false);
+  // Recuerda si el formulario abierto vino del editId de la URL, ya que ese
+  // param se limpia (router.setParams) apenas se abre el modal -- closeForm
+  // necesita saber esto para volver a la página de producto/servicio de
+  // donde vino, no puede depender del editId en vivo porque ya no está.
+  const openedFromEditLinkRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -225,17 +230,30 @@ export default function CatalogoScreen() {
   }, [highlightId, products.length, services.length]);
 
   // Llegada desde el botón "Editar" de la página de producto/servicio: abre
-  // el modal de edición directamente apenas carga el catálogo.
+  // el modal de edición directamente apenas carga el catálogo. Se limpian
+  // editId/editKind de la URL apenas se consumen (router.setParams) -- sin
+  // esto, quedaban pegados a esta pantalla de Catálogo (que nunca se
+  // desmonta, vive en un tab) y el useFocusEffect de arriba, que recarga
+  // products/services con un array nuevo cada vez que el tab vuelve a tomar
+  // foco, volvía a disparar este efecto y reabría el modal de edición cada
+  // vez que se entraba a Catálogo, aunque ya se hubiera cerrado antes.
   useEffect(() => {
     if (!editId || !editKind) return;
-    if (editKind === 'product' && products.length) {
+    // Espera a que la lista relevante ya haya cargado antes de dar por
+    // consumido el editId -- si se limpia el param antes de tiempo (lista
+    // todavía vacía en la primera carga), el modal nunca llega a abrirse.
+    if (editKind === 'product') {
+      if (!products.length) return;
       const product = products.find((p) => p.id === editId);
       if (product) setForm({ kind: 'product', product });
     }
-    if (editKind === 'service' && services.length) {
+    if (editKind === 'service') {
+      if (!services.length) return;
       const service = services.find((s) => s.id === editId);
       if (service) setForm({ kind: 'service', service });
     }
+    openedFromEditLinkRef.current = true;
+    router.setParams({ editId: undefined, editKind: undefined });
   }, [editId, editKind, products, services]);
 
   function handleHighlightLayout(y: number) {
@@ -286,14 +304,16 @@ export default function CatalogoScreen() {
     setForm({ kind: 'product', product: null });
   }
 
-  // Si se llegó acá desde el botón "Editar" de la página de producto/servicio
-  // (editId en la URL), cerrar el formulario debe devolver a esa página en
-  // vez de dejar al usuario en el Catálogo -- que es donde vive este modal,
-  // pero no de donde vino.
+  // Si se llegó acá desde el botón "Editar" de la página de producto/servicio,
+  // cerrar el formulario debe devolver a esa página en vez de dejar al
+  // usuario en el Catálogo -- que es donde vive este modal, pero no de donde
+  // vino. No se puede usar el editId en vivo acá porque el efecto de arriba
+  // ya lo limpió de la URL apenas abrió el modal (ver openedFromEditLinkRef).
   function closeForm() {
     setForm(null);
-    if (editId && router.canGoBack()) {
-      router.back();
+    if (openedFromEditLinkRef.current) {
+      openedFromEditLinkRef.current = false;
+      if (router.canGoBack()) router.back();
     }
   }
 
