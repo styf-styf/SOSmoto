@@ -25,6 +25,7 @@ import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/busine
 const buildInfo = Updates.isEmbeddedLaunch
   ? 'Build de fábrica (sin actualización OTA aplicada)'
   : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
+import { ADS_ENABLED } from '../../constants/features';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
 import { getPendingRequests } from '../../services/helpRequests';
@@ -296,11 +297,13 @@ export default function BusinessConfiguracionScreen() {
           label="Estadísticas"
           onPress={() => router.push('/(business)/estadisticas')}
         />
-        <MenuRow
-          icon="megaphone-outline"
-          label="Publicidad"
-          onPress={() => router.push('/(business)/publicidad')}
-        />
+        {ADS_ENABLED && (
+          <MenuRow
+            icon="megaphone-outline"
+            label="Publicidad"
+            onPress={() => router.push('/(business)/publicidad')}
+          />
+        )}
         <MenuRow
           icon="trending-up-outline"
           label="Crece tu negocio"

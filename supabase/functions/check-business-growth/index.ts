@@ -1,5 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Publicidad está desactivada para el lanzamiento (ver constants/features.ts
+// en la app -- este archivo corre en Deno y no puede importar de ahí, así
+// que el flag se duplica acá). Mientras sea false, no se generan las
+// sugerencias "advertise_new_business"/"advertise_low_visibility" ni se
+// manda push por ellas -- no tiene sentido sugerirle a un negocio que se
+// anuncie si la pantalla ni siquiera está disponible.
+const ADS_ENABLED = false;
+
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const THROTTLE_DAYS = 7;
 const NEAR_LIMIT_RATIO = 0.8;
@@ -161,7 +169,7 @@ async function findSuggestion(
     }
   }
 
-  if (!hasActiveAd) {
+  if (ADS_ENABLED && !hasActiveAd) {
     const daysSinceCreated = (now.getTime() - new Date(business.created_at).getTime()) / MS_PER_DAY;
     if (daysSinceCreated <= NEW_BUSINESS_WINDOW_DAYS) {
       const { data: anyAd } = await supabase.from('ads').select('id').eq('business_id', business.id).limit(1).maybeSingle();

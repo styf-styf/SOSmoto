@@ -8,9 +8,10 @@ import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '..
 import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
+import { ADS_ENABLED } from '../../constants/features';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
-import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice, resumeAd } from '../../services/ads';
+import { createAdCampaign, getAdPricing, getBusinessAds, pauseAd, quoteAdPrice, resubmitRejectedAd, resumeAd } from '../../services/ads';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getActiveProducts, getActiveServices, getPlanLimits } from '../../services/catalog';
 import { pickAndUploadBusinessImage } from '../../services/storage';
@@ -74,6 +75,11 @@ export default function PublicidadScreen() {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkLabel, setLinkLabel] = useState('');
   const [durationDays, setDurationDays] = useState('7');
+  // Cuando no es null, el formulario está corrigiendo una campaña RECHAZADA
+  // para reenviarla sin pagar de nuevo (ver handleEditRejected) -- alcance,
+  // radio y duración quedan bloqueados (eso es lo que determina el precio,
+  // y esto no es una compra nueva), solo se puede corregir el contenido.
+  const [resubmittingAdId, setResubmittingAdId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -213,6 +219,7 @@ export default function PublicidadScreen() {
     setDurationDays('7');
     setScope('national');
     setRadiusKm('10');
+    setResubmittingAdId(null);
   }
 
   // Arma el link de WhatsApp a partir del número ya guardado en el negocio
@@ -264,38 +271,59 @@ export default function PublicidadScreen() {
       Alert.alert('Falta el texto del botón', 'Escribe cómo se debe llamar el botón del link (ej. "WhatsApp", "Sitio web").');
       return;
     }
-    if (!validDays) {
-      Alert.alert('Duración inválida', 'Ingresa un número de días válido.');
-      return;
-    }
-    if (!validRadius) {
-      Alert.alert('Radio inválido', 'Ingresa un radio en km entre 1 y 200.');
-      return;
+    if (!resubmittingAdId) {
+      if (!validDays) {
+        Alert.alert('Duración inválida', 'Ingresa un número de días válido.');
+        return;
+      }
+      if (!validRadius) {
+        Alert.alert('Radio inválido', 'Ingresa un radio en km entre 1 y 200.');
+        return;
+      }
     }
     setSaving(true);
     try {
-      const { checkoutUrl } = await createAdCampaign({
-        businessId: business.id,
-        kind,
-        productId: mode === 'existing' && kind === 'product' ? selectedItemId! : undefined,
-        serviceId: mode === 'existing' && kind === 'service' ? selectedItemId! : undefined,
-        categoryId: mode === 'new' ? newItemCategoryId : undefined,
-        itemName: mode === 'existing' ? selectedItem?.name ?? '' : newItemName.trim(),
-        title: title.trim(),
-        photos,
-        linkUrl: linkUrl.trim() || undefined,
-        linkLabel: linkUrl.trim() ? linkLabel.trim() : undefined,
-        targetScope: scope,
-        targetCity: scope === 'city' ? business.city : undefined,
-        targetRadiusKm: scope === 'radius' ? parsedRadius : undefined,
-        durationDays: parsedDays,
-      });
-      setShowForm(false);
-      resetForm();
-      await Linking.openURL(checkoutUrl);
+      if (resubmittingAdId) {
+        await resubmitRejectedAd({
+          adId: resubmittingAdId,
+          kind,
+          productId: mode === 'existing' && kind === 'product' ? selectedItemId! : undefined,
+          serviceId: mode === 'existing' && kind === 'service' ? selectedItemId! : undefined,
+          categoryId: mode === 'new' ? newItemCategoryId : undefined,
+          itemName: mode === 'existing' ? selectedItem?.name ?? '' : newItemName.trim(),
+          title: title.trim(),
+          photos,
+          linkUrl: linkUrl.trim() || undefined,
+          linkLabel: linkUrl.trim() ? linkLabel.trim() : undefined,
+        });
+        setShowForm(false);
+        resetForm();
+        await reload();
+        Alert.alert('Reenviada', 'Tu campaña corregida quedó en revisión de nuevo, sin costo adicional -- ya la habías pagado.');
+      } else {
+        const { checkoutUrl } = await createAdCampaign({
+          businessId: business.id,
+          kind,
+          productId: mode === 'existing' && kind === 'product' ? selectedItemId! : undefined,
+          serviceId: mode === 'existing' && kind === 'service' ? selectedItemId! : undefined,
+          categoryId: mode === 'new' ? newItemCategoryId : undefined,
+          itemName: mode === 'existing' ? selectedItem?.name ?? '' : newItemName.trim(),
+          title: title.trim(),
+          photos,
+          linkUrl: linkUrl.trim() || undefined,
+          linkLabel: linkUrl.trim() ? linkLabel.trim() : undefined,
+          targetScope: scope,
+          targetCity: scope === 'city' ? business.city : undefined,
+          targetRadiusKm: scope === 'radius' ? parsedRadius : undefined,
+          durationDays: parsedDays,
+        });
+        setShowForm(false);
+        resetForm();
+        await Linking.openURL(checkoutUrl);
+      }
     } catch (err) {
-      console.error('create ad campaign error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo iniciar el pago de la campaña.');
+      console.error('create/resubmit ad campaign error', err);
+      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo procesar la campaña.');
     } finally {
       setSaving(false);
     }
@@ -313,6 +341,36 @@ export default function PublicidadScreen() {
     setLinkUrl(ad.link_url ?? '');
     setLinkLabel(ad.link_label ?? '');
     setDurationDays('7');
+    setKind(ad.kind);
+    if (ad.product_id || ad.service_id) {
+      pendingSelectIdRef.current = ad.product_id ?? ad.service_id;
+      setMode('existing');
+    } else {
+      setMode('new');
+      setNewItemName(ad.item_name);
+      setNewItemCategoryId(ad.category_id ?? '');
+    }
+    setShowForm(true);
+  }
+
+  // Corregir y reenviar una campaña RECHAZADA: a diferencia de Relanzar, NO
+  // es una campaña nueva -- ya se pagó y nunca se mostró por el rechazo, así
+  // que se reenvía sin pasar por Payphone de nuevo (ver resubmitRejectedAd).
+  // Alcance/radio/duración quedan tal cual estaban pagados (bloqueados en el
+  // formulario, ver resubmittingAdId) -- solo se corrige el contenido.
+  function handleEditRejected(ad: Ad) {
+    setResubmittingAdId(ad.id);
+    setScope(ad.target_scope);
+    setRadiusKm(ad.target_radius_km ? String(ad.target_radius_km) : '10');
+    setTitle(ad.title);
+    setPhotos(ad.photos);
+    setLinkUrl(ad.link_url ?? '');
+    setLinkLabel(ad.link_label ?? '');
+    const paidDays = Math.max(
+      1,
+      Math.round((new Date(ad.ends_at).getTime() - new Date(ad.starts_at).getTime()) / 86400000)
+    );
+    setDurationDays(String(paidDays));
     setKind(ad.kind);
     if (ad.product_id || ad.service_id) {
       pendingSelectIdRef.current = ad.product_id ?? ad.service_id;
@@ -358,6 +416,18 @@ export default function PublicidadScreen() {
     }
   }
 
+  // Publicidad está terminada y probada, pero desactivada para el
+  // lanzamiento (ver constants/features.ts) -- el menú ya no muestra la
+  // entrada, esto es por si se llega acá por otro camino (link viejo).
+  if (!ADS_ENABLED) {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="megaphone-outline" size={40} color={colors.textMuted} style={{ marginBottom: 12 }} />
+        <Text style={styles.placeholder}>La publicidad todavía no está disponible. Pronto vas a poder crear campañas desde acá.</Text>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -399,21 +469,45 @@ export default function PublicidadScreen() {
 
       {isOwner && !business.is_limited && showForm && (
         <View style={styles.card}>
+          {resubmittingAdId && (
+            <Text style={styles.resubmitNotice}>
+              Reenviando una campaña rechazada: alcance, radio y duración quedan como ya los pagaste. Solo podés
+              corregir el contenido que causó el rechazo.
+            </Text>
+          )}
           <Text style={styles.fieldLabel}>Alcance</Text>
           <View style={styles.chipRow}>
-            <Pressable onPress={() => setScope('national')} style={[styles.chip, scope === 'national' && styles.chipSelected]}>
+            <Pressable
+              onPress={() => !resubmittingAdId && setScope('national')}
+              disabled={!!resubmittingAdId}
+              style={[styles.chip, scope === 'national' && styles.chipSelected, !!resubmittingAdId && styles.chipDisabled]}
+            >
               <Text style={[styles.chipText, scope === 'national' && styles.chipTextSelected]}>Nacional</Text>
             </Pressable>
-            <Pressable onPress={() => setScope('city')} style={[styles.chip, scope === 'city' && styles.chipSelected]}>
+            <Pressable
+              onPress={() => !resubmittingAdId && setScope('city')}
+              disabled={!!resubmittingAdId}
+              style={[styles.chip, scope === 'city' && styles.chipSelected, !!resubmittingAdId && styles.chipDisabled]}
+            >
               <Text style={[styles.chipText, scope === 'city' && styles.chipTextSelected]}>Solo {business.city}</Text>
             </Pressable>
-            <Pressable onPress={() => setScope('radius')} style={[styles.chip, scope === 'radius' && styles.chipSelected]}>
+            <Pressable
+              onPress={() => !resubmittingAdId && setScope('radius')}
+              disabled={!!resubmittingAdId}
+              style={[styles.chip, scope === 'radius' && styles.chipSelected, !!resubmittingAdId && styles.chipDisabled]}
+            >
               <Text style={[styles.chipText, scope === 'radius' && styles.chipTextSelected]}>Radio</Text>
             </Pressable>
           </View>
 
           {scope === 'radius' && (
-            <TextField label="Radio (km, desde tu negocio)" keyboardType="numeric" value={radiusKm} onChangeText={setRadiusKm} />
+            <TextField
+              label="Radio (km, desde tu negocio)"
+              keyboardType="numeric"
+              value={radiusKm}
+              onChangeText={setRadiusKm}
+              editable={!resubmittingAdId}
+            />
           )}
 
           {canChooseKind && (
@@ -500,13 +594,25 @@ export default function PublicidadScreen() {
               onChangeText={setLinkLabel}
             />
           )}
-          <TextField label="Duración (días)" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
+          <TextField
+            label="Duración (días)"
+            keyboardType="numeric"
+            value={durationDays}
+            onChangeText={setDurationDays}
+            editable={!resubmittingAdId}
+          />
 
-          <Text style={styles.priceText}>{validDays ? `Total: $${price.toFixed(2)}` : 'Ingresa una duración válida'}</Text>
+          <Text style={styles.priceText}>
+            {resubmittingAdId
+              ? 'Ya pagada -- sin costo adicional al reenviar'
+              : validDays
+              ? `Total: $${price.toFixed(2)}`
+              : 'Ingresa una duración válida'}
+          </Text>
 
           <View style={styles.editActions}>
             <Button
-              title={validDays ? `Pagar $${price.toFixed(2)}` : 'Pagar'}
+              title={resubmittingAdId ? 'Reenviar para revisión' : validDays ? `Pagar $${price.toFixed(2)}` : 'Pagar'}
               onPress={handleCreate}
               loading={saving}
               style={styles.flexButton}
@@ -574,7 +680,7 @@ export default function PublicidadScreen() {
                 <Button
                   title="Corregir y reenviar"
                   variant="secondary"
-                  onPress={() => handleRelaunch(ad)}
+                  onPress={() => handleEditRejected(ad)}
                   style={styles.gridPauseButton}
                 />
               )}
@@ -631,7 +737,8 @@ export default function PublicidadScreen() {
             Pagas de una sola vez (vía Payphone) al crear la campaña. Después, un admin de SOSmoto la revisa antes de
             mostrarla a nadie -- para evitar contenido inapropiado o competencia desleal. El estado pasa de
             "Pendiente de revisión" directo a "Activa" (ya circulando) o "Rechazada". Si la rechazan, verás el motivo
-            junto a la campaña y podrás tocar "Corregir y reenviar" para pagar de nuevo con los cambios ya hechos.
+            junto a la campaña y podrás tocar "Corregir y reenviar" -- corriges lo que causó el rechazo (texto, fotos,
+            link) y vuelve a revisión sin costo adicional, ya que esa campaña la pagaste y nunca llegó a mostrarse.
           </Text>
         </InfoStep>
 
@@ -767,6 +874,18 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: colors.primary,
+  },
+  chipDisabled: {
+    opacity: 0.5,
+  },
+  resubmitNotice: {
+    fontSize: 12,
+    color: colors.primary,
+    backgroundColor: '#FFF1E6',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+    lineHeight: 17,
   },
   catalogLoading: {
     marginBottom: 16,

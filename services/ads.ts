@@ -128,6 +128,44 @@ export async function createAdCampaign(
   return data;
 }
 
+export interface ResubmitAdParams {
+  adId: string;
+  kind: AdKind;
+  productId?: string;
+  serviceId?: string;
+  categoryId?: string;
+  itemName: string;
+  title: string;
+  photos: string[];
+  linkUrl?: string;
+  linkLabel?: string;
+}
+
+// Reenvía una campaña RECHAZADA para otra revisión, sin pasar por Payphone
+// de nuevo -- ya se pagó la primera vez y nunca llegó a mostrarse por el
+// rechazo. Alcance/radio/duración (lo que determina el precio) no se tocan
+// acá -- ver ad-resubmit, que además recalcula starts_at/ends_at con la
+// misma duración ya pagada, corriendo la ventana a partir de ahora.
+export async function resubmitRejectedAd(params: ResubmitAdParams): Promise<Ad> {
+  const { data, error } = await supabase.functions.invoke('ad-resubmit', {
+    body: {
+      adId: params.adId,
+      kind: params.kind,
+      productId: params.productId,
+      serviceId: params.serviceId,
+      categoryId: params.categoryId,
+      itemName: params.itemName,
+      title: params.title,
+      photos: params.photos,
+      linkUrl: params.linkUrl,
+      linkLabel: params.linkLabel,
+    },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.ad as Ad;
+}
+
 export async function getBusinessAds(businessId: string): Promise<Ad[]> {
   const { data, error } = await supabase
     .from('ads')
