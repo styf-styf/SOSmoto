@@ -152,8 +152,12 @@ function sanitizeFileNamePart(s: string): string {
 
 function buildPdfFileName(report: ServiceReportWithBusiness): string {
   const who = sanitizeFileNamePart(report.client_name || report.vehicle_label || report.business_name);
-  const dateStr = new Date(report.created_at).toISOString().slice(0, 10);
-  return `Informe - ${who} - ${dateStr}.pdf`;
+  // Incluye hora (no solo fecha) -- sin esto, compartir el mismo informe dos
+  // veces el mismo día generaba el mismo nombre de archivo, y copy() falla
+  // si el destino ya existe.
+  const now = new Date();
+  const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  return `Informe - ${who} - ${stamp}.pdf`;
 }
 
 export async function shareReportAsPdf(report: ServiceReportWithBusiness): Promise<void> {
@@ -163,15 +167,22 @@ export async function shareReportAsPdf(report: ServiceReportWithBusiness): Promi
     const html = buildHtml(report);
     const { uri } = await Print.printToFileAsync({ html, base64: false });
 
+    // rename() en el archivo que devuelve printToFileAsync no es confiable
+    // en todas las plataformas (esa carpeta temporal de expo-print puede no
+    // permitir renombrar in situ) -- en vez de eso, se copia a un archivo
+    // nuevo con el nombre deseado dentro de Paths.cache, que sí es de
+    // escritura garantizada.
     let shareUri = uri;
     try {
-      const { File } = await import('expo-file-system');
-      const file = new File(uri);
-      file.rename(buildPdfFileName(report));
-      shareUri = file.uri;
+      const { File, Paths } = await import('expo-file-system');
+      const source = new File(uri);
+      const dest = new File(Paths.cache, buildPdfFileName(report));
+      if (dest.exists) dest.delete();
+      source.copy(dest);
+      shareUri = dest.uri;
     } catch (renameErr) {
-      // Si el renombrado falla por cualquier motivo, se comparte igual con
-      // el nombre temporal en vez de romper todo el flujo de compartir.
+      // Si copiar/renombrar falla por cualquier motivo, se comparte igual
+      // con el nombre temporal en vez de romper todo el flujo de compartir.
       console.warn('[PDF] No se pudo renombrar el archivo:', renameErr);
     }
 
