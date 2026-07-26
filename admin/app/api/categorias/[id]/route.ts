@@ -7,6 +7,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { name, status } = await req.json();
+  if (status !== undefined && !['approved', 'pending'].includes(status)) {
+    return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
+  }
   const updates: Record<string, string> = {};
   if (name !== undefined) updates.name = String(name).trim();
   if (status !== undefined) updates.status = status;

@@ -47,8 +47,23 @@ export async function getDueMaintenance(vehicle: Vehicle): Promise<MaintenanceIt
         .insert({ vehicle_id: vehicle.id, rule_id: rule.id, due_at_km: dueAtKm, status: 'pending' })
         .select()
         .single();
-      if (createError) throw createError;
-      current = created as MaintenanceSuggestion;
+      if (createError) {
+        // 23505 = violación del índice único (ver migración 0136) -- una
+        // llamada casi simultánea ya insertó la sugerencia activa para
+        // este vehículo+regla; se usa esa en vez de duplicar.
+        if (createError.code !== '23505') throw createError;
+        const { data: existing, error: refetchError } = await supabase
+          .from('maintenance_suggestions')
+          .select('*')
+          .eq('vehicle_id', vehicle.id)
+          .eq('rule_id', rule.id)
+          .in('status', ['pending', 'notified'])
+          .single();
+        if (refetchError) throw refetchError;
+        current = existing as MaintenanceSuggestion;
+      } else {
+        current = created as MaintenanceSuggestion;
+      }
     }
 
     if (!current) continue;

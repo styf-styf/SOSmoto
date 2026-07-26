@@ -38,7 +38,17 @@ async function sendPush(token: string, title: string, body: string, data: Record
   });
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Solo el cron interno (pg_cron, ver 0042_schedule_maintenance_check.sql)
+  // puede invocar esto -- antes cualquiera con el anon key (público,
+  // embebido en la app) pasaba el chequeo de plataforma de Supabase (que
+  // solo exige ALGÚN JWT válido del proyecto, no específicamente el de
+  // service_role) y podía disparar esta función manualmente.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -100,9 +110,15 @@ Deno.serve(async () => {
 
     if (!vehicle.moto_type) continue;
 
+    // FIX: si el vehículo no tiene avg_monthly_km (campo opcional), antes se
+    // saltaba por completo -- sin sugerencias ni push de "próximo"/"vencido"
+    // para nadie que no haya llenado ese dato al crear el vehículo. Ahora,
+    // sin promedio, simplemente no se proyecta el kilometraje hacia
+    // adelante (dailyRate = 0, estimatedMileage = current_mileage) -- no
+    // avisa ANTES de tiempo, pero sigue avisando en cuanto el kilometraje
+    // real (actualizado a mano en la app) cruce el umbral.
     const dailyRate = vehicle.avg_monthly_km ? vehicle.avg_monthly_km / 30 : 0;
     const estimatedMileage = vehicle.current_mileage + dailyRate * Math.max(daysSinceUpdate, 0);
-    if (dailyRate === 0) continue;
 
     const vehicleRules = rules.filter((r) => r.moto_type === vehicle.moto_type);
 

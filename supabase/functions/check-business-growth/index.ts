@@ -46,7 +46,14 @@ async function sendPush(token: string, title: string, body: string, data: Record
   });
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Solo el cron interno puede invocar esto -- ver nota equivalente en
+  // check-maintenance/index.ts.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+  }
+
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const now = new Date();
   let created = 0;

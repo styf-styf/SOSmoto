@@ -25,7 +25,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const { error } = await supabase
     .from('users')
-    .update({ is_limited: true, limitation_reason: reason.trim() })
+    .update({
+      is_limited: true,
+      limitation_reason: reason.trim(),
+      limited_by: admin.id,
+      limited_at: new Date().toISOString(),
+    })
     .eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

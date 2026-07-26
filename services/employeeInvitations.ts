@@ -66,6 +66,7 @@ export async function getMyPendingInvitations(
     .select('*, businesses(name, logo_url)')
     .eq('invitee_id', userId)
     .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
   if (error) throw error;
 
@@ -88,6 +89,7 @@ export async function getPendingInvitationsForBusiness(
     .select('*, users!employee_invitations_invitee_id_fkey(full_name, email)')
     .eq('business_id', businessId)
     .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
   if (error) throw error;
 
@@ -109,6 +111,9 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
     .eq('id', invitationId)
     .single();
   if (fetchError) throw fetchError;
+  if (inv.expires_at && new Date(inv.expires_at) < new Date()) {
+    throw new Error('Esta invitación ya venció. Pídele al negocio que te envíe una nueva.');
+  }
 
   const { data: existing } = await supabase
     .from('business_employees')

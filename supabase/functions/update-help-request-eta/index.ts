@@ -37,7 +37,16 @@ async function fetchEtaMinutes(
 // mano al aceptar y nunca se actualizaba. Se corre cada ~2 minutos (ver
 // migracion de cron); el costo es ~1 elemento de Distance Matrix por
 // solicitud activa por corrida, no por taller candidato.
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Solo el cron interno puede invocar esto -- la más importante de las 5,
+  // porque cada corrida gasta Google Distance Matrix (API paga) por cada
+  // auxilio activo. Sin este guard, cualquiera con el anon key podía
+  // scriptear llamadas repetidas y generar cargos reales de Google Maps.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+  }
+
   if (!GOOGLE_MAPS_SERVER_KEY) {
     return new Response(JSON.stringify({ error: 'Falta GOOGLE_MAPS_SERVER_KEY' }), { status: 500 });
   }

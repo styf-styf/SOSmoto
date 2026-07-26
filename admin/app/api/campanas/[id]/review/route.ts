@@ -13,6 +13,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const supabase = createAdminClient();
+
+  // Solo se puede aprobar/rechazar una campaña que sigue 'pending_review' --
+  // sin esto se podía "aprobar" un anuncio ya vencido/rechazado y revivirlo
+  // sin nuevo pago ni revalidar starts_at/ends_at (que quedan en el pasado).
+  const { data: current, error: currentError } = await supabase
+    .from('ads')
+    .select('status')
+    .eq('id', params.id)
+    .maybeSingle();
+  if (currentError) return NextResponse.json({ error: currentError.message }, { status: 500 });
+  if (!current) return NextResponse.json({ error: 'Anuncio no encontrado' }, { status: 404 });
+  if (current.status !== 'pending_review') {
+    return NextResponse.json({ error: 'Esta campaña ya no está pendiente de revisión.' }, { status: 400 });
+  }
+
   const { data: ad, error } = await supabase
     .from('ads')
     .update({

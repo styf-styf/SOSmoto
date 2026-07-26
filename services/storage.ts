@@ -151,10 +151,20 @@ export async function pickAndUploadUserAvatar(userId: string): Promise<string | 
   return uploadUserAvatar(asset, userId);
 }
 
+// El bucket es público de lectura para cualquiera con la URL (necesario
+// para el resto de su contenido: banners, fotos de catálogo). Antes el
+// único "secreto" del path de una imagen de chat era un timestamp en
+// milisegundos -- adivinable por fuerza bruta en una ventana de tiempo
+// acotada. Se agrega un sufijo aleatorio para que no alcance con conocer
+// el remitente y una ventana aproximada.
+function randomPathSuffix(): string {
+  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+
 export async function uploadChatImage(asset: ImagePicker.ImagePickerAsset, senderId: string): Promise<string> {
   const optimizedUri = await optimizeImage(asset);
   const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
-  const path = `chat-images/${senderId}/${Date.now()}.jpg`;
+  const path = `chat-images/${senderId}/${Date.now()}-${randomPathSuffix()}.jpg`;
 
   const { error } = await supabase.storage.from(BUCKET).upload(path, arrayBuffer, {
     contentType: 'image/jpeg',

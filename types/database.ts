@@ -123,6 +123,7 @@ export interface EmployeeInvitation {
   can_upload_stories: boolean;
   can_create_posts: boolean;
   status: InvitationStatus;
+  expires_at: string;
   created_at: string;
   updated_at: string;
 }

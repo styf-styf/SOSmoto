@@ -10,6 +10,9 @@ export async function POST(req: Request) {
   if (!name || !kind) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 });
   }
+  if (!['product', 'service'].includes(kind)) {
+    return NextResponse.json({ error: 'Tipo de categoría inválido' }, { status: 400 });
+  }
 
   const supabase = createAdminClient();
   const { error } = await supabase.from('categories').insert({

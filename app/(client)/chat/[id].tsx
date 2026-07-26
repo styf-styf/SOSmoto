@@ -645,6 +645,7 @@ export default function ChatScreen() {
             onChangeText={setText}
             multiline
             blurOnSubmit={false}
+            maxLength={4000}
           />
           <Pressable
             style={styles.sendButton}

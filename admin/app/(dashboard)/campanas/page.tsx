@@ -7,7 +7,7 @@ import { AdReviewActions } from './AdReviewActions';
 const PAGE_SIZE = 12;
 
 const AD_SELECT =
-  'id, business_id, kind, item_name, title, photos, link_url, target_city, target_scope, target_radius_km, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name)';
+  'id, business_id, kind, item_name, title, photos, link_url, target_city, target_scope, target_radius_km, status, starts_at, ends_at, impressions, clicks, created_at, businesses(name, is_limited)';
 
 const kindLabel: Record<string, string> = { product: 'Producto', service: 'Servicio' };
 
@@ -68,6 +68,11 @@ export default async function PublicidadPage({
               <p className="text-xs text-gray-500">
                 {ad.businesses?.name ?? 'Negocio'} · {kindLabel[ad.kind] ?? ad.kind}: {ad.item_name}
               </p>
+              {ad.businesses?.is_limited && (
+                <p className="mt-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+                  ⚠ Negocio limitado -- revisar antes de aprobar
+                </p>
+              )}
               <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
               <p className="text-xs text-gray-400">
                 {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}

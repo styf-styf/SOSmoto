@@ -7,6 +7,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const body = await req.json();
+  if ('dispute_status' in body && !['none', 'flagged', 'reviewed'].includes(body.dispute_status)) {
+    return NextResponse.json({ error: 'Estado de disputa inválido' }, { status: 400 });
+  }
   const updates: Record<string, string> = {};
   if ('admin_notes' in body) updates.admin_notes = body.admin_notes ?? '';
   if ('dispute_status' in body) updates.dispute_status = body.dispute_status;

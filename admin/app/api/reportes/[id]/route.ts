@@ -7,6 +7,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { status } = await req.json();
+  if (!['pending', 'reviewed', 'dismissed'].includes(status)) {
+    return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
+  }
   const supabase = createAdminClient();
   const { error } = await supabase.from('reports').update({ status }).eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

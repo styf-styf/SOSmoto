@@ -28,6 +28,18 @@ export interface ClientProfileForBusiness {
 type RawClient = { id: string; full_name: string; phone: string | null };
 type RawVehicle = { id: string; brand: string; model: string; year: number };
 
+// Nombre/avatar de una invitación 'pending' (ver migración 0130) -- nunca
+// trae teléfono/email, es seguro llamarla aunque la relación no esté
+// aceptada todavía. Se usa como fallback cuando el select directo a
+// `users` no trae una fila porque RLS ya no deja leer contacto sin
+// consentimiento.
+async function fetchPendingClientNames(ids: string[]): Promise<Map<string, { full_name: string; avatar_url: string | null }>> {
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase.rpc('get_pending_client_names', { target_client_ids: ids });
+  if (error) throw error;
+  return new Map((data ?? []).map((u: any) => [u.id as string, { full_name: u.full_name, avatar_url: u.avatar_url ?? null }]));
+}
+
 async function batchClients(ids: string[]): Promise<Map<string, RawClient>> {
   if (ids.length === 0) return new Map();
   const { data, error } = await supabase.from('users').select('id, full_name, phone').in('id', ids);
@@ -271,6 +283,15 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
     ]);
     userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
     businessLogoMap = logos;
+    // RLS ya no deja leer el usuario de una invitación 'pending' sin
+    // consentimiento (ver 0130) -- se completa solo el nombre vía la
+    // función que nunca expone contacto, para no hacer desaparecer la
+    // invitación de la lista.
+    const missingIds = appIdsToFetch.filter((id: string) => !userMap.has(id));
+    if (missingIds.length > 0) {
+      const pendingNames = await fetchPendingClientNames(missingIds);
+      for (const [id, info] of pendingNames) userMap.set(id, { id, full_name: info.full_name, phone: null, avatar_url: info.avatar_url });
+    }
   }
 
   for (const bc of (bizClients ?? []) as any[]) {
@@ -395,6 +416,11 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
     ]);
     userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
     businessLogoMap = logos;
+    const missingIds = appIdsToFetch.filter((id: string) => !userMap.has(id));
+    if (missingIds.length > 0) {
+      const pendingNames = await fetchPendingClientNames(missingIds);
+      for (const [id, info] of pendingNames) userMap.set(id, { id, full_name: info.full_name, phone: null, avatar_url: info.avatar_url });
+    }
   }
 
   for (const bc of (bizClients ?? []) as any[]) {
@@ -523,14 +549,31 @@ export async function getClientProfileForBusiness(
     supabase.from('businesses').select('id').eq('owner_id', clientId).maybeSingle(),
   ]);
   if (userErr) throw userErr;
-  if (!user) return null;
+  const ownedBusinessId = (ownedBusiness as any)?.id ?? null;
 
+  if (user) {
+    return {
+      id: (user as any).id,
+      full_name: (user as any).full_name,
+      phone: (user as any).phone ?? null,
+      email: (user as any).email ?? null,
+      avatar_url: (user as any).avatar_url ?? null,
+      ownedBusinessId,
+    };
+  }
+
+  // La relación puede seguir 'pending' -- RLS ya no deja leer contacto sin
+  // consentimiento (ver 0130), pero sí se puede mostrar el nombre para que
+  // el negocio sepa a quién invitó.
+  const pendingNames = await fetchPendingClientNames([clientId]);
+  const pending = pendingNames.get(clientId);
+  if (!pending) return null;
   return {
-    id: (user as any).id,
-    full_name: (user as any).full_name,
-    phone: (user as any).phone ?? null,
-    email: (user as any).email ?? null,
-    avatar_url: (user as any).avatar_url ?? null,
-    ownedBusinessId: (ownedBusiness as any)?.id ?? null,
+    id: clientId,
+    full_name: pending.full_name,
+    phone: null,
+    email: null,
+    avatar_url: pending.avatar_url,
+    ownedBusinessId,
   };
 }

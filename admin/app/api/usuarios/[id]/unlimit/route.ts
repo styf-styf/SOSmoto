@@ -8,7 +8,10 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from('users').update({ is_limited: false }).eq('id', params.id);
+  const { error } = await supabase
+    .from('users')
+    .update({ is_limited: false, limited_by: admin.id, limited_at: new Date().toISOString() })
+    .eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await sendPushToUser(params.id, 'Cuenta restablecida', 'Se quitó el límite de tu cuenta. Ya puedes usar la app con normalidad.', {

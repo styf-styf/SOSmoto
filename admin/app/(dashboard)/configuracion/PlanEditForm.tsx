@@ -132,13 +132,15 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
           )}
         </FieldRow>
 
-        <FieldRow label="Máx. servicios">
-          {editing ? (
-            <NullableNumberInput value={maxServices} onChange={setMaxServices} />
-          ) : (
-            <span className="font-medium">{displayVal(maxServices)}</span>
-          )}
-        </FieldRow>
+        {plan.business_type !== 'store' && (
+          <FieldRow label="Máx. servicios">
+            {editing ? (
+              <NullableNumberInput value={maxServices} onChange={setMaxServices} />
+            ) : (
+              <span className="font-medium">{displayVal(maxServices)}</span>
+            )}
+          </FieldRow>
+        )}
 
         <FieldRow label="Máx. fotos (producto/servicio/publicación)">
           {editing ? (

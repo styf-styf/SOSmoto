@@ -27,7 +27,14 @@ async function getPushToken(supabase: ReturnType<typeof createClient>, userId: s
 // auxilio olvidado deja al taller sin ver "Pendientes" nunca más y al
 // cliente sin poder pedir uno nuevo, para siempre. Corre cada 15 min (ver
 // migracion de cron), mismo patron que update-help-request-eta (0052).
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Solo el cron interno puede invocar esto -- ver nota equivalente en
+  // check-maintenance/index.ts.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+  }
+
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
   const cutoff = new Date(Date.now() - TIMEOUT_HOURS * 60 * 60 * 1000).toISOString();

@@ -57,6 +57,16 @@ async function notifyPlanChanged(supabase: ReturnType<typeof createClient>, busi
 
 async function activateSubscription(supabase: ReturnType<typeof createClient>, payment: PaymentRow) {
   if (!payment.plan_id) return;
+  // Idempotencia: si fulfillPayment se reintenta (ver más abajo, ahora los
+  // efectos se aplican ANTES de marcar el pago 'completed'), no crear una
+  // segunda suscripción para el mismo pago.
+  const { data: existing } = await supabase
+    .from('business_subscriptions')
+    .select('id')
+    .eq('payment_id', payment.id)
+    .maybeSingle();
+  if (existing) return;
+
   const now = new Date();
   const expiresAt = new Date(now);
   expiresAt.setMonth(expiresAt.getMonth() + 1);
@@ -88,6 +98,11 @@ async function activateSubscription(supabase: ReturnType<typeof createClient>, p
 async function createAdFromPayment(supabase: ReturnType<typeof createClient>, payment: PaymentRow) {
   const m = payment.metadata;
   if (!m) return;
+  // Idempotencia: mismo motivo que activateSubscription -- no duplicar la
+  // campaña si fulfillPayment se reintenta.
+  const { data: existing } = await supabase.from('ads').select('id').eq('payment_id', payment.id).maybeSingle();
+  if (existing) return;
+
   const startsAt = new Date();
   const endsAt = new Date(startsAt);
   endsAt.setDate(endsAt.getDate() + Number(m.durationDays));
@@ -137,21 +152,28 @@ async function fulfillPayment(
   payment: PaymentRow,
   gatewayTransactionId: string
 ) {
-  await supabase
-    .from('payments')
-    .update({ status: 'completed', gateway_transaction_id: gatewayTransactionId })
-    .eq('id', payment.id);
-
+  // Los efectos se aplican ANTES de marcar el pago 'completed' -- si
+  // createAdFromPayment/activateSubscription fallan a la mitad, el pago se
+  // queda en su estado anterior (no 'completed') y un reintento real puede
+  // repetir el flujo completo en vez de quedar "cobrado" sin plan/anuncio
+  // activado y sin ninguna forma de reconciliar. Ambas funciones son
+  // idempotentes (chequean si ya existe una fila para este payment.id) por
+  // si el reintento llega después de que el efecto sí se aplicó.
   if (payment.type === 'advertising') {
     await createAdFromPayment(supabase, payment);
   } else {
     await activateSubscription(supabase, payment);
   }
+
+  await supabase
+    .from('payments')
+    .update({ status: 'completed', gateway_transaction_id: gatewayTransactionId })
+    .eq('id', payment.id);
 }
 
 Deno.serve(async (req) => {
   try {
-    const { id, clientTransactionId, transactionStatus: hintedStatus } = await req.json();
+    const { id, clientTransactionId } = await req.json();
     if (!id || !clientTransactionId) {
       return new Response(JSON.stringify({ error: 'Faltan datos' }), { status: 400 });
     }
@@ -195,19 +217,15 @@ Deno.serve(async (req) => {
       const detail = await confirmResponse.text();
       console.error('payphone confirm not ok', confirmResponse.status, detail);
 
-      // Si quien nos llama (el webhook de Payphone, no el navegador) ya nos
-      // dijo 'Approved', confiamos en eso en vez de bloquear al negocio --
-      // pero con el endpoint/formato correctos, esta rama ya no debería
-      // activarse en el camino feliz.
-      if (hintedStatus === 'Approved') {
-        console.warn('Confirm fallo pero transactionStatus=Approved fue confirmado por el webhook; activando de todas formas', { id, clientTransactionId });
-        await fulfillPayment(supabase, payment as PaymentRow, id);
-        return new Response(
-          JSON.stringify({ success: true, status: 'Approved', note: 'Confirm fallo, activado por transactionStatus del webhook' }),
-          { headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
+      // FIX CRÍTICO: antes, si la confirmación real con Payphone fallaba,
+      // se confiaba en `transactionStatus` mandado por quien LLAMA a esta
+      // función (hintedStatus, del body del propio POST) para activar el
+      // pago igual. Ese campo no tiene ninguna verificación de firma --
+      // cualquiera con una cuenta autenticada podía pedir un plan, nunca
+      // pagarlo, y llamar a payphone-return/esta función a mano con
+      // transactionStatus: "Approved" para activarlo gratis. Nunca se debe
+      // confiar en un status que no viene de la respuesta verificada de
+      // Payphone -- si el confirm real falla, el pago falla, punto.
       await supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id);
       return new Response(
         JSON.stringify({ success: false, error: 'No se pudo confirmar el pago', httpStatus: confirmResponse.status, detail }),

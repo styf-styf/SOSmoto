@@ -97,7 +97,7 @@ export interface AdminAdRow {
   impressions: number;
   clicks: number;
   created_at: string;
-  businesses: { name: string } | null;
+  businesses: { name: string; is_limited: boolean } | null;
 }
 
 export type PlanName = 'free' | 'standard' | 'pro';

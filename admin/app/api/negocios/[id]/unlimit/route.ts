@@ -13,7 +13,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
   const { data: business, error } = await supabase
     .from('businesses')
-    .update({ is_limited: false })
+    .update({ is_limited: false, limited_by: admin.id, limited_at: new Date().toISOString() })
     .eq('id', params.id)
     .select('owner_id')
     .single();

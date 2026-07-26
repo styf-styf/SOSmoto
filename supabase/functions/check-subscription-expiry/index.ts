@@ -19,7 +19,14 @@ async function sendPush(token: string, title: string, body: string, data: Record
   });
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Solo el cron interno puede invocar esto -- ver nota equivalente en
+  // check-maintenance/index.ts.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -27,7 +34,16 @@ Deno.serve(async () => {
 
   const now = new Date();
 
-  const { data: freePlan } = await supabase.from('subscription_plans').select('id').eq('name', 'free').single();
+  // FIX: subscription_plans tiene una fila 'free' por business_type (6 en
+  // total, ver 0119) -- .single() sin filtrar por tipo siempre fallaba acá
+  // (2+ filas coinciden con name='free'), así que freePlan quedaba
+  // undefined y el downgrade de plan_id de abajo nunca corría en la
+  // práctica: el negocio quedaba con status='expired' en
+  // business_subscriptions pero seguía con el plan_id pago en `businesses`.
+  // Ahora se busca el plan free correspondiente al business_type de cada
+  // negocio, dentro del loop.
+  const { data: freePlans } = await supabase.from('subscription_plans').select('id, business_type').eq('name', 'free');
+  const freePlanByType = new Map((freePlans ?? []).map((p: any) => [p.business_type, p.id]));
 
   const { data: subsData, error } = await supabase
     .from('business_subscriptions')
@@ -48,7 +64,7 @@ Deno.serve(async () => {
 
     const { data: business } = await supabase
       .from('businesses')
-      .select('owner_id')
+      .select('owner_id, business_type')
       .eq('id', sub.business_id)
       .single();
     if (!business) continue;
@@ -65,8 +81,9 @@ Deno.serve(async () => {
 
     if (daysLeft <= 0) {
       await supabase.from('business_subscriptions').update({ status: 'expired' }).eq('id', sub.id);
-      if (freePlan) {
-        await supabase.from('businesses').update({ plan_id: freePlan.id }).eq('id', sub.business_id);
+      const freePlanId = freePlanByType.get(business.business_type);
+      if (freePlanId) {
+        await supabase.from('businesses').update({ plan_id: freePlanId }).eq('id', sub.business_id);
       }
       if (pushToken && pagosEnabled) {
         await sendPush(

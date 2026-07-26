@@ -275,6 +275,7 @@ export interface Database {
           can_upload_stories: boolean;
           can_create_posts: boolean;
           status: 'pending' | 'accepted' | 'rejected';
+          expires_at: string;
           created_at: string;
           updated_at: string;
         };
@@ -289,6 +290,7 @@ export interface Database {
           can_upload_stories?: boolean;
           can_create_posts?: boolean;
           status?: 'pending' | 'accepted' | 'rejected';
+          expires_at?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -303,6 +305,7 @@ export interface Database {
           can_upload_stories?: boolean;
           can_create_posts?: boolean;
           status?: 'pending' | 'accepted' | 'rejected';
+          expires_at?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -1554,6 +1557,10 @@ export interface Database {
       search_clients_by_name: {
         Args: { search_query: string };
         Returns: { id: string; full_name: string; phone: string | null }[];
+      };
+      get_pending_client_names: {
+        Args: { target_client_ids: string[] };
+        Returns: { id: string; full_name: string; avatar_url: string | null }[];
       };
     };
   };
