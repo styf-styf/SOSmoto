@@ -105,7 +105,7 @@ function buildHtml(report: ServiceReportWithBusiness): string {
     .badge{display:inline-block;background:#EEF4FF;color:#FF6B00;font-size:11px;font-weight:700;border-radius:8px;padding:3px 10px;margin-top:8px}
     .client-line{font-size:12px;color:#6B6B7B;margin-top:6px}
     .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-    .info-item{background:#F5F5F7;border-radius:10px;padding:12px}.info-item.full{grid-column:1/-1}
+    .info-item{background:#F5F5F7;border-radius:10px;padding:12px}
     .info-label{font-size:10px;font-weight:700;color:#6B6B7B;text-transform:uppercase}.info-value{font-size:14px;font-weight:700;margin-top:2px}
     .km-card{display:flex;align-items:center;gap:10px;background:#F5F5F7;border-radius:10px;padding:12px;margin-bottom:12px;font-weight:600}
     .section{background:#F5F5F7;border-radius:12px;padding:16px;margin-bottom:12px}
@@ -121,10 +121,13 @@ function buildHtml(report: ServiceReportWithBusiness): string {
     ${report.service_category ? `<div class="badge">${report.service_category}</div>` : ''}
     ${clientLine ? `<div class="client-line">${clientLine}</div>` : ''}
   </div></div>
-  ${(report.vehicle_label || report.vehicle_plate || report.entry_date) ? `
+  ${(report.vehicle_label || report.vehicle_plate) ? `
   <div class="info-grid">
-    ${report.vehicle_label ? `<div class="info-item full"><div class="info-label">Vehículo</div><div class="info-value">${report.vehicle_label}</div></div>` : ''}
+    ${report.vehicle_label ? `<div class="info-item"><div class="info-label">Vehículo</div><div class="info-value">${report.vehicle_label}</div></div>` : ''}
     ${report.vehicle_plate ? `<div class="info-item"><div class="info-label">Placa</div><div class="info-value">${report.vehicle_plate}</div></div>` : ''}
+  </div>` : ''}
+  ${(report.entry_date || report.exit_date) ? `
+  <div class="info-grid">
     ${report.entry_date ? `<div class="info-item"><div class="info-label">Ingreso</div><div class="info-value">${new Date(report.entry_date).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</div></div>` : ''}
     ${report.exit_date ? `<div class="info-item"><div class="info-label">Salida</div><div class="info-value">${new Date(report.exit_date).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</div></div>` : ''}
   </div>` : ''}
@@ -140,14 +143,40 @@ function buildHtml(report: ServiceReportWithBusiness): string {
 </body></html>`;
 }
 
+// expo-print no deja elegir nombre de archivo (FilePrintOptions no tiene
+// fileName) -- printToFileAsync siempre genera uno temporal autogenerado
+// por el sistema, que es justo lo que ve quien lo recibe por WhatsApp/email.
+function sanitizeFileNamePart(s: string): string {
+  return s.replace(/[\\/:*?"<>|]/g, '').trim();
+}
+
+function buildPdfFileName(report: ServiceReportWithBusiness): string {
+  const who = sanitizeFileNamePart(report.client_name || report.vehicle_label || report.business_name);
+  const dateStr = new Date(report.created_at).toISOString().slice(0, 10);
+  return `Informe - ${who} - ${dateStr}.pdf`;
+}
+
 export async function shareReportAsPdf(report: ServiceReportWithBusiness): Promise<void> {
   try {
     const Print = await import('expo-print');
     const Sharing = await import('expo-sharing');
     const html = buildHtml(report);
     const { uri } = await Print.printToFileAsync({ html, base64: false });
+
+    let shareUri = uri;
+    try {
+      const { File } = await import('expo-file-system');
+      const file = new File(uri);
+      file.rename(buildPdfFileName(report));
+      shareUri = file.uri;
+    } catch (renameErr) {
+      // Si el renombrado falla por cualquier motivo, se comparte igual con
+      // el nombre temporal en vez de romper todo el flujo de compartir.
+      console.warn('[PDF] No se pudo renombrar el archivo:', renameErr);
+    }
+
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
+      await Sharing.shareAsync(shareUri, {
         mimeType: 'application/pdf',
         dialogTitle: 'Compartir informe',
         UTI: 'com.adobe.pdf',

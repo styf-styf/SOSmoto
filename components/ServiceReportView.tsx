@@ -76,11 +76,13 @@ export function ServiceReportView({ report, footer }: Props) {
         </View>
       </View>
 
-      {/* Vehículo, placa y fechas */}
-      {(report.vehicle_label || report.vehicle_plate || report.entry_date || report.exit_date) && (
-        <View style={styles.infoGrid}>
+      {/* Vehículo/placa y fechas de ingreso/salida -- una fila de 2
+          columnas para cada par, en vez de un grid que se acomoda solo
+          según el ancho disponible. */}
+      {(report.vehicle_label || report.vehicle_plate) && (
+        <View style={styles.infoRow}>
           {report.vehicle_label && (
-            <View style={[styles.infoItem, styles.infoItemFull]}>
+            <View style={styles.infoItem}>
               <Ionicons name="bicycle-outline" size={15} color={colors.textMuted} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoLabel}>Vehículo</Text>
@@ -97,6 +99,10 @@ export function ServiceReportView({ report, footer }: Props) {
               </View>
             </View>
           )}
+        </View>
+      )}
+      {(report.entry_date || report.exit_date) && (
+        <View style={styles.infoRow}>
           {report.entry_date && (
             <View style={styles.infoItem}>
               <Ionicons name="log-in-outline" size={15} color={colors.textMuted} />
@@ -267,17 +273,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF4FF', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
   },
   categoryBadgeText: { fontSize: 12, color: colors.primary, fontWeight: '700' },
-  infoGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12,
+  infoRow: {
+    flexDirection: 'row', gap: 10, marginBottom: 10,
   },
   infoItem: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: colors.surface, borderRadius: 12, padding: 12,
-    flex: 1, minWidth: 130,
-  },
-  infoItemFull: {
-    flexBasis: '100%',
-    flex: 0,
+    flex: 1,
   },
   infoLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
   infoValue: { fontSize: 14, color: colors.text, fontWeight: '700', marginTop: 2 },
