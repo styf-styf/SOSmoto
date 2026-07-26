@@ -368,8 +368,14 @@ export default function AgendaNegocioScreen() {
             appointment.status === 'scheduled' && appointment.proposed_by === 'business';
           const rpt = reportIdsByAppointment.get(appointment.id);
 
+          const hasFinishedReport = appointment.status === 'completed' && !!rpt && !rpt.isDraft;
+
           return (
-            <View key={appointment.id} style={styles.card}>
+            <Pressable
+              key={appointment.id}
+              style={styles.card}
+              onPress={hasFinishedReport ? () => router.push(`/(business)/informe/${rpt!.id}`) : undefined}
+            >
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleRow}>
                   <Text style={styles.cardTitle}>{appointment.display_name}</Text>
@@ -454,12 +460,15 @@ export default function AgendaNegocioScreen() {
               {businessProposed && proposingId !== appointment.id && (
                 <View style={styles.waitingRow}>
                   <Text style={styles.waitingText}>Esperando respuesta del cliente.</Text>
-                  <Button
-                    title="Cambiar fecha"
-                    variant="secondary"
-                    onPress={() => startProposing(appointment.id)}
-                    style={styles.changeButton}
-                  />
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="calendar-outline"
+                      label="Cambiar fecha"
+                      color={colors.primary}
+                      variant="outline"
+                      onPress={() => startProposing(appointment.id)}
+                    />
+                  </View>
                 </View>
               )}
 
@@ -624,7 +633,7 @@ export default function AgendaNegocioScreen() {
                   </View>
                 </View>
               )}
-            </View>
+            </Pressable>
           );
         }))
       }
