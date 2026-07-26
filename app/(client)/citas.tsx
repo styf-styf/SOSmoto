@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Button } from '../../components/Button';
+import { CircleActionButton } from '../../components/CircleActionButton';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
 import { InfoButton, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { colors } from '../../constants/colors';
@@ -294,27 +294,29 @@ export default function CitasScreen() {
 
               {/* Taller propuso → cliente aprueba o contra-propone */}
               {businessProposed && counteringId !== appointment.id && (
-                <View style={styles.actionsRow}>
-                  <Button
-                    title="Aprobar"
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Cancelar"
+                    color={colors.danger}
+                    onPress={() => handleCancel(appointment.id)}
+                    disabled={processingId !== null}
+                  />
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Proponer otra"
+                    color={colors.primary}
+                    variant="outline"
+                    onPress={() => startCounter(appointment.id)}
+                    disabled={processingId !== null}
+                  />
+                  <CircleActionButton
+                    icon="checkmark"
+                    label="Aprobar"
+                    color={colors.primary}
                     onPress={() => handleApprove(appointment.id)}
-                    style={styles.flexButton}
                     loading={processingId === appointment.id}
                     disabled={processingId !== null && processingId !== appointment.id}
-                  />
-                  <Button
-                    title="Proponer otra"
-                    variant="secondary"
-                    onPress={() => startCounter(appointment.id)}
-                    style={styles.flexButton}
-                    disabled={processingId !== null}
-                  />
-                  <Button
-                    title="Cancelar"
-                    variant="secondary"
-                    onPress={() => handleCancel(appointment.id)}
-                    style={styles.cancelDanger}
-                    disabled={processingId !== null}
                   />
                 </View>
               )}
@@ -365,18 +367,20 @@ export default function CitasScreen() {
                     />
                   )}
 
-                  <View style={styles.actionsRow}>
-                    <Button
-                      title="Enviar propuesta"
-                      onPress={() => handleCounter(appointment.id)}
-                      loading={savingCounter}
-                      style={styles.flexButton}
-                    />
-                    <Button
-                      title="Cancelar"
-                      variant="secondary"
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="close"
+                      label="Cancelar"
+                      color={colors.textMuted}
+                      variant="outline"
                       onPress={cancelCounter}
-                      style={styles.flexButton}
+                    />
+                    <CircleActionButton
+                      icon="checkmark"
+                      label="Enviar propuesta"
+                      color={colors.primary}
+                      loading={savingCounter}
+                      onPress={() => handleCounter(appointment.id)}
                     />
                   </View>
                 </View>
@@ -386,14 +390,16 @@ export default function CitasScreen() {
               {clientProposed && counteringId !== appointment.id && (
                 <View style={styles.waitingRow}>
                   <Text style={styles.waitingText}>Esperando respuesta del taller.</Text>
-                  <Button
-                    title="Cancelar cita"
-                    variant="secondary"
-                    onPress={() => handleCancel(appointment.id)}
-                    style={styles.cancelButton}
-                    loading={processingId === appointment.id}
-                    disabled={processingId !== null && processingId !== appointment.id}
-                  />
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="close"
+                      label="Cancelar cita"
+                      color={colors.danger}
+                      onPress={() => handleCancel(appointment.id)}
+                      loading={processingId === appointment.id}
+                      disabled={processingId !== null && processingId !== appointment.id}
+                    />
+                  </View>
                 </View>
               )}
 
@@ -401,32 +407,36 @@ export default function CitasScreen() {
               {appointment.status === 'pending' && (
                 <View style={styles.waitingRow}>
                   <Text style={styles.waitingText}>El taller elegirá una fecha y te avisará.</Text>
-                  <Button
-                    title="Cancelar cita"
-                    variant="secondary"
-                    onPress={() => handleCancel(appointment.id)}
-                    style={styles.cancelButton}
-                    loading={processingId === appointment.id}
-                    disabled={processingId !== null && processingId !== appointment.id}
-                  />
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="close"
+                      label="Cancelar cita"
+                      color={colors.danger}
+                      onPress={() => handleCancel(appointment.id)}
+                      loading={processingId === appointment.id}
+                      disabled={processingId !== null && processingId !== appointment.id}
+                    />
+                  </View>
                 </View>
               )}
 
               {appointment.status === 'confirmed' && (
-                <View style={styles.actionsRow}>
-                  <Button
-                    title="Proponer otro horario"
-                    variant="secondary"
-                    onPress={() => startCounter(appointment.id)}
-                    style={styles.flexButton}
-                  />
-                  <Button
-                    title="Cancelar"
-                    variant="secondary"
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Cancelar"
+                    color={colors.danger}
                     onPress={() => handleCancel(appointment.id)}
-                    style={styles.flexButton}
                     loading={processingId === appointment.id}
                     disabled={processingId !== null && processingId !== appointment.id}
+                  />
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Proponer otro horario"
+                    color={colors.primary}
+                    variant="outline"
+                    onPress={() => startCounter(appointment.id)}
+                    disabled={processingId !== null}
                   />
                 </View>
               )}
@@ -584,13 +594,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
   },
-  actionsRow: {
+  circleActionsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  flexButton: {
-    flex: 1,
+    marginTop: 14,
   },
   waitingRow: {
     marginTop: 10,
@@ -600,13 +606,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     fontStyle: 'italic',
-  },
-  cancelButton: {
-    marginTop: 4,
-  },
-  cancelDanger: {
-    flex: 1,
-    borderColor: colors.danger,
   },
   counterBox: {
     marginTop: 12,
