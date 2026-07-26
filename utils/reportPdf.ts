@@ -151,13 +151,12 @@ function sanitizeFileNamePart(s: string): string {
 }
 
 function buildPdfFileName(report: ServiceReportWithBusiness): string {
-  const who = sanitizeFileNamePart(report.client_name || report.vehicle_label || report.business_name);
-  // Incluye hora (no solo fecha) -- sin esto, compartir el mismo informe dos
-  // veces el mismo día generaba el mismo nombre de archivo, y copy() falla
-  // si el destino ya existe.
-  const now = new Date();
-  const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  return `Informe - ${who} - ${stamp}.pdf`;
+  const category = sanitizeFileNamePart(report.service_category || 'Servicio');
+  const vehicle = sanitizeFileNamePart(report.vehicle_label || 'Vehiculo');
+  // Fecha de salida -- si el informe no tiene salida registrada (ej. sigue
+  // en curso), usa la fecha de creación para no dejar el nombre sin fecha.
+  const dateStr = new Date(report.exit_date ?? report.created_at).toISOString().slice(0, 10);
+  return `Informe_${category}_${vehicle}_${dateStr}.pdf`;
 }
 
 export async function shareReportAsPdf(report: ServiceReportWithBusiness): Promise<void> {
