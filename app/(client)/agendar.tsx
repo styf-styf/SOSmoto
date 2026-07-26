@@ -28,23 +28,49 @@ interface AgendarData {
   vehicles: Vehicle[];
 }
 
+// Borrador en memoria por negocio -- sin esto, si el cliente navega para
+// atrás (o entra a ver el perfil del negocio) a mitad de llenar el
+// formulario, todo lo elegido/tecleado se perdía sin aviso.
+interface AgendarDraft {
+  selectedVehicleId: string | null;
+  selectedServiceId: string | null;
+  notes: string;
+  suggestDate: boolean;
+  pickerDate: string;
+  pickerTime: string;
+}
+const draftCache = new Map<string, AgendarDraft>();
+
 export default function AgendarScreen() {
   const { businessId, serviceId: initialServiceId } = useLocalSearchParams<{ businessId: string; serviceId?: string }>();
   const { profile } = useAuth();
 
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialServiceId ?? null);
-  const [notes, setNotes] = useState('');
+  const cacheKey = businessId && profile ? `agendar-${businessId}-${profile.id}` : null;
+  const draft = cacheKey ? draftCache.get(cacheKey) : undefined;
+
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(draft?.selectedVehicleId ?? null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(draft?.selectedServiceId ?? initialServiceId ?? null);
+  const [notes, setNotes] = useState(draft?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
   // Sugerencia de fecha (opcional)
-  const [suggestDate, setSuggestDate] = useState(false);
-  const [pickerDate, setPickerDate] = useState(() => defaultSuggestTime());
-  const [pickerTime, setPickerTime] = useState(() => defaultSuggestTime());
+  const [suggestDate, setSuggestDate] = useState(draft?.suggestDate ?? false);
+  const [pickerDate, setPickerDate] = useState(() => (draft ? new Date(draft.pickerDate) : defaultSuggestTime()));
+  const [pickerTime, setPickerTime] = useState(() => (draft ? new Date(draft.pickerTime) : defaultSuggestTime()));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const cacheKey = businessId && profile ? `agendar-${businessId}-${profile.id}` : null;
+  useEffect(() => {
+    if (!cacheKey) return;
+    draftCache.set(cacheKey, {
+      selectedVehicleId,
+      selectedServiceId,
+      notes,
+      suggestDate,
+      pickerDate: pickerDate.toISOString(),
+      pickerTime: pickerTime.toISOString(),
+    });
+  }, [cacheKey, selectedVehicleId, selectedServiceId, notes, suggestDate, pickerDate, pickerTime]);
   const { data, loading } = useCachedLoad<AgendarData>(cacheKey, async () => {
     if (!businessId || !profile) return { business: null, services: [], vehicles: [] };
     const [businessResult, serviceList, vehicleList] = await Promise.all([
@@ -104,6 +130,7 @@ export default function AgendarScreen() {
         notes: notes.trim() || undefined,
         suggestedAt: requestedAt,
       });
+      if (cacheKey) draftCache.delete(cacheKey);
       // Abrir el chat inmediatamente — el mensaje de la solicitud ya está ahí
       router.replace(`/(client)/chat/${businessId}`);
     } catch (err) {

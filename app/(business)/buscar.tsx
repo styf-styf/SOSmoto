@@ -44,6 +44,30 @@ const TYPE_FILTER_LABELS: Record<BusinessType, string> = {
   brand_advertiser: 'Marcas',
 };
 
+// Estado persistido a nivel de módulo -- a diferencia de la versión del
+// cliente (un tab, nunca se desmonta), esta pantalla vive en el Stack de
+// negocio fuera de las tabs y se desmonta al entrar a un producto y volver.
+// Sin esto, cada vez que el negocio volvía de ver un producto perdía la
+// búsqueda, el filtro y los resultados, y tenía que escribir todo de nuevo.
+interface BuscarNegocioState {
+  query: string;
+  businessType: BusinessType | undefined;
+  minRating: number | undefined;
+  only24h: boolean;
+  results: BusinessWithDistance[];
+  catalogResults: FeedCatalogItem[];
+  hasSearchedOnce: boolean;
+}
+let lastState: BuscarNegocioState = {
+  query: '',
+  businessType: undefined,
+  minRating: undefined,
+  only24h: false,
+  results: [],
+  catalogResults: [],
+  hasSearchedOnce: false,
+};
+
 export default function BusinessBuscarScreen() {
   const { profile } = useAuth();
   const { coords } = useLocation();
@@ -56,17 +80,24 @@ export default function BusinessBuscarScreen() {
     ...(allowedTypes ?? []).map((t) => ({ label: TYPE_FILTER_LABELS[t], value: t as BusinessType | undefined })),
   ];
 
-  const [query, setQuery] = useState('');
-  const [businessType, setBusinessType] = useState<BusinessType | undefined>(undefined);
-  const [minRating, setMinRating] = useState<number | undefined>(undefined);
-  const [only24h, setOnly24h] = useState(false);
-  const [results, setResults] = useState<BusinessWithDistance[]>([]);
-  const [catalogResults, setCatalogResults] = useState<FeedCatalogItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(lastState.query);
+  const [businessType, setBusinessType] = useState<BusinessType | undefined>(lastState.businessType);
+  const [minRating, setMinRating] = useState<number | undefined>(lastState.minRating);
+  const [only24h, setOnly24h] = useState(lastState.only24h);
+  const [results, setResults] = useState<BusinessWithDistance[]>(lastState.results);
+  const [catalogResults, setCatalogResults] = useState<FeedCatalogItem[]>(lastState.catalogResults);
+  // Si ya se buscó antes (remontaje al volver de un producto), no se muestra
+  // el spinner de pantalla completa -- se ven los resultados de la vez
+  // anterior mientras se refresca en segundo plano, igual que useCachedLoad.
+  const [loading, setLoading] = useState(!lastState.hasSearchedOnce);
   const [refreshing, setRefreshing] = useState(false);
   const didInitialSearchRef = useRef(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    lastState = { query, businessType, minRating, only24h, results, catalogResults, hasSearchedOnce: lastState.hasSearchedOnce };
+  }, [query, businessType, minRating, only24h, results, catalogResults]);
 
   useEffect(() => {
     if (!profile) return;
@@ -111,6 +142,7 @@ export default function BusinessBuscarScreen() {
         ? catalog.filter((item) => !(item.kind === matchingAd.kind && item.id === matchingAd.linkedItemId))
         : catalog;
       setCatalogResults(matchingAd ? [matchingAd, ...filteredCatalog] : filteredCatalog);
+      lastState.hasSearchedOnce = true;
     } catch (err) {
       console.error('search businesses error', err);
     }
@@ -120,11 +152,19 @@ export default function BusinessBuscarScreen() {
     if (!allowedTypes) return;
     if (!didInitialSearchRef.current) {
       didInitialSearchRef.current = true;
-      setLoading(true);
-      search().finally(() => setLoading(false));
+      // Si ya había resultados de una visita anterior (remontaje al volver
+      // de un producto), no se tapa la pantalla con el spinner -- se
+      // refresca en segundo plano, igual que useCachedLoad.
+      if (results.length === 0 && catalogResults.length === 0) {
+        setLoading(true);
+        search().finally(() => setLoading(false));
+      } else {
+        search().catch((err) => console.error('search background refresh error', err));
+      }
     } else {
       search().catch((err) => console.error('search background refresh error', err));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
   const hasActiveFilterParams = !!businessType || !!minRating || only24h;

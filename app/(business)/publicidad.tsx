@@ -52,29 +52,52 @@ interface PublicidadData {
   maxPhotos: number;
 }
 
+// Borrador en memoria del formulario de campaña -- es largo (fotos, link,
+// duración, etc.) y sin esto se perdía todo si el negocio navegaba para
+// atrás por error a mitad de armarlo. Se limpia en resetForm() (ya se
+// llama tanto al guardar con éxito como al cancelar explícito).
+interface PublicidadDraft {
+  showForm: boolean;
+  scope: AdTargetScope;
+  radiusKm: string;
+  kind: AdKind;
+  mode: 'existing' | 'new';
+  selectedItemId: string | null;
+  newItemName: string;
+  newItemCategoryId: string;
+  title: string;
+  photos: string[];
+  linkUrl: string;
+  linkLabel: string;
+  durationDays: string;
+}
+const draftCache = new Map<string, PublicidadDraft>();
+
 export default function PublicidadScreen() {
   const { profile } = useAuth();
   const params = useLocalSearchParams<{ openForm?: string }>();
+  const draftKey = profile ? `publicidad-draft-${profile.id}` : null;
+  const draft = draftKey ? draftCache.get(draftKey) : undefined;
   // Llegada desde el botón "Crear campaña" de Crece tu negocio -- abre el
   // formulario directo en vez de dejar al negocio con un segundo toque en
   // "+ Crear campaña" para llegar a donde ya quería ir.
-  const [showForm, setShowForm] = useState(!!params.openForm);
+  const [showForm, setShowForm] = useState(draft?.showForm ?? !!params.openForm);
 
-  const [scope, setScope] = useState<AdTargetScope>('national');
-  const [radiusKm, setRadiusKm] = useState('10');
-  const [kind, setKind] = useState<AdKind>('product');
-  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [scope, setScope] = useState<AdTargetScope>(draft?.scope ?? 'national');
+  const [radiusKm, setRadiusKm] = useState(draft?.radiusKm ?? '10');
+  const [kind, setKind] = useState<AdKind>(draft?.kind ?? 'product');
+  const [mode, setMode] = useState<'existing' | 'new'>(draft?.mode ?? 'existing');
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
   const [existingServices, setExistingServices] = useState<Service[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemCategoryId, setNewItemCategoryId] = useState('');
-  const [title, setTitle] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkLabel, setLinkLabel] = useState('');
-  const [durationDays, setDurationDays] = useState('7');
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(draft?.selectedItemId ?? null);
+  const [newItemName, setNewItemName] = useState(draft?.newItemName ?? '');
+  const [newItemCategoryId, setNewItemCategoryId] = useState(draft?.newItemCategoryId ?? '');
+  const [title, setTitle] = useState(draft?.title ?? '');
+  const [photos, setPhotos] = useState<string[]>(draft?.photos ?? []);
+  const [linkUrl, setLinkUrl] = useState(draft?.linkUrl ?? '');
+  const [linkLabel, setLinkLabel] = useState(draft?.linkLabel ?? '');
+  const [durationDays, setDurationDays] = useState(draft?.durationDays ?? '7');
   // Cuando no es null, el formulario está corrigiendo una campaña RECHAZADA
   // para reenviarla sin pagar de nuevo (ver handleEditRejected) -- alcance,
   // radio y duración quedan bloqueados (eso es lo que determina el precio,
@@ -125,6 +148,14 @@ export default function PublicidadScreen() {
   useEffect(() => {
     if (!canChooseKind) setKind('product');
   }, [canChooseKind]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    draftCache.set(draftKey, {
+      showForm, scope, radiusKm, kind, mode, selectedItemId,
+      newItemName, newItemCategoryId, title, photos, linkUrl, linkLabel, durationDays,
+    });
+  }, [draftKey, showForm, scope, radiusKm, kind, mode, selectedItemId, newItemName, newItemCategoryId, title, photos, linkUrl, linkLabel, durationDays]);
 
   useEffect(() => {
     if (!business || mode !== 'existing') return;
@@ -220,6 +251,7 @@ export default function PublicidadScreen() {
     setScope('national');
     setRadiusKm('10');
     setResubmittingAdId(null);
+    if (draftKey) draftCache.delete(draftKey);
   }
 
   // Arma el link de WhatsApp a partir del número ya guardado en el negocio

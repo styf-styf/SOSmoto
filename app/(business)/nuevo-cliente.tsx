@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
@@ -29,6 +29,18 @@ interface NuevoClienteData {
   businessName: string;
 }
 
+// Borrador en memoria del formulario de cliente externo -- sin esto, si el
+// negocio navega para atrás a mitad de tipear nombre/teléfono/vehículos,
+// todo se perdía sin aviso.
+interface NuevoClienteDraft {
+  mode: Mode;
+  extName: string;
+  extPhone: string;
+  extEmail: string;
+  vehicles: VehicleForm[];
+}
+const draftCache = new Map<string, NuevoClienteDraft>();
+
 export default function NuevoClienteScreen() {
   const { profile } = useAuth();
 
@@ -41,8 +53,10 @@ export default function NuevoClienteScreen() {
   });
   const businessId = data?.businessId ?? null;
   const businessName = data?.businessName ?? '';
+  const draftKey = businessId ? `nuevo-cliente-draft-${businessId}` : null;
+  const draft = draftKey ? draftCache.get(draftKey) : undefined;
 
-  const [mode, setMode] = useState<Mode>('search');
+  const [mode, setMode] = useState<Mode>(draft?.mode ?? 'search');
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [suggestions, setSuggestions] = useState<UserSearchResult[]>([]);
@@ -53,10 +67,15 @@ export default function NuevoClienteScreen() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Formulario externo
-  const [extName, setExtName] = useState('');
-  const [extPhone, setExtPhone] = useState('');
-  const [extEmail, setExtEmail] = useState('');
-  const [vehicles, setVehicles] = useState<VehicleForm[]>([]);
+  const [extName, setExtName] = useState(draft?.extName ?? '');
+  const [extPhone, setExtPhone] = useState(draft?.extPhone ?? '');
+  const [extEmail, setExtEmail] = useState(draft?.extEmail ?? '');
+  const [vehicles, setVehicles] = useState<VehicleForm[]>(draft?.vehicles ?? []);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    draftCache.set(draftKey, { mode, extName, extPhone, extEmail, vehicles });
+  }, [draftKey, mode, extName, extPhone, extEmail, vehicles]);
 
   function handleQueryChange(text: string) {
     setQuery(text);
@@ -105,6 +124,7 @@ export default function NuevoClienteScreen() {
     setSaving(true);
     try {
       await addAppClient(businessId, selected.id, businessName);
+      if (draftKey) draftCache.delete(draftKey);
       Alert.alert(
         'Invitación enviada',
         `Se notificó a ${selected.full_name}. Aparecerá en "Mis clientes" como Pendiente hasta que acepte.`,
@@ -154,6 +174,7 @@ export default function NuevoClienteScreen() {
         email: extEmail.trim() || undefined,
         vehicles: parsedVehicles,
       });
+      if (draftKey) draftCache.delete(draftKey);
       router.replace(
         `/(business)/cliente-externo?name=${encodeURIComponent(extName.trim())}` +
         (extPhone.trim() ? `&phone=${encodeURIComponent(extPhone.trim())}` : '')

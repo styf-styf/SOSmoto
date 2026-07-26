@@ -8,21 +8,24 @@ import { useAuth } from '../hooks/useAuth';
 
 // Header compacto (44px de barra + safe area) que reemplaza el nativo de
 // NativeStack, cuya altura no es configurable directamente desde JS.
-export function AppHeader({ navigation, options, back }: NativeStackHeaderProps) {
+export function AppHeader({ options, back }: NativeStackHeaderProps) {
   const insets = useSafeAreaInsets();
   const { session, profile } = useAuth();
 
-  // Pantallas alcanzadas por un deep link (compartir publicación/anuncio/
-  // producto/servicio) aterrizan directo sin Inicio debajo en la pila (ver
-  // utils/deepLinkNavigate.ts) -- ahí `back` viene falso y antes no se
-  // mostraba ningún botón, dejando al usuario sin forma de salir de la
-  // pantalla. En ese caso el botón manda a Inicio en vez de goBack() --
-  // pero solo si de verdad hay sesión: sin este chequeo, un tap durante un
-  // logout/cambio de cuenta en curso (session/profile momentáneamente
-  // null) mandaba igual a '/(client)' por el `?? client` implícito.
+  // FIX: el prop `back` de React Navigation solo dice si hay una pantalla
+  // antes DENTRO DEL STACK ANIDADO local (producto/servicio) -- no si hay
+  // algo antes en toda la navegación. Como producto/servicio vive dentro de
+  // las tabs, la primera vez que se entra ahí desde Inicio/Buscar/Catálogo
+  // `back` sale false aunque sí hay de dónde volver, y el replace de abajo
+  // terminaba saltando siempre al tab Inicio sin importar de qué pestaña
+  // venía el usuario. `router.canGoBack()` sí mira toda la pila (mismo
+  // patrón ya usado en components/StoryViewer.tsx) -- el replace a la raíz
+  // del rol queda solo para el caso real de deep link (compartir
+  // publicación/anuncio/producto/servicio, ver utils/deepLinkNavigate.ts),
+  // donde de verdad no hay nada debajo en la pila.
   function handleBack() {
-    if (back) {
-      navigation.goBack();
+    if (router.canGoBack()) {
+      router.back();
       return;
     }
     if (!session || !profile) {

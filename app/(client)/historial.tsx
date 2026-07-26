@@ -65,9 +65,18 @@ interface HistorialData {
   reportIds: Map<string, string>;
 }
 
+// Persistido a nivel de módulo -- los datos ya vuelven instantáneo desde
+// useCachedLoad al remontar, pero el filtro elegido (useState local) se
+// reseteaba a 'all' igual cada vez que se volvía de ver un informe/detalle.
+let lastFilter: FilterKey = 'all';
+
 export default function HistorialScreen() {
   const { profile } = useAuth();
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [filter, setFilterState] = useState<FilterKey>(lastFilter);
+  const setFilter = (f: FilterKey) => {
+    lastFilter = f;
+    setFilterState(f);
+  };
   const [refreshing, setRefreshing] = useState(false);
 
   const cacheKey = profile ? `historial-${profile.id}` : null;
