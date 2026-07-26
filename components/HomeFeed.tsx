@@ -95,14 +95,9 @@ export const HomeFeed = forwardRef<
     // PostCard para que reconozca sus propias publicaciones aunque quien
     // mira sea un mecánico, no el dueño (ver PostCard.tsx).
     viewerBusinessId?: string;
-    // Una Marca nunca compra nada (B2B_ALLOWED_SELLER_TYPES no la tiene como
-    // comprador) -- las tiras de catálogo intercaladas en su propio feed son
-    // ruido no accionable, así que se las quitamos por completo (las
-    // publicaciones sí se mantienen, tienen valor como visibilidad general).
-    hideCatalogPool?: boolean;
   }
 >(function HomeFeed(
-  { role, city, coords = null, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId, hideCatalogPool },
+  { role, city, coords = null, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId },
   ref
 ) {
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
@@ -122,18 +117,14 @@ export const HomeFeed = forwardRef<
       feedMode === 'following' && clientId
         ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE })
         : getPublicFeedPage({ limit: PAGE_SIZE }),
-      hideCatalogPool
-        ? Promise.resolve({ bannerAds: [], carouselItems: [], linkedCatalogIds: [] })
-        : getHomeAds(city, coords),
+      getHomeAds(city, coords),
     ]);
 
     // getFeedCatalogPool depende de homeAds.linkedCatalogIds (para no
     // mostrar la tarjeta orgánica de un producto/servicio que ya tiene su
     // propio anuncio activo en el mismo pool) -- por eso va después, no en
     // el mismo Promise.all.
-    const catalog = hideCatalogPool
-      ? []
-      : await getFeedCatalogPool(30, { excludeIds: homeAds.linkedCatalogIds });
+    const catalog = await getFeedCatalogPool(30, { excludeIds: homeAds.linkedCatalogIds });
 
     setPosts(postsPage);
     // Los anuncios activos se mezclan como tarjetas más del carrusel de
@@ -145,7 +136,7 @@ export const HomeFeed = forwardRef<
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(homeAds.bannerAds, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
-  }, [city, coords, feedMode, clientId, hideCatalogPool]);
+  }, [city, coords, feedMode, clientId]);
 
   // loadInitial depende de city/clientId, que llegan como prop desde la
   // pantalla padre y arrancan en null/undefined hasta que se resuelven

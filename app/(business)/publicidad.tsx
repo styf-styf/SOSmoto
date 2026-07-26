@@ -111,11 +111,11 @@ export default function PublicidadScreen() {
   const ads = data?.ads ?? [];
   const pricing = data?.pricing ?? null;
   const maxPhotos = data?.maxPhotos ?? DEFAULT_MAX_AD_PHOTOS;
-  // Tienda/marca no ofrece servicios -- solo un taller puede anunciar uno
+  // Tienda no ofrece servicios -- solo un taller puede anunciar uno
   // (misma regla que el catálogo, ver CLAUDE.md).
   const canChooseKind = business?.business_type === 'workshop';
 
-  // Tienda/marca siempre queda en 'product' (único válido) aunque el chip no se muestre.
+  // Tienda siempre queda en 'product' (único válido) aunque el chip no se muestre.
   useEffect(() => {
     if (!canChooseKind) setKind('product');
   }, [canChooseKind]);

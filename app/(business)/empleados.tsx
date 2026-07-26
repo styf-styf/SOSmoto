@@ -34,9 +34,9 @@ const ALL_PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof Employ
   { key: 'canCreatePosts', field: 'can_create_posts', label: 'Puede crear publicaciones' },
 ];
 
-// El auxilio en carretera es exclusivo de taller -- tienda y marca nunca
-// reciben solicitudes de auxilio, así que ese permiso no aplica ni debe
-// mostrarse para ellas (mostrarlo confunde: el switch no haría nada).
+// El auxilio en carretera es exclusivo de taller -- tienda nunca recibe
+// solicitudes de auxilio, así que ese permiso no aplica ni debe mostrarse
+// (mostrarlo confunde: el switch no haría nada).
 function getPermissionRows(businessType: BusinessType | null) {
   if (businessType === 'workshop') return ALL_PERMISSION_ROWS;
   return ALL_PERMISSION_ROWS.filter((row) => row.key !== 'canAcceptAidRequests');
@@ -231,7 +231,7 @@ export default function EmpleadosScreen() {
                   <Text style={infoTextStyles.text}>
                     Puede tocar "Aceptar" en la pestaña Solicitudes cuando llega un pedido de auxilio en carretera.
                     Sin este permiso, ve las solicitudes pero solo puede rechazarlas, nunca aceptarlas. Este permiso
-                    solo existe para talleres -- tiendas y marcas nunca reciben solicitudes de auxilio.
+                    solo existe para talleres -- tiendas nunca reciben solicitudes de auxilio.
                   </Text>
                 </InfoStep>
               )}

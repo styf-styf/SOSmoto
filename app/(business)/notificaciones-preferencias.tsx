@@ -5,10 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { NotificationPrefsList, type NotificationCategoryOption } from '../../components/NotificationPrefsList';
+import { getMyWorkBusiness } from '../../services/businesses';
 import { getNotificationPrefs, updateNotificationPrefs } from '../../services/notifications';
 import type { NotificationCategory, NotificationPrefs } from '../../types/database';
 
-const OPTIONS: NotificationCategoryOption[] = [
+const ALL_OPTIONS: NotificationCategoryOption[] = [
   { key: 'auxilio', label: 'Solicitudes de auxilio', hint: 'Nuevas solicitudes cercanas y cambios en las que ya aceptaste.' },
   { key: 'mensajes', label: 'Mensajes', hint: 'Cuando un cliente u otro negocio te escribe.' },
   { key: 'pagos', label: 'Pagos y suscripción', hint: 'Vencimiento próximo o caída de tu plan pago.' },
@@ -18,12 +19,25 @@ const OPTIONS: NotificationCategoryOption[] = [
 export default function BusinessNotificationPrefsScreen() {
   const { profile } = useAuth();
   const [prefs, setPrefs] = useState<NotificationPrefs>({});
+  // Auxilio en carretera es exclusivo de taller -- tienda nunca recibe
+  // solicitudes de auxilio, así que ese toggle no debe mostrarse (antes se
+  // mostraba igual para todos, aunque no hiciera nada para tienda).
+  const [options, setOptions] = useState<NotificationCategoryOption[]>(ALL_OPTIONS);
   const [loading, setLoading] = useState(true);
   const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
-    setPrefs(await getNotificationPrefs(profile.id));
+    const [businessPrefs, work] = await Promise.all([
+      getNotificationPrefs(profile.id),
+      getMyWorkBusiness(profile.id),
+    ]);
+    setPrefs(businessPrefs);
+    setOptions(
+      work?.business.business_type === 'workshop'
+        ? ALL_OPTIONS
+        : ALL_OPTIONS.filter((opt) => opt.key !== 'auxilio')
+    );
   }, [profile]);
 
   useFocusEffect(
@@ -79,7 +93,7 @@ export default function BusinessNotificationPrefsScreen() {
         Elige qué tipo de notificaciones quieres recibir por push. Siempre quedan guardadas en tu bandeja de
         notificaciones aunque las apagues aquí.
       </Text>
-      <NotificationPrefsList options={OPTIONS} prefs={prefs} onToggle={handleToggle} />
+      <NotificationPrefsList options={options} prefs={prefs} onToggle={handleToggle} />
     </ScrollView>
   );
 }

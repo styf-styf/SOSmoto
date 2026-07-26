@@ -30,7 +30,7 @@ import {
   type ServiceCategory,
   type ServiceReportPart,
 } from '../../services/serviceReports';
-import type { InspectionStatus } from '../../types/database';
+import type { BusinessType, InspectionStatus } from '../../types/database';
 
 const SERVICE_CATEGORIES: ServiceCategory[] = [
   'Mantenimiento preventivo',
@@ -97,6 +97,16 @@ export default function NuevoInformeScreen() {
     if (!profile) return null;
     const work = await getMyWorkBusiness(profile.id);
     return work?.business.id ?? null;
+  });
+
+  // Los informes de servicio son exclusivos de taller -- el menú de
+  // Configuración ya oculta esta entrada para tienda, pero se guarda sola
+  // por si llega por otro camino (link viejo, deep link).
+  const typeCacheKey = profile ? `nuevo-informe-biz-type-${profile.id}` : null;
+  const { data: businessType } = useCachedLoad<BusinessType | null>(typeCacheKey, async () => {
+    if (!profile) return null;
+    const work = await getMyWorkBusiness(profile.id);
+    return work?.business.business_type ?? null;
   });
 
   const isExternal = !params.clientId;
@@ -365,6 +375,14 @@ export default function NuevoInformeScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (businessType && businessType !== 'workshop') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>Los informes de servicio son exclusivos de talleres.</Text>
       </View>
     );
   }
@@ -781,6 +799,7 @@ export default function NuevoInformeScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  placeholder: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 20 },
   container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
   subtitle: { fontSize: 14, color: colors.textMuted, marginBottom: 4 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },

@@ -459,7 +459,7 @@ export default function BusinessHomeScreen() {
   }
 
   // El toggle "Siguiendo" solo tiene sentido si el taller sigue suficientes
-  // tiendas/marcas como para que el feed no se sienta vacío.
+  // tiendas como para que el feed no se sienta vacío.
   const showFollowing = isWorkshop && followsCount >= MIN_FOLLOWS_FOR_FEED;
 
   // Taller: mismo toggle Para ti/Siguiendo + descubrimiento de tiendas

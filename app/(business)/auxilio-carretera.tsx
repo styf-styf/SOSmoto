@@ -150,6 +150,17 @@ export default function AuxilioCarreteraScreen() {
     );
   }
 
+  // Auxilio en carretera es exclusivo de taller -- el menú de Configuración
+  // ya oculta la entrada para tienda, pero esta pantalla se guarda sola por
+  // si llega por otro camino (link viejo, deep link).
+  if (business.business_type !== 'workshop') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>El auxilio en carretera es exclusivo de talleres.</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
     <ScrollView

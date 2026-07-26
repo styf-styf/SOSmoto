@@ -17,7 +17,7 @@ import { createAppointmentByBusiness } from '../../services/appointments';
 import { scheduleAppointmentReminder } from '../../services/appointmentReminders';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getCRMClients, searchUsers, type CRMClient, type UserSearchResult } from '../../services/history';
-import type { Service } from '../../types/database';
+import type { BusinessType, Service } from '../../types/database';
 
 interface SelectedClient {
   id: string | null;
@@ -35,6 +35,7 @@ function defaultDate(): Date {
 
 interface NuevaCitaData {
   businessId: string | null;
+  businessType: BusinessType | null;
   crmClients: CRMClient[];
   services: Service[];
 }
@@ -65,17 +66,21 @@ export default function NuevaCitaScreen() {
 
   const cacheKey = profile ? `nueva-cita-${profile.id}` : null;
   const { data, loading } = useCachedLoad<NuevaCitaData>(cacheKey, async () => {
-    const empty: NuevaCitaData = { businessId: null, crmClients: [], services: [] };
+    const empty: NuevaCitaData = { businessId: null, businessType: null, crmClients: [], services: [] };
     if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return empty;
+    if (work.business.business_type !== 'workshop') {
+      return { ...empty, businessId: work.business.id, businessType: work.business.business_type };
+    }
     const [crm, svcList] = await Promise.all([
       getCRMClients(work.business.id),
       getActiveServices(work.business.id),
     ]);
-    return { businessId: work.business.id, crmClients: crm, services: svcList };
+    return { businessId: work.business.id, businessType: work.business.business_type, crmClients: crm, services: svcList };
   });
   const businessId = data?.businessId ?? null;
+  const businessType = data?.businessType ?? null;
   const crmClients = data?.crmClients ?? [];
   const services = data?.services ?? [];
 
@@ -209,6 +214,17 @@ export default function NuevaCitaScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Las citas son exclusivas de taller -- el menú de Configuración ya
+  // oculta esta entrada para tienda, pero se guarda sola por si llega por
+  // otro camino (link viejo, deep link).
+  if (businessType !== 'workshop') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>Las citas son exclusivas de talleres.</Text>
       </View>
     );
   }
@@ -390,6 +406,9 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background,
+  },
+  placeholder: {
+    fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 20,
   },
   container: {
     flexGrow: 1,

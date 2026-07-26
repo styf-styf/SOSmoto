@@ -8,10 +8,12 @@ import { getMyWorkBusiness } from '../../services/businesses';
 import { getClientsWithUpcomingMaintenance, type ClientMaintenanceItem } from '../../services/maintenanceOutreach';
 import { notifyUser } from '../../services/notifications';
 import { toWhatsappLink } from '../../utils/whatsapp';
+import type { BusinessType } from '../../types/database';
 
 export default function MantenimientoProactivoScreen() {
   const { profile } = useAuth();
   const [items, setItems] = useState<ClientMaintenanceItem[]>([]);
+  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const [loading, setLoading] = useState(true);
   const [notifying, setNotifying] = useState<string | null>(null);
   // Solo se deshabilitaba mientras el envío estaba en curso -- después volvía
@@ -26,6 +28,8 @@ export default function MantenimientoProactivoScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
+    setBusinessType(work.business.business_type);
+    if (work.business.business_type !== 'workshop') return;
     const data = await getClientsWithUpcomingMaintenance(work.business.id);
     setItems(data);
   }, [profile]);
@@ -72,6 +76,17 @@ export default function MantenimientoProactivoScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Los recordatorios proactivos de mantenimiento son exclusivos de taller
+  // -- el menú de Configuración ya oculta esta entrada para tienda, pero se
+  // guarda sola por si llega por otro camino (link viejo, deep link).
+  if (businessType && businessType !== 'workshop') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>Los recordatorios de mantenimiento son exclusivos de talleres.</Text>
       </View>
     );
   }
@@ -176,6 +191,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  placeholder: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   container: {
     flexGrow: 1,

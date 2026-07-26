@@ -191,7 +191,7 @@ export default function ClienteDetailScreen() {
             onPress={() => !isPending && router.push(`/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}`)}
           >
             <Ionicons name="document-text-outline" size={20} color={isPending ? colors.textMuted : colors.primary} />
-            <Text style={[styles.actionLabel, isPending && styles.actionLabelDisabled]}>Informe</Text>
+            <Text style={[styles.actionLabel, isPending && styles.actionLabelDisabled]}>Crear informe</Text>
           </Pressable>
         )}
       </View>

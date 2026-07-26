@@ -282,15 +282,15 @@ export default function BusinessBuscarScreen() {
             menos filtros que otro negocio.
           </Text>
           <InfoExample label="Ejemplo">
-            <Text style={infoTextStyles.exampleText}>Taller → ve los filtros "Tiendas" y "Marcas"</Text>
-            <Text style={infoTextStyles.exampleText}>Tienda → ve solo el filtro "Marcas"</Text>
+            <Text style={infoTextStyles.exampleText}>Taller → ve el filtro "Tiendas"</Text>
+            <Text style={infoTextStyles.exampleText}>Tienda → también ve el filtro "Tiendas" (puede comprarle a otra tienda)</Text>
           </InfoExample>
         </InfoStep>
 
         <InfoStep number={2} title="Por qué no aparecen otros talleres">
           <Text style={infoTextStyles.text}>
-            Un taller no le compra a otro taller, así que ningún taller aparece en estos resultados -- este buscador
-            es solo para pedidos al por mayor (talleres/tiendas comprándole a tiendas/marcas), no para auxilio en
+            Nadie le compra a un taller, así que ningún taller aparece en estos resultados -- este buscador
+            es solo para pedidos al por mayor (talleres/tiendas comprándole a tiendas), no para auxilio en
             carretera ni para que un cliente encuentre un taller.
           </Text>
         </InfoStep>

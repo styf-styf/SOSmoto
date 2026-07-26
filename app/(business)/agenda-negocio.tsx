@@ -5,6 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
+import { CircleActionButton } from '../../components/CircleActionButton';
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
 import { InfoButton, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
@@ -24,7 +25,7 @@ import {
 } from '../../services/appointments';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { syncAppointmentReminders } from '../../services/appointmentReminders';
-import { formatVehicle } from '../../types/database';
+import { formatVehicle, type BusinessType } from '../../types/database';
 import { createClientReview, getReviewedTargetIds } from '../../services/reviews';
 import { getReportIdsByAppointments, type AppointmentReportInfo } from '../../services/serviceReports';
 
@@ -40,6 +41,7 @@ function fmtDate(iso: string) {
 
 interface AgendaData {
   businessId: string | null;
+  businessType: BusinessType | null;
   appointments: BusinessAppointment[];
   reviewedAppointmentIds: Set<string>;
   reportIdsByAppointment: Map<string, AppointmentReportInfo>;
@@ -68,6 +70,7 @@ export default function AgendaNegocioScreen() {
   const { data, loading, reload, setData } = useCachedLoad<AgendaData>(cacheKey, async () => {
     const empty: AgendaData = {
       businessId: null,
+      businessType: null,
       appointments: [],
       reviewedAppointmentIds: new Set(),
       reportIdsByAppointment: new Map(),
@@ -75,6 +78,9 @@ export default function AgendaNegocioScreen() {
     if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return empty;
+    if (work.business.business_type !== 'workshop') {
+      return { ...empty, businessId: work.business.id, businessType: work.business.business_type };
+    }
     const [result, { appointmentIds }, reportMap] = await Promise.all([
       getBusinessAppointments(work.business.id),
       getReviewedTargetIds(profile.id),
@@ -92,12 +98,14 @@ export default function AgendaNegocioScreen() {
     ).catch((err) => console.warn('sync reminders error', err));
     return {
       businessId: work.business.id,
+      businessType: work.business.business_type,
       appointments: result,
       reviewedAppointmentIds: appointmentIds,
       reportIdsByAppointment: reportMap,
     };
   });
   const businessId = data?.businessId ?? null;
+  const businessType = data?.businessType ?? null;
   const appointments = data?.appointments ?? [];
   const reviewedAppointmentIds = data?.reviewedAppointmentIds ?? new Set<string>();
   const reportIdsByAppointment = data?.reportIdsByAppointment ?? new Map<string, AppointmentReportInfo>();
@@ -319,6 +327,17 @@ export default function AgendaNegocioScreen() {
     );
   }
 
+  // La agenda/citas es exclusiva de taller -- el menú de Configuración ya
+  // oculta esta entrada para tienda, pero se guarda sola por si llega por
+  // otro camino (link viejo, deep link).
+  if (businessType !== 'workshop') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>La agenda de citas es exclusiva de talleres.</Text>
+      </View>
+    );
+  }
+
   return (
     <>
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
@@ -390,40 +409,43 @@ export default function AgendaNegocioScreen() {
 
               {/* Sin fecha aún → proponer o rechazar */}
               {appointment.status === 'pending' && proposingId !== appointment.id && (
-                <View style={styles.actionsRow}>
-                  <Button
-                    title="Proponer fecha"
-                    onPress={() => startProposing(appointment.id)}
-                    style={styles.flexButton}
-                  />
-                  <Button
-                    title="Rechazar"
-                    variant="secondary"
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Rechazar"
+                    color={colors.danger}
                     onPress={() => handleReject(appointment.id)}
-                    style={styles.flexButton}
+                  />
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Proponer fecha"
+                    color={colors.primary}
+                    onPress={() => startProposing(appointment.id)}
                   />
                 </View>
               )}
 
               {/* Cliente propuso → aceptar o contra-proponer */}
               {clientProposed && proposingId !== appointment.id && (
-                <View style={styles.actionsRow}>
-                  <Button
-                    title="Aceptar"
-                    onPress={() => handleAccept(appointment.id)}
-                    style={styles.flexButton}
-                  />
-                  <Button
-                    title="Proponer otra"
-                    variant="secondary"
-                    onPress={() => startProposing(appointment.id)}
-                    style={styles.flexButton}
-                  />
-                  <Button
-                    title="Rechazar"
-                    variant="secondary"
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Rechazar"
+                    color={colors.danger}
                     onPress={() => handleReject(appointment.id)}
-                    style={styles.rejectButton}
+                  />
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Proponer otra"
+                    color={colors.primary}
+                    variant="outline"
+                    onPress={() => startProposing(appointment.id)}
+                  />
+                  <CircleActionButton
+                    icon="checkmark"
+                    label="Aceptar"
+                    color={colors.primary}
+                    onPress={() => handleAccept(appointment.id)}
                   />
                 </View>
               )}
@@ -489,18 +511,20 @@ export default function AgendaNegocioScreen() {
                     />
                   )}
 
-                  <View style={styles.actionsRow}>
-                    <Button
-                      title="Confirmar fecha"
-                      onPress={() => handleConfirmPropose(appointment.id, appointment.client_id === null)}
-                      loading={saving}
-                      style={styles.flexButton}
-                    />
-                    <Button
-                      title="Cancelar"
-                      variant="secondary"
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="close"
+                      label="Cancelar"
+                      color={colors.textMuted}
+                      variant="outline"
                       onPress={cancelProposing}
-                      style={styles.flexButton}
+                    />
+                    <CircleActionButton
+                      icon="checkmark"
+                      label="Confirmar fecha"
+                      color={colors.primary}
+                      loading={saving}
+                      onPress={() => handleConfirmPropose(appointment.id, appointment.client_id === null)}
                     />
                   </View>
                 </View>
@@ -508,52 +532,47 @@ export default function AgendaNegocioScreen() {
 
               {/* Confirmada */}
               {appointment.status === 'confirmed' && proposingId !== appointment.id && (
-                <>
-                  <View style={styles.actionsRow}>
-                    <Button
-                      title="Completar"
-                      onPress={() => handleComplete(appointment.id)}
-                      style={styles.flexButton}
-                    />
-                    <Button
-                      title="Reagendar"
-                      variant="secondary"
-                      onPress={() => startProposing(appointment.id)}
-                      style={styles.flexButton}
-                    />
-                  </View>
-                  <Button
-                    title="Cancelar cita"
-                    variant="secondary"
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Cancelar cita"
+                    color={colors.danger}
                     onPress={() => handleCancel(appointment.id)}
-                    style={styles.changeButton}
                   />
-                </>
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Reagendar"
+                    color={colors.primary}
+                    variant="outline"
+                    onPress={() => startProposing(appointment.id)}
+                  />
+                  <CircleActionButton
+                    icon="checkmark"
+                    label="Completar"
+                    color={colors.primary}
+                    onPress={() => handleComplete(appointment.id)}
+                  />
+                </View>
               )}
 
-              {/* Informe de servicio */}
+              {/* Informe de servicio -- mismo patrón que las tarjetas de
+                  cliente/[id].tsx: ícono de hoja + texto de link (no un
+                  botón), con el texto siempre específico (nunca el genérico
+                  "Informe"). */}
               {appointment.status !== 'cancelled' && appointment.status !== 'rejected' && (
-                rpt && !rpt.isDraft ? (
-                  <Button
-                    title="Ver informe"
-                    variant="secondary"
-                    onPress={() => router.push(`/(business)/informe/${rpt.id}`)}
-                    style={styles.changeButton}
-                  />
-                ) : (
-                  <Button
-                    title={
-                      rpt?.isDraft
-                        ? 'Continuar informe'
-                        : appointment.status === 'completed'
-                        ? 'Crear informe'
-                        : 'Informe'
-                    }
-                    variant="secondary"
-                    onPress={() => router.push(buildInformeUrl(appointment))}
-                    style={styles.changeButton}
-                  />
-                )
+                <Pressable
+                  style={styles.informeLinkRow}
+                  onPress={() =>
+                    rpt && !rpt.isDraft
+                      ? router.push(`/(business)/informe/${rpt.id}`)
+                      : router.push(buildInformeUrl(appointment))
+                  }
+                >
+                  <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                  <Text style={styles.informeLinkText}>
+                    {rpt && !rpt.isDraft ? 'Ver informe' : rpt?.isDraft ? 'Continuar informe' : 'Crear informe'}
+                  </Text>
+                </Pressable>
               )}
 
               {/* Calificar cliente tras completar (solo si tiene cuenta en la app) */}
@@ -587,18 +606,20 @@ export default function AgendaNegocioScreen() {
                     ))}
                   </View>
                   <TextField label="Comentario interno (opcional)" value={comment} onChangeText={setComment} />
-                  <View style={styles.actionsRow}>
-                    <Button
-                      title="Enviar"
-                      onPress={() => handleSubmitRating(appointment)}
-                      loading={savingReview}
-                      style={styles.flexButton}
-                    />
-                    <Button
-                      title="Cancelar"
-                      variant="secondary"
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="close"
+                      label="Cancelar"
+                      color={colors.textMuted}
+                      variant="outline"
                       onPress={cancelRating}
-                      style={styles.flexButton}
+                    />
+                    <CircleActionButton
+                      icon="send"
+                      label="Enviar"
+                      color={colors.primary}
+                      loading={savingReview}
+                      onPress={() => handleSubmitRating(appointment)}
                     />
                   </View>
                 </View>
@@ -780,13 +801,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
   },
-  actionsRow: {
+  circleActionsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  flexButton: {
-    flex: 1,
+    marginTop: 14,
   },
   waitingRow: {
     marginTop: 10,
@@ -800,9 +817,16 @@ const styles = StyleSheet.create({
   changeButton: {
     marginTop: 8,
   },
-  rejectButton: {
-    flex: 1,
-    borderColor: colors.danger,
+  informeLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+  },
+  informeLinkText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
   },
   proposeBox: {
     marginTop: 12,

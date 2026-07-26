@@ -347,7 +347,7 @@ export default function ClienteExternoScreen() {
         )}
         <Pressable style={styles.actionBtn} onPress={() => router.push(informeBase as any)}>
           <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-          <Text style={styles.actionLabel}>Informe</Text>
+          <Text style={styles.actionLabel}>Crear informe</Text>
         </Pressable>
       </View>
 

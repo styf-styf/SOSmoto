@@ -394,14 +394,14 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             />
           )}
           {showFollowButton && (
-            // showFollowButton (no solo showFollowClient) -- un taller viendo
-            // el perfil de una tienda/marca (o una tienda viendo el de una
-            // marca) sí puede interactuar con ella (ver canBusinessFollowTarget
-            // arriba, mismo B2B del buscador), pero antes este botón solo
-            // aparecía para clientes: un taller nunca veía forma de escribirle
-            // desde el perfil. Negocio->negocio necesita sellerBusinessId (yo
-            // soy el lado "cliente" de ese hilo específico, ver resolveThread
-            // en chat/[id].tsx) -- mismo patrón que AdDetail.tsx.handleChat.
+            // showFollowButton (no solo showFollowClient) -- un taller o una
+            // tienda viendo el perfil de otra tienda sí puede interactuar con
+            // ella (ver canBusinessFollowTarget arriba, mismo B2B del
+            // buscador), pero antes este botón solo aparecía para clientes:
+            // un taller nunca veía forma de escribirle desde el perfil.
+            // Negocio->negocio necesita sellerBusinessId (yo soy el lado
+            // "cliente" de ese hilo específico, ver resolveThread en
+            // chat/[id].tsx) -- mismo patrón que AdDetail.tsx.handleChat.
             <ProfileActionButton
               icon="chatbubble-outline"
               label="Mensaje"

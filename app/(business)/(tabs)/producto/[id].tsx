@@ -361,8 +361,8 @@ export default function BusinessProductDetailScreen() {
             <View style={styles.noticeBox}>
               <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
               <Text style={styles.noticeText}>
-                Tu tipo de negocio no puede pedir productos a este negocio. Talleres compran a tiendas y marcas; tiendas
-                compran solo a marcas.
+                Tu tipo de negocio no puede pedir productos a este negocio. Talleres y tiendas le compran a tiendas;
+                nadie le compra a un taller.
               </Text>
             </View>
           )}
