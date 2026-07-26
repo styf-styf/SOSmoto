@@ -192,12 +192,11 @@ function VehicleCard({
             <Text style={styles.plateBadge}>{vehicle.plate}</Text>
           )}
         </View>
-        <Pressable onPress={() => setEditing((e) => !e)} style={{ marginRight: 12 }}>
-          <Ionicons name="pencil-outline" size={20} color={colors.primary} />
-        </Pressable>
-        <Pressable onPress={onDelete}>
-          <Ionicons name="trash-outline" size={20} color={colors.danger} />
-        </Pressable>
+        {!editing && (
+          <Pressable onPress={() => setEditing(true)}>
+            <Ionicons name="create-outline" size={20} color={colors.primary} />
+          </Pressable>
+        )}
       </View>
 
       {editing ? (
@@ -256,6 +255,7 @@ function VehicleCard({
               onPress={() => setEditing(false)}
               style={styles.flexButton}
             />
+            <Button title="Eliminar" variant="danger" onPress={onDelete} style={styles.flexButton} />
           </View>
         </View>
       ) : (

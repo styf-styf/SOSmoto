@@ -64,20 +64,32 @@ export default function BuscarScreen() {
   const search = useCallback(async () => {
     try {
       const city = await getNearestCity(coords);
+      // Una sugerencia de mantenimiento no es urgente (a diferencia del
+      // auxilio) -- el cliente quiere comparar precio y elegir taller, no
+      // que le elijan el taller más cercano por él. Con serviceFilter
+      // activo se muestran fichas de servicio (negocio + precio de
+      // referencia, una por taller) en vez de la lista de talleres --
+      // tocar una lleva al detalle del servicio, que ya tiene "Agendar"
+      // con ESE taller.
       const [result, catalog, matchingAd] = await Promise.all([
-        searchBusinesses({
-          query: query || undefined,
-          businessType,
-          businessTypeIn: businessType ? undefined : ['workshop', 'store'],
-          serviceName: serviceFilter,
-          coords,
-          minRating,
-          only24h: only24h || undefined,
-        }),
-        query.trim() ? searchCatalog({ query, businessTypeIn: ['workshop', 'store'] }) : Promise.resolve([]),
+        serviceFilter
+          ? Promise.resolve([])
+          : searchBusinesses({
+              query: query || undefined,
+              businessType,
+              businessTypeIn: businessType ? undefined : ['workshop', 'store'],
+              coords,
+              minRating,
+              only24h: only24h || undefined,
+            }),
+        serviceFilter
+          ? searchCatalog({ query: serviceFilter, kinds: ['service'], businessTypeIn: ['workshop'] })
+          : query.trim()
+            ? searchCatalog({ query, businessTypeIn: ['workshop', 'store'] })
+            : Promise.resolve([]),
         // Un anuncio activo que coincida con lo buscado se muestra como el
         // primer resultado de la sección (ya no aparte, en "Publicidad").
-        query.trim()
+        !serviceFilter && query.trim()
           ? searchActiveAds(query, city, coords, { kinds: ['product', 'service'], businessTypeIn: ['workshop', 'store'] })
           : Promise.resolve(null),
       ]);
@@ -221,14 +233,18 @@ export default function BuscarScreen() {
           // no le quita el toque al hijo que termine reclamándolo).
           onTouchStart={() => setShowFilters(false)}
         >
-          <Text style={styles.sectionTitle}>{hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}</Text>
+          <Text style={styles.sectionTitle}>
+            {serviceFilter ? 'Compara precio y taller' : hasActiveFilters ? 'Resultados' : 'Descubre cerca de ti'}
+          </Text>
           {hasActiveFilters ? (
             results.length === 0 && catalogResults.length === 0 ? (
               <SearchEmptyState
                 text={
-                  query.trim()
-                    ? `No se encontraron resultados para "${query.trim()}".`
-                    : 'No encontramos negocios con esos filtros.'
+                  serviceFilter
+                    ? `Ningún taller cercano tiene "${serviceFilter}" en su catálogo todavía.`
+                    : query.trim()
+                      ? `No se encontraron resultados para "${query.trim()}".`
+                      : 'No encontramos negocios con esos filtros.'
                 }
               />
             ) : (

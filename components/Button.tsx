@@ -6,7 +6,7 @@ interface ButtonProps {
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'danger';
   style?: ViewStyle;
 }
 
@@ -19,6 +19,8 @@ export function Button({
   style,
 }: ButtonProps) {
   const isSecondary = variant === 'secondary';
+  const isDanger = variant === 'danger';
+  const isOutline = isSecondary || isDanger;
 
   return (
     <Pressable
@@ -26,15 +28,17 @@ export function Button({
       disabled={disabled || loading}
       style={[
         styles.base,
-        isSecondary ? styles.secondary : styles.primary,
+        isDanger ? styles.danger : isSecondary ? styles.secondary : styles.primary,
         (disabled || loading) && styles.disabled,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isSecondary ? colors.primary : '#fff'} />
+        <ActivityIndicator color={isOutline ? (isDanger ? colors.danger : colors.primary) : '#fff'} />
       ) : (
-        <Text style={[styles.text, isSecondary && styles.textSecondary]}>{title}</Text>
+        <Text style={[styles.text, isSecondary && styles.textSecondary, isDanger && styles.textDanger]}>
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -56,6 +60,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
+  danger: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
   disabled: {
     opacity: 0.6,
   },
@@ -66,5 +75,8 @@ const styles = StyleSheet.create({
   },
   textSecondary: {
     color: colors.primary,
+  },
+  textDanger: {
+    color: colors.danger,
   },
 });
