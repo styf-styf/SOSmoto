@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { StatusBadge, type StatusBadgeTone } from '../../components/StatusBadge';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
@@ -30,18 +31,14 @@ const APT_STATUS_LABEL: Record<string, string> = {
   rejected: 'Rechazada',
 };
 
-function aptBadgeColor(status: string): string {
-  if (status === 'confirmed') return '#E7F6EC';
-  if (status === 'scheduled') return '#FFF1E6';
-  if (status === 'cancelled' || status === 'rejected') return '#FBE8E8';
-  return colors.surface;
-}
-
-function aptTextColor(status: string): string {
-  if (status === 'confirmed') return colors.success;
-  if (status === 'scheduled') return colors.primary;
-  if (status === 'cancelled' || status === 'rejected') return colors.danger;
-  return colors.textMuted;
+// Mismo mapeo que citas.tsx/agenda-negocio.tsx (StatusBadge) -- 'completed'
+// y 'pending' (sin fecha) caen a 'neutral' a propósito, para que "Completada"
+// se vea igual acá que en el resto de pantallas de citas.
+function aptTone(status: string): StatusBadgeTone {
+  if (status === 'confirmed') return 'success';
+  if (status === 'scheduled') return 'pending';
+  if (status === 'cancelled' || status === 'rejected') return 'danger';
+  return 'neutral';
 }
 
 function formatDate(iso: string): string {
@@ -371,11 +368,7 @@ export default function ClienteExternoScreen() {
               onPress={() => router.push('/(business)/agenda-negocio')}
             >
               <View style={styles.activeAptHeader}>
-                <View style={[styles.aptBadge, { backgroundColor: aptBadgeColor(apt.status) }]}>
-                  <Text style={[styles.aptBadgeText, { color: aptTextColor(apt.status) }]}>
-                    {APT_STATUS_LABEL[apt.status] ?? apt.status}
-                  </Text>
-                </View>
+                <StatusBadge label={APT_STATUS_LABEL[apt.status] ?? apt.status} tone={aptTone(apt.status)} />
                 {apt.requested_at && (
                   <Text style={styles.aptDate}>{formatDateTime(apt.requested_at)}</Text>
                 )}
@@ -408,11 +401,7 @@ export default function ClienteExternoScreen() {
           return (
             <Pressable key={apt.id} style={styles.historyCard} onPress={cardPress}>
               <View style={styles.historyHeader}>
-                <View style={[styles.badge, apt.status === 'completed' ? styles.badgeAppt : styles.badgeCancelled]}>
-                  <Text style={[styles.badgeText, apt.status !== 'completed' && styles.badgeTextCancelled]}>
-                    {APT_STATUS_LABEL[apt.status] ?? apt.status}
-                  </Text>
-                </View>
+                <StatusBadge label={APT_STATUS_LABEL[apt.status] ?? apt.status} tone={aptTone(apt.status)} />
                 {apt.requested_at && (
                   <Text style={styles.historyDate}>{formatDate(apt.requested_at)}</Text>
                 )}
@@ -502,8 +491,6 @@ const styles = StyleSheet.create({
   activeAptHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
-  aptBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  aptBadgeText: { fontSize: 11, fontWeight: '700' },
   aptDate: { fontSize: 13, fontWeight: '700', color: colors.text },
   aptService: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 2 },
   aptNotes: { fontSize: 13, color: colors.textMuted, marginBottom: 4 },
@@ -513,11 +500,6 @@ const styles = StyleSheet.create({
   historyHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
   },
-  badge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
-  badgeAppt: { backgroundColor: '#E8F0FF' },
-  badgeCancelled: { backgroundColor: '#FBE8E8' },
-  badgeText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-  badgeTextCancelled: { color: colors.danger },
   historyDate: { fontSize: 12, color: colors.textMuted },
   historyMeta: { fontSize: 13, color: colors.textMuted, marginBottom: 2 },
   historyDesc: { fontSize: 14, color: colors.text },

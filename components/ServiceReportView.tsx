@@ -11,7 +11,7 @@ interface Props {
 
 
 function statusColor(s: InspectionStatus): string {
-  if (s === 'ok') return '#2ECC71';
+  if (s === 'ok') return colors.success;
   if (s === 'attention') return colors.warning;
   if (s === 'critical') return colors.danger;
   return colors.border;
@@ -145,7 +145,7 @@ export function ServiceReportView({ report, footer }: Props) {
       {/* Confirmación cliente */}
       {report.client_confirmed_at && (
         <View style={styles.confirmedBadge}>
-          <Ionicons name="checkmark-circle" size={16} color="#2ECC71" />
+          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
           <Text style={styles.confirmedText}>
             Confirmado por el cliente el{' '}
             {new Date(report.client_confirmed_at).toLocaleDateString('es-EC', {
@@ -290,9 +290,9 @@ const styles = StyleSheet.create({
   kmText: { fontSize: 14, color: colors.text, fontWeight: '600' },
   confirmedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#E7F6EC', borderRadius: 10, padding: 10, marginBottom: 12,
+    backgroundColor: colors.successLight, borderRadius: 10, padding: 10, marginBottom: 12,
   },
-  confirmedText: { fontSize: 13, color: '#2ECC71', fontWeight: '600' },
+  confirmedText: { fontSize: 13, color: colors.success, fontWeight: '600' },
   section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12 },
   sectionTitle: {
     fontSize: 13, fontWeight: '700', color: colors.textMuted,

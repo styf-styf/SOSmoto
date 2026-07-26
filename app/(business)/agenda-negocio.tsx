@@ -5,6 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { CircleActionButton } from '../../components/CircleActionButton';
+import { StatusBadge, type StatusBadgeTone } from '../../components/StatusBadge';
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
 import { InfoButton, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
@@ -382,11 +383,7 @@ export default function AgendaNegocioScreen() {
                     <Text style={styles.externalBadge}>Externo</Text>
                   )}
                 </View>
-                <View style={[styles.statusBadge, statusBadgeStyle(appointment)]}>
-                  <Text style={[styles.statusText, statusTextStyle(appointment)]}>
-                    {statusLabel(appointment)}
-                  </Text>
-                </View>
+                <StatusBadge label={statusLabel(appointment)} tone={statusTone(appointment)} />
               </View>
 
               {(appointment.client?.phone ?? appointment.external_client_phone) && (
@@ -712,18 +709,11 @@ function statusLabel(a: BusinessAppointment): string {
   return a.status;
 }
 
-function statusBadgeStyle(a: BusinessAppointment) {
-  if (a.status === 'confirmed') return { backgroundColor: '#E7F6EC' };
-  if (a.status === 'scheduled' && a.proposed_by === 'client') return { backgroundColor: '#FFF1E6' };
-  if (a.status === 'rejected' || a.status === 'cancelled') return { backgroundColor: '#FBE8E8' };
-  return { backgroundColor: colors.surface };
-}
-
-function statusTextStyle(a: BusinessAppointment) {
-  if (a.status === 'confirmed') return { color: colors.success };
-  if (a.status === 'scheduled' && a.proposed_by === 'client') return { color: colors.primary };
-  if (a.status === 'rejected' || a.status === 'cancelled') return { color: colors.danger };
-  return { color: colors.textMuted };
+function statusTone(a: BusinessAppointment): StatusBadgeTone {
+  if (a.status === 'confirmed') return 'success';
+  if (a.status === 'scheduled' && a.proposed_by === 'client') return 'pending';
+  if (a.status === 'rejected' || a.status === 'cancelled') return 'danger';
+  return 'neutral';
 }
 
 const styles = StyleSheet.create({
@@ -781,15 +771,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     flex: 1,
-  },
-  statusBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   cardMeta: {
     fontSize: 13,

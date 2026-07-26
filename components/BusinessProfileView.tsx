@@ -833,10 +833,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   openBadgeOpen: {
-    backgroundColor: '#E7F6EC',
+    backgroundColor: colors.successLight,
   },
   openBadgeClosed: {
-    backgroundColor: '#FBE8E8',
+    backgroundColor: colors.dangerLight,
   },
   openBadgeText: {
     fontSize: 12,

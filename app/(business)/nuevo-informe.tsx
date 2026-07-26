@@ -70,7 +70,7 @@ function buildDefaultGroups(): GroupState[] {
 }
 
 const STATUS_OPTIONS: { value: InspectionStatus; label: string; color: string; icon: string }[] = [
-  { value: 'ok', label: 'OK', color: '#2ECC71', icon: 'checkmark-circle' },
+  { value: 'ok', label: 'OK', color: colors.success, icon: 'checkmark-circle' },
   { value: 'attention', label: 'Atención', color: colors.warning, icon: 'warning' },
   { value: 'critical', label: 'Crítico', color: colors.danger, icon: 'close-circle' },
   { value: 'na', label: 'N/A', color: colors.textMuted, icon: 'remove-circle-outline' },
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: colors.textMuted, marginBottom: 4 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   clientRowText: { flex: 1, fontSize: 14, color: colors.textMuted },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 24, marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 24, marginBottom: 10 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryChip: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 20,

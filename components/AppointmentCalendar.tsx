@@ -25,7 +25,7 @@ const MONTHS = [
 function dotColor(status: AppointmentStatus): string {
   if (status === 'confirmed') return colors.success;
   if (status === 'scheduled') return colors.primary;
-  if (status === 'pending') return '#F59E0B';
+  if (status === 'pending') return colors.warning;
   return 'transparent';
 }
 
@@ -153,7 +153,7 @@ export function AppointmentCalendar({ appointments, selectedDate, onSelectDate }
       <View style={styles.legend}>
         <LegendDot color={colors.success} label="Confirmada" />
         <LegendDot color={colors.primary} label="Propuesta" />
-        <LegendDot color="#F59E0B" label="Pendiente" />
+        <LegendDot color={colors.warning} label="Pendiente" />
       </View>
 
       {/* Filtro activo */}

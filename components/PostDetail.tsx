@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: '#FBE8E8',
+    backgroundColor: colors.dangerLight,
   },
   limitedNoticeText: {
     fontSize: 13,

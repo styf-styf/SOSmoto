@@ -21,6 +21,12 @@ export default function DatosPersonalesScreen() {
     }
   }, [profile]);
 
+  function handleCancel() {
+    if (!profile) return;
+    setFullName(profile.full_name);
+    setPhone(profile.phone ?? '');
+  }
+
   async function handleSave() {
     if (!profile) return;
     if (!fullName.trim()) {
@@ -47,7 +53,21 @@ export default function DatosPersonalesScreen() {
       <View style={styles.emailRow}>
         <TextField label="Correo electrónico" value={profile?.email ?? ''} editable={false} />
       </View>
-      <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />
+      <View style={styles.actionsRow}>
+        <Button
+          title="Cancelar"
+          variant="secondary"
+          onPress={handleCancel}
+          disabled={saving}
+          style={styles.flexButton}
+        />
+        <Button
+          title="Guardar cambios"
+          onPress={handleSave}
+          loading={saving}
+          style={styles.flexButton}
+        />
+      </View>
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -67,7 +87,12 @@ const styles = StyleSheet.create({
   emailRow: {
     opacity: 0.6,
   },
-  saveButton: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
     marginTop: 24,
+  },
+  flexButton: {
+    flex: 1,
   },
 });

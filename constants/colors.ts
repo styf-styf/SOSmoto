@@ -11,4 +11,16 @@ export const colors = {
   warning: '#ED6C02',
   danger: '#D32F2F',
   sos: '#D32F2F',
+  // Fondo pastel + texto saturado para badges de estado (confirmado/
+  // pendiente/rechazado) -- antes cada pantalla repetía estos hex a mano,
+  // con valores que a veces no coincidían entre sí para el mismo concepto.
+  successLight: '#E7F6EC',
+  warningLight: '#FFF1E6',
+  dangerLight: '#FBE8E8',
+  // Verde brillante para indicadores de "confirmado/listo" tipo caja con
+  // borde (ej. ubicación GPS confirmada) -- distinto del success muted de
+  // arriba a propósito, es un tono más moderno para ese caso puntual.
+  confirmedGreen: '#22C55E',
+  confirmedGreenBg: '#F0FDF4',
+  confirmedGreenText: '#166534',
 };

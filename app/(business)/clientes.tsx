@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 14,
     alignItems: 'center',
     gap: 6,

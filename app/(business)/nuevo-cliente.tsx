@@ -256,7 +256,7 @@ export default function NuevoClienteScreen() {
 
               {alreadyAdded ? (
                 <View style={styles.alreadyRow}>
-                  <Ionicons name="checkmark-circle" size={16} color="#2ECC71" />
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                   <Text style={styles.alreadyText}>Ya está en tu lista de clientes</Text>
                   <Pressable onPress={() => router.replace(`/(business)/cliente/${selected!.id}`)}>
                     <Text style={styles.alreadyLink}>Ver perfil →</Text>
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     marginTop: 16, backgroundColor: '#F0FAF4',
     borderRadius: 10, padding: 12,
   },
-  alreadyText: { flex: 1, fontSize: 13, color: '#2ECC71', fontWeight: '600' },
+  alreadyText: { flex: 1, fontSize: 13, color: colors.success, fontWeight: '600' },
   alreadyLink: { fontSize: 13, color: colors.primary, fontWeight: '700' },
   noResults: { marginTop: 16, alignItems: 'center', gap: 8 },
   noResultsText: { fontSize: 14, color: colors.textMuted },

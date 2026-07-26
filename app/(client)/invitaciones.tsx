@@ -1,10 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Pressable,
+  ActivityIndicator, Alert, Image,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { CircleActionButton } from '../../components/CircleActionButton';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getPendingInvitations, respondToInvitation, type PendingInvitation } from '../../services/businessClients';
@@ -114,28 +115,22 @@ export default function InvitacionesScreen() {
             </Text>
 
             <View style={styles.actions}>
-              <Pressable
-                style={[styles.btn, styles.rejectBtn, isResponding && styles.btnDisabled]}
+              <CircleActionButton
+                icon="close"
+                label="Rechazar"
+                color={colors.danger}
                 onPress={() => handleRespond(inv, false)}
-                disabled={isResponding}
-              >
-                {isResponding ? (
-                  <ActivityIndicator size="small" color={colors.textMuted} />
-                ) : (
-                  <Text style={styles.rejectBtnText}>Rechazar</Text>
-                )}
-              </Pressable>
-              <Pressable
-                style={[styles.btn, styles.acceptBtn, isResponding && styles.btnDisabled]}
+                loading={isResponding}
+                disabled={responding !== null && !isResponding}
+              />
+              <CircleActionButton
+                icon="checkmark"
+                label="Aceptar"
+                color={colors.primary}
                 onPress={() => handleRespond(inv, true)}
-                disabled={isResponding}
-              >
-                {isResponding ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.acceptBtnText}>Aceptar</Text>
-                )}
-              </Pressable>
+                loading={isResponding}
+                disabled={responding !== null && !isResponding}
+              />
             </View>
           </View>
         );
@@ -176,11 +171,9 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 16,
     gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -225,33 +218,5 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 10,
-  },
-  btn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  rejectBtn: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  rejectBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  acceptBtn: {
-    backgroundColor: colors.primary,
-  },
-  acceptBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
   },
 });

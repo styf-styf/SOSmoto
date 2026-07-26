@@ -20,6 +20,7 @@ import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { Button } from '../../../components/Button';
+import { CircleActionButton } from '../../../components/CircleActionButton';
 import { GradientShade } from '../../../components/GradientShade';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
@@ -824,17 +825,21 @@ function PendingInvitationsScreen({
               : 'Sin permisos de auxilio inicialmente'}
           </Text>
           <View style={styles.invitationActions}>
-            <Button
-              title="Aceptar"
+            <CircleActionButton
+              icon="close"
+              label="Rechazar"
+              color={colors.danger}
+              onPress={() => handleReject(inv)}
+              loading={processingId === inv.id}
+              disabled={processingId !== null && processingId !== inv.id}
+            />
+            <CircleActionButton
+              icon="checkmark"
+              label="Aceptar"
+              color={colors.primary}
               onPress={() => handleAccept(inv)}
               loading={processingId === inv.id}
-              style={styles.flexButton}
-            />
-            <Button
-              title="Rechazar"
-              variant="secondary"
-              onPress={() => handleReject(inv)}
-              style={styles.flexButton}
+              disabled={processingId !== null && processingId !== inv.id}
             />
           </View>
         </View>
@@ -1477,9 +1482,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  flexButton: {
-    flex: 1,
-  },
   onboardingContainer: {
     padding: 20,
     backgroundColor: colors.background,
@@ -1605,17 +1607,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#22C55E',
+    borderColor: colors.confirmedGreen,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 50,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.confirmedGreenBg,
     marginBottom: 16,
   },
   locationConfirmedText: {
     flex: 1,
     fontSize: 15,
-    color: '#166534',
+    color: colors.confirmedGreenText,
     fontWeight: '500',
   },
   locationChangeLink: {

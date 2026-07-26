@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollVie
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { Button } from '../../../components/Button';
+import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
@@ -31,22 +32,13 @@ function statusLabel(status: ProductIntentStatus): string {
   }
 }
 
-function statusBadgeStyle(status: ProductIntentStatus) {
-  if (status === 'sold') return { backgroundColor: '#E7F6EC' };
-  if (status === 'confirmed') return { backgroundColor: '#FFF1E6' };
+function statusTone(status: ProductIntentStatus): StatusBadgeTone {
+  if (status === 'sold') return 'success';
+  if (status === 'confirmed') return 'pending';
   if (status === 'cancelled_by_client' || status === 'cancelled_no_show' || status === 'unavailable') {
-    return { backgroundColor: '#FBE8E8' };
+    return 'danger';
   }
-  return { backgroundColor: colors.surface };
-}
-
-function statusTextStyle(status: ProductIntentStatus) {
-  if (status === 'sold') return { color: colors.success };
-  if (status === 'confirmed') return { color: colors.primary };
-  if (status === 'cancelled_by_client' || status === 'cancelled_no_show' || status === 'unavailable') {
-    return { color: colors.danger };
-  }
-  return { color: colors.textMuted };
+  return 'neutral';
 }
 
 export default function PedidosScreen() {
@@ -127,11 +119,7 @@ export default function PedidosScreen() {
                 )}
               </View>
               <Text style={styles.cardTitle}>{intent.buyer_business_name ?? intent.client_name}</Text>
-              <View style={[styles.statusBadge, statusBadgeStyle(intent.status)]}>
-                <Text style={[styles.statusText, statusTextStyle(intent.status)]}>
-                  {statusLabel(intent.status)}
-                </Text>
-              </View>
+              <StatusBadge label={statusLabel(intent.status)} tone={statusTone(intent.status)} />
             </View>
 
             <Text style={styles.cardMeta}>
@@ -223,15 +211,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     flex: 1,
-  },
-  statusBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   cardMeta: {
     fontSize: 13,

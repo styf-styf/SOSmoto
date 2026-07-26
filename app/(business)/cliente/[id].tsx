@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollVie
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
+import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
@@ -207,11 +208,7 @@ export default function ClienteDetailScreen() {
               onPress={() => router.push('/(business)/agenda-negocio')}
             >
               <View style={styles.activeAptHeader}>
-                <View style={[styles.aptBadge, aptBadgeStyle(apt)]}>
-                  <Text style={[styles.aptBadgeText, aptBadgeTextStyle(apt)]}>
-                    {aptStatusLabel(apt)}
-                  </Text>
-                </View>
+                <StatusBadge label={aptStatusLabel(apt)} tone={aptTone(apt)} />
                 {apt.requested_at && (
                   <Text style={styles.aptDate}>
                     {new Date(apt.requested_at).toLocaleString('es-EC', {
@@ -434,16 +431,10 @@ function aptStatusLabel(apt: ActiveClientAppointment): string {
   return apt.status;
 }
 
-function aptBadgeStyle(apt: ActiveClientAppointment) {
-  if (apt.status === 'confirmed') return { backgroundColor: '#E7F6EC' };
-  if (apt.status === 'scheduled' && apt.proposed_by === 'client') return { backgroundColor: '#FFF1E6' };
-  return { backgroundColor: colors.surface };
-}
-
-function aptBadgeTextStyle(apt: ActiveClientAppointment) {
-  if (apt.status === 'confirmed') return { color: colors.success };
-  if (apt.status === 'scheduled' && apt.proposed_by === 'client') return { color: colors.primary };
-  return { color: colors.textMuted };
+function aptTone(apt: ActiveClientAppointment): StatusBadgeTone {
+  if (apt.status === 'confirmed') return 'success';
+  if (apt.status === 'scheduled' && apt.proposed_by === 'client') return 'pending';
+  return 'neutral';
 }
 
 const styles = StyleSheet.create({
@@ -612,15 +603,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
-  },
-  aptBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  aptBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   aptDate: {
     fontSize: 13,
