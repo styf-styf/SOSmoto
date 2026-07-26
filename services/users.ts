@@ -54,6 +54,14 @@ export async function searchClients(
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
+
+  // Cambiar la contraseña por sí solo no invalida sesiones ya abiertas en
+  // otros dispositivos (comportamiento conocido de Supabase Auth: el
+  // refresh token no expira por tiempo, solo al usarse o al revocarlo
+  // explícito) -- si alguien cambia su contraseña porque sospecha que le
+  // robaron la sesión, sin esto el atacante seguiría adentro. 'others'
+  // cierra todas las demás sesiones sin desloguear el dispositivo actual.
+  await supabase.auth.signOut({ scope: 'others' });
 }
 
 export async function changeRoleToClient(): Promise<void> {
