@@ -11,6 +11,14 @@ const PAYPHONE_TOKEN = Deno.env.get('PAYPHONE_TOKEN')!;
 // bug de Payphone, era el endpoint equivocado para nuestro widget.
 const PAYPHONE_CONFIRM_URL = 'https://paymentbox.payphonetodoesposible.com/api/confirm';
 
+// Publicidad está desactivada para el lanzamiento (ver constants/features.ts
+// en la app -- duplicado acá igual que en ad-prepare/ad-resubmit/
+// check-business-growth). ad-prepare ya no deja crear pagos nuevos de tipo
+// 'advertising' mientras esto sea false, pero un pago pendiente creado
+// ANTES de apagar el flag podía quedar abierto y confirmarse más tarde --
+// esto evita cobrarlo y crear el anuncio en ese caso.
+const ADS_ENABLED = false;
+
 type PaymentRow = {
   id: string;
   business_id: string;
@@ -165,6 +173,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, alreadyConfirmed: true }), {
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+    if (payment.type === 'advertising' && !ADS_ENABLED) {
+      await supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+      return new Response(
+        JSON.stringify({ success: false, error: 'La publicidad no está disponible por el momento.' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const confirmResponse = await fetch(PAYPHONE_CONFIRM_URL, {

@@ -505,12 +505,10 @@ export async function searchUsers(
   excludeIds: string[] = []
 ): Promise<UserSearchResult[]> {
   if (query.trim().length < 2) return [];
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, full_name, phone')
-    .eq('role', 'client')
-    .ilike('full_name', `%${query.trim()}%`)
-    .limit(8);
+  // RPC en vez de select directo sobre `users`: el largo mínimo y el límite
+  // de resultados se fuerzan en el servidor (ver migración 0122), y la
+  // función solo deja pasar cuentas de negocio.
+  const { data, error } = await supabase.rpc('search_clients_by_name', { search_query: query.trim() });
   if (error) throw error;
   const results = (data ?? []) as UserSearchResult[];
   if (excludeIds.length === 0) return results;

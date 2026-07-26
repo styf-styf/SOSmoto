@@ -234,7 +234,7 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
 export async function getProductsByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('*, businesses(name, logo_url)')
+    .select('*, businesses(name, logo_url, is_deactivated)')
     .eq('category_id', categoryId)
     .eq('is_active', true)
     .neq('id', excludeId)
@@ -242,7 +242,13 @@ export async function getProductsByCategory(categoryId: string, excludeId: strin
     .limit(limit);
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
+  // Un negocio desactivado no debe aparecer en ningún lado del cliente (ver
+  // searchBusinesses) -- filtrado en el cliente igual que business_type en
+  // searchCatalog, porque Supabase JS no filtra bien por una columna de
+  // relación embebida sin !inner.
+  return (data ?? [])
+    .filter((row: any) => !row.businesses?.is_deactivated)
+    .map((row: any) => ({
     kind: 'product',
     id: row.id,
     businessId: row.business_id,
@@ -259,7 +265,7 @@ export async function getProductsByCategory(categoryId: string, excludeId: strin
 export async function getServicesByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {
   const { data, error } = await supabase
     .from('services')
-    .select('*, businesses(name, logo_url)')
+    .select('*, businesses(name, logo_url, is_deactivated)')
     .eq('category_id', categoryId)
     .eq('is_active', true)
     .neq('id', excludeId)
@@ -267,7 +273,9 @@ export async function getServicesByCategory(categoryId: string, excludeId: strin
     .limit(limit);
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
+  return (data ?? [])
+    .filter((row: any) => !row.businesses?.is_deactivated)
+    .map((row: any) => ({
     kind: 'service',
     id: row.id,
     businessId: row.business_id,
@@ -323,13 +331,13 @@ export async function getFeedCatalogPool(
   const [servicesResult, productsResult] = await Promise.all([
     supabase
       .from('services')
-      .select('*, businesses(name, logo_url, business_type)')
+      .select('*, businesses(name, logo_url, business_type, is_deactivated)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(limit),
     supabase
       .from('products')
-      .select('*, businesses(name, logo_url, business_type)')
+      .select('*, businesses(name, logo_url, business_type, is_deactivated)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(limit),
@@ -337,8 +345,9 @@ export async function getFeedCatalogPool(
   if (servicesResult.error) throw servicesResult.error;
   if (productsResult.error) throw productsResult.error;
 
-  const servicesRows = servicesResult.data ?? [];
-  const productsRows = productsResult.data ?? [];
+  // Un negocio desactivado no debe aparecer en el feed de Inicio tampoco.
+  const servicesRows = (servicesResult.data ?? []).filter((row: any) => !row.businesses?.is_deactivated);
+  const productsRows = (productsResult.data ?? []).filter((row: any) => !row.businesses?.is_deactivated);
 
   const services: FeedCatalogItem[] = servicesRows.map((row: any) => ({
     kind: 'service',
@@ -404,12 +413,17 @@ export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCa
   function matchesType(businessType?: BusinessType): boolean {
     return !params.businessTypeIn?.length || (!!businessType && params.businessTypeIn.includes(businessType));
   }
+  // Un negocio desactivado no debe aparecer en la búsqueda tampoco (ver
+  // searchBusinesses, que ya lo filtra para el negocio en sí).
+  function isVisible(row: any): boolean {
+    return matchesType(row.businesses?.business_type) && !row.businesses?.is_deactivated;
+  }
 
   const [productsResult, servicesResult] = await Promise.all([
     kinds.includes('product')
       ? supabase
           .from('products')
-          .select('*, businesses(name, logo_url, business_type)')
+          .select('*, businesses(name, logo_url, business_type, is_deactivated)')
           .eq('is_active', true)
           .ilike('name', `%${term}%`)
           .order('created_at', { ascending: false })
@@ -418,7 +432,7 @@ export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCa
     kinds.includes('service')
       ? supabase
           .from('services')
-          .select('*, businesses(name, logo_url, business_type)')
+          .select('*, businesses(name, logo_url, business_type, is_deactivated)')
           .eq('is_active', true)
           .ilike('name', `%${term}%`)
           .order('created_at', { ascending: false })
@@ -429,7 +443,7 @@ export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCa
   if (servicesResult.error) throw servicesResult.error;
 
   const products: FeedCatalogItem[] = (productsResult.data ?? [])
-    .filter((row: any) => matchesType(row.businesses?.business_type))
+    .filter(isVisible)
     .map((row: any) => ({
       kind: 'product',
       id: row.id,
@@ -444,7 +458,7 @@ export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCa
     }));
 
   const services: FeedCatalogItem[] = (servicesResult.data ?? [])
-    .filter((row: any) => matchesType(row.businesses?.business_type))
+    .filter(isVisible)
     .map((row: any) => ({
       kind: 'service',
       id: row.id,

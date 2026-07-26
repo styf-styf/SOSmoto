@@ -92,22 +92,25 @@ export default function NuevoInformeScreen() {
 
   const isLocked = !!params.appointmentStatus && params.appointmentStatus !== 'completed';
 
+  // Un solo fetch para id + tipo de negocio -- antes eran dos useCachedLoad
+  // separados (cada uno llamando getMyWorkBusiness por su cuenta), y el
+  // guard de "solo taller" (businessType) no compartía loading con el
+  // spinner (loadingBiz), dejando una ventana donde el formulario se
+  // renderizaba para una tienda antes de que businessType resolviera.
   const cacheKey = profile ? `nuevo-informe-biz-${profile.id}` : null;
-  const { data: businessId, loading: loadingBiz } = useCachedLoad<string | null>(cacheKey, async () => {
-    if (!profile) return null;
-    const work = await getMyWorkBusiness(profile.id);
-    return work?.business.id ?? null;
-  });
-
+  const { data: business, loading: loadingBiz } = useCachedLoad<{ id: string; type: BusinessType } | null>(
+    cacheKey,
+    async () => {
+      if (!profile) return null;
+      const work = await getMyWorkBusiness(profile.id);
+      return work ? { id: work.business.id, type: work.business.business_type } : null;
+    }
+  );
+  const businessId = business?.id ?? null;
   // Los informes de servicio son exclusivos de taller -- el menú de
   // Configuración ya oculta esta entrada para tienda, pero se guarda sola
   // por si llega por otro camino (link viejo, deep link).
-  const typeCacheKey = profile ? `nuevo-informe-biz-type-${profile.id}` : null;
-  const { data: businessType } = useCachedLoad<BusinessType | null>(typeCacheKey, async () => {
-    if (!profile) return null;
-    const work = await getMyWorkBusiness(profile.id);
-    return work?.business.business_type ?? null;
-  });
+  const businessType = business?.type ?? null;
 
   const isExternal = !params.clientId;
 

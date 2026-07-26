@@ -13,6 +13,13 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Publicidad está desactivada para el lanzamiento (ver constants/features.ts
+// en la app -- Deno no puede importar de ahí, así que se duplica acá, igual
+// que en check-business-growth). Antes esta función no lo chequeaba: aunque
+// la pantalla mostrara "no disponible", se podía llamar ad-prepare directo
+// y crear un pago/campaña real igual.
+const ADS_ENABLED = false;
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -35,6 +42,9 @@ Deno.serve(async (req) => {
     const { data: userData, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !userData.user) {
       return json({ error: 'No autenticado' }, 401);
+    }
+    if (!ADS_ENABLED) {
+      return json({ error: 'La publicidad no está disponible por el momento.' }, 403);
     }
 
     const {

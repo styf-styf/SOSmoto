@@ -346,6 +346,17 @@ export default function SolicitudesScreen() {
     );
   }
 
+  // El auxilio en carretera es exclusivo de taller -- el layout ya oculta
+  // esta pestaña para tienda, pero se guarda sola por si llega por otro
+  // camino (deep link directo).
+  if (business && business.business_type !== 'workshop') {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.placeholder}>El auxilio en carretera es exclusivo de talleres.</Text>
+      </View>
+    );
+  }
+
   if (ratingTarget) {
     return (
       <KeyboardAvoidingView style={styles.center} behavior="padding">

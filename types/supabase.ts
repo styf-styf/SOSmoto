@@ -1551,6 +1551,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: undefined;
       };
+      search_clients_by_name: {
+        Args: { search_query: string };
+        Returns: { id: string; full_name: string; phone: string | null }[];
+      };
     };
   };
 }

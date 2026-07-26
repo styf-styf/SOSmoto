@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Button } from '../../components/Button';
 import { CircleActionButton } from '../../components/CircleActionButton';
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
@@ -579,7 +578,7 @@ export default function AgendaNegocioScreen() {
                 >
                   <Ionicons name="document-text-outline" size={14} color={colors.primary} />
                   <Text style={styles.informeLinkText}>
-                    {rpt && !rpt.isDraft ? 'Ver informe' : rpt?.isDraft ? 'Continuar informe' : 'Crear informe'}
+                    {rpt && !rpt.isDraft ? 'Ver informe' : rpt?.isDraft ? 'Continuar borrador' : 'Crear informe'}
                   </Text>
                 </Pressable>
               )}
@@ -589,12 +588,15 @@ export default function AgendaNegocioScreen() {
                 reviewedAppointmentIds.has(appointment.id) ? (
                   <Text style={styles.reviewedText}>Ya calificaste a este cliente.</Text>
                 ) : (
-                  <Button
-                    title="Calificar cliente"
-                    variant="secondary"
-                    onPress={() => startRating(appointment.id)}
-                    style={styles.changeButton}
-                  />
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton
+                      icon="star-outline"
+                      label="Calificar cliente"
+                      color={colors.primary}
+                      variant="outline"
+                      onPress={() => startRating(appointment.id)}
+                    />
+                  </View>
                 )
               )}
 
@@ -822,9 +824,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     fontStyle: 'italic',
-  },
-  changeButton: {
-    marginTop: 8,
   },
   informeLinkRow: {
     flexDirection: 'row',

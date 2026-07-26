@@ -64,6 +64,12 @@ export default function ClienteExternoScreen() {
   const [record, setRecord] = useState<BusinessClientRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  // Los informes de servicio y las citas son exclusivos de taller -- esta
+  // pantalla (a diferencia de cliente/[id].tsx) no filtraba por tipo de
+  // negocio y ofrecía "Crear informe" a una tienda, que terminaba en el
+  // placeholder de nuevo-informe.tsx ("Los informes de servicio son
+  // exclusivos de talleres.").
+  const [isStore, setIsStore] = useState(false);
 
   // Edit mode
   const [editing, setEditing] = useState(false);
@@ -84,6 +90,7 @@ export default function ClienteExternoScreen() {
         .then(async (work) => {
           if (!work) return;
           setBusinessId(work.business.id);
+          setIsStore(work.business.business_type === 'store');
           const [extData, bcRecord] = await Promise.all([
             getExternalClientData(work.business.id, decodedName),
             getBusinessClientByName(work.business.id, decodedName),
@@ -345,14 +352,16 @@ export default function ClienteExternoScreen() {
             <Text style={styles.actionLabel}>WhatsApp</Text>
           </Pressable>
         )}
-        <Pressable style={styles.actionBtn} onPress={() => router.push(informeBase as any)}>
-          <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-          <Text style={styles.actionLabel}>Crear informe</Text>
-        </Pressable>
+        {!isStore && (
+          <Pressable style={styles.actionBtn} onPress={() => router.push(informeBase as any)}>
+            <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+            <Text style={styles.actionLabel}>Crear informe</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Próximas citas activas */}
-      {activeApts.length > 0 && (
+      {!isStore && activeApts.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Próximas citas</Text>
           {activeApts.map((apt) => (
