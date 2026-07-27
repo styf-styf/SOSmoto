@@ -15,8 +15,8 @@ export default function VerifyEmailScreen() {
   const [resending, setResending] = useState(false);
 
   async function handleVerify() {
-    if (code.trim().length !== 6) {
-      Alert.alert('Código incompleto', 'Ingresa el código de 6 dígitos que enviamos a tu correo.');
+    if (code.trim().length !== 8) {
+      Alert.alert('Código incompleto', 'Ingresa el código de 8 dígitos que enviamos a tu correo.');
       return;
     }
     setLoading(true);
@@ -49,13 +49,13 @@ export default function VerifyEmailScreen() {
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Verifica tu correo</Text>
-      <Text style={styles.subtitle}>Enviamos un código de 6 dígitos a{'\n'}{email}</Text>
+      <Text style={styles.subtitle}>Enviamos un código de 8 dígitos a{'\n'}{email}</Text>
 
       <TextField
         label="Código de verificación"
-        placeholder="123456"
+        placeholder="12345678"
         keyboardType="number-pad"
-        maxLength={6}
+        maxLength={8}
         value={code}
         onChangeText={setCode}
         editable={!disabled}

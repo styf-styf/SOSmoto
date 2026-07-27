@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { appButton, sendEmail } from '../_shared/resend.ts';
 
 const REMINDER_DAYS_BEFORE = 3;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -71,10 +72,11 @@ Deno.serve(async (req) => {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('push_token, notification_prefs')
+      .select('push_token, email, notification_prefs')
       .eq('id', business.owner_id)
       .maybeSingle();
     const pushToken: string | null = owner?.push_token ?? null;
+    const email: string | null = owner?.email ?? null;
     // Categoría 'pagos' de Configuración > Notificaciones -- solo apaga el
     // push, el downgrade/reversión de plan sigue pasando igual.
     const pagosEnabled = (owner?.notification_prefs as Record<string, boolean> | null)?.pagos !== false;
@@ -93,17 +95,37 @@ Deno.serve(async (req) => {
           { type: 'subscription_expired', businessId: sub.business_id }
         );
       }
+      if (email && pagosEnabled) {
+        await sendEmail(
+          email,
+          'Tu suscripción venció — volviste al plan Free',
+          `<h2>Tu suscripción venció</h2>
+<p>Tu plan pago venció y tu negocio volvió al plan Free. Renueva desde la app cuando quieras para recuperar tus beneficios (posición destacada, más productos/servicios en el catálogo, etc.).</p>
+${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
+        );
+      }
       downgraded++;
       continue;
     }
 
-    if (daysLeft <= REMINDER_DAYS_BEFORE && !sub.reminder_sent_at && pushToken && pagosEnabled) {
-      await sendPush(
-        pushToken,
-        'Tu suscripción está por vencer',
-        `Tu plan vence en ${Math.ceil(daysLeft)} día(s). Renueva desde la app para no perder tus beneficios.`,
-        { type: 'subscription_expiring', businessId: sub.business_id }
-      );
+    if (daysLeft <= REMINDER_DAYS_BEFORE && !sub.reminder_sent_at && pagosEnabled) {
+      if (pushToken) {
+        await sendPush(
+          pushToken,
+          'Tu suscripción está por vencer',
+          `Tu plan vence en ${Math.ceil(daysLeft)} día(s). Renueva desde la app para no perder tus beneficios.`,
+          { type: 'subscription_expiring', businessId: sub.business_id }
+        );
+      }
+      if (email) {
+        await sendEmail(
+          email,
+          'Tu suscripción está por vencer',
+          `<h2>Tu suscripción está por vencer</h2>
+<p>Tu plan vence en <strong>${Math.ceil(daysLeft)} día(s)</strong>. Renueva desde la app para no perder tus beneficios.</p>
+${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
+        );
+      }
       await supabase.from('business_subscriptions').update({ reminder_sent_at: now.toISOString() }).eq('id', sub.id);
       notified++;
     }

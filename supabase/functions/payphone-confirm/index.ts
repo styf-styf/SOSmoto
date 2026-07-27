@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { appButton, escapeHtml, sendEmail } from '../_shared/resend.ts';
 
 const PAYPHONE_TOKEN = Deno.env.get('PAYPHONE_TOKEN')!;
 // Endpoint real de confirmación de la Cajita de Pagos (Payment Box), según
@@ -37,22 +38,55 @@ async function sendPush(token: string, title: string, body: string, data: Record
   });
 }
 
-async function notifyPlanChanged(supabase: ReturnType<typeof createClient>, businessId: string, planId: string) {
+async function notifyPlanChanged(
+  supabase: ReturnType<typeof createClient>,
+  businessId: string,
+  planId: string,
+  expiresAt: Date
+) {
   const [{ data: business }, { data: plan }] = await Promise.all([
-    supabase.from('businesses').select('owner_id').eq('id', businessId).maybeSingle(),
-    supabase.from('subscription_plans').select('name').eq('id', planId).maybeSingle(),
+    supabase.from('businesses').select('owner_id, name').eq('id', businessId).maybeSingle(),
+    supabase.from('subscription_plans').select('name, price_monthly').eq('id', planId).maybeSingle(),
   ]);
   if (!business?.owner_id || !plan?.name) return;
 
-  const { data: owner } = await supabase.from('users').select('push_token').eq('id', business.owner_id).maybeSingle();
-  if (!owner?.push_token) return;
+  const { data: owner } = await supabase
+    .from('users')
+    .select('push_token, email')
+    .eq('id', business.owner_id)
+    .maybeSingle();
+  if (!owner) return;
 
-  await sendPush(
-    owner.push_token,
-    'Plan actualizado',
-    `Tu negocio ahora tiene el plan ${PLAN_LABEL[plan.name as string] ?? plan.name}.`,
-    { type: 'plan_changed', businessId }
-  );
+  const planLabel = PLAN_LABEL[plan.name as string] ?? plan.name;
+
+  if (owner.push_token) {
+    await sendPush(
+      owner.push_token,
+      'Plan actualizado',
+      `Tu negocio ahora tiene el plan ${planLabel}.`,
+      { type: 'plan_changed', businessId }
+    );
+  }
+
+  if (owner.email) {
+    const priceRow =
+      plan.price_monthly != null
+        ? `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Monto</td><td style="padding:10px 0;text-align:right;font-weight:bold;color:#16a34a">$${Number(plan.price_monthly).toFixed(2)}</td></tr>`
+        : '';
+    await sendEmail(
+      owner.email,
+      'Pago confirmado — Suscripción activada',
+      `<h2>¡Pago exitoso!</h2>
+<p>Tu pago fue procesado correctamente y tu suscripción ya está activa.</p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Negocio</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(business.name)}</td></tr>
+<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Plan</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(planLabel)}</td></tr>
+${priceRow}
+<tr><td style="padding:10px 0;color:#666;font-size:13px">Vigente hasta</td><td style="padding:10px 0;text-align:right">${expiresAt.toLocaleDateString('es-EC')}</td></tr>
+</table>
+${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
+    );
+  }
 }
 
 async function activateSubscription(supabase: ReturnType<typeof createClient>, payment: PaymentRow) {
@@ -88,7 +122,7 @@ async function activateSubscription(supabase: ReturnType<typeof createClient>, p
 
   await supabase.from('businesses').update({ plan_id: payment.plan_id }).eq('id', payment.business_id);
 
-  await notifyPlanChanged(supabase, payment.business_id, payment.plan_id);
+  await notifyPlanChanged(supabase, payment.business_id, payment.plan_id, expiresAt);
 }
 
 // La campaña recién se crea aquí, no antes -- el borrador vive en
@@ -144,6 +178,29 @@ async function createAdFromPayment(supabase: ReturnType<typeof createClient>, pa
     if (service && (!service.photos || service.photos.length === 0)) {
       await supabase.from('services').update({ photos }).eq('id', m.serviceId);
     }
+  }
+
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('owner_id, name')
+    .eq('id', payment.business_id)
+    .maybeSingle();
+  const owner = business?.owner_id
+    ? (await supabase.from('users').select('email').eq('id', business.owner_id).maybeSingle()).data
+    : null;
+  if (owner?.email) {
+    await sendEmail(
+      owner.email,
+      'Pago confirmado — Campaña publicitaria',
+      `<h2>¡Pago exitoso!</h2>
+<p>Tu campaña publicitaria fue pagada y quedó pendiente de revisión antes de mostrarse a los clientes.</p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Negocio</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(business?.name)}</td></tr>
+<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Campaña</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(m.title as string)}</td></tr>
+<tr><td style="padding:10px 0;color:#666;font-size:13px">Duración</td><td style="padding:10px 0;text-align:right">${escapeHtml(m.durationDays)} días</td></tr>
+</table>
+${appButton('pago-resultado', { tipo: 'advertising', ok: '1' })}`
+    );
   }
 }
 

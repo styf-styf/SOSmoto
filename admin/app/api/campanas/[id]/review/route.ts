@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../../lib/requireAdmin';
 import { sendPushToUser } from '../../../../../lib/push';
+import { sendEmailViaResend } from '../../../../../lib/resend';
 import { createAdminClient } from '../../../../../lib/supabase/admin';
+
+const APP_URL = 'https://sosmoto.net/api/abrir?to=pago-resultado&tipo=advertising&ok=1';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const admin = await requireAdmin();
@@ -53,6 +56,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         : `Tu campaña "${ad.title}" fue rechazada. Revisa el motivo en la app y corrígelo antes de reenviar.`,
       { type: decision === 'active' ? 'ad_approved' : 'ad_rejected', adId: params.id }
     );
+
+    const { data: owner } = await supabase.from('users').select('email').eq('id', business.owner_id).maybeSingle();
+    if (owner?.email) {
+      await sendEmailViaResend({
+        from: 'no-reply',
+        to: owner.email,
+        subject: decision === 'active' ? 'Tu campaña fue aprobada' : 'Tu campaña fue rechazada',
+        html:
+          decision === 'active'
+            ? `<h2>¡Campaña aprobada!</h2><p>Tu campaña "${ad.title}" ya está activa y visible para los clientes.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`
+            : `<h2>Campaña rechazada</h2><p>Tu campaña "${ad.title}" fue rechazada.</p>${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}<p>Podés corregirla y reenviarla desde la app.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`,
+      }).catch((err) => console.error('email de revisión de campaña falló', err));
+    }
   }
 
   return NextResponse.json({ success: true });

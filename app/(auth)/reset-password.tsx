@@ -21,8 +21,8 @@ export default function ResetPasswordScreen() {
   const [resending, setResending] = useState(false);
 
   async function handleSubmit() {
-    if (!viaLink && code.trim().length !== 6) {
-      Alert.alert('Código incompleto', 'Ingresa el código de 6 dígitos que enviamos a tu correo.');
+    if (!viaLink && code.trim().length !== 8) {
+      Alert.alert('Código incompleto', 'Ingresa el código de 8 dígitos que enviamos a tu correo.');
       return;
     }
     if (password.length < 6) {
@@ -68,15 +68,15 @@ export default function ResetPasswordScreen() {
     <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Restablecer contraseña</Text>
       <Text style={styles.subtitle}>
-        {viaLink ? 'Elige tu nueva contraseña.' : `Enviamos un código de 6 dígitos a\n${email}`}
+        {viaLink ? 'Elige tu nueva contraseña.' : `Enviamos un código de 8 dígitos a\n${email}`}
       </Text>
 
       {!viaLink && (
         <TextField
           label="Código de verificación"
-          placeholder="123456"
+          placeholder="12345678"
           keyboardType="number-pad"
-          maxLength={6}
+          maxLength={8}
           value={code}
           onChangeText={setCode}
           editable={!disabled}

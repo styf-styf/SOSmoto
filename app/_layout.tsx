@@ -46,6 +46,7 @@ export default function RootLayout() {
             <Stack.Screen name="service/[id]" />
             <Stack.Screen name="pago-resultado" />
             <Stack.Screen name="auth-callback" />
+            <Stack.Screen name="negocio" />
           </Stack>
         </KeyboardProvider>
       </AuthProvider>

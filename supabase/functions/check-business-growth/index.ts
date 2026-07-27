@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { appButton, sendEmail } from '../_shared/resend.ts';
 
 // Publicidad está desactivada para el lanzamiento (ver constants/features.ts
 // en la app -- este archivo corre en Deno y no puede importar de ahí, así
@@ -116,15 +117,22 @@ Deno.serve(async (req) => {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('push_token, notification_prefs')
+      .select('push_token, email, notification_prefs')
       .eq('id', business.owner_id)
       .maybeSingle();
     const pushToken: string | null = owner?.push_token ?? null;
     // Categoría 'upselling' de Configuración > Notificaciones -- la
-    // sugerencia se sigue creando igual, solo se apaga el push.
+    // sugerencia se sigue creando igual, solo se apaga el push (y el correo).
     const upsellingEnabled = (owner?.notification_prefs as Record<string, boolean> | null)?.upselling !== false;
     if (pushToken && upsellingEnabled) {
       await sendPush(pushToken, suggestion.title, suggestion.body, { type: 'growth_suggestion', businessId: business.id });
+    }
+    if (owner?.email && upsellingEnabled) {
+      await sendEmail(
+        owner.email,
+        suggestion.title,
+        `<h2>${suggestion.title}</h2><p>${suggestion.body}</p>${appButton('negocio', { seccion: 'crece-tu-negocio' })}`
+      );
     }
   }
 

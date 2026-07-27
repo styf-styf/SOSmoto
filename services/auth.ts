@@ -23,6 +23,14 @@ export async function signUp({ email, password, fullName, phone, role }: SignUpP
     },
   });
   if (error) throw error;
+  // Supabase nunca lanza error si el correo ya tiene cuenta confirmada (evita
+  // que alguien use el registro para sondear qué correos existen) -- en su
+  // lugar devuelve éxito con `identities: []`, la única señal de que en
+  // realidad no se creó nada nuevo. Sin este chequeo, un correo ya
+  // registrado caía derecho a la pantalla de verificación sin avisar nada.
+  if (data.user && data.user.identities && data.user.identities.length === 0) {
+    throw new Error('User already registered');
+  }
   return data;
 }
 

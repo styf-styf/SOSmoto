@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../../lib/requireAdmin';
 import { createAdminClient } from '../../../../../lib/supabase/admin';
 import { sendPushToUser } from '../../../../../lib/push';
+import { sendEmailViaResend } from '../../../../../lib/resend';
+
+const APP_URL = 'https://sosmoto.net/api/abrir?to=negocio&seccion=verificacion';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const admin = await requireAdmin();
@@ -55,6 +58,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         ? `${business.name} obtuvo la insignia de verificado en SOSmoto.`
         : `Tu solicitud de verificación fue rechazada.${adminNotes ? ` Motivo: ${adminNotes}` : ''}`;
     sendPushToUser(business.owner_id, title, body, { type: 'kyc_review', decision }).catch(() => {});
+
+    const { data: owner } = await supabase.from('users').select('email').eq('id', business.owner_id).maybeSingle();
+    if (owner?.email) {
+      sendEmailViaResend({
+        from: 'no-reply',
+        to: owner.email,
+        subject: title,
+        html:
+          decision === 'approved'
+            ? `<h2>¡Negocio verificado!</h2><p>${business.name} obtuvo la insignia de "verificado" en SOSmoto.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`
+            : `<h2>Verificación rechazada</h2><p>Tu solicitud de verificación fue rechazada.</p>${adminNotes ? `<p><strong>Motivo:</strong> ${adminNotes}</p>` : ''}<p>Podés corregir y volver a enviar tus documentos desde la app.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`,
+      }).catch((err) => console.error('email de revisión de KYC falló', err));
+    }
   }
 
   return NextResponse.json({ success: true });
