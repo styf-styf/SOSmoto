@@ -99,7 +99,7 @@ export default async function PublicidadPage({
         {active.map((ad) => (
           <div key={ad.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
             <a
-              href={`https://so-smoto.vercel.app/ad/${ad.id}`}
+              href={`https://sosmoto.net/ad/${ad.id}`}
               target="_blank"
               rel="noreferrer"
               className="block hover:opacity-90"

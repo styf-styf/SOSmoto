@@ -20,7 +20,7 @@ module.exports = {
       // real de una cuenta de Apple Developer Program, que todavía no existe
       // para este proyecto. Por ahora en iOS el link siempre abre la página
       // web (con su botón "Abrir en SOSmoto" al scheme). Agregar
-      // `associatedDomains: ['applinks:so-smoto.vercel.app']` aquí cuando
+      // `associatedDomains: ['applinks:sosmoto.net']` aquí cuando
       // haya cuenta.
     },
     android: {
@@ -43,10 +43,10 @@ module.exports = {
           action: 'VIEW',
           autoVerify: true,
           data: [
-            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/post' },
-            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/ad' },
-            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/product' },
-            { scheme: 'https', host: 'so-smoto.vercel.app', pathPrefix: '/service' },
+            { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/post' },
+            { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/ad' },
+            { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/product' },
+            { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/service' },
           ],
           category: ['BROWSABLE', 'DEFAULT'],
         },

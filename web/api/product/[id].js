@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { notFoundPage, renderPreviewPage } = require('../_lib/previewPage');
 
 // Página pública de vista previa para el link compartido de un producto
-// (https://so-smoto.vercel.app/product/:id) -- mismo patrón que
+// (https://sosmoto.net/product/:id) -- mismo patrón que
 // web/api/post/[id].js.
 function supabaseAdmin() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
   const description = product.description || `Producto de ${businessName} en SOSmoto`;
   const images = Array.isArray(product.photos) ? product.photos : [];
   const price = product.reference_price != null ? `$${Number(product.reference_price).toFixed(2)}` : null;
-  const universalLink = `https://so-smoto.vercel.app/product/${product.id}`;
+  const universalLink = `https://sosmoto.net/product/${product.id}`;
   const appLink = `sosmoto://product/${product.id}`;
 
   let related = [];
@@ -42,7 +42,7 @@ module.exports = async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(10);
     related = (relatedRows ?? []).map((r) => ({
-      href: `https://so-smoto.vercel.app/product/${r.id}`,
+      href: `https://sosmoto.net/product/${r.id}`,
       image: Array.isArray(r.photos) ? r.photos[0] : null,
       name: r.name,
       price: r.reference_price != null ? `$${Number(r.reference_price).toFixed(2)}` : null,

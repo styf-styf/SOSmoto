@@ -32,7 +32,7 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
   }
 
   function handleShare() {
-    const url = `https://so-smoto.vercel.app/ad/${ad.id}`;
+    const url = `https://sosmoto.net/ad/${ad.id}`;
     const businessName = ad.business?.name ?? 'Anuncio';
     const text = ad.title ? `${businessName}: ${ad.title}` : `Anuncio de ${businessName} en SOSmoto`;
     Share.share({ message: `${text}\n${url}`, url }).catch(() => {});

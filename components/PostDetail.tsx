@@ -388,7 +388,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
 
   function handleShare() {
     if (!post) return;
-    const url = `https://so-smoto.vercel.app/post/${post.id}`;
+    const url = `https://sosmoto.net/post/${post.id}`;
     const text = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
     Share.share({ message: `${text}\n${url}`, url }).catch(() => {});
   }

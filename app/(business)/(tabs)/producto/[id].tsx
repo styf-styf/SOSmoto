@@ -195,7 +195,7 @@ export default function BusinessProductDetailScreen() {
 
   function handleShare() {
     if (!product) return;
-    const url = `https://so-smoto.vercel.app/product/${product.id}`;
+    const url = `https://sosmoto.net/product/${product.id}`;
     Share.share({ message: `${product.name}\n${url}`, url }).catch(() => {});
   }
 

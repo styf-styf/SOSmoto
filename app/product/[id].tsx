@@ -6,7 +6,7 @@ import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
-// Destino público de "compartir producto" (https://so-smoto.vercel.app/product/:id).
+// Destino público de "compartir producto" (https://sosmoto.net/product/:id).
 // Mismo patrón que app/post/[id].tsx, pero el destino real vive dentro de
 // (tabs) en ambos roles.
 export default function ProductLinkResolver() {

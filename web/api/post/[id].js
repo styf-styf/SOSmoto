@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { notFoundPage, renderPreviewPage } = require('../_lib/previewPage');
 
 // Página pública de vista previa para el link compartido de una publicación
-// (https://so-smoto.vercel.app/post/:id) -- vive fuera de la app para que
+// (https://sosmoto.net/post/:id) -- vive fuera de la app para que
 // WhatsApp/Telegram/etc. puedan leer las etiquetas Open Graph y armar la
 // tarjeta de vista previa. Si el sistema operativo intercepta el Universal
 // Link (app instalada), esta página nunca llega a mostrarse.
@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
   const authorAvatar = post.author_business?.logo_url ?? post.author_client?.avatar_url ?? null;
   const caption = post.caption || `Publicación de ${authorName} en SOSmoto`;
   const images = Array.isArray(post.photos) ? post.photos : [];
-  const universalLink = `https://so-smoto.vercel.app/post/${post.id}`;
+  const universalLink = `https://sosmoto.net/post/${post.id}`;
   const appLink = `sosmoto://post/${post.id}`;
   const commentList = (comments ?? []).map((c) => ({
     authorName: c.users?.full_name ?? 'Usuario',

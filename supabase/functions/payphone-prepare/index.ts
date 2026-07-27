@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// El portal web (so-smoto.vercel.app) llama a esta función desde un
+// El portal web (sosmoto.net) llama a esta función desde un
 // navegador real, que sí aplica CORS (a diferencia de la app nativa o
 // curl). Sin estos headers el navegador bloquea la petición antes de
 // que llegue y supabase-js solo reporta "Failed to send a request to
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     // esta función solo prepara el registro y devuelve la página que lo embebe.
     // La página vive en Vercel (no en Supabase Edge Functions, que fuerza
     // Content-Type: text/plain + CSP sandbox en respuestas HTML).
-    const checkoutUrl = `https://so-smoto.vercel.app/api/payphone-checkout?paymentId=${paymentId}`;
+    const checkoutUrl = `https://sosmoto.net/api/payphone-checkout?paymentId=${paymentId}`;
 
     return json({ paymentId, checkoutUrl });
   } catch (err) {

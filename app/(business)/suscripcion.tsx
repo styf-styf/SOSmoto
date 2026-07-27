@@ -12,7 +12,7 @@ import { getActiveSubscription, getWebLoginCode } from '../../services/payments'
 import { claimPlanPromotion, getActivePlanPromotion, isEligibleForPromotion } from '../../services/promotions';
 import type { ActivePlanPromotion, Business, SubscriptionPlan } from '../../types/database';
 
-const SUBSCRIPTION_PORTAL_URL = 'https://so-smoto.vercel.app/api/suscripcion';
+const SUBSCRIPTION_PORTAL_URL = 'https://sosmoto.net/api/suscripcion';
 // Mismo umbral que el aviso push de check-subscription-expiry -- así el botón
 // de renovar aparece justo cuando le llega esa notificación al dueño.
 const REMINDER_DAYS_BEFORE = 3;

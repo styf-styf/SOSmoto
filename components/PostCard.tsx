@@ -102,7 +102,7 @@ export function PostCard({
   }
 
   function handleShare() {
-    const url = `https://so-smoto.vercel.app/post/${post.id}`;
+    const url = `https://sosmoto.net/post/${post.id}`;
     const text = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
     Share.share({ message: `${text}\n${url}`, url }).catch(() => {});
   }

@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { notFoundPage, renderPreviewPage } = require('../_lib/previewPage');
 
 // Página pública de vista previa para el link compartido de un servicio
-// (https://so-smoto.vercel.app/service/:id) -- mismo patrón que
+// (https://sosmoto.net/service/:id) -- mismo patrón que
 // web/api/product/[id].js.
 function supabaseAdmin() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
   const description = service.description || `Servicio de ${businessName} en SOSmoto`;
   const images = Array.isArray(service.photos) ? service.photos : [];
   const price = service.reference_price != null ? `$${Number(service.reference_price).toFixed(2)}` : null;
-  const universalLink = `https://so-smoto.vercel.app/service/${service.id}`;
+  const universalLink = `https://sosmoto.net/service/${service.id}`;
   const appLink = `sosmoto://service/${service.id}`;
 
   let related = [];
@@ -42,7 +42,7 @@ module.exports = async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(10);
     related = (relatedRows ?? []).map((r) => ({
-      href: `https://so-smoto.vercel.app/service/${r.id}`,
+      href: `https://sosmoto.net/service/${r.id}`,
       image: Array.isArray(r.photos) ? r.photos[0] : null,
       name: r.name,
       price: r.reference_price != null ? `$${Number(r.reference_price).toFixed(2)}` : null,

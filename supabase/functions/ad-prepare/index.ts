@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
       return json({ error: 'No se pudo crear el pago' }, 500);
     }
 
-    const checkoutUrl = `https://so-smoto.vercel.app/api/payphone-checkout?paymentId=${paymentId}`;
+    const checkoutUrl = `https://sosmoto.net/api/payphone-checkout?paymentId=${paymentId}`;
     return json({ paymentId, amount, checkoutUrl });
   } catch (err) {
     return json({ error: String(err) }, 500);

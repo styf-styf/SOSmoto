@@ -176,7 +176,7 @@ export default function ServiceDetailScreen() {
 
   function handleShare() {
     if (!service) return;
-    const url = `https://so-smoto.vercel.app/service/${service.id}`;
+    const url = `https://sosmoto.net/service/${service.id}`;
     Share.share({ message: `${service.name}\n${url}`, url }).catch(() => {});
   }
 

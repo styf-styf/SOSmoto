@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const { escapeHtml, avatarHtml, renderPage } = require('./_lib/webPage');
 
-// Home (https://so-smoto.vercel.app/, ?home=1 via vercel.json) y
-// busqueda/listado publico de negocios (https://so-smoto.vercel.app/negocios?q=...)
+// Home (https://sosmoto.net/, ?home=1 via vercel.json) y
+// busqueda/listado publico de negocios (https://sosmoto.net/negocios?q=...)
 // -- fusionados en un solo archivo para no superar el limite de 12 funciones
 // serverless del plan Hobby de Vercel (son casi la misma pantalla: home es
 // la version con tagline y menos resultados, sin buscar; negocios/ es la

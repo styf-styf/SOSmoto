@@ -6,7 +6,7 @@ import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
-// Destino público de "compartir anuncio" (https://so-smoto.vercel.app/ad/:id,
+// Destino público de "compartir anuncio" (https://sosmoto.net/ad/:id,
 // vía Universal Links/App Links) -- mismo patrón que app/post/[id].tsx.
 export default function AdLinkResolver() {
   const { id } = useLocalSearchParams<{ id: string }>();

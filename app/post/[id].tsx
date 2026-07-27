@@ -6,7 +6,7 @@ import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
-// Destino público de "compartir publicación" (https://so-smoto.vercel.app/post/:id,
+// Destino público de "compartir publicación" (https://sosmoto.net/post/:id,
 // vía Universal Links/App Links) -- ruta de nivel superior, fuera de
 // (client)/(business), porque esos grupos no aparecen en la URL y ambos
 // resuelven al mismo path sin prefijo (ver plan). Esta pantalla solo decide

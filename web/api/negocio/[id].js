@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { escapeHtml, avatarHtml, renderPage } = require('../_lib/webPage');
 const { notFoundPage } = require('../_lib/previewPage');
 
-// Perfil publico de negocio (https://so-smoto.vercel.app/negocio/:id) --
+// Perfil publico de negocio (https://sosmoto.net/negocio/:id) --
 // mismos campos que el modo "publico" de components/BusinessProfileView.tsx,
 // sin las acciones que requieren cuenta (Seguir/Mensaje/Agendar): se
 // reemplazan por "Abrir en SOSmoto" y, si el negocio cargo whatsapp, un

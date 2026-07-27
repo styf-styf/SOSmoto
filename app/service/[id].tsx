@@ -6,7 +6,7 @@ import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
-// Destino público de "compartir servicio" (https://so-smoto.vercel.app/service/:id).
+// Destino público de "compartir servicio" (https://sosmoto.net/service/:id).
 // Mismo patrón que app/product/[id].tsx.
 export default function ServiceLinkResolver() {
   const { id } = useLocalSearchParams<{ id: string }>();
