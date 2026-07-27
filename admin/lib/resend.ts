@@ -1,7 +1,7 @@
 // Fetch directo a la API de Resend -- sin instalar el paquete npm "resend",
 // mismo estilo que admin/lib/push.ts para Expo push.
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const FROM_DOMAIN = 'sosmoto.app';
+const FROM_DOMAIN = 'sosmoto.net';
 const FROM_BRAND = 'SOSmoto';
 
 export interface SendEmailParams {

@@ -22,6 +22,9 @@ export function translateAuthError(message: string): string {
   if (lower.includes('network request failed')) {
     return 'No se pudo conectar. Revisa tu conexión a internet.';
   }
+  if (lower.includes('token has expired') || lower.includes('otp_expired') || lower.includes('invalid otp') || lower.includes('token is invalid')) {
+    return 'El código es incorrecto o ya expiró. Solicita uno nuevo.';
+  }
 
   return message;
 }

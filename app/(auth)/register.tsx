@@ -70,14 +70,19 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      await signUp({
-        email: email.trim(),
+      const trimmedEmail = email.trim();
+      const data = await signUp({
+        email: trimmedEmail,
         password,
         fullName: fullName.trim(),
         phone: phone.trim() || undefined,
         role,
       });
-      router.replace('/');
+      if (data.session) {
+        router.replace('/');
+      } else {
+        router.replace({ pathname: '/(auth)/verify-email', params: { email: trimmedEmail } });
+      }
     } catch (err) {
       console.error('register error', err);
       const message = err instanceof Error ? translateAuthError(err.message) : 'No se pudo crear la cuenta.';

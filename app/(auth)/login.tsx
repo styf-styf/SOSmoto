@@ -5,7 +5,7 @@ import { Link, router } from 'expo-router';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
-import { sendPasswordResetEmail, signIn } from '../../services/auth';
+import { resendSignupCode, sendPasswordResetEmail, signIn } from '../../services/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,8 +26,13 @@ export default function LoginScreen() {
       router.replace('/');
     } catch (err) {
       const raw = err instanceof Error ? err.message : '';
+      if (/email.not.confirmed/i.test(raw)) {
+        await resendSignupCode(email.trim()).catch(() => undefined);
+        router.push({ pathname: '/(auth)/verify-email', params: { email: email.trim() } });
+        return;
+      }
       const message =
-        /invalid.login.credentials|invalid_credentials|email.not.confirmed|wrong.password|user.not.found/i.test(raw)
+        /invalid.login.credentials|invalid_credentials|wrong.password|user.not.found/i.test(raw)
           ? 'Correo o contraseña incorrectos.'
           : raw || 'No se pudo iniciar sesión. Intenta de nuevo.';
       Alert.alert('Error al iniciar sesión', message);
@@ -43,8 +48,9 @@ export default function LoginScreen() {
     }
     setResetting(true);
     try {
-      await sendPasswordResetEmail(email.trim());
-      Alert.alert('Correo enviado', 'Revisa tu bandeja de entrada para restablecer tu contraseña.');
+      const trimmedEmail = email.trim();
+      await sendPasswordResetEmail(trimmedEmail);
+      router.push({ pathname: '/(auth)/reset-password', params: { email: trimmedEmail } });
     } catch (err) {
       console.error('forgot password error', err);
       Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo enviar el correo.');

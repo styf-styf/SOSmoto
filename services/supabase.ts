@@ -18,5 +18,10 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // PKCE en vez de implicit: el link de confirmación/recuperación en el
+    // correo redirige a sosmoto://auth-callback?code=... (query param, fácil
+    // de leer con useLocalSearchParams) en vez de #access_token=... en el
+    // fragmento, mucho más frágil de parsear en un deep link nativo.
+    flowType: 'pkce',
   },
 });

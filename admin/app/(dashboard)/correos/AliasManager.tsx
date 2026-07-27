@@ -30,7 +30,7 @@ export function AliasManager({
       setError(body.error ?? 'Ocurrió un error.');
       return;
     }
-    const alias = `${localPart.trim().toLowerCase()}@sosmoto.app`;
+    const alias = `${localPart.trim().toLowerCase()}@sosmoto.net`;
     onChange([...aliases, { alias, label: label || localPart, created_at: new Date().toISOString() }]);
     setLocalPart('');
     setLabel('');
@@ -49,7 +49,7 @@ export function AliasManager({
 
   return (
     <div className="border-b border-gray-200 bg-gray-50 p-3">
-      <p className="mb-2 text-xs font-semibold text-gray-600">Alias de correo (@sosmoto.app)</p>
+      <p className="mb-2 text-xs font-semibold text-gray-600">Alias de correo (@sosmoto.net)</p>
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       <ul className="mb-2 flex flex-col gap-1">
         {aliases.map((a) => (
@@ -71,7 +71,7 @@ export function AliasManager({
           required
           className="w-24 rounded border border-gray-300 px-2 py-1 text-xs"
         />
-        <span className="self-center text-xs text-gray-400">@sosmoto.app</span>
+        <span className="self-center text-xs text-gray-400">@sosmoto.net</span>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}

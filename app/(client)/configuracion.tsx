@@ -42,7 +42,7 @@ export default function ConfiguracionScreen() {
           onPress: () => {
             const subject = encodeURIComponent('Eliminar mi cuenta');
             const body = encodeURIComponent(`Hola, quiero eliminar mi cuenta (${profile?.email ?? ''}).`);
-            Linking.openURL(`mailto:soporte@sosmoto.app?subject=${subject}&body=${body}`).catch((err) =>
+            Linking.openURL(`mailto:soporte@sosmoto.net?subject=${subject}&body=${body}`).catch((err) =>
               console.error('open mail error', err)
             );
           },

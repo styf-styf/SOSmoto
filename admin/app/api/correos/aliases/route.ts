@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/requireAdmin';
 import { createAdminClient } from '../../../../lib/supabase/admin';
 
-const ALIAS_DOMAIN = 'sosmoto.app';
+const ALIAS_DOMAIN = 'sosmoto.net';
 const ALIAS_RE = /^[a-z0-9._-]+$/;
 
 export async function POST(req: Request) {
