@@ -138,6 +138,7 @@ module.exports = async (req, res) => {
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/png" href="/favicon.png" />
 <title>SOSmoto · Pago</title>
 <style>body{font-family:-apple-system,sans-serif;text-align:center;padding:60px 24px;background:#f5f5f5;}
 h1{font-size:20px;}
