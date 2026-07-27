@@ -8,6 +8,8 @@
     { "source": "/service/:id", "destination": "/api/service/:id" },
     { "source": "/", "destination": "/api/negocios?home=1" },
     { "source": "/negocios", "destination": "/api/negocios" },
-    { "source": "/negocio/:id", "destination": "/api/negocio/:id" }
+    { "source": "/negocio/:id", "destination": "/api/negocio/:id" },
+    { "source": "/terminos", "destination": "/terminos.html" },
+    { "source": "/privacidad", "destination": "/privacidad.html" }
   ]
 }
