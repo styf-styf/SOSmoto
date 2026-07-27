@@ -280,6 +280,7 @@ module.exports = async (req, res) => {
           ? [
               'Pagarás $' + price.toFixed(2) + '/mes vía Payphone.',
               'El plan se activa de inmediato en cuanto se confirme el pago.',
+              'Al continuar aceptás los Términos y Condiciones (sosmoto.net/terminos).',
             ]
           : ['Vas a cambiar a un plan gratuito.'];
 

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Link, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
@@ -40,6 +41,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -67,6 +69,10 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     if (!validate()) return;
+    if (!acceptedTerms) {
+      Alert.alert('Falta aceptar', 'Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -182,6 +188,29 @@ export default function RegisterScreen() {
         error={errors.confirmPassword}
       />
 
+      <Pressable
+        style={styles.termsRow}
+        onPress={() => setAcceptedTerms((v) => !v)}
+        disabled={loading}
+        hitSlop={6}
+      >
+        <Ionicons
+          name={acceptedTerms ? 'checkbox' : 'square-outline'}
+          size={20}
+          color={acceptedTerms ? colors.primary : colors.textMuted}
+        />
+        <Text style={styles.termsText}>
+          Acepto los{' '}
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
+            Términos y Condiciones
+          </Text>{' '}
+          y la{' '}
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
+            Política de Privacidad
+          </Text>
+        </Text>
+      </Pressable>
+
       <Button title="Crear cuenta" onPress={handleRegister} loading={loading} style={styles.submitButton} />
 
       <View style={styles.footer}>
@@ -264,6 +293,22 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 4,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 16,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
