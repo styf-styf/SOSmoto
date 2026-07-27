@@ -38,10 +38,10 @@ export default async function UsuariosPage({
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-bold">Usuarios y negocios</h1>
+      <h1 className="mb-4 text-xl font-bold">Usuarios</h1>
 
       <div className="mb-4 flex gap-4 border-b border-gray-200">
-        <span className="border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary">Usuarios</span>
+        <span className="border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary">Clientes</span>
         <a href="/negocios" className="px-1 pb-2 text-sm font-medium text-gray-500">
           Negocios
         </a>

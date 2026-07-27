@@ -3,7 +3,7 @@ import { requireAdmin } from '../../lib/requireAdmin';
 import { SignOutButton } from './SignOutButton';
 
 const navItems = [
-  { href: '/usuarios', label: 'Usuarios y negocios' },
+  { href: '/usuarios', label: 'Usuarios' },
   { href: '/kyc', label: 'Verificación (KYC)' },
   { href: '/suscripciones', label: 'Suscripciones' },
   { href: '/promociones', label: 'Promociones' },

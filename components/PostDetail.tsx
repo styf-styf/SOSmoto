@@ -485,7 +485,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
                     <Text style={styles.commentAuthor}>{comment.users?.full_name ?? 'Usuario'}</Text>
                   </Pressable>
                   <Pressable onPress={() => handleCommentMenu(comment)} hitSlop={8}>
-                    <Ionicons name="ellipsis-horizontal" size={14} color={colors.textMuted} />
+                    <Ionicons name="ellipsis-vertical" size={14} color={colors.textMuted} />
                   </Pressable>
                 </View>
                 <Text style={styles.commentBody}>{comment.body}</Text>

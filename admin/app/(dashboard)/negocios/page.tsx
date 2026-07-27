@@ -26,7 +26,7 @@ export default async function NegociosPage({
   let query = supabase
     .from('businesses')
     .select(
-      'id, owner_id, business_type, name, city, is_verified, is_limited, limitation_reason, followers_count, rating_avg, created_at, subscription_plans(name), users(full_name, email)',
+      'id, owner_id, business_type, name, city, is_verified, is_limited, limitation_reason, followers_count, rating_avg, created_at, subscription_plans(name), users!businesses_owner_id_fkey(full_name, email)',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -41,11 +41,11 @@ export default async function NegociosPage({
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-bold">Usuarios y negocios</h1>
+      <h1 className="mb-4 text-xl font-bold">Usuarios</h1>
 
       <div className="mb-4 flex gap-4 border-b border-gray-200">
         <a href="/usuarios" className="px-1 pb-2 text-sm font-medium text-gray-500">
-          Usuarios
+          Clientes
         </a>
         <span className="border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary">Negocios</span>
       </div>
