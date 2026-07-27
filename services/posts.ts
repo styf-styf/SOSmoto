@@ -57,26 +57,6 @@ export async function updatePost(
   return data as Post;
 }
 
-export async function getMyBusinessPosts(businessId: string): Promise<Post[]> {
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('business_id', businessId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Post[];
-}
-
-export async function getMyClientPosts(clientId: string): Promise<Post[]> {
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Post[];
-}
-
 const FEED_SELECT = `
   *,
   author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified, owner_id, business_type),
@@ -101,6 +81,30 @@ export interface PostWithAuthor extends Post {
   tag_client: { id: string; full_name: string; avatar_url: string | null } | null;
   tag_service: { id: string; name: string } | null;
   tag_product: { id: string; name: string } | null;
+}
+
+// Con autor/etiqueta ya resueltos (mismo FEED_SELECT que el feed) -- las
+// usa la sección "Publicaciones" del perfil (BusinessProfileView/
+// ClientProfileView), que reusa PostCard (el mismo diseño de tarjeta que
+// Inicio) en vez de la grilla de miniaturas que tenían antes.
+export async function getMyBusinessPosts(businessId: string): Promise<PostWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(FEED_SELECT)
+    .eq('business_id', businessId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as PostWithAuthor[];
+}
+
+export async function getMyClientPosts(clientId: string): Promise<PostWithAuthor[]> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(FEED_SELECT)
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as PostWithAuthor[];
 }
 
 export interface PublicFeedPageParams {

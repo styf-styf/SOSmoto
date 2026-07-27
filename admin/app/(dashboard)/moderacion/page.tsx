@@ -38,6 +38,7 @@ const TARGET_LABEL: Record<AdminReportRow['target_type'], string> = {
   business: 'Negocio',
   product: 'Producto',
   service: 'Servicio',
+  comment: 'Comentario',
 };
 
 function targetHref(report: AdminReportRow): string {
@@ -52,6 +53,8 @@ function targetHref(report: AdminReportRow): string {
       return '?tab=services';
     case 'business':
       return `/negocios?q=${encodeURIComponent(report.targetLabel)}`;
+    case 'comment':
+      return report.targetHrefOverride ?? '?tab=comments';
   }
 }
 
@@ -427,22 +430,31 @@ async function ReportsTab({ supabase, from, to, page }: { supabase: any; from: n
     idsByType[r.target_type].push(r.target_id);
   }
   const labelMap = new Map<string, string>();
-  const [postsRes, reviewsRes, businessesRes, productsRes, servicesRes] = await Promise.all([
+  const hrefMap = new Map<string, string>();
+  const [postsRes, reviewsRes, businessesRes, productsRes, servicesRes, commentsRes] = await Promise.all([
     idsByType.post?.length ? supabase.from('posts').select('id, caption').in('id', idsByType.post) : { data: [] },
     idsByType.review?.length ? supabase.from('reviews').select('id, comment').in('id', idsByType.review) : { data: [] },
     idsByType.business?.length ? supabase.from('businesses').select('id, name').in('id', idsByType.business) : { data: [] },
     idsByType.product?.length ? supabase.from('products').select('id, name').in('id', idsByType.product) : { data: [] },
     idsByType.service?.length ? supabase.from('services').select('id, name').in('id', idsByType.service) : { data: [] },
+    idsByType.comment?.length
+      ? supabase.from('post_comments').select('id, body, post_id').in('id', idsByType.comment)
+      : { data: [] },
   ]);
   for (const p of postsRes.data ?? []) labelMap.set(`post:${p.id}`, p.caption || '(sin texto)');
   for (const r of reviewsRes.data ?? []) labelMap.set(`review:${r.id}`, r.comment || '(sin comentario)');
   for (const b of businessesRes.data ?? []) labelMap.set(`business:${b.id}`, b.name);
   for (const p of productsRes.data ?? []) labelMap.set(`product:${p.id}`, p.name);
   for (const s of servicesRes.data ?? []) labelMap.set(`service:${s.id}`, s.name);
+  for (const c of commentsRes.data ?? []) {
+    labelMap.set(`comment:${c.id}`, c.body || '(sin texto)');
+    hrefMap.set(`comment:${c.id}`, `/moderacion/publicacion/${c.post_id}`);
+  }
 
   const reports: AdminReportRow[] = rows.map((r) => ({
     ...r,
     targetLabel: labelMap.get(`${r.target_type}:${r.target_id}`) ?? '(eliminado)',
+    targetHrefOverride: hrefMap.get(`${r.target_type}:${r.target_id}`),
   }));
 
   return (

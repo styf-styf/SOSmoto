@@ -299,7 +299,7 @@ export interface HelpRequest {
   dispute_status: DisputeStatus;
 }
 
-export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service';
+export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service' | 'comment';
 export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 
 export interface Report {

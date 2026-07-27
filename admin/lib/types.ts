@@ -256,7 +256,7 @@ export interface AdminSystemSettingsRow {
   default_aid_radius_km: number;
 }
 
-export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service';
+export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service' | 'comment';
 export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 
 export interface AdminReportRow {
@@ -269,6 +269,9 @@ export interface AdminReportRow {
   created_at: string;
   users: { full_name: string } | null;
   targetLabel: string;
+  // Solo para target_type 'comment' -- el href apunta al post dueño del
+  // comentario, no hay una pestaña propia de "comentario individual".
+  targetHrefOverride?: string;
 }
 
 export type KycStatus = 'pending_review' | 'approved' | 'rejected';

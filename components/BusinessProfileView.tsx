@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
+import { PostCard } from './PostCard';
 import { ReportModal } from './ReportModal';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
@@ -10,18 +11,14 @@ import { signOut } from '../services/auth';
 import { getBusinessById, getFollowedBusinesses, getMyWorkBusiness, updateBusiness } from '../services/businesses';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../services/follows';
 import { getUnreadNotificationsCount } from '../services/notifications';
-import { getMyBusinessPosts } from '../services/posts';
+import { getMyBusinessPosts, type PostWithAuthor } from '../services/posts';
 import { createReport } from '../services/reports';
 import { getBusinessReviews } from '../services/reviews';
 import { pickAndUploadBusinessImage } from '../services/storage';
-import type { Business, Post, Review } from '../types/database';
+import type { Business, Review } from '../types/database';
 import { getScheduleRows, isBusinessOpenNow } from '../utils/businessSchedule';
 
 const SIDE_PADDING = 20;
-const GRID_GAP = 10;
-const GRID_COLUMNS = 2;
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 
 const businessTypeLabel: Record<Business['business_type'], string> = {
   workshop: 'Taller mecánico',
@@ -45,7 +42,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [isOwner, setIsOwner] = useState(false);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [followedStores, setFollowedStores] = useState<Business[]>([]);
   const [following, setFollowing] = useState(false);
@@ -59,10 +56,9 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const logoUrl = logoOverride ?? business?.logo_url ?? null;
-  const postsWithImage = posts.filter((post) => post.photos.length > 0);
-  const postsWithoutImage = posts.filter((post) => post.photos.length === 0);
   const viewerPrefix = profile?.role === 'business' ? '/(business)' : '/(client)';
   const postHrefBase = mode === 'self' ? '/(business)/publicacion' : `${viewerPrefix}/publicacion`;
+  const viewerRole = profile?.role === 'business' ? 'business' : 'client';
 
   const load = useCallback(async () => {
     let resolvedBusiness: Business | null = null;
@@ -501,32 +497,17 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
           {mode === 'self' ? 'Todavía no has publicado nada. Publica desde el Inicio.' : 'Este negocio aún no ha publicado nada.'}
         </Text>
       ) : (
-        <>
-          {postsWithImage.length > 0 && (
-            <View style={styles.grid}>
-              {postsWithImage.map((post) => (
-                <Pressable key={post.id} style={styles.gridCell} onPress={() => router.push(`${postHrefBase}/${post.id}`)}>
-                  <Image source={{ uri: post.photos[0] }} style={styles.gridImage} />
-                </Pressable>
-              ))}
-            </View>
-          )}
-          {postsWithoutImage.length > 0 && (
-            <View style={[postsWithImage.length > 0 && styles.listWrapWithGrid]}>
-              {postsWithoutImage.map((post) => (
-                <Pressable key={post.id} style={styles.listRow} onPress={() => router.push(`${postHrefBase}/${post.id}`)}>
-                  <View style={styles.listIcon}>
-                    <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-                  </View>
-                  <Text numberOfLines={2} style={styles.listText}>
-                    {post.caption || 'Publicación sin texto'}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </>
+        <View style={styles.postsListWrap}>
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              detailHref={`${postHrefBase}/${post.id}`}
+              userRole={viewerRole}
+              viewerBusinessId={mode === 'self' ? business?.id : undefined}
+            />
+          ))}
+        </View>
       )}
 
       {mode === 'public' && (
@@ -780,6 +761,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
+  // PostCard trae su propio marginHorizontal (6) para alinearse con el resto
+  // del feed de Inicio, que no tiene padding propio -- acá sí lo hay
+  // (SIDE_PADDING), así que se cancela para que las tarjetas queden del
+  // mismo ancho/margen que en Inicio en vez de verse más angostas.
+  postsListWrap: {
+    marginHorizontal: -SIDE_PADDING,
+  },
   followingRow: {
     gap: 16,
   },
@@ -871,45 +859,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginBottom: 12,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
-  gridCell: {
-    width: CELL_SIZE,
-    height: Math.round(CELL_SIZE * (4 / 3)),
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  listWrapWithGrid: {
-    marginTop: 16,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  listIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
   },
   reviewRow: {
     paddingVertical: 10,

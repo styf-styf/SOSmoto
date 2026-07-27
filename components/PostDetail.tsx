@@ -17,6 +17,7 @@ import { getMyWorkBusiness, searchBusinesses, type BusinessWithDistance } from '
 import { getActiveProducts, getActiveServices, getPlanLimits } from '../services/catalog';
 import {
   createComment,
+  deleteComment,
   deletePost,
   getComments,
   getPostAuthorAvatar,
@@ -79,6 +80,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const [sending, setSending] = useState(false);
 
   const [showReportModal, setShowReportModal] = useState(false);
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(null);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editCaption, setEditCaption] = useState('');
@@ -331,6 +333,42 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
     }
   }
 
+  function handleCommentMenu(comment: PostCommentWithAuthor) {
+    if (comment.author_id === profile?.id) {
+      Alert.alert('Tu comentario', undefined, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => handleDeleteComment(comment.id) },
+      ]);
+    } else {
+      Alert.alert('Comentario', undefined, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Reportar', onPress: () => setReportingCommentId(comment.id) },
+      ]);
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    try {
+      await deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (err) {
+      console.error('delete comment error', err);
+      Alert.alert('Error', 'No se pudo eliminar el comentario.');
+    }
+  }
+
+  async function handleReportComment(reason: string) {
+    if (!profile || !reportingCommentId) return;
+    try {
+      await createReport(profile.id, 'comment', reportingCommentId, reason);
+      setReportingCommentId(null);
+      Alert.alert('Gracias', 'Reportaste este comentario. Un admin lo va a revisar.');
+    } catch (err) {
+      console.error('report comment error', err);
+      Alert.alert('Error', 'No se pudo enviar el reporte.');
+    }
+  }
+
   function handleAuthorPress() {
     if (!post) return;
     if (isBusiness && post.author_business) {
@@ -442,9 +480,14 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
                 </View>
               </Pressable>
               <View style={styles.commentBubble}>
-                <Pressable onPress={() => handleCommentAuthorPress(comment)}>
-                  <Text style={styles.commentAuthor}>{comment.users?.full_name ?? 'Usuario'}</Text>
-                </Pressable>
+                <View style={styles.commentHeaderRow}>
+                  <Pressable onPress={() => handleCommentAuthorPress(comment)} style={styles.commentAuthorPress}>
+                    <Text style={styles.commentAuthor}>{comment.users?.full_name ?? 'Usuario'}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => handleCommentMenu(comment)} hitSlop={8}>
+                    <Ionicons name="ellipsis-horizontal" size={14} color={colors.textMuted} />
+                  </Pressable>
+                </View>
                 <Text style={styles.commentBody}>{comment.body}</Text>
               </View>
             </View>
@@ -627,6 +670,13 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
         onCancel={() => setShowReportModal(false)}
         onSubmit={handleReportPost}
       />
+
+      <ReportModal
+        visible={!!reportingCommentId}
+        targetLabel="este comentario"
+        onCancel={() => setReportingCommentId(null)}
+        onSubmit={handleReportComment}
+      />
     </View>
   );
 }
@@ -737,6 +787,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 10,
+  },
+  commentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  commentAuthorPress: {
+    flex: 1,
   },
   commentAuthor: {
     fontSize: 13,

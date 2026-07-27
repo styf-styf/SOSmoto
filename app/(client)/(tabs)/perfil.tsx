@@ -1,36 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getFollowedBusinesses } from '../../../services/businesses';
 import { getUnreadNotificationsCount } from '../../../services/notifications';
-import { getMyClientPosts } from '../../../services/posts';
+import { getMyClientPosts, type PostWithAuthor } from '../../../services/posts';
 import { pickAndUploadUserAvatar } from '../../../services/storage';
 import { updateUserProfile } from '../../../services/users';
 import { getVehicles } from '../../../services/vehicles';
-import type { Business, Post } from '../../../types/database';
+import type { Business } from '../../../types/database';
+import { PostCard } from '../../../components/PostCard';
 
 const SIDE_PADDING = 20;
-const GRID_GAP = 10;
-const GRID_COLUMNS = 2;
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = Math.round((SCREEN_WIDTH - SIDE_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS);
 
 export default function ClientPerfilScreen() {
   const { profile } = useAuth();
 
   const [following, setFollowing] = useState<Business[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [vehicleCount, setVehicleCount] = useState(0);
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const avatarUrl = avatarOverride ?? profile?.avatar_url ?? null;
-  const postsWithImage = posts.filter((post) => post.photos.length > 0);
-  const postsWithoutImage = posts.filter((post) => post.photos.length === 0);
 
   async function handleChangeAvatar() {
     if (!profile) return;
@@ -193,40 +188,11 @@ export default function ClientPerfilScreen() {
       {posts.length === 0 ? (
         <Text style={styles.placeholder}>Todavía no has publicado nada. Publica desde el Inicio.</Text>
       ) : (
-        <>
-          {postsWithImage.length > 0 && (
-            <View style={styles.grid}>
-              {postsWithImage.map((post) => (
-                <Pressable
-                  key={post.id}
-                  style={styles.gridCell}
-                  onPress={() => router.push(`/(client)/publicacion/${post.id}`)}
-                >
-                  <Image source={{ uri: post.photos[0] }} style={styles.gridImage} />
-                </Pressable>
-              ))}
-            </View>
-          )}
-          {postsWithoutImage.length > 0 && (
-            <View style={[postsWithImage.length > 0 && styles.listWrapWithGrid]}>
-              {postsWithoutImage.map((post) => (
-                <Pressable
-                  key={post.id}
-                  style={styles.listRow}
-                  onPress={() => router.push(`/(client)/publicacion/${post.id}`)}
-                >
-                  <View style={styles.listIcon}>
-                    <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-                  </View>
-                  <Text numberOfLines={2} style={styles.listText}>
-                    {post.caption || 'Publicación sin texto'}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </>
+        <View style={styles.postsListWrap}>
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} detailHref={`/(client)/publicacion/${post.id}`} userRole="client" />
+          ))}
+        </View>
       )}
     </ScrollView>
   );
@@ -407,43 +373,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
-  gridCell: {
-    width: CELL_SIZE,
-    height: Math.round(CELL_SIZE * (4 / 3)),
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  listWrapWithGrid: {
-    marginTop: 16,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  listIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
+  // Mismo motivo que BusinessProfileView.tsx/ClientProfileView.tsx: cancela
+  // el padding del contenedor para que las tarjetas queden del mismo ancho
+  // que en Inicio.
+  postsListWrap: {
+    marginHorizontal: -SIDE_PADDING,
   },
 });

@@ -1302,7 +1302,7 @@ export interface Database {
         Row: {
           id: string;
           reporter_id: string;
-          target_type: 'post' | 'review' | 'business' | 'product' | 'service';
+          target_type: 'post' | 'review' | 'business' | 'product' | 'service' | 'comment';
           target_id: string;
           reason: string | null;
           status: 'pending' | 'reviewed' | 'dismissed';
@@ -1311,7 +1311,7 @@ export interface Database {
         Insert: {
           id?: string;
           reporter_id: string;
-          target_type: 'post' | 'review' | 'business' | 'product' | 'service';
+          target_type: 'post' | 'review' | 'business' | 'product' | 'service' | 'comment';
           target_id: string;
           reason?: string | null;
           status?: 'pending' | 'reviewed' | 'dismissed';
@@ -1320,7 +1320,7 @@ export interface Database {
         Update: {
           id?: string;
           reporter_id?: string;
-          target_type?: 'post' | 'review' | 'business' | 'product' | 'service';
+          target_type?: 'post' | 'review' | 'business' | 'product' | 'service' | 'comment';
           target_id?: string;
           reason?: string | null;
           status?: 'pending' | 'reviewed' | 'dismissed';
