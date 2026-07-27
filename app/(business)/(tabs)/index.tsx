@@ -19,6 +19,7 @@ import * as Location from 'expo-location';
 import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
+import { BrandTitle } from '../../../components/BrandTitle';
 import { Button } from '../../../components/Button';
 import { CircleActionButton } from '../../../components/CircleActionButton';
 import { GradientShade } from '../../../components/GradientShade';
@@ -424,7 +425,7 @@ export default function BusinessHomeScreen() {
             <View>
               <View style={styles.brandHeaderRow}>
                 <View style={styles.brandHeaderSide} />
-                <Text style={styles.brandTitle}>SOSmoto</Text>
+                <BrandTitle />
                 <View style={styles.brandHeaderSide} />
               </View>
               <View style={styles.storiesWrap}>
@@ -471,7 +472,7 @@ export default function BusinessHomeScreen() {
     <View>
       <View style={styles.brandHeaderRow}>
         <View style={styles.brandHeaderSide} />
-        <Text style={styles.brandTitle}>SOSmoto</Text>
+        <BrandTitle />
         {showFollowing ? (
           <Pressable
             style={[styles.brandHeaderSide, styles.brandHeaderSideRight]}

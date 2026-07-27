@@ -14,6 +14,7 @@ import {
 import type { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
+import { BrandTitle } from '../../../components/BrandTitle';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
@@ -303,7 +304,7 @@ export default function ClientHomeScreen() {
     <View>
       <View style={styles.headerRow}>
         <View style={styles.headerSide} />
-        <Text style={styles.title}>SOSmoto</Text>
+        <BrandTitle />
         {showFollowing ? (
           <Pressable
             style={[styles.headerSide, styles.headerSideRight]}
