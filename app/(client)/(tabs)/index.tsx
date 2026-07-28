@@ -15,6 +15,7 @@ import type { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { BrandTitle } from '../../../components/BrandTitle';
+import { LegalUpdateBanner } from '../../../components/LegalUpdateBanner';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
@@ -321,6 +322,7 @@ export default function ClientHomeScreen() {
           <View style={styles.headerSide} />
         )}
       </View>
+      <LegalUpdateBanner />
       <StoriesRow
         own={{
           hasStory: ownHasStory,

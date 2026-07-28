@@ -256,6 +256,14 @@ export interface AdminSystemSettingsRow {
   default_aid_radius_km: number;
 }
 
+export interface AdminLegalDocumentRow {
+  id: string;
+  type: 'terms' | 'privacy';
+  version: number;
+  content: string;
+  published_at: string;
+}
+
 export type ReportTargetType = 'post' | 'review' | 'business' | 'product' | 'service' | 'comment';
 export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 

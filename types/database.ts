@@ -20,6 +20,7 @@ export interface User {
   is_limited: boolean;
   limitation_reason: string | null;
   notification_prefs: NotificationPrefs;
+  legal_ack_at: string | null;
   created_at: string;
 }
 

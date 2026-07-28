@@ -15,6 +15,7 @@ export interface Database {
           is_limited: boolean;
           limitation_reason: string | null;
           notification_prefs: Record<string, boolean>;
+          legal_ack_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -28,6 +29,7 @@ export interface Database {
           is_limited?: boolean;
           limitation_reason?: string | null;
           notification_prefs?: Record<string, boolean>;
+          legal_ack_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -41,6 +43,7 @@ export interface Database {
           is_limited?: boolean;
           limitation_reason?: string | null;
           notification_prefs?: Record<string, boolean>;
+          legal_ack_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -1483,6 +1486,36 @@ export interface Database {
           body?: string;
           data?: Record<string, unknown> | null;
           read?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      legal_documents: {
+        Row: {
+          id: string;
+          type: 'terms' | 'privacy';
+          version: number;
+          content: string;
+          published_at: string;
+          published_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: 'terms' | 'privacy';
+          version: number;
+          content: string;
+          published_at?: string;
+          published_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          type?: 'terms' | 'privacy';
+          version?: number;
+          content?: string;
+          published_at?: string;
+          published_by?: string | null;
           created_at?: string;
         };
         Relationships: [];

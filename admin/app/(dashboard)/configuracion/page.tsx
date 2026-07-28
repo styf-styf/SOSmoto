@@ -1,11 +1,13 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
 import type {
   AdminAdPricingRow,
+  AdminLegalDocumentRow,
   AdminMaintenanceRuleRow,
   AdminSubscriptionPlanRow,
   AdminSystemSettingsRow,
 } from '../../../lib/types';
 import { AdPricingForm } from './AdPricingForm';
+import { LegalDocumentForm } from './LegalDocumentForm';
 import { MaintenanceRuleCreateForm } from './MaintenanceRuleCreateForm';
 import { MaintenanceRuleRow } from './MaintenanceRuleRow';
 import { PlanEditForm } from './PlanEditForm';
@@ -16,7 +18,7 @@ const planOrder = ['free', 'standard', 'pro'];
 export default async function ConfiguracionPage() {
   const supabase = createAdminClient();
 
-  const [plansResult, pricingResult, rulesResult, settingsResult] = await Promise.all([
+  const [plansResult, pricingResult, rulesResult, settingsResult, termsResult, privacyResult] = await Promise.all([
     supabase.from('subscription_plans').select('*'),
     supabase
       .from('ad_pricing')
@@ -24,6 +26,8 @@ export default async function ConfiguracionPage() {
       .single(),
     supabase.from('maintenance_rules').select('*').order('moto_type').order('interval_km'),
     supabase.from('system_settings').select('default_aid_radius_km').single(),
+    supabase.from('legal_documents').select('*').eq('type', 'terms').order('version', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('legal_documents').select('*').eq('type', 'privacy').order('version', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const plans = ((plansResult.data ?? []) as AdminSubscriptionPlanRow[]).sort(
@@ -34,6 +38,8 @@ export default async function ConfiguracionPage() {
   const pricing = pricingResult.data as AdminAdPricingRow | null;
   const rules = (rulesResult.data ?? []) as AdminMaintenanceRuleRow[];
   const settings = settingsResult.data as AdminSystemSettingsRow | null;
+  const termsDoc = termsResult.data as AdminLegalDocumentRow | null;
+  const privacyDoc = privacyResult.data as AdminLegalDocumentRow | null;
 
   return (
     <div>
@@ -42,6 +48,15 @@ export default async function ConfiguracionPage() {
       <h2 className="mb-3 text-lg font-semibold">Reglas del sistema</h2>
       {settingsResult.error && <p className="text-sm text-red-600">Error: {settingsResult.error.message}</p>}
       <div className="mb-10">{settings && <SystemSettingsForm settings={settings} />}</div>
+
+      <h2 className="mb-3 text-lg font-semibold">Términos y Política de Privacidad</h2>
+      <p className="mb-4 text-sm text-gray-500">
+        Al publicar una nueva versión se notifica a todos los usuarios (push + campanita) para que la revisen.
+      </p>
+      <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <LegalDocumentForm type="terms" doc={termsDoc} />
+        <LegalDocumentForm type="privacy" doc={privacyDoc} />
+      </div>
 
       <h2 className="mb-3 text-lg font-semibold">Precios y límites de planes</h2>
       {plansResult.error && <p className="text-sm text-red-600">Error: {plansResult.error.message}</p>}

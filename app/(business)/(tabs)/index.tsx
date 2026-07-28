@@ -20,6 +20,7 @@ import MapView, { type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { BrandTitle } from '../../../components/BrandTitle';
+import { LegalUpdateBanner } from '../../../components/LegalUpdateBanner';
 import { Button } from '../../../components/Button';
 import { CircleActionButton } from '../../../components/CircleActionButton';
 import { GradientShade } from '../../../components/GradientShade';
@@ -428,6 +429,7 @@ export default function BusinessHomeScreen() {
                 <BrandTitle />
                 <View style={styles.brandHeaderSide} />
               </View>
+              <LegalUpdateBanner />
               <View style={styles.storiesWrap}>
                 <StoriesRow
                   own={storiesRowOwn}
@@ -489,6 +491,7 @@ export default function BusinessHomeScreen() {
           <View style={styles.brandHeaderSide} />
         )}
       </View>
+      <LegalUpdateBanner />
       <View style={styles.storiesWrap}>
         <StoriesRow
           own={storiesRowOwn}
