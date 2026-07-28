@@ -16,7 +16,7 @@ export function BrandTitle({ style }: { style?: ViewStyle }) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
   icon: {
     width: 34,
@@ -27,5 +27,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
+    marginTop: 6,
   },
 });
