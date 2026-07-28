@@ -64,7 +64,6 @@ export default function ConfiguracionScreen() {
       <Text style={styles.sectionTitle}>Mi cuenta</Text>
       <View style={styles.menuGroup}>
         <MenuRow icon="person-outline" label="Perfil personal" onPress={() => router.push('/(client)/datos-personales')} />
-        <MenuRow icon="lock-closed-outline" label="Contraseña" onPress={() => router.push('/(client)/cambiar-password')} />
         <MenuRow
           icon="alert-circle-outline"
           label="Estado de cuenta"
@@ -114,6 +113,16 @@ export default function ConfiguracionScreen() {
         )}
         <Text style={styles.dangerLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
       </Pressable>
+
+      <Text style={styles.legalText}>
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
+          Términos y Condiciones
+        </Text>{' '}
+        ·{' '}
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
+          Política de Privacidad
+        </Text>
+      </Text>
 
       {/* Eliminar cuenta — oculto temporalmente */}
 
@@ -253,5 +262,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 20,
+  },
+  legalText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  legalLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

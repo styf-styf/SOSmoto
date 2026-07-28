@@ -75,15 +75,6 @@ module.exports = async (req, res) => {
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #E5E5EA; vertical-align: top; }
   th { color: #6B6B7B; font-weight: 600; }
-  .draft-banner {
-    background: #FFF7E6;
-    border: 1px solid #F5C563;
-    color: #7A5B00;
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 13px;
-    margin-bottom: 24px;
-  }
   a { color: #FF6B00; }
 </style>
 </head>
@@ -93,10 +84,6 @@ module.exports = async (req, res) => {
   <div class="content">
     <h1>${doc.title}</h1>
     <p class="updated">Última actualización: ${updated}</p>
-
-    <div class="draft-banner">
-      ⚠️ <strong>Borrador.</strong> Este documento describe el funcionamiento real de la plataforma, pero todavía no pasó revisión legal formal. No publicar en las tiendas de apps ni considerarlo vinculante hasta esa revisión.
-    </div>
 
     ${content}
 

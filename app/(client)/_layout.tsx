@@ -45,7 +45,6 @@ export default function ClientLayout() {
         <Stack.Screen name="notificaciones-preferencias" options={{ title: 'Notificaciones' }} />
         <Stack.Screen name="configuracion" options={{ title: 'Configuración' }} />
         <Stack.Screen name="datos-personales" options={{ title: 'Perfil personal' }} />
-        <Stack.Screen name="cambiar-password" options={{ title: 'Contraseña' }} />
         <Stack.Screen name="estado-cuenta" options={{ title: 'Estado de cuenta' }} />
         <Stack.Screen name="agendar" options={{ title: 'Solicitar cita' }} />
         <Stack.Screen name="citas" options={{ title: 'Mis citas' }} />

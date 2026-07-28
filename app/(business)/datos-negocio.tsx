@@ -17,6 +17,7 @@ import { Stack } from 'expo-router';
 import MapView, { Marker, type Region } from 'react-native-maps';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
+import { ChangePasswordCard } from '../../components/ChangePasswordCard';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -471,6 +472,8 @@ export default function DatosNegocioScreen() {
           />
         </>
       )}
+
+      <ChangePasswordCard />
 
       {/* Map picker */}
       <Modal

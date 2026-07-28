@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
+import { ChangePasswordCard } from '../../components/ChangePasswordCard';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -118,6 +119,7 @@ export default function DatosPersonalesScreen() {
           <Button title="Guardar cambios" onPress={handleSave} loading={saving} style={styles.saveButton} />
         </>
       )}
+      <ChangePasswordCard />
     </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -378,6 +378,16 @@ export default function BusinessConfiguracionScreen() {
         </Text>
       </Pressable>
 
+      <Text style={styles.legalText}>
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
+          Términos y Condiciones
+        </Text>{' '}
+        ·{' '}
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
+          Política de Privacidad
+        </Text>
+      </Text>
+
       <Text style={styles.buildInfo}>{buildInfo}</Text>
     </ScrollView>
   );
@@ -552,5 +562,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 20,
+  },
+  legalText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  legalLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
