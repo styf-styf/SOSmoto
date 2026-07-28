@@ -19,8 +19,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
-    width: 42,
-    height: 26,
+    width: 29,
+    height: 18,
     marginRight: 1,
   },
   moto: {
