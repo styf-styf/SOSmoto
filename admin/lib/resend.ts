@@ -19,6 +19,45 @@ export interface SendEmailResult {
   messageId: string;
 }
 
+// Envío masivo (ej. aviso de cambio de Términos/Privacidad a todos los
+// usuarios) -- usa /emails/batch de Resend (hasta 100 por request, un solo
+// "from" pero "to" distinto por email) en vez de loopear sendEmailViaResend
+// una por una.
+export interface BatchEmailParams {
+  from: string; // local-part, ej. "no-reply"
+  to: string;
+  subject: string;
+  html: string;
+}
+
+const BATCH_CHUNK_SIZE = 100;
+
+export async function sendBatchEmailsViaResend(emails: BatchEmailParams[]): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY no está configurado');
+
+  for (let i = 0; i < emails.length; i += BATCH_CHUNK_SIZE) {
+    const chunk = emails.slice(i, i + BATCH_CHUNK_SIZE).map((e) => ({
+      from: `${FROM_BRAND} <${e.from}@${FROM_DOMAIN}>`,
+      to: [e.to],
+      subject: e.subject,
+      html: e.html,
+    }));
+    const res = await fetch(`${RESEND_API_URL}/batch`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(chunk),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error('sendBatchEmailsViaResend: Resend respondió con error', body);
+    }
+  }
+}
+
 export async function sendEmailViaResend(params: SendEmailParams): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY no está configurado');

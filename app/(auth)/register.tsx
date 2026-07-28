@@ -56,7 +56,8 @@ export default function RegisterScreen() {
     if (!fullName.trim()) next.fullName = 'Ingresa tu nombre completo.';
     if (!email.trim()) next.email = 'Ingresa tu correo.';
     else if (!isValidEmail(email)) next.email = 'Ese correo no tiene un formato válido.';
-    if (phone.trim() && !isValidEcuadorPhone(phone)) {
+    if (!phone.trim()) next.phone = 'Ingresa tu teléfono.';
+    else if (!isValidEcuadorPhone(phone)) {
       next.phone = 'Usa un celular ecuatoriano válido (ej. 09xxxxxxxx).';
     }
     if (!password) next.password = 'Ingresa una contraseña.';
@@ -142,7 +143,7 @@ export default function RegisterScreen() {
         error={errors.email}
       />
       <TextField
-        label="Teléfono (opcional)"
+        label="Teléfono"
         placeholder="09xxxxxxxx"
         keyboardType="phone-pad"
         value={phone}
