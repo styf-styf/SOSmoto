@@ -16,11 +16,11 @@ export function BrandTitle({ style }: { style?: ViewStyle }) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   icon: {
-    width: 29,
-    height: 18,
+    width: 34,
+    height: 21,
     marginRight: 1,
   },
   moto: {
