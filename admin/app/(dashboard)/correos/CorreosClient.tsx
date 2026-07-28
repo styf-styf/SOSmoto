@@ -41,22 +41,48 @@ export function CorreosClient({
   // Suscripción en tiempo real: la lista inicial viene por props (Server
   // Component); desde acá se mantiene viva sola. Nunca duplica filas: usa el
   // id (siempre el email_id de Resend) para upsert/replace.
+  //
+  // Realtime aplica RLS con el JWT que tenga seteado el socket en el momento
+  // de suscribirse -- createBrowserClient (@supabase/ssr) no sincroniza ese
+  // token solo. Sin `realtime.setAuth(...)` antes de `.subscribe()`, el
+  // socket queda sin sesión, `is_admin()` evalúa false del lado de Postgres,
+  // y el canal filtra TODOS los eventos en silencio (reporta "SUBSCRIBED"
+  // igual, sin error) -- por eso los correos se guardaban bien pero nunca
+  // aparecían en vivo, solo al recargar.
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel('emails-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'emails' }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          const oldId = (payload.old as { id?: string }).id;
-          if (oldId) setEmails((prev) => prev.filter((e) => e.id !== oldId));
-          return;
-        }
-        setEmails((prev) => upsertEmail(prev, payload.new as AdminEmailRow));
-      })
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function setup() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) supabase.realtime.setAuth(session.access_token);
+
+      channel = supabase
+        .channel('emails-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'emails' }, (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const oldId = (payload.old as { id?: string }).id;
+            if (oldId) setEmails((prev) => prev.filter((e) => e.id !== oldId));
+            return;
+          }
+          setEmails((prev) => upsertEmail(prev, payload.new as AdminEmailRow));
+        })
+        .subscribe();
+    }
+
+    setup();
+
+    // Mantiene el token del socket al día si la sesión se refresca mientras
+    // la pantalla sigue abierta (sesiones de admin suelen quedar horas abiertas).
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) supabase.realtime.setAuth(session.access_token);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
