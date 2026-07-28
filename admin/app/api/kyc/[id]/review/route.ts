@@ -68,7 +68,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         html:
           decision === 'approved'
             ? `<h2>¡Negocio verificado!</h2><p>${business.name} obtuvo la insignia de "verificado" en SOSmoto.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`
-            : `<h2>Verificación rechazada</h2><p>Tu solicitud de verificación fue rechazada.</p>${adminNotes ? `<p><strong>Motivo:</strong> ${adminNotes}</p>` : ''}<p>Podés corregir y volver a enviar tus documentos desde la app.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`,
+            : `<h2>Verificación rechazada</h2><p>Tu solicitud de verificación fue rechazada.</p>${adminNotes ? `<p><strong>Motivo:</strong> ${adminNotes}</p>` : ''}<p>Puedes corregir y volver a enviar tus documentos desde la app.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`,
       }).catch((err) => console.error('email de revisión de KYC falló', err));
     }
   }

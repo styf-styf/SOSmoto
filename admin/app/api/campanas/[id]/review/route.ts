@@ -66,7 +66,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         html:
           decision === 'active'
             ? `<h2>¡Campaña aprobada!</h2><p>Tu campaña "${ad.title}" ya está activa y visible para los clientes.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`
-            : `<h2>Campaña rechazada</h2><p>Tu campaña "${ad.title}" fue rechazada.</p>${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}<p>Podés corregirla y reenviarla desde la app.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`,
+            : `<h2>Campaña rechazada</h2><p>Tu campaña "${ad.title}" fue rechazada.</p>${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}<p>Puedes corregirla y reenviarla desde la app.</p><a href="${APP_URL}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en SOSmoto</a>`,
       }).catch((err) => console.error('email de revisión de campaña falló', err));
     }
   }
