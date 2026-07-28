@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
@@ -25,6 +26,7 @@ import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/busine
 const buildInfo = Updates.isEmbeddedLaunch
   ? 'Build de fábrica (sin actualización OTA aplicada)'
   : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
+const appVersion = Constants.expoConfig?.version ?? '?';
 import { ADS_ENABLED } from '../../constants/features';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
@@ -354,6 +356,12 @@ export default function BusinessConfiguracionScreen() {
           icon="trash-outline"
           label="Eliminar cuenta"
           onPress={handleDeleteAccount}
+        />
+        <MenuRow
+          icon="information-circle-outline"
+          label="Versión de la app"
+          hint={buildInfo}
+          badge={appVersion}
           last
         />
       </View>
@@ -377,18 +385,6 @@ export default function BusinessConfiguracionScreen() {
           {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </Text>
       </Pressable>
-
-      <Text style={styles.legalText}>
-        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
-          Términos y Condiciones
-        </Text>{' '}
-        ·{' '}
-        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
-          Política de Privacidad
-        </Text>
-      </Text>
-
-      <Text style={styles.buildInfo}>{buildInfo}</Text>
     </ScrollView>
   );
 }
@@ -396,6 +392,7 @@ export default function BusinessConfiguracionScreen() {
 function MenuRow({
   icon,
   label,
+  hint,
   badge,
   badgeDanger,
   onPress,
@@ -403,24 +400,21 @@ function MenuRow({
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  hint?: string;
   badge?: string;
   badgeDanger?: boolean;
-  onPress: () => void;
+  onPress?: () => void;
   last?: boolean;
 }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.menuRow,
-        !last && styles.menuRowBorder,
-        pressed && styles.menuRowPressed,
-      ]}
-      onPress={onPress}
-    >
+  const content = (
+    <>
       <View style={styles.menuRowIconWrap}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
-      <Text style={styles.menuRowLabel}>{label}</Text>
+      <View style={styles.menuRowContent}>
+        <Text style={styles.menuRowLabel}>{label}</Text>
+        {hint && <Text style={styles.menuRowHint}>{hint}</Text>}
+      </View>
       {badge && (
         <Text
           style={[
@@ -431,7 +425,24 @@ function MenuRow({
           {badge}
         </Text>
       )}
-      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      {onPress && <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={[styles.menuRow, !last && styles.menuRowBorder]}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.menuRow,
+        !last && styles.menuRowBorder,
+        pressed && styles.menuRowPressed,
+      ]}
+      onPress={onPress}
+    >
+      {content}
     </Pressable>
   );
 }
@@ -528,11 +539,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuRowLabel: {
+  menuRowContent: {
     flex: 1,
+  },
+  menuRowLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: colors.text,
+  },
+  menuRowHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   menuRowBadge: {
     fontSize: 12,
@@ -556,21 +574,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.danger,
-  },
-  buildInfo: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  legalText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  legalLink: {
-    color: colors.primary,
-    fontWeight: '600',
   },
 });

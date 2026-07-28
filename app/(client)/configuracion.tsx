@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,6 +16,7 @@ import { signOut } from '../../services/auth';
 const buildInfo = Updates.isEmbeddedLaunch
   ? 'Build de fábrica (sin actualización OTA aplicada)'
   : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
+const appVersion = Constants.expoConfig?.version ?? '?';
 
 export default function ConfiguracionScreen() {
   const { profile } = useAuth();
@@ -95,6 +97,12 @@ export default function ConfiguracionScreen() {
           icon="notifications-outline"
           label="Notificaciones"
           onPress={() => router.push('/(client)/notificaciones-preferencias')}
+        />
+        <MenuRow
+          icon="information-circle-outline"
+          label="Versión de la app"
+          hint={buildInfo}
+          badge={appVersion}
           last
         />
       </View>
@@ -114,19 +122,7 @@ export default function ConfiguracionScreen() {
         <Text style={styles.dangerLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
       </Pressable>
 
-      <Text style={styles.legalText}>
-        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
-          Términos y Condiciones
-        </Text>{' '}
-        ·{' '}
-        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
-          Política de Privacidad
-        </Text>
-      </Text>
-
       {/* Eliminar cuenta — oculto temporalmente */}
-
-      <Text style={styles.buildInfo}>{buildInfo}</Text>
     </ScrollView>
   );
 }
@@ -146,15 +142,12 @@ function MenuRow({
   hint?: string;
   badge?: string;
   badgeDanger?: boolean;
-  onPress: () => void;
+  onPress?: () => void;
   last?: boolean;
   external?: boolean;
 }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.menuRow, !last && styles.menuRowBorder, pressed && styles.rowPressed]}
-      onPress={onPress}
-    >
+  const content = (
+    <>
       <View style={styles.menuRowIconWrap}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
@@ -163,11 +156,26 @@ function MenuRow({
         {hint && <Text style={styles.menuRowHint}>{hint}</Text>}
       </View>
       {badge && <Text style={[styles.menuRowBadge, badgeDanger && styles.menuRowBadgeDanger]}>{badge}</Text>}
-      <Ionicons
-        name={external ? 'open-outline' : 'chevron-forward'}
-        size={15}
-        color={colors.textMuted}
-      />
+      {onPress && (
+        <Ionicons
+          name={external ? 'open-outline' : 'chevron-forward'}
+          size={15}
+          color={colors.textMuted}
+        />
+      )}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={[styles.menuRow, !last && styles.menuRowBorder]}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.menuRow, !last && styles.menuRowBorder, pressed && styles.rowPressed]}
+      onPress={onPress}
+    >
+      {content}
     </Pressable>
   );
 }
@@ -256,21 +264,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.danger,
-  },
-  buildInfo: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  legalText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  legalLink: {
-    color: colors.primary,
-    fontWeight: '600',
   },
 });

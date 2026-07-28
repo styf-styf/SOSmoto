@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -39,6 +39,16 @@ export default function EstadoCuentaScreen() {
       ) : (
         <Text style={styles.helperText}>Tu cuenta está activa, sin restricciones.</Text>
       )}
+
+      <Text style={styles.legalText}>
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
+          Términos y Condiciones
+        </Text>{' '}
+        ·{' '}
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
+          Política de Privacidad
+        </Text>
+      </Text>
     </View>
   );
 }
@@ -114,5 +124,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     lineHeight: 18,
+  },
+  legalText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 24,
+  },
+  legalLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
@@ -150,6 +150,16 @@ export default function EstadoCuentaScreen() {
           ))}
         </View>
       )}
+
+      <Text style={styles.legalText}>
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
+          Términos y Condiciones
+        </Text>{' '}
+        ·{' '}
+        <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/privacidad')}>
+          Política de Privacidad
+        </Text>
+      </Text>
     </View>
   );
 }
@@ -283,5 +293,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 78,
     textAlign: 'right',
+  },
+  legalText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 24,
+  },
+  legalLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

@@ -538,7 +538,12 @@ export default function AuxilioScreen() {
               )}
 
               <Text style={styles.fieldLabel}>Tu moto</Text>
-              <View style={styles.vehicleSelector}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.vehicleSelector}
+                style={styles.vehicleSelectorScroll}
+              >
                 {vehicles.map((vehicle) => (
                   <Pressable
                     key={vehicle.id}
@@ -560,7 +565,7 @@ export default function AuxilioScreen() {
                     </Text>
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
 
               <TextField
                 label="¿Qué pasó? (opcional)"
@@ -802,11 +807,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
+  vehicleSelectorScroll: {
+    marginBottom: 20,
+  },
   vehicleSelector: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 20,
   },
   vehicleOption: {
     paddingHorizontal: 14,
