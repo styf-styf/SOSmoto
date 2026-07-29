@@ -284,6 +284,10 @@ export default function BusinessHomeScreen() {
       // ícono de la tab bar (ese caso ya lo maneja el listener de tabPress).
       dragX.setValue(0);
       markProductoServicioStacksForReset();
+      // El FlatList del feed sigue montado y conserva el scroll de la última
+      // vez que se vio Inicio -- se fuerza de vuelta arriba al volver desde
+      // otra pestaña, sin pedir otro refresh (load() ya lo hace acá abajo).
+      homeFeedRef.current?.scrollToTop();
       load().catch((err) => console.error('refresh business home error', err));
     }, [load]),
   );
@@ -295,6 +299,8 @@ export default function BusinessHomeScreen() {
   // el mismo instante, y con el native driver las dos animaciones peleando
   // por el mismo valor dejaban la pantalla a medio camino. Si todavia no
   // tenemos el foco es ese caso -- se ignora porque useFocusEffect ya lo resuelve.
+  // Estando ya en Inicio: si el feed no está arriba del todo, lo sube; si ya
+  // estaba arriba, refresca (mismo patrón que Instagram/Twitter).
   useEffect(() => {
     return navigation.addListener('tabPress' as any, () => {
       if (!navigation.isFocused()) return;
@@ -306,6 +312,7 @@ export default function BusinessHomeScreen() {
         overshootClamping: true,
       }).start();
       markProductoServicioStacksForReset();
+      homeFeedRef.current?.scrollToTopOrRefresh();
     });
   }, [navigation]);
 

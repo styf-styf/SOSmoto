@@ -10,3 +10,9 @@
 // supabase/functions/check-business-growth/index.ts (mismo flag duplicado
 // ahí porque corre en Deno, no puede importar este archivo).
 export const ADS_ENABLED = false;
+
+// Asistente de IA (chat/asistente.tsx, supabase/functions/ai-assistant) --
+// funcional pero todavía incompleto (falta pulir), se oculta la entrada
+// desde Mensajes hasta terminarlo. La ruta y la Edge Function se dejan tal
+// cual, solo se saca el botón de acceso.
+export const AI_ASSISTANT_ENABLED = false;

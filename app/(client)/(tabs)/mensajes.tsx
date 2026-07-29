@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleS
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '../../../constants/colors';
+import { AI_ASSISTANT_ENABLED } from '../../../constants/features';
 import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessesByIds } from '../../../services/businesses';
 import { getClientConversations, subscribeToThreadChanges } from '../../../services/messages';
@@ -78,17 +79,19 @@ export default function MensajesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
-      <Pressable style={styles.row} onPress={() => router.push('/(client)/chat/asistente')}>
-        <View style={styles.avatarWrap}>
-          <View style={styles.avatar}>
-            <Ionicons name="sparkles" size={20} color={colors.primary} />
+      {AI_ASSISTANT_ENABLED && (
+        <Pressable style={styles.row} onPress={() => router.push('/(client)/chat/asistente')}>
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}>
+              <Ionicons name="sparkles" size={20} color={colors.primary} />
+            </View>
           </View>
-        </View>
-        <View style={styles.rowContent}>
-          <Text style={styles.rowName}>Asistente SOSmoto</Text>
-          <Text style={styles.rowMessage} numberOfLines={1}>Pregúntame lo que necesites</Text>
-        </View>
-      </Pressable>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowName}>Asistente SOSmoto</Text>
+            <Text style={styles.rowMessage} numberOfLines={1}>Pregúntame lo que necesites</Text>
+          </View>
+        </Pressable>
+      )}
 
       {conversations.length === 0 ? (
         <Text style={styles.placeholder}>Tus chats con talleres aparecerán aquí.</Text>

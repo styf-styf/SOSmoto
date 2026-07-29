@@ -70,7 +70,21 @@ function buildRows(
 
 export interface HomeFeedHandle {
   refresh: () => Promise<void>;
+  // Al volver a Inicio desde otra pestaña -- el FlatList sigue montado
+  // (lazy: false) así que conserva el scroll donde quedó; esto lo fuerza de
+  // vuelta arriba sin disparar un refresh aparte (el foco ya refresca solo).
+  scrollToTop: () => void;
+  // Botón "Inicio" de la tab bar tocado estando YA en Inicio: si el feed ya
+  // está arriba del todo, refresca; si no, primero lo lleva arriba (sin
+  // refrescar todavía -- un segundo toque ya estando arriba sí refresca,
+  // mismo patrón que Instagram/Twitter).
+  scrollToTopOrRefresh: () => void;
 }
+
+// Umbral chico en vez de 0 exacto -- con inercia o un scroll casi
+// imperceptible, contentOffset.y puede quedar en 1-2px aunque el usuario ya
+// esté "arriba" a simple vista.
+const TOP_SCROLL_THRESHOLD = 8;
 
 export const HomeFeed = forwardRef<
   HomeFeedHandle,
@@ -111,6 +125,8 @@ export const HomeFeed = forwardRef<
   const lastSeenCatalogAt = useRef<string | null>(null);
   const lastSeenAdAt = useRef<string | null>(null);
   const didInitialLoadRef = useRef(false);
+  const flatListRef = useRef<FlatList<FeedRow>>(null);
+  const scrollOffsetRef = useRef(0);
 
   const loadInitial = useCallback(async () => {
     const [postsPage, homeAds] = await Promise.all([
@@ -173,7 +189,19 @@ export const HomeFeed = forwardRef<
   // Permite que un componente externo (ej. el composer de "Crear
   // publicación" sobre el feed) fuerce un refresh tras publicar, sin que
   // HomeFeed deje de ser dueño de su propio estado de posts/catálogo/ads.
-  useImperativeHandle(ref, () => ({ refresh: handleRefresh }));
+  useImperativeHandle(ref, () => ({
+    refresh: handleRefresh,
+    scrollToTop: () => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    },
+    scrollToTopOrRefresh: () => {
+      if (scrollOffsetRef.current > TOP_SCROLL_THRESHOLD) {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      } else {
+        handleRefresh();
+      }
+    },
+  }));
 
   async function handleLoadMore() {
     if (loadingMore || !hasMore || posts.length === 0) return;
@@ -214,6 +242,11 @@ export const HomeFeed = forwardRef<
 
   return (
     <FlatList
+      ref={flatListRef}
+      onScroll={(e) => {
+        scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+      }}
+      scrollEventThrottle={16}
       data={rows}
       keyExtractor={(row) => row.key}
       renderItem={({ item }) => {
