@@ -10,6 +10,8 @@
     { "source": "/negocios", "destination": "/api/negocios" },
     { "source": "/negocio/:id", "destination": "/api/negocio/:id" },
     { "source": "/terminos", "destination": "/api/legal?doc=terminos" },
-    { "source": "/privacidad", "destination": "/api/legal?doc=privacidad" }
+    { "source": "/privacidad", "destination": "/api/legal?doc=privacidad" },
+    { "source": "/contacto", "destination": "/api/pagina?type=contacto" },
+    { "source": "/eliminar-cuenta", "destination": "/api/pagina?type=eliminar-cuenta" }
   ]
 }

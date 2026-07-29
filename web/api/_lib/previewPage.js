@@ -16,12 +16,12 @@ function notFoundPage(message) {
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:${COLORS.surface};margin:0;padding:60px 24px;text-align:center;}
 h1{font-size:16px;color:${COLORS.text};font-weight:600;}
-.brand{color:${COLORS.primary};font-weight:700;font-size:14px;margin-bottom:20px;display:block;}
+.brand{color:${COLORS.primary};font-weight:700;font-size:14px;margin-bottom:20px;display:block;text-decoration:none;}
 .home-link{color:${COLORS.textMuted};font-size:13px;text-decoration:none;margin-top:16px;display:inline-block;}
 </style>
 </head>
 <body>
-<div class="brand">SOSmoto</div>
+<a class="brand" href="/">SOSmoto</a>
 <h1>${escapeHtml(message)}</h1>
 <a class="home-link" href="/">‹ Ir al inicio</a>
 </body>
@@ -196,6 +196,7 @@ body {
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.2px;
+  text-decoration: none;
 }
 .home-link {
   position: absolute;
@@ -513,7 +514,7 @@ body {
 <div class="card">
   <div class="brand-bar">
     <a class="home-link" href="/" aria-label="Ir al inicio">‹</a>
-    <span class="brand">SOSmoto</span>
+    <a class="brand" href="/">SOSmoto</a>
   </div>
   ${authorRowHtml}
   ${carouselHtml}

@@ -54,8 +54,22 @@ module.exports = async (req, res) => {
 
   const sectionTitle = isHome ? 'Negocios recientes' : q ? `Resultados para "${escapeHtml(q)}"` : 'Negocios recientes';
 
+  // "Próximamente" en vez de un botón de descarga real -- el build nativo
+  // todavía no se publicó en Google Play ni App Store (ver memoria del
+  // proyecto "EAS build pending"). Repartir un APK de prueba al público
+  // general desde la home pública no es lo que se quiere todavía; esto
+  // se reemplaza por los botones reales de tienda apenas existan.
+  const downloadSectionHtml = isHome
+    ? `<div class="download-section">
+  <img src="/favicon.png" alt="SOSmoto" class="download-icon" />
+  <p class="download-title">Muy pronto en tu celular</p>
+  <p class="download-subtitle">Estamos en el proceso final antes de publicar en Google Play y App Store.</p>
+</div>`
+    : '';
+
   const bodyHtml = `
 ${isHome ? '<p class="tagline">Conectamos motociclistas con talleres y tiendas de confianza, y auxilio en carretera cuando lo necesitas.</p>' : ''}
+${downloadSectionHtml}
 <form class="search-form" action="/negocios" method="GET">
   <input class="search-input" type="text" name="q" value="${escapeHtml(q)}" placeholder="Buscar taller o tienda por nombre o ciudad" />
   <button class="search-button" type="submit">Buscar</button>
@@ -77,6 +91,35 @@ ${isHome ? '<a class="button" href="sosmoto://">Abrir en SOSmoto</a>' : ''}
   line-height: 22px;
   margin: 0 0 20px;
   text-align: center;
+}
+.download-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #FFF8F2;
+  border: 1px solid #FFE1C7;
+  border-radius: 16px;
+  padding: 20px 16px;
+  margin-bottom: 20px;
+}
+.download-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+}
+.download-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A1A2E;
+  margin: 0 0 4px;
+}
+.download-subtitle {
+  font-size: 13px;
+  color: #6B6B7B;
+  margin: 0;
+  max-width: 320px;
 }
 .search-form {
   display: flex;

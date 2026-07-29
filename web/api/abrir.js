@@ -40,13 +40,13 @@ module.exports = (req, res) => {
 <title>Abrir en SOSmoto</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:${COLORS.surface};margin:0;padding:60px 24px;text-align:center;}
-.brand{color:${COLORS.primary};font-weight:700;font-size:16px;margin-bottom:24px;display:block;}
+.brand{color:${COLORS.primary};font-weight:700;font-size:16px;margin-bottom:24px;display:block;text-decoration:none;}
 h1{font-size:16px;color:${COLORS.text};font-weight:600;margin-bottom:24px;}
 .button{display:inline-block;background:${COLORS.primary};color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:24px;}
 </style>
 </head>
 <body>
-<span class="brand">SOSmoto</span>
+<a class="brand" href="/">SOSmoto</a>
 <h1>Abriendo la app…</h1>
 <a class="button" href="${escapeHtml(appLink)}">Ver en SOSmoto</a>
 <script>

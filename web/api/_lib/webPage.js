@@ -74,6 +74,7 @@ body {
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.2px;
+  text-decoration: none;
 }
 .home-link {
   position: absolute;
@@ -92,6 +93,17 @@ body {
 .content {
   padding: 20px;
 }
+.page-footer {
+  padding: 14px 20px;
+  text-align: center;
+  border-top: 1px solid ${COLORS.border};
+}
+.page-footer a {
+  color: ${COLORS.textMuted};
+  font-size: 12px;
+  text-decoration: none;
+  margin: 0 8px;
+}
 ${extraStyle}
 </style>
 </head>
@@ -99,10 +111,16 @@ ${extraStyle}
 <div class="card">
   <div class="brand-bar">
     ${showHomeLink ? `<a class="home-link" href="/" aria-label="Ir al inicio">‹</a>` : ''}
-    <span class="brand">SOSmoto</span>
+    <a class="brand" href="/">SOSmoto</a>
   </div>
   <div class="content">
     ${bodyHtml}
+  </div>
+  <div class="page-footer">
+    <a href="/contacto">Contacto</a>
+    <a href="/terminos">Términos</a>
+    <a href="/privacidad">Privacidad</a>
+    <a href="/eliminar-cuenta">Eliminar cuenta</a>
   </div>
 </div>
 </body>

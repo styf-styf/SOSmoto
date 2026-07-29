@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
     text-align: center;
     border-bottom: 1px solid #E5E5EA;
   }
-  .brand { color: #FF6B00; font-weight: 700; font-size: 14px; }
+  .brand { color: #FF6B00; font-weight: 700; font-size: 14px; text-decoration: none; }
   .content { padding: 28px 28px 36px; }
   h1 { font-size: 24px; margin: 0 0 4px; }
   .updated { color: #6B6B7B; font-size: 13px; margin: 0 0 20px; }
@@ -80,7 +80,7 @@ module.exports = async (req, res) => {
 </head>
 <body>
 <div class="card">
-  <div class="brand-bar"><span class="brand">SOSmoto</span></div>
+  <div class="brand-bar"><a class="brand" href="/">SOSmoto</a></div>
   <div class="content">
     <h1>${doc.title}</h1>
     <p class="updated">Última actualización: ${updated}</p>
