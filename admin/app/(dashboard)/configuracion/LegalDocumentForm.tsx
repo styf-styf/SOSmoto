@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { LegalRichTextEditor } from './LegalRichTextEditor';
 import type { AdminLegalDocumentRow } from '../../../lib/types';
 
 const TYPE_LABEL: Record<string, string> = { terms: 'Términos y Condiciones', privacy: 'Política de Privacidad' };
@@ -71,14 +72,9 @@ export function LegalDocumentForm({ type, doc }: { type: 'terms' | 'privacy'; do
       {editing && (
         <>
           <p className="mb-2 text-xs text-gray-400">
-            HTML de las secciones (h2/p/ul/table) -- no incluyas el título, la fecha ni el aviso de borrador, esos los pone la página automáticamente.
+            No incluyas el título, la fecha ni el aviso de borrador, esos los pone la página automáticamente.
           </p>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={16}
-            className="w-full rounded-lg border border-gray-300 p-3 font-mono text-xs text-gray-900"
-          />
+          <LegalRichTextEditor content={content} onChange={setContent} />
           <div className="mt-3 flex items-center gap-3">
             <button
               onClick={handlePublish}
