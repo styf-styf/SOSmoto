@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../lib/requireAdmin';
-import { sendBatchEmailsViaResend } from '../../../lib/resend';
+import { escapeHtml, sendBatchEmailsViaResend } from '../../../lib/resend';
 import { createAdminClient } from '../../../lib/supabase/admin';
 
 const TYPE_LABEL: Record<string, string> = { terms: 'los Términos y Condiciones', privacy: 'la Política de Privacidad' };
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   // correo es el canal que de verdad deja constancia de que se avisó (llega
   // aunque el usuario no abra la app), push/campanita son el complemento
   // para quien sí está activo.
-  const { data: users } = await supabase.from('users').select('id, email, push_token');
+  const { data: users } = await supabase.from('users').select('id, email, full_name, push_token');
   const title = 'Actualizamos nuestros términos';
   const body = `Actualizamos ${TYPE_LABEL[type]}. Revísalos en la app -- si continúas usándola, se considera que los aceptas.`;
 
@@ -58,15 +58,19 @@ export async function POST(req: Request) {
     await supabase.from('notifications').insert(notifRows);
 
     const pushMessages = users
-      .filter((u): u is { id: string; email: string; push_token: string } => !!u.push_token)
+      .filter((u): u is { id: string; email: string; full_name: string; push_token: string } => !!u.push_token)
       .map((u) => ({ to: u.push_token, title, body, data: { type: 'legal_update' } }));
     if (pushMessages.length > 0) await sendPushBatch(pushMessages);
 
     const docUrl = TYPE_URL[type];
-    const emailHtml = `<h2>Actualizamos ${TYPE_LABEL[type]}</h2><p>Te avisamos que actualizamos ${TYPE_LABEL[type]} de SOSmoto.</p><p><a href="${docUrl}" style="display:inline-block;margin-top:8px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Revisar cambios</a></p><p style="font-size:12px;color:#999;margin-top:20px">Si continúas usando la app sin objetar, consideramos que los aceptas.</p>`;
     const emailMessages = users
       .filter((u) => !!u.email)
-      .map((u) => ({ from: 'no-reply', to: u.email, subject: `Actualizamos ${TYPE_LABEL[type]}`, html: emailHtml }));
+      .map((u) => ({
+        from: 'no-reply',
+        to: u.email,
+        subject: `Actualizamos ${TYPE_LABEL[type]}`,
+        html: `<h2>Actualizamos ${TYPE_LABEL[type]}</h2><p>Hola ${escapeHtml(u.full_name)},</p><p>Te avisamos que actualizamos ${TYPE_LABEL[type]} de SOSmoto.</p><p><a href="${docUrl}" style="display:inline-block;margin-top:8px;padding:12px 24px;background:#FF6B00;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Revisar cambios</a></p><p style="font-size:12px;color:#999;margin-top:20px">Si continúas usando la app sin objetar, consideramos que los aceptas.</p>`,
+      }));
     if (emailMessages.length > 0) await sendBatchEmailsViaResend(emailMessages).catch((err) => console.error('legal email batch error', err));
   }
 

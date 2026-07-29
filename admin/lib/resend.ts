@@ -4,6 +4,18 @@ const RESEND_API_URL = 'https://api.resend.com/emails';
 const FROM_DOMAIN = 'sosmoto.net';
 const FROM_BRAND = 'SOSmoto';
 
+// Mismo helper que supabase/functions/_shared/resend.ts -- nombres de
+// negocio/usuario son datos del propio usuario, no de un tercero de
+// confianza; se interpolan en HTML de correo y deben escaparse.
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface SendEmailParams {
   from: string; // local-part, ej. "soporte"
   to: string;

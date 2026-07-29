@@ -66,7 +66,7 @@ async function notifyPlanChanged(
 
   const { data: owner } = await supabase
     .from('users')
-    .select('push_token, email')
+    .select('push_token, email, full_name')
     .eq('id', business.owner_id)
     .maybeSingle();
   if (!owner) return;
@@ -91,6 +91,7 @@ async function notifyPlanChanged(
       owner.email,
       'Pago confirmado — Suscripción activada',
       `<h2>¡Pago exitoso!</h2>
+<p>Hola ${escapeHtml(owner.full_name)},</p>
 <p>Tu pago fue procesado correctamente y tu suscripción ya está activa.</p>
 <table style="width:100%;border-collapse:collapse;margin:16px 0">
 <tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Negocio</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(business.name)}</td></tr>
@@ -200,13 +201,14 @@ async function createAdFromPayment(supabase: ReturnType<typeof createClient>, pa
     .eq('id', payment.business_id)
     .maybeSingle();
   const owner = business?.owner_id
-    ? (await supabase.from('users').select('email').eq('id', business.owner_id).maybeSingle()).data
+    ? (await supabase.from('users').select('email, full_name').eq('id', business.owner_id).maybeSingle()).data
     : null;
   if (owner?.email) {
     await sendEmail(
       owner.email,
       'Pago confirmado — Campaña publicitaria',
       `<h2>¡Pago exitoso!</h2>
+<p>Hola ${escapeHtml(owner.full_name)},</p>
 <p>Tu campaña publicitaria fue pagada y quedó pendiente de revisión antes de mostrarse a los clientes.</p>
 <table style="width:100%;border-collapse:collapse;margin:16px 0">
 <tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Negocio</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(business?.name)}</td></tr>

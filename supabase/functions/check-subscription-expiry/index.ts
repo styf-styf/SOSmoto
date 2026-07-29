@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { appButton, sendEmail } from '../_shared/resend.ts';
+import { appButton, escapeHtml, sendEmail } from '../_shared/resend.ts';
 
 const REMINDER_DAYS_BEFORE = 3;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -72,11 +72,12 @@ Deno.serve(async (req) => {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('push_token, email, notification_prefs')
+      .select('push_token, email, full_name, notification_prefs')
       .eq('id', business.owner_id)
       .maybeSingle();
     const pushToken: string | null = owner?.push_token ?? null;
     const email: string | null = owner?.email ?? null;
+    const ownerName: string = owner?.full_name ?? '';
     // Categoría 'pagos' de Configuración > Notificaciones -- solo apaga el
     // push, el downgrade/reversión de plan sigue pasando igual.
     const pagosEnabled = (owner?.notification_prefs as Record<string, boolean> | null)?.pagos !== false;
@@ -100,6 +101,7 @@ Deno.serve(async (req) => {
           email,
           'Tu suscripción venció — volviste al plan Free',
           `<h2>Tu suscripción venció</h2>
+<p>Hola ${escapeHtml(ownerName)},</p>
 <p>Tu plan pago venció y tu negocio volvió al plan Free. Renueva desde la app cuando quieras para recuperar tus beneficios (posición destacada, más productos/servicios en el catálogo, etc.).</p>
 ${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
         );
@@ -122,6 +124,7 @@ ${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
           email,
           'Tu suscripción está por vencer',
           `<h2>Tu suscripción está por vencer</h2>
+<p>Hola ${escapeHtml(ownerName)},</p>
 <p>Tu plan vence en <strong>${Math.ceil(daysLeft)} día(s)</strong>. Renueva desde la app para no perder tus beneficios.</p>
 ${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
         );

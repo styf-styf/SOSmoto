@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { appButton, sendEmail } from '../_shared/resend.ts';
+import { appButton, escapeHtml, sendEmail } from '../_shared/resend.ts';
 
 // Publicidad está desactivada para el lanzamiento (ver constants/features.ts
 // en la app -- este archivo corre en Deno y no puede importar de ahí, así
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('push_token, email, notification_prefs')
+      .select('push_token, email, full_name, notification_prefs')
       .eq('id', business.owner_id)
       .maybeSingle();
     const pushToken: string | null = owner?.push_token ?? null;
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
       await sendEmail(
         owner.email,
         suggestion.title,
-        `<h2>${suggestion.title}</h2><p>${suggestion.body}</p>${appButton('negocio', { seccion: 'crece-tu-negocio' })}`
+        `<h2>${suggestion.title}</h2><p>Hola ${escapeHtml(owner.full_name)},</p><p>${suggestion.body}</p>${appButton('negocio', { seccion: 'crece-tu-negocio' })}`
       );
     }
   }
@@ -161,7 +161,12 @@ async function findSuggestion(
         body: `Tu catálogo de productos alcanzó el máximo de tu plan ${planLabel}. Sube de plan para seguir agregando.`,
       };
     }
-    if (plan.max_services !== null && (serviceCount ?? 0) >= plan.max_services) {
+    // max_services = 0 (no null) en TODOS los planes de tienda -- significa
+    // "no aplica" (una tienda nunca ofrece servicios), no "cero permitidos".
+    // Sin el `> 0`, serviceCount (siempre 0 para una tienda) >= 0 se cumple
+    // siempre, generando un falso "llegaste al límite" para cualquier tienda
+    // en cualquier plan.
+    if (plan.max_services !== null && plan.max_services > 0 && (serviceCount ?? 0) >= plan.max_services) {
       return {
         type: 'upgrade_plan_limit_reached',
         title: 'Llegaste al límite de tu plan',
@@ -175,7 +180,7 @@ async function findSuggestion(
         body: `Ya usas ${productCount}/${plan.max_products} productos de tu plan ${planLabel}. Sube de plan antes de quedarte sin espacio.`,
       };
     }
-    if (plan.max_services !== null && (serviceCount ?? 0) >= plan.max_services * NEAR_LIMIT_RATIO) {
+    if (plan.max_services !== null && plan.max_services > 0 && (serviceCount ?? 0) >= plan.max_services * NEAR_LIMIT_RATIO) {
       return {
         type: 'upgrade_plan_near_limit',
         title: 'Te estás acercando al límite de tu plan',
