@@ -53,7 +53,11 @@ export async function getBusinessDashboardStats(businessId: string): Promise<Bus
         .eq('business_id', businessId)
         .order('views', { ascending: false })
         .limit(5),
-      supabase.from('ads').select('impressions, clicks').eq('business_id', businessId),
+      // impressions/clicks ya no son legibles por select directo (columnas
+      // revocadas para authenticated/anon, ver migración 0142 -- cualquier
+      // negocio podía leer las métricas de campañas ajenas) -- se agregan
+      // server-side vía una función security definer que sí valida dueño/admin.
+      supabase.rpc('get_business_ad_metrics', { target_business_id: businessId }),
       supabase.from('stories').select('views, clicks').eq('business_id', businessId),
     ]);
 
@@ -65,6 +69,8 @@ export async function getBusinessDashboardStats(businessId: string): Promise<Bus
   if (servicesResult.error) throw servicesResult.error;
   if (adsResult.error) throw adsResult.error;
   if (storiesResult.error) throw storiesResult.error;
+
+  const adMetrics = adsResult.data?.[0] ?? { total_impressions: 0, total_clicks: 0 };
 
   const helpRequestsTotal = hrTotal.count ?? 0;
   const helpRequestsCompleted = hrCompleted.count ?? 0;
@@ -79,8 +85,8 @@ export async function getBusinessDashboardStats(businessId: string): Promise<Bus
     appointmentsConversionRate: appointmentsTotal > 0 ? appointmentsCompletedCount / appointmentsTotal : null,
     topProducts: (productsResult.data ?? []) as CatalogItemStat[],
     topServices: (servicesResult.data ?? []) as CatalogItemStat[],
-    adImpressions: (adsResult.data ?? []).reduce((sum, a) => sum + a.impressions, 0),
-    adClicks: (adsResult.data ?? []).reduce((sum, a) => sum + a.clicks, 0),
+    adImpressions: adMetrics.total_impressions,
+    adClicks: adMetrics.total_clicks,
     storyViews: (storiesResult.data ?? []).reduce((sum, s) => sum + s.views, 0),
     storyClicks: (storiesResult.data ?? []).reduce((sum, s) => sum + s.clicks, 0),
   };

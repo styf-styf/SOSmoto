@@ -28,7 +28,15 @@ async function confirm(id, clientTransactionId, transactionStatus) {
   try {
     const response = await fetch(CONFIRM_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ANON_KEY}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${ANON_KEY}`,
+        // La anon key de arriba solo hace falta para pasar el gate de
+        // plataforma de Supabase (cualquiera con la anon key la tiene) -- este
+        // secreto propio es lo que realmente restringe la llamada a este
+        // servidor. Nunca se expone al navegador/app.
+        'x-internal-secret': process.env.PAYPHONE_CONFIRM_SECRET,
+      },
       body: JSON.stringify({ id, clientTransactionId, transactionStatus }),
     });
     return await response.json();
@@ -52,7 +60,6 @@ module.exports = async (req, res) => {
         transactionStatus = b.transactionStatus;
       }
       raw = typeof b === 'string' ? b : JSON.stringify(b || {});
-      console.log('payphone webhook body:', raw, '| type:', typeof b);
       id = id || extractField(raw, 'id') || extractField(raw, 'transactionId') || req.query.id;
       clientTransactionId = clientTransactionId || extractField(raw, 'clientTransactionId') || req.query.clientTransactionId;
       transactionStatus = transactionStatus || extractField(raw, 'transactionStatus') || req.query.transactionStatus;
@@ -129,11 +136,17 @@ module.exports = async (req, res) => {
         ? `sosmoto://pago-resultado?tipo=subscription&ok=${okParam}`
         : 'sosmoto://';
 
-  const debugLine = wait.success
-    ? ''
-    : `<pre style="text-align:left;max-width:400px;margin:16px auto;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:12px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;">${escapeHtml(
-        JSON.stringify({ query: req.query, wait }, null, 2)
-      )}</pre>`;
+  // Solo se muestra detalle de depuración a cualquier visitante de esta URL
+  // pública si PAYPHONE_DEBUG está prendido a propósito (diagnóstico
+  // puntual) -- por default queda oculto, ya que exponía datos internos
+  // (query params, resultado crudo de Payphone) a cualquiera que abriera el
+  // link de retorno, incluso sin haber pagado nada.
+  const debugLine =
+    wait.success || process.env.PAYPHONE_DEBUG !== '1'
+      ? ''
+      : `<pre style="text-align:left;max-width:400px;margin:16px auto;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:12px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;">${escapeHtml(
+          JSON.stringify({ query: req.query, wait }, null, 2)
+        )}</pre>`;
 
   const html = `<!DOCTYPE html>
 <html lang="es">

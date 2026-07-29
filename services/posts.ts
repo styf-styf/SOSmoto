@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getUsersByIds } from './users';
 import type { Post, PostComment } from '../types/database';
 
 // Los negocios usan el límite de fotos de su plan (subscription_plans.max_photos_per_item,
@@ -57,12 +58,16 @@ export async function updatePost(
   return data as Post;
 }
 
+// author_client/tag_client ya NO se resuelven con un join embebido directo a
+// `users` (ver migración 0145) -- ese join dependía de policies de RLS que
+// daban acceso de FILA completa al autor, exponiendo también su email/
+// teléfono a cualquier autenticado sin relación real con él. Se resuelven
+// aparte vía la vista pública `public_profiles` (solo nombre/avatar) en
+// attachClientProfiles, después de traer los posts.
 const FEED_SELECT = `
   *,
   author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified, owner_id, business_type),
-  author_client:users!posts_client_id_fkey(id, full_name, avatar_url),
   tag_business:businesses!posts_tag_business_id_fkey(id, name),
-  tag_client:users!posts_tag_client_id_fkey(id, full_name, avatar_url),
   tag_service:services!posts_tag_service_id_fkey(id, name),
   tag_product:products!posts_tag_product_id_fkey(id, name)
 `;
@@ -83,6 +88,22 @@ export interface PostWithAuthor extends Post {
   tag_product: { id: string; name: string } | null;
 }
 
+async function attachClientProfiles(rows: unknown[]): Promise<PostWithAuthor[]> {
+  const posts = rows as Post[];
+  const ids = new Set<string>();
+  for (const p of posts) {
+    if (p.client_id) ids.add(p.client_id);
+    if (p.tag_client_id) ids.add(p.tag_client_id);
+  }
+  const profiles = ids.size > 0 ? await getUsersByIds(Array.from(ids)) : [];
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  return posts.map((p) => ({
+    ...p,
+    author_client: p.client_id ? (byId.get(p.client_id) ?? null) : null,
+    tag_client: p.tag_client_id ? (byId.get(p.tag_client_id) ?? null) : null,
+  })) as unknown as PostWithAuthor[];
+}
+
 // Con autor/etiqueta ya resueltos (mismo FEED_SELECT que el feed) -- las
 // usa la sección "Publicaciones" del perfil (BusinessProfileView/
 // ClientProfileView), que reusa PostCard (el mismo diseño de tarjeta que
@@ -94,7 +115,7 @@ export async function getMyBusinessPosts(businessId: string): Promise<PostWithAu
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
+  return attachClientProfiles(data ?? []);
 }
 
 export async function getMyClientPosts(clientId: string): Promise<PostWithAuthor[]> {
@@ -104,7 +125,7 @@ export async function getMyClientPosts(clientId: string): Promise<PostWithAuthor
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
+  return attachClientProfiles(data ?? []);
 }
 
 export interface PublicFeedPageParams {
@@ -139,7 +160,7 @@ export async function getFollowingFeedPage(
 
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
+  return attachClientProfiles(data ?? []);
 }
 
 // Feed público de publicaciones (de cualquier negocio o cliente) -- se usa
@@ -162,13 +183,15 @@ export async function getPublicFeedPage(params: PublicFeedPageParams = {}): Prom
   }
   const { data, error } = await query.limit(params.limit ?? 10);
   if (error) throw error;
-  return (data ?? []) as unknown as PostWithAuthor[];
+  return attachClientProfiles(data ?? []);
 }
 
 export async function getPostById(postId: string): Promise<PostWithAuthor | null> {
   const { data, error } = await supabase.from('posts').select(FEED_SELECT).eq('id', postId).maybeSingle();
   if (error) throw error;
-  return (data ?? null) as unknown as PostWithAuthor | null;
+  if (!data) return null;
+  const [withProfile] = await attachClientProfiles([data]);
+  return withProfile;
 }
 
 export function getPostAuthorName(post: PostWithAuthor): string {
@@ -204,11 +227,15 @@ export interface PostCommentWithAuthor extends PostComment {
 export async function getComments(postId: string): Promise<PostCommentWithAuthor[]> {
   const { data, error } = await supabase
     .from('post_comments')
-    .select('*, users(id, full_name, avatar_url)')
+    .select('*')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as PostCommentWithAuthor[];
+  const comments = (data ?? []) as PostComment[];
+  const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
+  const profiles = await getUsersByIds(authorIds);
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  return comments.map((c) => ({ ...c, users: byId.get(c.author_id) ?? null })) as PostCommentWithAuthor[];
 }
 
 export async function createComment(postId: string, authorId: string, body: string): Promise<PostComment> {

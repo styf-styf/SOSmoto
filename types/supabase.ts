@@ -1520,8 +1520,122 @@ export interface Database {
         };
         Relationships: [];
       };
+      service_reports: {
+        Row: {
+          id: string;
+          business_id: string;
+          client_id: string | null;
+          appointment_id: string | null;
+          help_request_id: string | null;
+          vehicle_id: string | null;
+          vehicle_label: string | null;
+          external_client_name: string | null;
+          service_category: string | null;
+          service_km: number | null;
+          services_performed: string[];
+          parts_used: Record<string, unknown> | null;
+          inspection_checklist: Record<string, unknown> | null;
+          observations: string | null;
+          recommendations: string | null;
+          vehicle_plate: string | null;
+          entry_date: string | null;
+          exit_date: string | null;
+          next_maintenance_km: number | null;
+          next_maintenance_date: string | null;
+          client_confirmed_at: string | null;
+          status: 'draft' | 'sent';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          client_id?: string | null;
+          appointment_id?: string | null;
+          help_request_id?: string | null;
+          vehicle_id?: string | null;
+          vehicle_label?: string | null;
+          external_client_name?: string | null;
+          service_category?: string | null;
+          service_km?: number | null;
+          services_performed?: string[];
+          parts_used?: Record<string, unknown> | null;
+          inspection_checklist?: Record<string, unknown> | null;
+          observations?: string | null;
+          recommendations?: string | null;
+          vehicle_plate?: string | null;
+          entry_date?: string | null;
+          exit_date?: string | null;
+          next_maintenance_km?: number | null;
+          next_maintenance_date?: string | null;
+          client_confirmed_at?: string | null;
+          status?: 'draft' | 'sent';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          client_id?: string | null;
+          appointment_id?: string | null;
+          help_request_id?: string | null;
+          vehicle_id?: string | null;
+          vehicle_label?: string | null;
+          external_client_name?: string | null;
+          service_category?: string | null;
+          service_km?: number | null;
+          services_performed?: string[];
+          parts_used?: Record<string, unknown> | null;
+          inspection_checklist?: Record<string, unknown> | null;
+          observations?: string | null;
+          recommendations?: string | null;
+          vehicle_plate?: string | null;
+          entry_date?: string | null;
+          exit_date?: string | null;
+          next_maintenance_km?: number | null;
+          next_maintenance_date?: string | null;
+          client_confirmed_at?: string | null;
+          status?: 'draft' | 'sent';
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_chat_messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          role: 'user' | 'assistant';
+          content: string;
+          action: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          role: 'user' | 'assistant';
+          content: string;
+          action?: Record<string, unknown> | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          role?: 'user' | 'assistant';
+          content?: string;
+          action?: Record<string, unknown> | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
-    Views: Record<string, never>;
+    Views: {
+      public_profiles: {
+        Row: {
+          id: string;
+          full_name: string;
+          avatar_url: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       find_user_id_by_email: {
         Args: { target_email: string };
@@ -1594,6 +1708,10 @@ export interface Database {
       get_pending_client_names: {
         Args: { target_client_ids: string[] };
         Returns: { id: string; full_name: string; avatar_url: string | null }[];
+      };
+      get_business_ad_metrics: {
+        Args: { target_business_id: string };
+        Returns: { total_impressions: number; total_clicks: number }[];
       };
     };
   };

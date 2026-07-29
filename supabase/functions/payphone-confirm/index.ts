@@ -2,6 +2,18 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { appButton, escapeHtml, sendEmail } from '../_shared/resend.ts';
 
 const PAYPHONE_TOKEN = Deno.env.get('PAYPHONE_TOKEN')!;
+// Único llamador legítimo de esta función es web/api/payphone-return.js
+// (server-side, nunca el navegador ni la app) -- pero ese caller solo tenía
+// la anon key pública como Authorization (necesaria para pasar el gate de
+// plataforma de Supabase, ver check-maintenance), lo que en la práctica
+// significaba que CUALQUIERA con la anon key (viene en el bundle de la app y
+// en el JS del portal web) podía invocar esta función directo con cualquier
+// id/clientTransactionId. No confirma nada gratis (sigue re-verificando con
+// Payphone antes de activar algo), pero permitía enumerar/forzar llamadas
+// pagas a la API de Payphone sin ser el dueño del pago. Se agrega un secreto
+// compartido server-to-server (nunca expuesto al cliente) que solo
+// payphone-return.js conoce.
+const PAYPHONE_CONFIRM_SECRET = Deno.env.get('PAYPHONE_CONFIRM_SECRET')!;
 // Endpoint real de confirmación de la Cajita de Pagos (Payment Box), según
 // la documentación oficial (docs.payphone.app/cajita-de-pagos-payphone) --
 // NO es el mismo que "Botón de Pago por redirección" (pay.../button/V3/Confirm,
@@ -26,6 +38,8 @@ type PaymentRow = {
   plan_id: string | null;
   type: string;
   metadata: Record<string, unknown> | null;
+  amount: number;
+  client_transaction_id: string;
 };
 
 const PLAN_LABEL: Record<string, string> = { free: 'Free', standard: 'Estándar', pro: 'Pro' };
@@ -230,6 +244,10 @@ async function fulfillPayment(
 
 Deno.serve(async (req) => {
   try {
+    if (req.headers.get('x-internal-secret') !== PAYPHONE_CONFIRM_SECRET) {
+      return new Response(JSON.stringify({ error: 'No autorizado' }), { status: 401 });
+    }
+
     const { id, clientTransactionId } = await req.json();
     if (!id || !clientTransactionId) {
       return new Response(JSON.stringify({ error: 'Faltan datos' }), { status: 400 });
@@ -242,7 +260,7 @@ Deno.serve(async (req) => {
 
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .select('id, business_id, plan_id, status, type, metadata')
+      .select('id, business_id, plan_id, status, type, metadata, amount, client_transaction_id')
       .eq('client_transaction_id', clientTransactionId)
       .single();
     if (paymentError || !payment) {
@@ -298,6 +316,33 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, status: confirmData.transactionStatus, confirmData }),
         { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Defensa en profundidad: aunque el `id` numérico que se le pasa a
+    // Payphone ya viene atado a un `clientTransactionId` en SU sistema (no
+    // se puede fabricar un "Approved" para una transacción que no ocurrió),
+    // nada obligaba a que el `id`/clientTransactionId que ESTA función
+    // recibió correspondan de verdad al `payment` local que se está por
+    // activar. Si alguien con el token filtrado (ver web/api/payphone-checkout.js)
+    // llama a esta función con un `id` real y aprobado pero un
+    // `clientTransactionId` de OTRO pago propio pendiente, la respuesta real
+    // de Payphone trae su PROPIO clientTransactionId/amount (confirmados
+    // contra docs.payphone.app/cajita-de-pagos-payphone) -- si no coinciden
+    // con el pago local que se iba a activar, se corta acá.
+    const returnedAmountCents = Math.round(Number(payment.amount) * 100);
+    if (
+      String(confirmData.clientTransactionId) !== payment.client_transaction_id ||
+      Number(confirmData.amount) !== returnedAmountCents
+    ) {
+      console.error('payphone confirm mismatch', {
+        expectedClientTransactionId: payment.client_transaction_id,
+        expectedAmountCents: returnedAmountCents,
+        confirmData,
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: 'La confirmación no corresponde a este pago' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

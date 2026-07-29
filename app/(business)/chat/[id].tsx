@@ -559,7 +559,7 @@ export default function ChatScreen() {
     try {
       let imageUrl: string | undefined;
       if (imageToSend) {
-        imageUrl = await uploadChatImage(imageToSend, profile.id);
+        imageUrl = await uploadChatImage(imageToSend, profile.id, businessId, clientId);
       }
       const message = await sendMessage({
         clientId,

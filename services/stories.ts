@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getUsersByIds } from './users';
 import type { Story, StoryActionType } from '../types/database';
 
 export async function getBusinessStories(businessId: string): Promise<Story[]> {
@@ -105,16 +106,25 @@ export interface ClientStoryWithAuthor extends Story {
 // Feed público de historias de TODOS los clientes (<24h) para la sección
 // "Comunidad" del Inicio -- a diferencia de las de negocio, no depende de
 // seguidos/cercanía.
+// El autor ya NO se resuelve con un join embebido directo a `users` (ver
+// migración 0145) -- ese join dependía de una policy de RLS que daba acceso
+// de FILA completa al autor de la historia, exponiendo también su email/
+// teléfono a cualquier autenticado sin relación real con él. Se resuelve
+// aparte vía la vista pública `public_profiles` (solo nombre/avatar).
 export async function getVisibleClientStories(): Promise<ClientStoryWithAuthor[]> {
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, users!stories_client_id_fkey(id, full_name, avatar_url)')
+    .select('*')
     .not('client_id', 'is', null)
     .gt('created_at', dayAgoIso)
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as ClientStoryWithAuthor[];
+  const stories = (data ?? []) as Story[];
+  const clientIds = Array.from(new Set(stories.map((s) => s.client_id).filter((id): id is string => !!id)));
+  const profiles = await getUsersByIds(clientIds);
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  return stories.map((s) => ({ ...s, users: s.client_id ? (byId.get(s.client_id) ?? null) : null })) as ClientStoryWithAuthor[];
 }
 
 export interface BusinessStoryWithAuthor extends Story {

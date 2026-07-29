@@ -161,19 +161,38 @@ function randomPathSuffix(): string {
   return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
-export async function uploadChatImage(asset: ImagePicker.ImagePickerAsset, senderId: string): Promise<string> {
+// Bucket privado (chat-images-private, no el `public-images` de arriba):
+// una foto de chat es contenido privado entre un cliente y un negocio, no
+// debe quedar accesible por cualquiera que adivine/reciba la URL. La ruta
+// {business_id}/{client_id}/... deja que la policy de storage valide que
+// quien sube/lee sea de verdad parte de esa conversación puntual. Se
+// devuelve una URL firmada de larga duración (no un path crudo) para que
+// las pantallas de chat sigan usando `image_url` tal cual, como con
+// public-images -- no hace falta ningún cambio en la UI.
+const CHAT_IMAGES_BUCKET = 'chat-images-private';
+const CHAT_IMAGE_SIGNED_URL_SECONDS = 60 * 60 * 24 * 365 * 10; // ~10 años
+
+export async function uploadChatImage(
+  asset: ImagePicker.ImagePickerAsset,
+  senderId: string,
+  businessId: string,
+  clientId: string
+): Promise<string> {
   const optimizedUri = await optimizeImage(asset);
   const arrayBuffer = await (await fetch(optimizedUri)).arrayBuffer();
-  const path = `chat-images/${senderId}/${Date.now()}-${randomPathSuffix()}.jpg`;
+  const path = `${businessId}/${clientId}/${senderId}-${Date.now()}-${randomPathSuffix()}.jpg`;
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, arrayBuffer, {
+  const { error } = await supabase.storage.from(CHAT_IMAGES_BUCKET).upload(path, arrayBuffer, {
     contentType: 'image/jpeg',
     upsert: true,
   });
   if (error) throw error;
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const { data, error: signError } = await supabase.storage
+    .from(CHAT_IMAGES_BUCKET)
+    .createSignedUrl(path, CHAT_IMAGE_SIGNED_URL_SECONDS);
+  if (signError || !data) throw signError ?? new Error('No se pudo generar la URL de la imagen.');
+  return data.signedUrl;
 }
 
 // Bucket privado (kyc-documents, no kyc-images): documentos de identidad, no
