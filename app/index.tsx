@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../constants/colors';
-import { consumePendingDeepLink, type PendingDeepLinkKind } from '../utils/pendingDeepLink';
+import { consumePendingDeepLink, consumePendingPaymentResult, type PendingDeepLinkKind } from '../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../utils/deepLinkNavigate';
 
 const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
@@ -66,10 +66,20 @@ export default function Index() {
       return;
     }
     consumePendingDeepLink()
-      .then((pending) => {
+      .then(async (pending) => {
         if (pending) {
           const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
           navigateToDeepLinkTarget(prefix, PENDING_DEEP_LINK_SCREEN[pending.kind], pending.id);
+          setHandledPending(true);
+          return;
+        }
+        // Botón "Volver a SOSmoto" de web/api/payphone-return.js sin sesión
+        // activa en esta app -- ver app/pago-resultado.tsx. Se reingresa a esa
+        // misma pantalla (ya con `profile` cargado) para que resuelva el
+        // destino real (Plan y suscripción/Publicidad) en vez de quedarse acá.
+        const pendingPayment = await consumePendingPaymentResult();
+        if (pendingPayment) {
+          router.replace(`/pago-resultado?tipo=${encodeURIComponent(pendingPayment.tipo)}&ok=${encodeURIComponent(pendingPayment.ok)}`);
           setHandledPending(true);
         }
       })
