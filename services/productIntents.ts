@@ -90,6 +90,15 @@ export async function createProductIntent(
       `${buyerLabel} quiere apartar: ${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`,
       { type: 'product_intent', productId, businessId }
     );
+    // Mismo patrón que appointmentRequests.ts -- deja un rastro permanente en
+    // el historial del chat, a diferencia del banner en vivo que desaparece
+    // en cuanto el intent se resuelve.
+    await supabase.from('messages').insert({
+      client_id: clientId,
+      business_id: businessId,
+      sender_id: clientId,
+      body: `📦 Quiere apartar: ${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`,
+    });
   }
 
   return data as ProductIntent;
@@ -137,6 +146,12 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
         { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id }
       );
     }
+    await supabase.from('messages').insert({
+      client_id: intent.client_id,
+      business_id: intent.business_id,
+      sender_id: intent.client_id,
+      body: `❌ Canceló: ${qtyPrefix}${productName}`,
+    });
   }
 }
 
@@ -210,6 +225,24 @@ export async function updateIntentStatus(
         ? `El negocio indicó que "${productName}" no está disponible en este momento`
         : `La venta de "${productName}" fue cancelada por el negocio`;
     await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id });
+
+    // sender_id debe ser quien está autenticado ahora mismo (RLS de messages
+    // exige sender_id = auth.uid()) -- puede ser el dueño o cualquier
+    // empleado con permiso, nunca asumir que es el dueño.
+    const { data: authData } = await supabase.auth.getUser();
+    const messageBody =
+      status === 'confirmed' ? `✅ Confirmado: ${productName}` :
+      status === 'sold' ? `🎉 Compra confirmada: ${productName}` :
+      status === 'unavailable' ? `⚠️ No disponible: ${productName}` :
+      `❌ Venta cancelada: ${productName}`;
+    if (authData.user) {
+      await supabase.from('messages').insert({
+        client_id: intent.client_id,
+        business_id: intent.business_id,
+        sender_id: authData.user.id,
+        body: messageBody,
+      });
+    }
 
     if (status === 'sold') {
       await notifyUser(

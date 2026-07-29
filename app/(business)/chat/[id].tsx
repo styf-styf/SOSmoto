@@ -43,6 +43,7 @@ import {
 } from '../../../services/productIntents';
 import {
   getPendingServiceIntentsForBusinessClient,
+  subscribeToServiceIntentCancelled,
   updateServiceIntentStatus,
 } from '../../../services/serviceIntents';
 import {
@@ -344,6 +345,26 @@ export default function ChatScreen() {
       (intentId, label) => {
         setIntents((prev) => prev.filter((i) => i.id !== intentId));
         const key = `cancelledintent:${intentId}`;
+        setCancelledBanners((prev) =>
+          prev.some((b) => b.key === key) ? prev : [...prev, { key, label }],
+        );
+      },
+    );
+    return unsubscribe;
+  }, [clientId, businessId, isBuyerMode]);
+
+  // Suscripción a cancelaciones de servicios agendados -- antes esta lista
+  // (serviceIntents) solo se cargaba una vez al abrir el chat, así que una
+  // cancelación del cliente mientras el negocio tenía el chat abierto no se
+  // reflejaba hasta salir y volver a entrar.
+  useEffect(() => {
+    if (!clientId || !businessId || isBuyerMode) return;
+    const unsubscribe = subscribeToServiceIntentCancelled(
+      businessId,
+      clientId,
+      (intentId, label) => {
+        setServiceIntents((prev) => prev.filter((i) => i.id !== intentId));
+        const key = `cancelledsvcintent:${intentId}`;
         setCancelledBanners((prev) =>
           prev.some((b) => b.key === key) ? prev : [...prev, { key, label }],
         );

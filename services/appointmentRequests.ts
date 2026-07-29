@@ -148,6 +148,15 @@ export async function cancelAppointmentRequest(
       type: 'appointment_cancelled',
     });
   }
+  // Mensaje de cierre en el chat -- antes el hilo quedaba "cortado" sin
+  // explicación tras el mensaje inicial de "📅 Solicitud de cita", como si
+  // el negocio nunca hubiera respondido.
+  await supabase.from('messages').insert({
+    client_id: request.client_id,
+    business_id: request.business_id,
+    sender_id: request.client_id,
+    body: '❌ Solicitud de cita cancelada por el cliente.',
+  });
 }
 
 export async function rejectAppointmentRequest(
@@ -159,13 +168,26 @@ export async function rejectAppointmentRequest(
     .eq('id', request.id);
   if (error) throw error;
 
-  // Solo push, sin mensaje en el chat (según el flujo acordado)
   await notifyUser(
     request.client_id,
     'Solicitud de cita rechazada',
     'El taller no pudo aceptar tu solicitud. Intenta con otro horario.',
     { type: 'appointment_rejected' }
   );
+  // Mismo motivo que cancelAppointmentRequest -- cierra el hilo con un
+  // mensaje explícito en vez de dejarlo sin respuesta visible. sender_id debe
+  // ser quien está autenticado ahora mismo (RLS de messages exige
+  // sender_id = auth.uid()) -- puede ser el dueño o cualquier empleado con
+  // permiso, nunca asumir que es el dueño.
+  const { data: authData } = await supabase.auth.getUser();
+  if (authData.user) {
+    await supabase.from('messages').insert({
+      client_id: request.client_id,
+      business_id: request.business_id,
+      sender_id: authData.user.id,
+      body: '❌ El negocio no pudo confirmar tu solicitud de cita.',
+    });
+  }
 }
 
 export async function acceptAppointmentRequest(
@@ -198,17 +220,20 @@ export async function acceptAppointmentRequest(
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', request.business_id)
-    .maybeSingle();
-  await supabase.from('messages').insert({
-    client_id: request.client_id,
-    business_id: request.business_id,
-    sender_id: biz?.owner_id ?? request.business_id,
-    body: `✅ Cita confirmada para el ${dtStr}. Puedes verla en "Mis citas".`,
-  });
+  // sender_id debe ser quien está autenticado ahora mismo (RLS de messages
+  // exige sender_id = auth.uid()) -- si es un empleado (no el dueño) quien
+  // confirma, usar owner_id acá hacía que este insert fallara silenciosamente
+  // por RLS (el error no se capturaba) y la cita quedaba confirmada sin
+  // ningún mensaje de cierre en el chat.
+  const { data: authData } = await supabase.auth.getUser();
+  if (authData.user) {
+    await supabase.from('messages').insert({
+      client_id: request.client_id,
+      business_id: request.business_id,
+      sender_id: authData.user.id,
+      body: `✅ Cita confirmada para el ${dtStr}. Puedes verla en "Mis citas".`,
+    });
+  }
 
   // 4. Notificación push al cliente
   await notifyUser(

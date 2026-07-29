@@ -43,10 +43,16 @@ import {
   getClientProductIntents,
   subscribeToClientProductIntentsForBusiness,
 } from '../../../services/productIntents';
+import {
+  cancelServiceIntent,
+  getClientServiceIntents,
+  subscribeToClientServiceIntentsForBusiness,
+} from '../../../services/serviceIntents';
 import type {
   Business,
   Message,
   ProductIntentWithProduct,
+  ServiceIntentWithService,
 } from '../../../types/database';
 import {
   formatMessageDateLabel,
@@ -95,6 +101,16 @@ export default function ChatScreen() {
     null,
   );
 
+  // Banner de servicios agendados pendientes/confirmados (mismo patrón que
+  // productIntents -- antes no existía en esta pantalla, el cliente no tenía
+  // forma de ver ni cancelar su propio intento de servicio desde el chat).
+  const [serviceIntents, setServiceIntents] = useState<
+    ServiceIntentWithService[]
+  >([]);
+  const [cancellingServiceIntentId, setCancellingServiceIntentId] = useState<
+    string | null
+  >(null);
+
   // IDs de banners que el usuario cerró con la (X) -- solo oculta la tarjeta
   // de la vista, no cancela nada; se resetea si se recarga el chat.
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
@@ -121,6 +137,13 @@ export default function ChatScreen() {
     );
   }, []);
 
+  const loadServiceIntents = useCallback(async (cId: string, bId: string) => {
+    const all = await getClientServiceIntents(bId, cId);
+    setServiceIntents(
+      all.filter((i) => i.status === 'pending' || i.status === 'confirmed'),
+    );
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     resolveThread()
@@ -135,6 +158,7 @@ export default function ChatScreen() {
             setAppointmentRequest,
           ),
           loadProductIntents(thread.clientId, thread.businessId),
+          loadServiceIntents(thread.clientId, thread.businessId),
         ]);
         setMessages(history);
         if (profile) {
@@ -143,7 +167,7 @@ export default function ChatScreen() {
       })
       .catch((err) => console.error('load chat error', err))
       .finally(() => setLoading(false));
-  }, [resolveThread, loadProductIntents]);
+  }, [resolveThread, loadProductIntents, loadServiceIntents]);
 
   // Suscripción a cambios en la solicitud de cita
   useEffect(() => {
@@ -172,6 +196,20 @@ export default function ChatScreen() {
       },
     );
   }, [clientId, businessId, loadProductIntents]);
+
+  // Suscripción a cambios en servicios agendados
+  useEffect(() => {
+    if (!clientId || !businessId) return;
+    return subscribeToClientServiceIntentsForBusiness(
+      clientId,
+      businessId,
+      () => {
+        loadServiceIntents(clientId, businessId).catch((err) =>
+          console.error('reload service intents error', err),
+        );
+      },
+    );
+  }, [clientId, businessId, loadServiceIntents]);
 
   useEffect(() => {
     if (loading || !autoSend || autoSentRef.current) return;
@@ -356,6 +394,35 @@ export default function ChatScreen() {
     );
   }
 
+  async function handleCancelServiceIntent(intentId: string) {
+    if (cancellingServiceIntentId) return;
+    Alert.alert(
+      'Cancelar solicitud',
+      '¿Seguro que quieres cancelar este servicio agendado?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingServiceIntentId(intentId);
+            try {
+              await cancelServiceIntent(intentId);
+              setServiceIntents((prev) =>
+                prev.filter((i) => i.id !== intentId),
+              );
+            } catch (err) {
+              console.error('cancel service intent error', err);
+              Alert.alert('Error', 'No se pudo cancelar la solicitud.');
+            } finally {
+              setCancellingServiceIntentId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -465,6 +532,51 @@ export default function ChatScreen() {
                 disabled={cancellingIntentId === intent.id}
               >
                 {cancellingIntentId === intent.id ? (
+                  <ActivityIndicator size="small" color={colors.danger} />
+                ) : (
+                  <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
+                )}
+              </Pressable>
+            </View>
+          ))}
+
+        {/* Banner: servicios agendados pendientes/confirmados (lado cliente) */}
+        {serviceIntents
+          .filter((intent) => !dismissedBanners.has(`svcintent:${intent.id}`))
+          .map((intent) => (
+            <View key={intent.id} style={styles.requestBanner}>
+              <Pressable
+                style={styles.dismissBannerBtn}
+                onPress={() => dismissBanner(`svcintent:${intent.id}`)}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
+              <View style={styles.requestBannerInfo}>
+                <Ionicons
+                  name="construct-outline"
+                  size={16}
+                  color={colors.primary}
+                />
+                <View style={styles.requestBannerText}>
+                  <Text style={styles.requestBannerTitle}>
+                    {intent.status === 'confirmed'
+                      ? 'Servicio confirmado'
+                      : 'Servicio agendado pendiente'}
+                  </Text>
+                  <Text style={styles.requestBannerSub} numberOfLines={1}>
+                    {intent.service_name}
+                    {intent.service_price != null
+                      ? ` · $${intent.service_price.toFixed(2)}`
+                      : ''}
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                style={styles.cancelRequestBtn}
+                onPress={() => handleCancelServiceIntent(intent.id)}
+                disabled={cancellingServiceIntentId === intent.id}
+              >
+                {cancellingServiceIntentId === intent.id ? (
                   <ActivityIndicator size="small" color={colors.danger} />
                 ) : (
                   <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
