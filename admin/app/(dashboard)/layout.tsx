@@ -5,6 +5,7 @@ import { SignOutButton } from './SignOutButton';
 
 const navItems = [
   { href: '/usuarios', label: 'Usuarios' },
+  { href: '/eliminacion-cuentas', label: 'Eliminación de cuentas' },
   { href: '/kyc', label: 'Verificación (KYC)' },
   { href: '/suscripciones', label: 'Suscripciones' },
   { href: '/promociones', label: 'Promociones' },

@@ -33,26 +33,6 @@ export default function ConfiguracionScreen() {
     }
   }
 
-  function handleDeleteAccount() {
-    Alert.alert(
-      'Eliminar cuenta',
-      'Para eliminar tu cuenta, escríbenos a soporte. Te confirmaremos por correo cuando se complete.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Escribir a soporte',
-          onPress: () => {
-            const subject = encodeURIComponent('Eliminar mi cuenta');
-            const body = encodeURIComponent(`Hola, quiero eliminar mi cuenta (${profile?.email ?? ''}).`);
-            Linking.openURL(`mailto:soporte@sosmoto.net?subject=${subject}&body=${body}`).catch((err) =>
-              console.error('open mail error', err)
-            );
-          },
-        },
-      ]
-    );
-  }
-
   async function handleOpenSettings() {
     try {
       await Linking.openSettings();
@@ -72,6 +52,11 @@ export default function ConfiguracionScreen() {
           badge={profile?.is_limited ? 'Limitado' : undefined}
           badgeDanger={!!profile?.is_limited}
           onPress={() => router.push('/(client)/estado-cuenta')}
+        />
+        <MenuRow
+          icon="trash-outline"
+          label="Eliminar cuenta"
+          onPress={() => router.push('/eliminar-cuenta')}
           last
         />
       </View>
@@ -121,8 +106,6 @@ export default function ConfiguracionScreen() {
         )}
         <Text style={styles.dangerLabel}>{signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}</Text>
       </Pressable>
-
-      {/* Eliminar cuenta — oculto temporalmente */}
     </ScrollView>
   );
 }

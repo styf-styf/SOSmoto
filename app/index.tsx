@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { colors } from '../constants/colors';
 import { consumePendingDeepLink, consumePendingPaymentResult, type PendingDeepLinkKind } from '../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../utils/deepLinkNavigate';
+import { getPendingDeletionRequest } from '../services/accountDeletion';
 
 const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
   post: 'publicacion',
@@ -52,6 +53,17 @@ export default function Index() {
   const { session, profile, loading, sessionAmbiguous, retrySession, profileFetchError, refreshProfile } = useAuth();
   const [pendingChecked, setPendingChecked] = useState(false);
   const [handledPending, setHandledPending] = useState(false);
+  const [hasPendingDeletion, setHasPendingDeletion] = useState(false);
+
+  // Cuenta con una solicitud de eliminación pendiente (ver
+  // app/eliminar-cuenta.tsx / app/cuenta-eliminacion-pendiente.tsx): bloquea
+  // TODA la navegación normal, incluido el SOS, hasta que cancele.
+  useEffect(() => {
+    if (loading || !session || !profile) return;
+    getPendingDeletionRequest(profile.id)
+      .then((existing) => setHasPendingDeletion(!!existing))
+      .catch((err) => console.error('check pending deletion error', err));
+  }, [loading, session, profile]);
 
   // Si el usuario llegó de un link compartido (publicación/anuncio/producto/
   // servicio) sin sesión, app/{post,ad,product,service}/[id].tsx guardó el
@@ -113,6 +125,10 @@ export default function Index() {
 
   if (!session || !profile) {
     return <Redirect href="/(auth)/login" />;
+  }
+
+  if (hasPendingDeletion) {
+    return <Redirect href="/cuenta-eliminacion-pendiente" />;
   }
 
   if (profile.role === 'business') {

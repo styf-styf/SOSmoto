@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -139,28 +138,6 @@ export default function BusinessConfiguracionScreen() {
             } finally {
               setTogglingDeactivated(false);
             }
-          },
-        },
-      ]
-    );
-  }
-
-  function handleDeleteAccount() {
-    Alert.alert(
-      'Eliminar cuenta',
-      'Para eliminar tu cuenta y la de tu negocio, escríbenos a soporte. Te confirmaremos por correo cuando se complete.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Escribir a soporte',
-          onPress: () => {
-            const subject = encodeURIComponent('Eliminar mi cuenta de negocio');
-            const body = encodeURIComponent(
-              `Hola, quiero eliminar mi cuenta y la de mi negocio "${business?.name ?? ''}" (${profile?.email ?? ''}).`
-            );
-            Linking.openURL(`mailto:soporte@sosmoto.net?subject=${subject}&body=${body}`).catch((err) =>
-              console.error('open mail error', err)
-            );
           },
         },
       ]
@@ -355,7 +332,7 @@ export default function BusinessConfiguracionScreen() {
         <MenuRow
           icon="trash-outline"
           label="Eliminar cuenta"
-          onPress={handleDeleteAccount}
+          onPress={() => router.push('/eliminar-cuenta')}
         />
         <MenuRow
           icon="information-circle-outline"

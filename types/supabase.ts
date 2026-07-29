@@ -1625,6 +1625,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      account_deletion_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          reason: string | null;
+          status: 'pending' | 'cancelled' | 'completed';
+          requested_at: string;
+          scheduled_for: string;
+          cancelled_at: string | null;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          reason?: string | null;
+          status?: 'pending' | 'cancelled' | 'completed';
+          requested_at?: string;
+          scheduled_for?: string;
+          cancelled_at?: string | null;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          reason?: string | null;
+          status?: 'pending' | 'cancelled' | 'completed';
+          requested_at?: string;
+          scheduled_for?: string;
+          cancelled_at?: string | null;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       public_profiles: {

@@ -697,6 +697,19 @@ export interface AiChatMessage {
   created_at: string;
 }
 
+export type AccountDeletionStatus = 'pending' | 'cancelled' | 'completed';
+
+export interface AccountDeletionRequest {
+  id: string;
+  user_id: string;
+  reason: string | null;
+  status: AccountDeletionStatus;
+  requested_at: string;
+  scheduled_for: string;
+  cancelled_at: string | null;
+  completed_at: string | null;
+}
+
 export interface ServiceIntentWithService extends ServiceIntent {
   service_name: string;
   service_price: number | null;

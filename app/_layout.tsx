@@ -45,6 +45,8 @@ export default function RootLayout() {
             <Stack.Screen name="product/[id]" />
             <Stack.Screen name="service/[id]" />
             <Stack.Screen name="pago-resultado" />
+            <Stack.Screen name="eliminar-cuenta" options={{ headerShown: true, title: 'Eliminar cuenta' }} />
+            <Stack.Screen name="cuenta-eliminacion-pendiente" />
             <Stack.Screen name="auth-callback" />
             <Stack.Screen name="negocio" />
           </Stack>

@@ -320,3 +320,17 @@ export interface AdminEmailAliasRow {
   label: string;
   created_at: string;
 }
+
+export type AccountDeletionStatus = 'pending' | 'cancelled' | 'completed';
+
+export interface AdminAccountDeletionRequestRow {
+  id: string;
+  user_id: string;
+  reason: string | null;
+  status: AccountDeletionStatus;
+  requested_at: string;
+  scheduled_for: string;
+  cancelled_at: string | null;
+  completed_at: string | null;
+  users: { full_name: string; email: string; role: string } | null;
+}
