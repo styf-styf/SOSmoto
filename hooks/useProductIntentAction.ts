@@ -13,7 +13,7 @@ export function useProductIntentAction<T extends { id: string; status: ProductIn
 ) {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  async function runAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
+  async function runAction(intentId: string, status: ProductIntentStatus) {
     setProcessingId(intentId);
     try {
       await updateIntentStatus(intentId, status);
@@ -26,7 +26,12 @@ export function useProductIntentAction<T extends { id: string; status: ProductIn
     }
   }
 
-  function handleAction(intentId: string, status: 'sold' | 'cancelled_no_show') {
+  // 'confirmed'/'unavailable' resuelven un apartado pendiente (mismo par que
+  // ya existía solo en el banner del chat, sin confirmación -- ver
+  // handleIntentAction en chat/[id].tsx de negocio). Solo cancelar una venta
+  // ya confirmada pide confirmación, por ser la única acción irreversible
+  // sobre algo que el cliente ya daba por hecho.
+  function handleAction(intentId: string, status: ProductIntentStatus) {
     if (status !== 'cancelled_no_show') {
       runAction(intentId, status);
       return;

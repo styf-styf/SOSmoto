@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
+import { usePendingOrders } from '../../../hooks/usePendingOrders';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import type { BusinessType } from '../../../types/database';
 
@@ -37,6 +38,7 @@ function businessTabMetaCacheKey(userId: string) {
 export default function BusinessTabsLayout() {
   const { profile } = useAuth();
   const hasUnreadMessages = useUnreadMessages(profile);
+  const hasPendingOrders = usePendingOrders(profile);
   const insets = useSafeAreaInsets();
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
@@ -140,7 +142,26 @@ export default function BusinessTabsLayout() {
         name="pedidos"
         options={{
           title: 'Pedidos',
-          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <View>
+              <Ionicons name="receipt" size={size} color={color} />
+              {hasPendingOrders && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: colors.sos,
+                    borderWidth: 1.5,
+                    borderColor: '#fff',
+                  }}
+                />
+              )}
+            </View>
+          ),
         }}
       />
       <Tabs.Screen

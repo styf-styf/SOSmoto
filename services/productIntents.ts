@@ -344,6 +344,32 @@ export function subscribeToProductIntentCancelled(
   );
 }
 
+// Para el punto rojo del tab "Pedidos" en la barra inferior -- solo importa
+// si existe AL MENOS UNO pendiente en todo el negocio (no de un cliente en
+// particular), por eso head:true en vez de traer las filas.
+export async function hasPendingProductIntents(businessId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('product_intents')
+    .select('id', { count: 'exact', head: true })
+    .eq('business_id', businessId)
+    .eq('status', 'pending');
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+// Igual que subscribeToClientProductIntentsForBusiness pero sin filtrar por
+// un cliente puntual -- usado por el punto rojo del tab "Pedidos", que debe
+// reaccionar a un apartado nuevo/resuelto de CUALQUIER cliente.
+export function subscribeToBusinessProductIntents(businessId: string, onChange: () => void) {
+  return subscribeToTable<ProductIntent>(
+    `business_product_intents_${businessId}`,
+    'product_intents',
+    '*',
+    `business_id=eq.${businessId}`,
+    onChange
+  );
+}
+
 export async function getBusinessProductIntents(businessId: string): Promise<ProductIntentWithDetails[]> {
   const { data, error } = await supabase
     .from('product_intents')

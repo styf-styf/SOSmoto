@@ -39,6 +39,16 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// La pestaña "Historial" mezcla 3 fuentes distintas (interacciones
+// completadas -- citas y auxilio, ya vienen juntas y ordenadas desde
+// getBusinessHistory -- y compras de producto cerradas) en una sola lista
+// cronológica, en vez de 3 secciones apiladas por separado.
+type HistorialEntry =
+  | { kind: 'interaction'; date: string; data: HistoryItem }
+  | { kind: 'purchase'; date: string; data: ProductIntentWithProduct };
+
+type ClienteTab = 'citas' | 'pedidos' | 'informes' | 'historial';
+
 export default function ClienteDetailScreen() {
   const { id, pending, highlightIntentId } = useLocalSearchParams<{ id: string; pending?: string; highlightIntentId?: string }>();
   const isPending = pending === 'true';
@@ -59,6 +69,7 @@ export default function ClienteDetailScreen() {
   const [isStore, setIsStore] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ClienteTab>('citas');
   const [refreshing, setRefreshing] = useState(false);
   const { processingId: processingIntentId, handleAction: handleIntentAction } = useProductIntentAction(setProductIntents);
   const requestActions = useBusinessAppointmentRequestActions<AppointmentRequest>(setAppointmentRequests);
@@ -128,6 +139,25 @@ export default function ClienteDetailScreen() {
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId, id, isStore]);
+
+  // Tienda nunca tiene citas ni informes -- si la pestaña activa quedó en
+  // alguna de esas (valor inicial por defecto) al resolver que es tienda,
+  // la movemos a "Pedidos" en vez de dejar una pestaña vacía seleccionada.
+  useEffect(() => {
+    if (isStore) setActiveTab((prev) => (prev === 'citas' || prev === 'informes' ? 'pedidos' : prev));
+  }, [isStore]);
+
+  // Si se llegó acá desde "Pedidos" con un apartado puntual a resaltar
+  // (highlightIntentId), hay que abrir la pestaña donde ese apartado vive
+  // realmente -- Pedidos si sigue abierto, Historial si ya se cerró (vendido,
+  // no disponible, cancelado) -- si no, quedaría resaltado en una pestaña
+  // que el usuario nunca ve por defecto.
+  useEffect(() => {
+    if (!highlightIntentId) return;
+    const target = productIntents.find((i) => i.id === highlightIntentId);
+    if (!target) return;
+    setActiveTab(target.status === 'pending' || target.status === 'confirmed' ? 'pedidos' : 'historial');
+  }, [highlightIntentId, productIntents]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -243,6 +273,24 @@ export default function ClienteDetailScreen() {
       </View>
     );
   }
+
+  const openServiceIntents = serviceIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
+  const pastServiceIntents = serviceIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
+  const openProductIntents = productIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
+  const pastProductIntents = productIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
+  const standaloneReports = clientReports.filter((r) => !r.appointment_id && !r.help_request_id);
+  const historialEntries: HistorialEntry[] = [
+    ...history.map((item) => ({ kind: 'interaction' as const, date: item.date, data: item })),
+    ...pastProductIntents.map((item) => ({ kind: 'purchase' as const, date: item.updated_at, data: item })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const citasTabEmpty = appointmentRequests.length === 0 && activeAppointments.length === 0 && serviceIntents.length === 0;
+  // Punto rojo en la pestaña "Citas" -- solo cuando hay algo que requiere que
+  // el negocio actúe (aceptar/rechazar/proponer fecha), no simplemente "hay
+  // citas" (una cita ya confirmada o esperando respuesta del cliente no cuenta).
+  const citasNeedsAction =
+    appointmentRequests.length > 0 ||
+    activeAppointments.some((a) => a.status === 'pending' || (a.status === 'scheduled' && a.proposed_by === 'client')) ||
+    openServiceIntents.some((i) => i.status === 'pending');
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
@@ -388,8 +436,48 @@ export default function ClienteDetailScreen() {
         )}
       </View>
 
-      {/* Solicitudes de cita sin responder -- antes solo se veían en el chat */}
-      {!isStore && appointmentRequests.length > 0 && (
+      {/* Pestañas: Citas (taller) / Pedidos / Informes (taller) / Historial */}
+      <View style={styles.tabsRow}>
+        {!isStore && (
+          <Pressable
+            style={[styles.tabButton, activeTab === 'citas' && styles.tabButtonActive]}
+            onPress={() => setActiveTab('citas')}
+          >
+            <View style={styles.tabButtonLabelRow}>
+              <Text style={[styles.tabButtonText, activeTab === 'citas' && styles.tabButtonTextActive]}>Citas</Text>
+              {citasNeedsAction && <View style={styles.tabDot} />}
+            </View>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.tabButton, activeTab === 'pedidos' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('pedidos')}
+        >
+          <Text style={[styles.tabButtonText, activeTab === 'pedidos' && styles.tabButtonTextActive]}>Pedidos</Text>
+        </Pressable>
+        {!isStore && (
+          <Pressable
+            style={[styles.tabButton, activeTab === 'informes' && styles.tabButtonActive]}
+            onPress={() => setActiveTab('informes')}
+          >
+            <Text style={[styles.tabButtonText, activeTab === 'informes' && styles.tabButtonTextActive]}>Informes</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.tabButton, activeTab === 'historial' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('historial')}
+        >
+          <Text style={[styles.tabButtonText, activeTab === 'historial' && styles.tabButtonTextActive]}>Historial</Text>
+        </Pressable>
+      </View>
+
+      {/* Pestaña Citas: solicitudes de cita sin responder, próximas citas y
+          servicios agendados -- antes las solicitudes solo se veían en el chat */}
+      {activeTab === 'citas' && !isStore && (citasTabEmpty ? (
+        <Text style={styles.placeholder}>Sin citas ni servicios agendados.</Text>
+      ) : (
+        <>
+      {appointmentRequests.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Solicitudes de cita</Text>
           {appointmentRequests.map((request) => (
@@ -478,7 +566,7 @@ export default function ClienteDetailScreen() {
       )}
 
       {/* Próximas citas activas */}
-      {!isStore && activeAppointments.length > 0 && (
+      {activeAppointments.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Próximas citas</Text>
           {activeAppointments.map((apt) => {
@@ -596,11 +684,8 @@ export default function ClienteDetailScreen() {
         </>
       )}
 
-      {/* Servicios agendados -- misma idea que "Apartados de producto" de abajo */}
-      {!isStore && serviceIntents.length > 0 && (() => {
-        const openServiceIntents = serviceIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
-        const pastServiceIntents = serviceIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
-        return (
+      {/* Servicios agendados -- misma idea que "Apartados de producto" */}
+      {serviceIntents.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Servicios agendados</Text>
             {openServiceIntents.length === 0 ? (
@@ -658,17 +743,19 @@ export default function ClienteDetailScreen() {
               </>
             )}
           </>
-        );
-      })()}
+      )}
+        </>
+      ))}
 
-      {/* Informes de servicio (standalone — sin cita ni auxilio vinculado) */}
-      {!isStore && (() => {
-        const standalone = clientReports.filter((r) => !r.appointment_id && !r.help_request_id);
-        if (standalone.length === 0) return null;
-        return (
+      {/* Pestaña Informes: informes de servicio standalone (sin cita ni
+          auxilio vinculado) -- los que sí están ligados a una cita/auxilio
+          se ven desde su tarjeta en la pestaña Historial. */}
+      {activeTab === 'informes' && !isStore && (standaloneReports.length === 0 ? (
+        <Text style={styles.placeholder}>Sin informes registrados.</Text>
+      ) : (
           <>
             <Text style={styles.sectionTitle}>Informes de servicio</Text>
-            {standalone.map((report) => {
+            {standaloneReports.map((report) => {
               const isDraftReport = report.status === 'draft';
               const href = isDraftReport
                 ? `/(business)/nuevo-informe?clientId=${id}&clientName=${encodeURIComponent(client.full_name)}&reportId=${report.id}&appointmentStatus=completed`
@@ -704,21 +791,17 @@ export default function ClienteDetailScreen() {
               );
             })}
           </>
-        );
-      })()}
+      ))}
 
-      {/* Apartados e historial de compras -- siempre para tienda; para taller
-          solo si el cliente tiene al menos un apartado/compra de producto */}
-      {(isStore || productIntents.length > 0) && (() => {
-        const openIntents = productIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
-        const pastIntents = productIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
-        return (
+      {/* Pestaña Pedidos: solo apartados abiertos (pendiente/confirmado) --
+          los cerrados (vendido/no disponible/cancelado) viven en Historial. */}
+      {activeTab === 'pedidos' && (
           <>
             <Text style={styles.sectionTitle}>Apartados pendientes</Text>
-            {openIntents.length === 0 ? (
+            {openProductIntents.length === 0 ? (
               <Text style={styles.placeholder}>Sin apartados activos.</Text>
             ) : (
-              openIntents.map((intent) => (
+              openProductIntents.map((intent) => (
                 <View
                   key={intent.id}
                   style={[styles.historyCard, intent.id === highlightIntentId && styles.historyCardHighlight]}
@@ -735,20 +818,40 @@ export default function ClienteDetailScreen() {
                     {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
                     {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
                   </Text>
-                  {intent.status === 'confirmed' && (
-                    <View style={styles.intentActionsRow}>
-                      <Button
-                        title="Marcar como vendido"
-                        onPress={() => handleIntentAction(intent.id, 'sold')}
+                  {intent.status === 'pending' && (
+                    <View style={styles.circleActionsRow}>
+                      <CircleActionButton
+                        icon="close"
+                        label="No disponible"
+                        color={colors.danger}
+                        onPress={() => handleIntentAction(intent.id, 'unavailable')}
                         loading={processingIntentId === intent.id}
-                        style={styles.flexButton}
                       />
-                      <Button
-                        title="Cancelar venta"
-                        variant="secondary"
+                      <CircleActionButton
+                        icon="checkmark"
+                        label="Confirmar"
+                        color={colors.primary}
+                        onPress={() => handleIntentAction(intent.id, 'confirmed')}
+                        loading={processingIntentId === intent.id}
+                      />
+                    </View>
+                  )}
+                  {intent.status === 'confirmed' && (
+                    <View style={styles.circleActionsRow}>
+                      <CircleActionButton
+                        icon="close"
+                        label="Cancelar venta"
+                        color={colors.danger}
+                        variant="outline"
                         onPress={() => handleIntentAction(intent.id, 'cancelled_no_show')}
                         loading={processingIntentId === intent.id}
-                        style={styles.flexButton}
+                      />
+                      <CircleActionButton
+                        icon="checkmark"
+                        label="Vendido"
+                        color={colors.primary}
+                        onPress={() => handleIntentAction(intent.id, 'sold')}
+                        loading={processingIntentId === intent.id}
                       />
                     </View>
                   )}
@@ -756,42 +859,42 @@ export default function ClienteDetailScreen() {
               ))
             )}
 
-            <Text style={styles.sectionTitle}>Historial de compras</Text>
-            {pastIntents.length === 0 ? (
-              <Text style={styles.placeholder}>Sin compras registradas.</Text>
-            ) : (
-              pastIntents.map((intent) => (
-                <View
-                  key={intent.id}
-                  style={[styles.historyCard, intent.id === highlightIntentId && styles.historyCardHighlight]}
-                >
-                  <View style={styles.historyHeader}>
-                    <View style={[styles.badge, intent.status === 'sold' ? styles.badgeAppt : styles.badgeAid]}>
-                      <Text style={styles.badgeText}>
-                        {intent.status === 'sold' ? 'Vendido' :
-                          intent.status === 'unavailable' ? 'No disponible' :
-                          intent.status === 'cancelled_no_show' ? 'No retirado' : 'Cancelado'}
-                      </Text>
-                    </View>
-                    <Text style={styles.historyDate}>{formatDate(intent.updated_at)}</Text>
-                  </View>
-                  <Text style={styles.historyDesc}>
-                    {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
-                    {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
-                  </Text>
-                </View>
-              ))
-            )}
           </>
-        );
-      })()}
+      )}
 
-      {/* Historial de interacciones */}
-      {!isStore && <Text style={styles.sectionTitle}>Historial contigo</Text>}
-      {!isStore && (history.length === 0 ? (
-        <Text style={styles.placeholder}>Sin interacciones registradas.</Text>
+      {/* Pestaña Historial: interacciones completadas (citas + auxilio, ya
+          vienen mezcladas y ordenadas desde getBusinessHistory) y compras
+          cerradas de producto, todo en una sola lista cronológica. */}
+      {activeTab === 'historial' && (historialEntries.length === 0 ? (
+        <Text style={styles.placeholder}>Sin historial registrado.</Text>
       ) : (
-        history.map((item) => {
+        historialEntries.map((entry) => {
+          if (entry.kind === 'purchase') {
+            const intent = entry.data;
+            return (
+              <View
+                key={`purchase:${intent.id}`}
+                style={[styles.historyCard, intent.id === highlightIntentId && styles.historyCardHighlight]}
+              >
+                <View style={styles.historyHeader}>
+                  <View style={[styles.badge, intent.status === 'sold' ? styles.badgeAppt : styles.badgeAid]}>
+                    <Text style={styles.badgeText}>
+                      {intent.status === 'sold' ? 'Vendido' :
+                        intent.status === 'unavailable' ? 'No disponible' :
+                        intent.status === 'cancelled_no_show' ? 'No retirado' : 'Cancelado'}
+                    </Text>
+                  </View>
+                  <Text style={styles.historyDate}>{formatDate(intent.updated_at)}</Text>
+                </View>
+                <Text style={styles.historyDesc}>
+                  {intent.quantity > 1 ? `${intent.quantity} × ` : ''}{intent.product_name}
+                  {intent.product_price != null ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}` : ''}
+                </Text>
+              </View>
+            );
+          }
+
+          const item = entry.data;
           const rawId = item.id.replace(/^(appt|aid):/, '');
           const isAppt = item.id.startsWith('appt:');
           const isAid = item.id.startsWith('aid:');
@@ -1068,6 +1171,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '600',
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -1,
+  },
+  tabButtonActive: {
+    borderBottomColor: colors.primary,
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  tabButtonTextActive: {
+    color: colors.primary,
+  },
+  tabButtonLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  tabDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.sos,
   },
   vehiclesCard: {
     backgroundColor: colors.surface, borderRadius: 12,

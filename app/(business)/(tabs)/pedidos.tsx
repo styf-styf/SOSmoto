@@ -138,6 +138,24 @@ export default function PedidosScreen() {
               </Pressable>
             )}
 
+            {intent.status === 'pending' && (
+              <View style={styles.actionsRow}>
+                <Button
+                  title="Confirmar apartado"
+                  onPress={() => handleAction(intent.id, 'confirmed')}
+                  loading={processingId === intent.id}
+                  style={styles.flexButton}
+                />
+                <Button
+                  title="No disponible"
+                  variant="secondary"
+                  onPress={() => handleAction(intent.id, 'unavailable')}
+                  loading={processingId === intent.id}
+                  style={styles.flexButton}
+                />
+              </View>
+            )}
+
             {intent.status === 'confirmed' && (
               <View style={styles.actionsRow}>
                 <Button
