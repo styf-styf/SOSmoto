@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ContactActionButtons } from '../../components/ContactActionButtons';
+import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { StatusBadge, type StatusBadgeTone } from '../../components/StatusBadge';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -52,6 +53,8 @@ function formatDateTime(iso: string): string {
 
 interface VehicleForm { brand: string; model: string; year: string; plate: string }
 
+type ClienteExternoTab = 'citas' | 'informes' | 'historial';
+
 export default function ClienteExternoScreen() {
   const { profile } = useAuth();
   const { name, phone } = useLocalSearchParams<{ name: string; phone?: string }>();
@@ -69,6 +72,13 @@ export default function ClienteExternoScreen() {
   // placeholder de nuevo-informe.tsx ("Los informes de servicio son
   // exclusivos de talleres.").
   const [isStore, setIsStore] = useState(false);
+  const [activeTab, setActiveTab] = useState<ClienteExternoTab>('citas');
+
+  // Tienda nunca tiene citas ni informes -- mismo motivo/patrón que
+  // cliente/[id].tsx.
+  useEffect(() => {
+    if (isStore) setActiveTab((prev) => (prev === 'citas' || prev === 'informes' ? 'historial' : prev));
+  }, [isStore]);
 
   // Edit mode
   const [editing, setEditing] = useState(false);
@@ -198,6 +208,10 @@ export default function ClienteExternoScreen() {
 
   const activeApts = (data?.appointments ?? []).filter((a) => ACTIVE_STATUSES.has(a.status));
   const pastApts = (data?.appointments ?? []).filter((a) => !ACTIVE_STATUSES.has(a.status));
+  // Informes sin cita ni auxilio vinculado -- los que sí están ligados a una
+  // cita se ven desde su tarjeta en la pestaña Historial (igual que en
+  // cliente/[id].tsx).
+  const standaloneReports = (data?.reports ?? []).filter((r) => !r.appointment_id);
 
   // ── EDIT MODE ──
   if (editing) {
@@ -362,11 +376,27 @@ export default function ClienteExternoScreen() {
         )}
       </View>
 
-      {/* Próximas citas activas */}
-      {!isStore && activeApts.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Próximas citas</Text>
-          {activeApts.map((apt) => (
+      {/* Pestañas: Citas (taller) / Informes (taller) / Historial -- sin
+          "Pedidos": un cliente externo no tiene cuenta, así que
+          estructuralmente no puede tener apartados de producto
+          (product_intents exige client_id). */}
+      <SegmentedTabs
+        active={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { key: 'citas', label: 'Citas', hidden: isStore },
+          { key: 'informes', label: 'Informes', hidden: isStore },
+          { key: 'historial', label: 'Historial' },
+        ]}
+      />
+
+      {/* Pestaña Citas: solo las que el taller ya agendó -- un externo no
+          puede solicitar nada desde la app (no tiene cuenta). */}
+      {activeTab === 'citas' && !isStore && (
+        activeApts.length === 0 ? (
+          <Text style={styles.placeholder}>Sin citas próximas.</Text>
+        ) : (
+          activeApts.map((apt) => (
             <Pressable
               key={apt.id}
               style={styles.activeAptCard}
@@ -382,66 +412,101 @@ export default function ClienteExternoScreen() {
               {apt.notes && <Text style={styles.aptNotes} numberOfLines={1}>{apt.notes}</Text>}
               <Text style={styles.aptLink}>Ver en agenda →</Text>
             </Pressable>
-          ))}
-        </>
+          ))
+        )
       )}
 
-      {/* Historial de citas (completadas/canceladas) */}
-      <Text style={styles.sectionTitle}>Historial contigo</Text>
-      {pastApts.length === 0 ? (
-        <Text style={styles.placeholder}>Sin interacciones registradas.</Text>
-      ) : (
-        pastApts.map((apt) => {
-          const existingReport = (data?.reports ?? []).find((r) => r.appointment_id === apt.id);
-          const isDraft = existingReport?.status === 'draft';
-          const editHref = `${informeBase}&appointmentId=${apt.id}&appointmentStatus=completed`;
-          const cardPress = apt.status === 'completed'
-            ? existingReport
-              ? isDraft
-                ? () => router.push(editHref as any)
-                : () => router.push(`/(business)/informe/${existingReport.id}`)
-              : () => router.push(editHref as any)
-            : undefined;
-
-          return (
-            <Pressable key={apt.id} style={styles.historyCard} onPress={cardPress}>
-              <View style={styles.historyHeader}>
-                <StatusBadge label={APT_STATUS_LABEL[apt.status] ?? apt.status} tone={aptTone(apt.status)} />
-                {apt.requested_at && (
-                  <Text style={styles.historyDate}>{formatDate(apt.requested_at)}</Text>
-                )}
-              </View>
-              {apt.service_name && (
-                <Text style={styles.historyMeta}>{apt.service_name}</Text>
-              )}
-              {apt.notes && (
-                <Text style={styles.historyDesc} numberOfLines={2}>{apt.notes}</Text>
-              )}
-              {apt.status === 'completed' && (
+      {/* Pestaña Informes: informes standalone (sin cita vinculada) -- antes
+          no se mostraban en ningún lado de este perfil. */}
+      {activeTab === 'informes' && !isStore && (
+        standaloneReports.length === 0 ? (
+          <Text style={styles.placeholder}>Sin informes registrados.</Text>
+        ) : (
+          standaloneReports.map((report) => {
+            const isDraftReport = report.status === 'draft';
+            const href = isDraftReport
+              ? `${informeBase}&reportId=${report.id}&appointmentStatus=completed`
+              : `/(business)/informe/${report.id}`;
+            return (
+              <Pressable key={report.id} style={styles.historyCard} onPress={() => router.push(href as any)}>
+                <View style={styles.historyHeader}>
+                  <StatusBadge label={report.service_category ?? 'Informe'} tone="neutral" />
+                  <Text style={styles.historyDate}>{formatDate(report.created_at)}</Text>
+                </View>
+                {report.vehicle_label && <Text style={styles.historyMeta}>{report.vehicle_label}</Text>}
                 <View style={styles.historyReportBtn}>
-                  {existingReport ? (
-                    isDraft ? (
-                      <>
-                        <Ionicons name="document-text-outline" size={14} color={colors.primary} />
-                        <Text style={styles.historyReportBtnText}>Continuar borrador</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons name="document-text-outline" size={14} color={colors.primary} />
-                        <Text style={styles.historyReportBtnText}>Ver informe</Text>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <Ionicons name="add-circle-outline" size={14} color={colors.primary} />
-                      <Text style={styles.historyReportBtnText}>Crear informe</Text>
-                    </>
+                  <Ionicons
+                    name={isDraftReport ? 'document-text-outline' : 'document-text'}
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.historyReportBtnText}>
+                    {isDraftReport ? 'Continuar borrador' : 'Ver informe'}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })
+        )
+      )}
+
+      {/* Pestaña Historial: citas completadas/canceladas */}
+      {activeTab === 'historial' && (
+        pastApts.length === 0 ? (
+          <Text style={styles.placeholder}>Sin interacciones registradas.</Text>
+        ) : (
+          pastApts.map((apt) => {
+            const existingReport = (data?.reports ?? []).find((r) => r.appointment_id === apt.id);
+            const isDraft = existingReport?.status === 'draft';
+            const editHref = `${informeBase}&appointmentId=${apt.id}&appointmentStatus=completed`;
+            const cardPress = apt.status === 'completed'
+              ? existingReport
+                ? isDraft
+                  ? () => router.push(editHref as any)
+                  : () => router.push(`/(business)/informe/${existingReport.id}`)
+                : () => router.push(editHref as any)
+              : undefined;
+
+            return (
+              <Pressable key={apt.id} style={styles.historyCard} onPress={cardPress}>
+                <View style={styles.historyHeader}>
+                  <StatusBadge label={APT_STATUS_LABEL[apt.status] ?? apt.status} tone={aptTone(apt.status)} />
+                  {apt.requested_at && (
+                    <Text style={styles.historyDate}>{formatDate(apt.requested_at)}</Text>
                   )}
                 </View>
-              )}
-            </Pressable>
-          );
-        })
+                {apt.service_name && (
+                  <Text style={styles.historyMeta}>{apt.service_name}</Text>
+                )}
+                {apt.notes && (
+                  <Text style={styles.historyDesc} numberOfLines={2}>{apt.notes}</Text>
+                )}
+                {apt.status === 'completed' && (
+                  <View style={styles.historyReportBtn}>
+                    {existingReport ? (
+                      isDraft ? (
+                        <>
+                          <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                          <Text style={styles.historyReportBtnText}>Continuar borrador</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+                          <Text style={styles.historyReportBtnText}>Ver informe</Text>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <Ionicons name="add-circle-outline" size={14} color={colors.primary} />
+                        <Text style={styles.historyReportBtnText}>Crear informe</Text>
+                      </>
+                    )}
+                  </View>
+                )}
+              </Pressable>
+            );
+          })
+        )
       )}
     </ScrollView>
   );

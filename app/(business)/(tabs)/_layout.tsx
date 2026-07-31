@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TabIconBadge } from '../../../components/TabIconBadge';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
@@ -143,24 +144,9 @@ export default function BusinessTabsLayout() {
         options={{
           title: 'Pedidos',
           tabBarIcon: ({ color, size }) => (
-            <View>
+            <TabIconBadge showDot={hasPendingOrders}>
               <Ionicons name="receipt" size={size} color={color} />
-              {hasPendingOrders && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: colors.sos,
-                    borderWidth: 1.5,
-                    borderColor: '#fff',
-                  }}
-                />
-              )}
-            </View>
+            </TabIconBadge>
           ),
         }}
       />
@@ -179,24 +165,9 @@ export default function BusinessTabsLayout() {
         options={{
           title: 'Mensajes',
           tabBarIcon: ({ color, size }) => (
-            <View>
+            <TabIconBadge showDot={hasUnreadMessages}>
               <Ionicons name="chatbubble-ellipses" size={size} color={color} />
-              {hasUnreadMessages && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: colors.sos,
-                    borderWidth: 1.5,
-                    borderColor: '#fff',
-                  }}
-                />
-              )}
-            </View>
+            </TabIconBadge>
           ),
         }}
       />

@@ -31,11 +31,6 @@ import {
   updateIntentStatus,
 } from '../../../services/productIntents';
 import {
-  getPendingServiceIntentsForBusinessClient,
-  subscribeToServiceIntentCancelled,
-  updateServiceIntentStatus,
-} from '../../../services/serviceIntents';
-import {
   getActiveAppointmentRequests,
   subscribeToAppointmentRequest,
   type AppointmentRequest,
@@ -44,7 +39,6 @@ import { useBusinessAppointmentRequestActions } from '../../../hooks/useBusiness
 import { getUserById } from '../../../services/users';
 import type {
   ProductIntentWithProduct,
-  ServiceIntentWithService,
   User,
 } from '../../../types/database';
 import {
@@ -93,9 +87,6 @@ export default function ChatScreen() {
   const [quotePrice, setQuotePrice] = useState('');
   const [quoteTime, setQuoteTime] = useState('');
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
-  const [serviceIntents, setServiceIntents] = useState<
-    ServiceIntentWithService[]
-  >([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
 
   // Avisos de cancelación (apartado o cita cancelados por el cliente en
@@ -238,17 +229,13 @@ export default function ChatScreen() {
           return;
         }
 
-        const [history, , , , activeRequests] = await Promise.all([
+        const [history, , , activeRequests] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
           getPendingIntentsForBusinessClient(
             thread.businessId,
             thread.clientId,
           ).then(setIntents),
-          getPendingServiceIntentsForBusinessClient(
-            thread.businessId,
-            thread.clientId,
-          ).then(setServiceIntents),
           getActiveAppointmentRequests(thread.clientId, thread.businessId),
         ]);
         // Si el interlocutor es propietario de un negocio (chat B2B), cargamos
@@ -345,26 +332,6 @@ export default function ChatScreen() {
     return unsubscribe;
   }, [clientId, businessId, isBuyerMode]);
 
-  // Suscripción a cancelaciones de servicios agendados -- antes esta lista
-  // (serviceIntents) solo se cargaba una vez al abrir el chat, así que una
-  // cancelación del cliente mientras el negocio tenía el chat abierto no se
-  // reflejaba hasta salir y volver a entrar.
-  useEffect(() => {
-    if (!clientId || !businessId || isBuyerMode) return;
-    const unsubscribe = subscribeToServiceIntentCancelled(
-      businessId,
-      clientId,
-      (intentId, label) => {
-        setServiceIntents((prev) => prev.filter((i) => i.id !== intentId));
-        const key = `cancelledsvcintent:${intentId}`;
-        setCancelledBanners((prev) =>
-          prev.some((b) => b.key === key) ? prev : [...prev, { key, label }],
-        );
-      },
-    );
-    return unsubscribe;
-  }, [clientId, businessId, isBuyerMode]);
-
   async function handleIntentAction(
     intentId: string,
     status: 'confirmed' | 'unavailable',
@@ -375,25 +342,6 @@ export default function ChatScreen() {
       setIntents((prev) => prev.filter((i) => i.id !== intentId));
     } catch (err) {
       console.error('update intent error', err);
-      Alert.alert(
-        'Error',
-        'No se pudo actualizar el estado. Intenta de nuevo.',
-      );
-    } finally {
-      setProcessingIntent(null);
-    }
-  }
-
-  async function handleServiceIntentAction(
-    intentId: string,
-    status: 'confirmed' | 'unavailable',
-  ) {
-    setProcessingIntent(intentId);
-    try {
-      await updateServiceIntentStatus(intentId, status);
-      setServiceIntents((prev) => prev.filter((i) => i.id !== intentId));
-    } catch (err) {
-      console.error('update service intent error', err);
       Alert.alert(
         'Error',
         'No se pudo actualizar el estado. Intenta de nuevo.',
@@ -439,7 +387,6 @@ export default function ChatScreen() {
 
   const hasBanner =
     intents.some((i) => !dismissedBanners.has(`intent:${i.id}`)) ||
-    serviceIntents.some((i) => !dismissedBanners.has(`svcintent:${i.id}`)) ||
     appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
     cancelledBanners.length > 0;
   const approveDateTime = (() => {
@@ -599,75 +546,6 @@ export default function ChatScreen() {
                       style={[styles.intentBtn, styles.intentBtnReject]}
                       onPress={() =>
                         handleIntentAction(intent.id, 'unavailable')
-                      }
-                      disabled={processingIntent === intent.id}
-                    >
-                      <Text
-                        style={[
-                          styles.intentBtnText,
-                          styles.intentBtnTextReject,
-                        ]}
-                      >
-                        No disponible
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-
-            {/* Intents de servicio */}
-            {serviceIntents
-              .filter(
-                (intent) => !dismissedBanners.has(`svcintent:${intent.id}`),
-              )
-              .map((intent) => (
-                <View key={intent.id} style={styles.intentCard}>
-                  <View style={styles.intentCardTopRow}>
-                    <Pressable
-                      style={styles.dismissBannerBtn}
-                      onPress={() => dismissBanner(`svcintent:${intent.id}`)}
-                    >
-                      <Ionicons
-                        name="close"
-                        size={16}
-                        color={colors.textMuted}
-                      />
-                    </Pressable>
-                    <View style={styles.intentInfo}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={16}
-                        color={colors.primary}
-                      />
-                      <Text style={styles.intentText} numberOfLines={1}>
-                        Quiere agendar:{' '}
-                        <Text style={styles.intentName}>
-                          {intent.service_name}
-                        </Text>
-                        {intent.service_price != null
-                          ? ` · $${intent.service_price.toFixed(2)}`
-                          : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.intentActions}>
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnConfirm]}
-                      onPress={() =>
-                        handleServiceIntentAction(intent.id, 'confirmed')
-                      }
-                      disabled={processingIntent === intent.id}
-                    >
-                      {processingIntent === intent.id ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={styles.intentBtnText}>Confirmar cita</Text>
-                      )}
-                    </Pressable>
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnReject]}
-                      onPress={() =>
-                        handleServiceIntentAction(intent.id, 'unavailable')
                       }
                       disabled={processingIntent === intent.id}
                     >

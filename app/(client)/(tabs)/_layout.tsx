@@ -2,6 +2,7 @@ import { Image, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TabIconBadge } from '../../../components/TabIconBadge';
 import { colors } from '../../../constants/colors';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
 import { useAuth } from '../../../hooks/useAuth';
@@ -70,24 +71,9 @@ export default function ClientTabsLayout() {
         options={{
           title: 'SOS',
           tabBarIcon: ({ size }) => (
-            <View>
+            <TabIconBadge showDot={!!activeRequest}>
               <Ionicons name="alert-circle" size={size + 6} color={colors.sos} />
-              {activeRequest && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: colors.sos,
-                    borderWidth: 1.5,
-                    borderColor: '#fff',
-                  }}
-                />
-              )}
-            </View>
+            </TabIconBadge>
           ),
         }}
       />
@@ -96,24 +82,9 @@ export default function ClientTabsLayout() {
         options={{
           title: 'Mensajes',
           tabBarIcon: ({ color, size }) => (
-            <View>
+            <TabIconBadge showDot={hasUnreadMessages}>
               <Ionicons name="chatbubble-ellipses" size={size} color={color} />
-              {hasUnreadMessages && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: colors.sos,
-                    borderWidth: 1.5,
-                    borderColor: '#fff',
-                  }}
-                />
-              )}
-            </View>
+            </TabIconBadge>
           ),
         }}
       />

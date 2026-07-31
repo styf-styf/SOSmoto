@@ -546,10 +546,17 @@ export async function getClientProfileForBusiness(
 ): Promise<ClientProfileForBusiness | null> {
   const [{ data: user, error: userErr }, { data: ownedBusiness }] = await Promise.all([
     supabase.from('users').select('id, full_name, phone, email, avatar_url').eq('id', clientId).maybeSingle(),
-    supabase.from('businesses').select('id').eq('owner_id', clientId).maybeSingle(),
+    supabase.from('businesses').select('id, logo_url').eq('owner_id', clientId).maybeSingle(),
   ]);
   if (userErr) throw userErr;
   const ownedBusinessId = (ownedBusiness as any)?.id ?? null;
+  // Si esta "persona" compra a nombre de su propio negocio (ej. un taller
+  // comprándole al por mayor a esta tienda) y nunca subió una foto de
+  // perfil personal, su avatar_url queda null -- mismo fallback al logo del
+  // negocio que ya usa la lista de clientes (getCRMClients/
+  // getCRMClientsForStore), que antes faltaba acá: al entrar al perfil, el
+  // avatar que sí se veía en la lista desaparecía.
+  const ownedBusinessLogo = (ownedBusiness as any)?.logo_url ?? null;
 
   if (user) {
     return {
@@ -557,7 +564,7 @@ export async function getClientProfileForBusiness(
       full_name: (user as any).full_name,
       phone: (user as any).phone ?? null,
       email: (user as any).email ?? null,
-      avatar_url: (user as any).avatar_url ?? null,
+      avatar_url: (user as any).avatar_url ?? ownedBusinessLogo,
       ownedBusinessId,
     };
   }
@@ -573,7 +580,7 @@ export async function getClientProfileForBusiness(
     full_name: pending.full_name,
     phone: null,
     email: null,
-    avatar_url: pending.avatar_url,
+    avatar_url: pending.avatar_url ?? ownedBusinessLogo,
     ownedBusinessId,
   };
 }

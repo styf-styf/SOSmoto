@@ -3,9 +3,9 @@ import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, S
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../../components/Button';
 import { CircleActionButton } from '../../../components/CircleActionButton';
 import { ContactActionButtons } from '../../../components/ContactActionButtons';
+import { SegmentedTabs } from '../../../components/SegmentedTabs';
 import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -30,9 +30,8 @@ import { useAppointmentRescheduleActions } from '../../../hooks/useAppointmentRe
 import { getBusinessClientReports, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { getVehicles } from '../../../services/vehicles';
 import { getClientProductIntents } from '../../../services/productIntents';
-import { getClientServiceIntents, updateServiceIntentStatus } from '../../../services/serviceIntents';
 import { getBusinessClientByClientId, upsertClientNotes, type BusinessClientRecord } from '../../../services/businessClients';
-import { formatVehicle, type Vehicle, type ProductIntentWithProduct, type ServiceIntentWithService } from '../../../types/database';
+import { formatVehicle, type Vehicle, type ProductIntentWithProduct } from '../../../types/database';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -60,8 +59,6 @@ export default function ClienteDetailScreen() {
   const [clientReports, setClientReports] = useState<ServiceReportWithBusiness[]>([]);
   const [clientVehicles, setClientVehicles] = useState<Vehicle[]>([]);
   const [productIntents, setProductIntents] = useState<ProductIntentWithProduct[]>([]);
-  const [serviceIntents, setServiceIntents] = useState<ServiceIntentWithService[]>([]);
-  const [processingServiceIntentId, setProcessingServiceIntentId] = useState<string | null>(null);
   const [clientRecord, setClientRecord] = useState<BusinessClientRecord | null>(null);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
@@ -102,11 +99,10 @@ export default function ClienteDetailScreen() {
 
     if (storeType) return;
 
-    const [items, active, requests, svcIntents, reports, vehs] = await Promise.all([
+    const [items, active, requests, reports, vehs] = await Promise.all([
       getBusinessHistory(work.business.id, { clientId: id }),
       getActiveClientAppointments(work.business.id, id),
       getActiveAppointmentRequests(id, work.business.id),
-      getClientServiceIntents(work.business.id, id),
       getBusinessClientReports(work.business.id, id).then(async (rpts) => {
         const { data: biz } = await supabase.from('businesses').select('name').eq('id', work.business.id).maybeSingle();
         return rpts.map((r) => ({ ...r, business_name: (biz as any)?.name ?? '' }));
@@ -116,7 +112,6 @@ export default function ClienteDetailScreen() {
     setHistory(items);
     setActiveAppointments(active);
     setAppointmentRequests(requests);
-    setServiceIntents(svcIntents);
     setClientReports(reports);
     setClientVehicles(vehs);
   }, [profile, id]);
@@ -211,19 +206,6 @@ export default function ClienteDetailScreen() {
     }
   }
 
-  async function handleServiceIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
-    setProcessingServiceIntentId(intentId);
-    try {
-      await updateServiceIntentStatus(intentId, status);
-      setServiceIntents((prev) => prev.map((i) => (i.id === intentId ? { ...i, status } : i)));
-    } catch (err) {
-      console.error('update service intent status error', err);
-      Alert.alert('Error', 'No se pudo actualizar el servicio agendado.');
-    } finally {
-      setProcessingServiceIntentId(null);
-    }
-  }
-
   function startEditingNotes() {
     setNotesDraft(clientRecord?.notes ?? '');
     setEditingNotes(true);
@@ -274,8 +256,6 @@ export default function ClienteDetailScreen() {
     );
   }
 
-  const openServiceIntents = serviceIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
-  const pastServiceIntents = serviceIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
   const openProductIntents = productIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
   const pastProductIntents = productIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
   const standaloneReports = clientReports.filter((r) => !r.appointment_id && !r.help_request_id);
@@ -283,14 +263,13 @@ export default function ClienteDetailScreen() {
     ...history.map((item) => ({ kind: 'interaction' as const, date: item.date, data: item })),
     ...pastProductIntents.map((item) => ({ kind: 'purchase' as const, date: item.updated_at, data: item })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const citasTabEmpty = appointmentRequests.length === 0 && activeAppointments.length === 0 && serviceIntents.length === 0;
+  const citasTabEmpty = appointmentRequests.length === 0 && activeAppointments.length === 0;
   // Punto rojo en la pestaña "Citas" -- solo cuando hay algo que requiere que
   // el negocio actúe (aceptar/rechazar/proponer fecha), no simplemente "hay
   // citas" (una cita ya confirmada o esperando respuesta del cliente no cuenta).
   const citasNeedsAction =
     appointmentRequests.length > 0 ||
-    activeAppointments.some((a) => a.status === 'pending' || (a.status === 'scheduled' && a.proposed_by === 'client')) ||
-    openServiceIntents.some((i) => i.status === 'pending');
+    activeAppointments.some((a) => a.status === 'pending' || (a.status === 'scheduled' && a.proposed_by === 'client'));
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
@@ -437,39 +416,16 @@ export default function ClienteDetailScreen() {
       </View>
 
       {/* Pestañas: Citas (taller) / Pedidos / Informes (taller) / Historial */}
-      <View style={styles.tabsRow}>
-        {!isStore && (
-          <Pressable
-            style={[styles.tabButton, activeTab === 'citas' && styles.tabButtonActive]}
-            onPress={() => setActiveTab('citas')}
-          >
-            <View style={styles.tabButtonLabelRow}>
-              <Text style={[styles.tabButtonText, activeTab === 'citas' && styles.tabButtonTextActive]}>Citas</Text>
-              {citasNeedsAction && <View style={styles.tabDot} />}
-            </View>
-          </Pressable>
-        )}
-        <Pressable
-          style={[styles.tabButton, activeTab === 'pedidos' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('pedidos')}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'pedidos' && styles.tabButtonTextActive]}>Pedidos</Text>
-        </Pressable>
-        {!isStore && (
-          <Pressable
-            style={[styles.tabButton, activeTab === 'informes' && styles.tabButtonActive]}
-            onPress={() => setActiveTab('informes')}
-          >
-            <Text style={[styles.tabButtonText, activeTab === 'informes' && styles.tabButtonTextActive]}>Informes</Text>
-          </Pressable>
-        )}
-        <Pressable
-          style={[styles.tabButton, activeTab === 'historial' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('historial')}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'historial' && styles.tabButtonTextActive]}>Historial</Text>
-        </Pressable>
-      </View>
+      <SegmentedTabs
+        active={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { key: 'citas', label: 'Citas', hidden: isStore, showDot: citasNeedsAction },
+          { key: 'pedidos', label: 'Pedidos' },
+          { key: 'informes', label: 'Informes', hidden: isStore },
+          { key: 'historial', label: 'Historial' },
+        ]}
+      />
 
       {/* Pestaña Citas: solicitudes de cita sin responder, próximas citas y
           servicios agendados -- antes las solicitudes solo se veían en el chat */}
@@ -684,66 +640,6 @@ export default function ClienteDetailScreen() {
         </>
       )}
 
-      {/* Servicios agendados -- misma idea que "Apartados de producto" */}
-      {serviceIntents.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Servicios agendados</Text>
-            {openServiceIntents.length === 0 ? (
-              <Text style={styles.placeholder}>Sin servicios agendados activos.</Text>
-            ) : (
-              openServiceIntents.map((intent) => (
-                <View key={intent.id} style={styles.historyCard}>
-                  <View style={styles.historyHeader}>
-                    <View style={[styles.badge, styles.badgeAppt]}>
-                      <Text style={styles.badgeText}>{intent.status === 'confirmed' ? 'Confirmado' : 'Pendiente'}</Text>
-                    </View>
-                    <Text style={styles.historyDate}>{formatDate(intent.created_at)}</Text>
-                  </View>
-                  <Text style={styles.historyDesc}>
-                    {intent.service_name}
-                    {intent.service_price != null ? ` · $${intent.service_price.toFixed(2)}` : ''}
-                  </Text>
-                  {intent.status === 'pending' && (
-                    <View style={styles.intentActionsRow}>
-                      <Button
-                        title="Confirmar"
-                        onPress={() => handleServiceIntentAction(intent.id, 'confirmed')}
-                        loading={processingServiceIntentId === intent.id}
-                        style={styles.flexButton}
-                      />
-                      <Button
-                        title="No disponible"
-                        variant="secondary"
-                        onPress={() => handleServiceIntentAction(intent.id, 'unavailable')}
-                        loading={processingServiceIntentId === intent.id}
-                        style={styles.flexButton}
-                      />
-                    </View>
-                  )}
-                </View>
-              ))
-            )}
-
-            {pastServiceIntents.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Historial de servicios agendados</Text>
-                {pastServiceIntents.map((intent) => (
-                  <View key={intent.id} style={styles.historyCard}>
-                    <View style={styles.historyHeader}>
-                      <View style={[styles.badge, intent.status === 'unavailable' || intent.status === 'cancelled' ? styles.badgeAid : styles.badgeAppt]}>
-                        <Text style={styles.badgeText}>
-                          {intent.status === 'unavailable' ? 'No disponible' : intent.status === 'cancelled' ? 'Cancelado' : 'Confirmado'}
-                        </Text>
-                      </View>
-                      <Text style={styles.historyDate}>{formatDate(intent.created_at)}</Text>
-                    </View>
-                    <Text style={styles.historyDesc}>{intent.service_name}</Text>
-                  </View>
-                ))}
-              </>
-            )}
-          </>
-      )}
         </>
       ))}
 
@@ -1048,14 +944,6 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
-  flexButton: {
-    flex: 1,
-  },
-  intentActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
   actionBtn: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -1171,43 +1059,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '600',
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    marginBottom: -1,
-  },
-  tabButtonActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  tabButtonTextActive: {
-    color: colors.primary,
-  },
-  tabButtonLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  tabDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.sos,
   },
   vehiclesCard: {
     backgroundColor: colors.surface, borderRadius: 12,

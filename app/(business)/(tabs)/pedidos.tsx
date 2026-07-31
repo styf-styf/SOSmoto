@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { Button } from '../../../components/Button';
+import { CircleActionButton } from '../../../components/CircleActionButton';
 import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -139,37 +139,40 @@ export default function PedidosScreen() {
             )}
 
             {intent.status === 'pending' && (
-              <View style={styles.actionsRow}>
-                <Button
-                  title="Confirmar apartado"
-                  onPress={() => handleAction(intent.id, 'confirmed')}
-                  loading={processingId === intent.id}
-                  style={styles.flexButton}
-                />
-                <Button
-                  title="No disponible"
-                  variant="secondary"
+              <View style={styles.circleActionsRow}>
+                <CircleActionButton
+                  icon="close"
+                  label="No disponible"
+                  color={colors.danger}
                   onPress={() => handleAction(intent.id, 'unavailable')}
                   loading={processingId === intent.id}
-                  style={styles.flexButton}
+                />
+                <CircleActionButton
+                  icon="checkmark"
+                  label="Confirmar"
+                  color={colors.primary}
+                  onPress={() => handleAction(intent.id, 'confirmed')}
+                  loading={processingId === intent.id}
                 />
               </View>
             )}
 
             {intent.status === 'confirmed' && (
-              <View style={styles.actionsRow}>
-                <Button
-                  title="Marcar como vendido"
-                  onPress={() => handleAction(intent.id, 'sold')}
-                  loading={processingId === intent.id}
-                  style={styles.flexButton}
-                />
-                <Button
-                  title="Cancelar venta"
-                  variant="secondary"
+              <View style={styles.circleActionsRow}>
+                <CircleActionButton
+                  icon="close"
+                  label="Cancelar venta"
+                  color={colors.danger}
+                  variant="outline"
                   onPress={() => handleAction(intent.id, 'cancelled_no_show')}
                   loading={processingId === intent.id}
-                  style={styles.flexButton}
+                />
+                <CircleActionButton
+                  icon="checkmark"
+                  label="Vendido"
+                  color={colors.primary}
+                  onPress={() => handleAction(intent.id, 'sold')}
+                  loading={processingId === intent.id}
                 />
               </View>
             )}
@@ -245,12 +248,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
   },
-  actionsRow: {
+  circleActionsRow: {
     flexDirection: 'row',
-    gap: 8,
     marginTop: 12,
-  },
-  flexButton: {
-    flex: 1,
   },
 });
