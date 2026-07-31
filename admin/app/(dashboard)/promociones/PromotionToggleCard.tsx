@@ -120,7 +120,9 @@ export function PromotionToggleCard({
       </div>
 
       {otherPlanIsActive && !isActive && (
-        <p className="mt-2 text-xs text-gray-500">Desactiva la otra promoción activa para poder activar esta.</p>
+        <p className="mt-2 text-xs text-gray-500">
+          Hay una promoción de otro nivel (Estándar/Pro) activa. Desactívala para poder activar esta.
+        </p>
       )}
       {!isActive && !hasDaysSet && (
         <p className="mt-2 text-xs text-gray-500">Guarda los días de duración antes de poder activar la promoción.</p>

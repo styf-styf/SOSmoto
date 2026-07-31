@@ -528,9 +528,15 @@ export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   };
 }
 
-function assertPhotoLimit(photos: string[] | undefined, limits: PlanLimits) {
+// oldCount: cuántas fotos tenía la fila antes de esta escritura. Solo se
+// bloquea si esta escritura AUMENTA la cantidad de fotos por encima del
+// límite -- así un negocio que bajó de plan y quedó con más fotos de las
+// que su plan actual permite puede seguir editando el resto de campos (o
+// incluso quitar fotos) sin quedar bloqueado, mismo criterio que el
+// trigger de backend enforce_photo_limit (0148).
+function assertPhotoLimit(photos: string[] | undefined, limits: PlanLimits, oldCount = 0) {
   if (!photos || limits.maxPhotosPerItem === null) return;
-  if (photos.length > limits.maxPhotosPerItem) {
+  if (photos.length > oldCount && photos.length > limits.maxPhotosPerItem) {
     throw new Error(
       `Tu plan ${limits.planName} permite hasta ${limits.maxPhotosPerItem} foto${limits.maxPhotosPerItem === 1 ? '' : 's'} por producto/servicio. Sube de plan para agregar más.`
     );
@@ -544,8 +550,11 @@ function assertVariantsAllowed(hasVariants: boolean, limits: PlanLimits) {
   throw new Error(`Tu plan ${limits.planName} no incluye variantes de producto. Sube de plan para usarlas.`);
 }
 
-function assertPriceTiersAllowed(priceTiers: unknown[] | null | undefined, limits: PlanLimits) {
-  if (!priceTiers || priceTiers.length === 0 || limits.businessType !== 'store' || limits.allowPriceTiers) return;
+// oldCount: mismo criterio que assertPhotoLimit -- solo bloquea si esta
+// escritura agrega escalones nuevos por encima de los que ya tenía la fila.
+function assertPriceTiersAllowed(priceTiers: unknown[] | null | undefined, limits: PlanLimits, oldCount = 0) {
+  if (!priceTiers || priceTiers.length === 0 || priceTiers.length <= oldCount) return;
+  if (limits.businessType !== 'store' || limits.allowPriceTiers) return;
   throw new Error(`Tu plan ${limits.planName} no incluye precio por volumen. Sube de plan para usarlo.`);
 }
 
@@ -599,8 +608,10 @@ export async function updateService(
   }>
 ): Promise<Service> {
   if (updates.photos) {
-    const { data: current } = await supabase.from('services').select('business_id').eq('id', id).maybeSingle();
-    if (current) assertPhotoLimit(updates.photos, await getPlanLimits(current.business_id));
+    const { data: current } = await supabase.from('services').select('business_id, photos').eq('id', id).maybeSingle();
+    if (current) {
+      assertPhotoLimit(updates.photos, await getPlanLimits(current.business_id), current.photos?.length ?? 0);
+    }
   }
 
   const { data, error } = await supabase.from('services').update(updates).eq('id', id).select().single();
@@ -677,11 +688,17 @@ export async function updateProduct(
   }>
 ): Promise<Product> {
   if (updates.photos || updates.price_tiers) {
-    const { data: current } = await supabase.from('products').select('business_id').eq('id', id).maybeSingle();
+    const { data: current } = await supabase
+      .from('products')
+      .select('business_id, photos, price_tiers')
+      .eq('id', id)
+      .maybeSingle();
     if (current) {
       const limits = await getPlanLimits(current.business_id);
-      if (updates.photos) assertPhotoLimit(updates.photos, limits);
-      if (updates.price_tiers) assertPriceTiersAllowed(updates.price_tiers, limits);
+      if (updates.photos) assertPhotoLimit(updates.photos, limits, current.photos?.length ?? 0);
+      if (updates.price_tiers) {
+        assertPriceTiersAllowed(updates.price_tiers, limits, (current.price_tiers as unknown[] | null)?.length ?? 0);
+      }
     }
   }
 

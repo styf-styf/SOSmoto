@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/requireAdmin';
 import { createAdminClient } from '../../../../lib/supabase/admin';
 
-// Un plan no puede activar su promoción si ya existe otra activa -- el
-// admin debe desactivar la otra primero (no se auto-pausa). Los días de la
-// campaña se fijan por separado (ver /api/promociones/dias) antes de
-// activar; acá solo se prende el toggle usando lo que ya quedó guardado en
-// remaining_days.
+// Un plan no puede activar su promoción si ya existe otra activa de OTRO
+// NIVEL (Estándar mientras Pro está activo, o viceversa) -- el admin debe
+// desactivar esa primero (no se auto-pausa). En cambio, Pro-Taller y
+// Pro-Tienda sí pueden estar activas al mismo tiempo (mismo nivel de plan,
+// dos tipos de negocio) -- mismo criterio que el trigger de backend
+// enforce_single_active_promotion_tier (0149). Los días de la campaña se
+// fijan por separado (ver /api/promociones/dias) antes de activar; acá solo
+// se prende el toggle usando lo que ya quedó guardado en remaining_days.
 export async function POST(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -18,15 +21,22 @@ export async function POST(req: Request) {
 
   const supabase = createAdminClient();
 
-  const { data: otherActive } = await supabase
+  const { data: newPlan } = await supabase.from('subscription_plans').select('name').eq('id', planId).maybeSingle();
+  if (!newPlan) {
+    return NextResponse.json({ error: 'Plan no encontrado' }, { status: 400 });
+  }
+
+  const { data: otherActiveRows } = await supabase
     .from('plan_promotions')
-    .select('id')
+    .select('id, subscription_plans(name)')
     .eq('is_active', true)
-    .neq('plan_id', planId)
-    .maybeSingle();
-  if (otherActive) {
+    .neq('plan_id', planId);
+  const conflicting = (otherActiveRows ?? []).some(
+    (row) => (row.subscription_plans as unknown as { name: string } | null)?.name !== newPlan.name
+  );
+  if (conflicting) {
     return NextResponse.json(
-      { error: 'Ya hay otra promoción activa. Desactívala primero para poder activar esta.' },
+      { error: 'Ya hay una promoción activa de otro plan (Estándar/Pro). Desactívala primero para poder activar esta.' },
       { status: 400 }
     );
   }

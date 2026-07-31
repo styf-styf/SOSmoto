@@ -41,14 +41,20 @@ export default async function PromocionesPage() {
   const beneficiaries = (beneficiariesResult.data ?? []) as unknown as AdminPromotionBeneficiaryRow[];
   const appliesToAll = !!(settingsResult.data as { applies_to_all_businesses: boolean } | null)?.applies_to_all_businesses;
 
-  const activePromotion = promotions.find((p) => p.is_active) ?? null;
+  // Pro-Taller y Pro-Tienda pueden estar activas a la vez (mismo nivel de
+  // plan) -- lo que nunca puede coexistir es Estándar y Pro activos al
+  // mismo tiempo. Con la restricción de un solo nivel activo, todas las
+  // filas activas comparten el mismo nombre, así que basta con el nombre
+  // de la primera para saber "qué nivel está corriendo ahora mismo".
+  const activePlanName = promotions.find((p) => p.is_active)?.subscription_plans?.name ?? null;
 
   return (
     <div>
       <h1 className="mb-1 text-xl font-bold">Promociones</h1>
       <p className="mb-6 text-sm text-gray-500">
-        Regala un plan pago por tiempo limitado a los negocios que se registren mientras la oferta esté activa. Solo
-        puede haber una promoción activa a la vez, y cada negocio puede reclamar una única vez en toda su historia.
+        Regala un plan pago por tiempo limitado a los negocios que se registren mientras la oferta esté activa.
+        Taller y Tienda del mismo nivel (ej. Pro) pueden estar activos a la vez, pero no Estándar y Pro
+        simultáneamente. Cada negocio puede reclamar una única vez en toda su historia.
       </p>
 
       <PromotionScopeToggle appliesToAll={appliesToAll} />
@@ -64,7 +70,7 @@ export default async function PromocionesPage() {
               planName={plan.name}
               businessTypeLabel={BUSINESS_TYPE_LABELS[plan.business_type] ?? plan.business_type}
               isActive={isActive}
-              otherPlanIsActive={!!activePromotion && !isActive}
+              otherPlanIsActive={!!activePlanName && activePlanName !== plan.name && !isActive}
               durationDays={promo?.duration_days ?? null}
               remainingDays={promo ? liveRemainingDays(promo) : null}
             />
