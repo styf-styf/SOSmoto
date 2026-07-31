@@ -54,16 +54,23 @@ async function batchVehicles(ids: string[]): Promise<Map<string, RawVehicle>> {
   return new Map((data ?? []).map((v: any) => [v.id as string, v as RawVehicle]));
 }
 
-// Cuando el "cliente" en el CRM en realidad compra a nombre de su propio
-// negocio (ej. un taller comprándole al por mayor a esta tienda, sin cuenta
-// B2B separada -- compra con su usuario personal), su avatar_url personal
-// suele estar vacío (el dueño configura el logo del negocio, no una foto de
-// perfil personal). Este mapa sirve de respaldo: owner_id -> logo del negocio.
-async function batchOwnedBusinessLogos(ownerIds: string[]): Promise<Map<string, string | null>> {
+interface OwnedBusinessInfo {
+  name: string;
+  logo_url: string | null;
+}
+
+// Cuando el "cliente" en el CRM en realidad es un negocio comprando al por
+// mayor a otro (ej. un taller comprándole a esta tienda -- no existe una
+// cuenta B2B separada, el dueño compra con su usuario personal), esa compra
+// la hizo el NEGOCIO, no el dueño a título personal -- nombre y foto deben
+// ser siempre los del negocio, nunca una mezcla con datos personales
+// (aunque el dueño tenga una foto/nombre personal de cuando era cliente
+// antes de crear el negocio). Este mapa resuelve owner_id -> negocio.
+async function batchOwnedBusinesses(ownerIds: string[]): Promise<Map<string, OwnedBusinessInfo>> {
   if (ownerIds.length === 0) return new Map();
-  const { data, error } = await supabase.from('businesses').select('owner_id, logo_url').in('owner_id', ownerIds);
+  const { data, error } = await supabase.from('businesses').select('owner_id, name, logo_url').in('owner_id', ownerIds);
   if (error) throw error;
-  return new Map((data ?? []).map((b: any) => [b.owner_id as string, b.logo_url ?? null]));
+  return new Map((data ?? []).map((b: any) => [b.owner_id as string, { name: b.name, logo_url: b.logo_url ?? null }]));
 }
 
 export async function getBusinessHistory(
@@ -275,14 +282,14 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
     .map((c: any) => c.client_id as string);
 
   let userMap = new Map<string, any>();
-  let businessLogoMap = new Map<string, string | null>();
+  let ownedBusinessMap = new Map<string, OwnedBusinessInfo>();
   if (appIdsToFetch.length > 0) {
-    const [{ data: users }, logos] = await Promise.all([
+    const [{ data: users }, businesses] = await Promise.all([
       supabase.from('users').select('id, full_name, phone, avatar_url').in('id', appIdsToFetch),
-      batchOwnedBusinessLogos(appIdsToFetch),
+      batchOwnedBusinesses(appIdsToFetch),
     ]);
     userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
-    businessLogoMap = logos;
+    ownedBusinessMap = businesses;
     // RLS ya no deja leer el usuario de una invitación 'pending' sin
     // consentimiento (ver 0130) -- se completa solo el nombre vía la
     // función que nunca expone contacto, para no hacer desaparecer la
@@ -301,11 +308,12 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
       if (!u) continue;
       const status: 'pending' | 'accepted' | 'rejected' = statusMap.get(bc.id) ?? 'accepted';
       const visits = status === 'accepted' ? appVisits.get(bc.client_id) : undefined;
+      const ownedBusiness = ownedBusinessMap.get(bc.client_id);
       results.push({
         id: bc.client_id,
-        full_name: u.full_name,
+        full_name: ownedBusiness?.name ?? u.full_name,
         phone: status === 'pending' ? null : (u.phone ?? null),
-        avatar_url: status === 'pending' ? null : (u.avatar_url ?? businessLogoMap.get(bc.client_id) ?? null),
+        avatar_url: status === 'pending' ? null : (ownedBusiness ? ownedBusiness.logo_url : u.avatar_url ?? null),
         last_visit: visits?.lastVisit ?? bc.created_at,
         total_visits: visits?.total ?? 0,
         is_external: false,
@@ -331,17 +339,18 @@ export async function getCRMClients(businessId: string): Promise<CRMClient[]> {
   // Paso 4: agregar clientes históricos no registrados explícitamente
   const historicalAppIds = [...appVisits.keys()].filter((id) => !addedAppIds.has(id));
   if (historicalAppIds.length > 0) {
-    const [{ data: users }, historicalLogoMap] = await Promise.all([
+    const [{ data: users }, historicalBusinessMap] = await Promise.all([
       supabase.from('users').select('id, full_name, phone, avatar_url').in('id', historicalAppIds),
-      batchOwnedBusinessLogos(historicalAppIds),
+      batchOwnedBusinesses(historicalAppIds),
     ]);
     for (const u of (users ?? []) as any[]) {
       const visits = appVisits.get(u.id)!;
+      const ownedBusiness = historicalBusinessMap.get(u.id);
       results.push({
         id: u.id,
-        full_name: u.full_name,
+        full_name: ownedBusiness?.name ?? u.full_name,
         phone: u.phone ?? null,
-        avatar_url: u.avatar_url ?? historicalLogoMap.get(u.id) ?? null,
+        avatar_url: ownedBusiness ? ownedBusiness.logo_url : u.avatar_url ?? null,
         last_visit: visits.lastVisit,
         total_visits: visits.total,
         is_external: false,
@@ -408,14 +417,14 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
     .map((c: any) => c.client_id as string);
 
   let userMap = new Map<string, any>();
-  let businessLogoMap = new Map<string, string | null>();
+  let ownedBusinessMap = new Map<string, OwnedBusinessInfo>();
   if (appIdsToFetch.length > 0) {
-    const [{ data: users }, logos] = await Promise.all([
+    const [{ data: users }, businesses] = await Promise.all([
       supabase.from('users').select('id, full_name, phone, avatar_url').in('id', appIdsToFetch),
-      batchOwnedBusinessLogos(appIdsToFetch),
+      batchOwnedBusinesses(appIdsToFetch),
     ]);
     userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
-    businessLogoMap = logos;
+    ownedBusinessMap = businesses;
     const missingIds = appIdsToFetch.filter((id: string) => !userMap.has(id));
     if (missingIds.length > 0) {
       const pendingNames = await fetchPendingClientNames(missingIds);
@@ -430,11 +439,12 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
       if (!u) continue;
       const status: 'pending' | 'accepted' | 'rejected' = statusMap.get(bc.id) ?? 'accepted';
       const visits = status === 'accepted' ? purchaseVisits.get(bc.client_id) : undefined;
+      const ownedBusiness = ownedBusinessMap.get(bc.client_id);
       results.push({
         id: bc.client_id,
-        full_name: u.full_name,
+        full_name: ownedBusiness?.name ?? u.full_name,
         phone: status === 'pending' ? null : (u.phone ?? null),
-        avatar_url: status === 'pending' ? null : (u.avatar_url ?? businessLogoMap.get(bc.client_id) ?? null),
+        avatar_url: status === 'pending' ? null : (ownedBusiness ? ownedBusiness.logo_url : u.avatar_url ?? null),
         last_visit: visits?.lastVisit ?? bc.created_at,
         total_visits: visits?.total ?? 0,
         is_external: false,
@@ -456,17 +466,18 @@ export async function getCRMClientsForStore(businessId: string): Promise<CRMClie
 
   const historicalAppIds = [...purchaseVisits.keys()].filter((id) => !addedAppIds.has(id));
   if (historicalAppIds.length > 0) {
-    const [{ data: users }, historicalLogoMap] = await Promise.all([
+    const [{ data: users }, historicalBusinessMap] = await Promise.all([
       supabase.from('users').select('id, full_name, phone, avatar_url').in('id', historicalAppIds),
-      batchOwnedBusinessLogos(historicalAppIds),
+      batchOwnedBusinesses(historicalAppIds),
     ]);
     for (const u of (users ?? []) as any[]) {
       const visits = purchaseVisits.get(u.id)!;
+      const ownedBusiness = historicalBusinessMap.get(u.id);
       results.push({
         id: u.id,
-        full_name: u.full_name,
+        full_name: ownedBusiness?.name ?? u.full_name,
         phone: u.phone ?? null,
-        avatar_url: u.avatar_url ?? historicalLogoMap.get(u.id) ?? null,
+        avatar_url: ownedBusiness ? ownedBusiness.logo_url : u.avatar_url ?? null,
         last_visit: visits.lastVisit,
         total_visits: visits.total,
         is_external: false,
@@ -546,25 +557,25 @@ export async function getClientProfileForBusiness(
 ): Promise<ClientProfileForBusiness | null> {
   const [{ data: user, error: userErr }, { data: ownedBusiness }] = await Promise.all([
     supabase.from('users').select('id, full_name, phone, email, avatar_url').eq('id', clientId).maybeSingle(),
-    supabase.from('businesses').select('id, logo_url').eq('owner_id', clientId).maybeSingle(),
+    supabase.from('businesses').select('id, name, logo_url').eq('owner_id', clientId).maybeSingle(),
   ]);
   if (userErr) throw userErr;
   const ownedBusinessId = (ownedBusiness as any)?.id ?? null;
   // Si esta "persona" compra a nombre de su propio negocio (ej. un taller
-  // comprándole al por mayor a esta tienda) y nunca subió una foto de
-  // perfil personal, su avatar_url queda null -- mismo fallback al logo del
-  // negocio que ya usa la lista de clientes (getCRMClients/
-  // getCRMClientsForStore), que antes faltaba acá: al entrar al perfil, el
-  // avatar que sí se veía en la lista desaparecía.
+  // comprándole al por mayor a esta tienda), esa compra la hizo el NEGOCIO,
+  // no el dueño a título personal -- nombre y foto son siempre los del
+  // negocio, nunca una mezcla con datos personales (aunque el dueño tenga
+  // nombre/foto de cuando era cliente antes de crear el negocio).
+  const ownedBusinessName = (ownedBusiness as any)?.name ?? null;
   const ownedBusinessLogo = (ownedBusiness as any)?.logo_url ?? null;
 
   if (user) {
     return {
       id: (user as any).id,
-      full_name: (user as any).full_name,
+      full_name: ownedBusinessName ?? (user as any).full_name,
       phone: (user as any).phone ?? null,
       email: (user as any).email ?? null,
-      avatar_url: (user as any).avatar_url ?? ownedBusinessLogo,
+      avatar_url: ownedBusinessId ? ownedBusinessLogo : (user as any).avatar_url ?? null,
       ownedBusinessId,
     };
   }
@@ -577,10 +588,10 @@ export async function getClientProfileForBusiness(
   if (!pending) return null;
   return {
     id: clientId,
-    full_name: pending.full_name,
+    full_name: ownedBusinessName ?? pending.full_name,
     phone: null,
     email: null,
-    avatar_url: pending.avatar_url ?? ownedBusinessLogo,
+    avatar_url: ownedBusinessId ? ownedBusinessLogo : pending.avatar_url,
     ownedBusinessId,
   };
 }

@@ -386,22 +386,32 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
     users: { full_name: string; phone: string | null; avatar_url: string | null } | null;
   })[];
 
+  // Si el comprador es dueño de un negocio (ej. un taller comprándole al
+  // por mayor a esta tienda), esa compra la hizo el NEGOCIO, no el dueño a
+  // título personal -- nombre y avatar deben ser siempre los del negocio.
+  // Antes solo el nombre se corregía acá (buyer_business_name); el avatar
+  // seguía mostrando la foto personal del dueño (casi siempre vacía).
   const buyerIds = [...new Set(rows.map((row) => row.client_id))];
-  const buyerBusinessByOwnerId = new Map<string, string>();
+  const buyerBusinessByOwnerId = new Map<string, { name: string; logo_url: string | null }>();
   if (buyerIds.length > 0) {
-    const { data: buyerBusinesses } = await supabase.from('businesses').select('owner_id, name').in('owner_id', buyerIds);
-    (buyerBusinesses ?? []).forEach((b: { owner_id: string; name: string }) => buyerBusinessByOwnerId.set(b.owner_id, b.name));
+    const { data: buyerBusinesses } = await supabase.from('businesses').select('owner_id, name, logo_url').in('owner_id', buyerIds);
+    (buyerBusinesses ?? []).forEach((b: { owner_id: string; name: string; logo_url: string | null }) =>
+      buyerBusinessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url })
+    );
   }
 
-  return rows.map((row) => ({
-    ...row,
-    product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
-    client_name: row.users?.full_name ?? 'Cliente',
-    client_phone: row.users?.phone ?? null,
-    client_avatar_url: row.users?.avatar_url ?? null,
-    buyer_business_name: buyerBusinessByOwnerId.get(row.client_id) ?? null,
-  }));
+  return rows.map((row) => {
+    const buyerBusiness = buyerBusinessByOwnerId.get(row.client_id) ?? null;
+    return {
+      ...row,
+      product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
+      product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
+      client_name: row.users?.full_name ?? 'Cliente',
+      client_phone: row.users?.phone ?? null,
+      client_avatar_url: buyerBusiness ? buyerBusiness.logo_url : row.users?.avatar_url ?? null,
+      buyer_business_name: buyerBusiness?.name ?? null,
+    };
+  });
 }
 
 export async function getClientProductIntents(
