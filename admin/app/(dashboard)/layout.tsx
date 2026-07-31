@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { SignOutButton } from './SignOutButton';
 
 const navItems = [
+  { href: '/inicio', label: 'Inicio' },
   { href: '/usuarios', label: 'Usuarios' },
   { href: '/eliminacion-cuentas', label: 'Eliminación de cuentas' },
   { href: '/kyc', label: 'Verificación (KYC)' },
