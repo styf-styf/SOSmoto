@@ -34,7 +34,7 @@ import {
 } from '../../../services/storage';
 import {
   cancelAppointmentRequest,
-  getActiveAppointmentRequest,
+  getActiveAppointmentRequests,
   subscribeToAppointmentRequest,
   type AppointmentRequest,
 } from '../../../services/appointmentRequests';
@@ -88,10 +88,15 @@ export default function ChatScreen() {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showAttach, setShowAttach] = useState(false);
 
-  // Banner de solicitud de cita
-  const [appointmentRequest, setAppointmentRequest] =
-    useState<AppointmentRequest | null>(null);
-  const [cancellingRequest, setCancellingRequest] = useState(false);
+  // Banner de solicitud de cita -- lista, no un solo valor: el cliente
+  // puede tener más de una solicitud pendiente a la vez con el mismo
+  // negocio (ej. pidió cita para 2 servicios distintos).
+  const [appointmentRequests, setAppointmentRequests] = useState<
+    AppointmentRequest[]
+  >([]);
+  const [cancellingRequestId, setCancellingRequestId] = useState<
+    string | null
+  >(null);
 
   // Banner de apartados de producto pendientes/confirmados
   const [productIntents, setProductIntents] = useState<
@@ -154,9 +159,10 @@ export default function ChatScreen() {
         const [history] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getBusinessById(thread.businessId).then(setBusiness),
-          getActiveAppointmentRequest(thread.clientId, thread.businessId).then(
-            setAppointmentRequest,
-          ),
+          getActiveAppointmentRequests(
+            thread.clientId,
+            thread.businessId,
+          ).then(setAppointmentRequests),
           loadProductIntents(thread.clientId, thread.businessId),
           loadServiceIntents(thread.clientId, thread.businessId),
         ]);
@@ -177,7 +183,14 @@ export default function ChatScreen() {
       businessId,
       'client',
       (req) => {
-        setAppointmentRequest(req.status === 'pending' ? req : null);
+        setAppointmentRequests((prev) => {
+          if (req.status === 'pending') {
+            return prev.some((r) => r.id === req.id)
+              ? prev.map((r) => (r.id === req.id ? req : r))
+              : [...prev, req];
+          }
+          return prev.filter((r) => r.id !== req.id);
+        });
       },
     );
     return unsubscribe;
@@ -238,8 +251,16 @@ export default function ChatScreen() {
         if (message.business_id !== businessId) return;
         setMessages((prev) => {
           if (prev.some((m) => m.id === message.id)) return prev;
-          // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
-          if (message.sender_id === profile?.id) return prev;
+          // Los mensajes propios enviados por handleSend ya se agregaron optimistic
+          // (con un id temp_*) y se reconcilian ahí mismo -- si el realtime los
+          // agregara también, saldrían duplicados mientras dura esa reconciliación.
+          // Pero mensajes propios generados por otro lado (cancelar una solicitud
+          // de cita, que inserta directo en `messages` sin pasar por handleSend)
+          // nunca tienen esa entrada temp -- filtrarlos siempre por sender_id hacía
+          // que ese mensaje no apareciera hasta reabrir la app. Solo se ignora si
+          // hay un envío propio todavía pendiente.
+          const hasPendingOwnSend = message.sender_id === profile?.id && prev.some((m) => m.id.startsWith('temp_'));
+          if (hasPendingOwnSend) return prev;
           return [...prev, message];
         });
         if (profile && message.sender_id !== profile.id) {
@@ -338,8 +359,8 @@ export default function ChatScreen() {
     }
   }
 
-  async function handleCancelRequest() {
-    if (!appointmentRequest || cancellingRequest) return;
+  async function handleCancelRequest(request: AppointmentRequest) {
+    if (cancellingRequestId) return;
     Alert.alert(
       'Cancelar solicitud',
       '¿Seguro que quieres cancelar la solicitud de cita?',
@@ -349,15 +370,17 @@ export default function ChatScreen() {
           text: 'Sí, cancelar',
           style: 'destructive',
           onPress: async () => {
-            setCancellingRequest(true);
+            setCancellingRequestId(request.id);
             try {
-              await cancelAppointmentRequest(appointmentRequest);
-              setAppointmentRequest(null);
+              await cancelAppointmentRequest(request);
+              setAppointmentRequests((prev) =>
+                prev.filter((r) => r.id !== request.id),
+              );
             } catch (err) {
               console.error('cancel request error', err);
               Alert.alert('Error', 'No se pudo cancelar la solicitud.');
             } finally {
-              setCancellingRequest(false);
+              setCancellingRequestId(null);
             }
           },
         },
@@ -450,13 +473,15 @@ export default function ChatScreen() {
       />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
-        {/* Banner: solicitud de cita pendiente (lado cliente) */}
-        {appointmentRequest &&
-          !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
-            <View style={styles.requestBanner}>
+        {/* Banner: solicitudes de cita pendientes (lado cliente) -- puede haber
+            más de una a la vez con el mismo negocio. */}
+        {appointmentRequests
+          .filter((request) => !dismissedBanners.has(`req:${request.id}`))
+          .map((request) => (
+            <View key={request.id} style={styles.requestBanner}>
               <Pressable
                 style={styles.dismissBannerBtn}
-                onPress={() => dismissBanner(`req:${appointmentRequest.id}`)}
+                onPress={() => dismissBanner(`req:${request.id}`)}
               >
                 <Ionicons name="close" size={16} color={colors.textMuted} />
               </Pressable>
@@ -470,11 +495,11 @@ export default function ChatScreen() {
                   <Text style={styles.requestBannerTitle}>
                     Solicitud de cita pendiente
                   </Text>
-                  {appointmentRequest.service_name ? (
+                  {request.service_name ? (
                     <Text style={styles.requestBannerSub} numberOfLines={1}>
-                      {appointmentRequest.service_name}
-                      {appointmentRequest.suggested_at
-                        ? ` · ${new Date(appointmentRequest.suggested_at).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`
+                      {request.service_name}
+                      {request.suggested_at
+                        ? ` · ${new Date(request.suggested_at).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`
                         : ''}
                     </Text>
                   ) : null}
@@ -482,17 +507,17 @@ export default function ChatScreen() {
               </View>
               <Pressable
                 style={styles.cancelRequestBtn}
-                onPress={handleCancelRequest}
-                disabled={cancellingRequest}
+                onPress={() => handleCancelRequest(request)}
+                disabled={cancellingRequestId !== null}
               >
-                {cancellingRequest ? (
+                {cancellingRequestId === request.id ? (
                   <ActivityIndicator size="small" color={colors.danger} />
                 ) : (
                   <Text style={styles.cancelRequestBtnText}>Cancelar</Text>
                 )}
               </Pressable>
             </View>
-          )}
+          ))}
 
         {/* Banner: apartados de producto pendientes/confirmados (lado cliente) */}
         {productIntents

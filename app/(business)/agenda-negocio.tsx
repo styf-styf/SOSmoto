@@ -702,6 +702,10 @@ function statusLabel(a: BusinessAppointment): string {
   if (a.status === 'pending') return 'Sin fecha aún';
   if (a.status === 'scheduled' && a.proposed_by === 'client') return 'Cliente propuso fecha';
   if (a.status === 'scheduled' && a.proposed_by === 'business') return 'Propuesta enviada';
+  // Mismo fallback que citas.tsx (cliente): datos viejos pueden tener
+  // proposed_by null junto con 'scheduled', mostrando el valor crudo del
+  // enum en vez de un texto traducido.
+  if (a.status === 'scheduled') return 'Nueva fecha propuesta';
   if (a.status === 'confirmed') return 'Confirmada';
   if (a.status === 'rejected') return 'Rechazada';
   if (a.status === 'cancelled') return 'Cancelada';

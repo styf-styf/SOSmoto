@@ -17,6 +17,12 @@ import {
   subscribeToClientAppointments,
   type ClientAppointment,
 } from '../../services/appointments';
+import {
+  cancelAppointmentRequest,
+  getClientAppointmentRequests,
+  subscribeToClientAppointmentRequests,
+  type ClientAppointmentRequest,
+} from '../../services/appointmentRequests';
 import { syncAppointmentReminders } from '../../services/appointmentReminders';
 import { getClientReportIdsByAppointments } from '../../services/serviceReports';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,12 +64,14 @@ function AppointmentCard({
 
 interface CitasData {
   appointments: ClientAppointment[];
+  requests: ClientAppointmentRequest[];
   reportIds: Map<string, string>;
 }
 
 export default function CitasScreen() {
   const { profile } = useAuth();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
 
   // Contra-propuesta del cliente
   const [counteringId, setCounteringId] = useState<string | null>(null);
@@ -78,9 +86,10 @@ export default function CitasScreen() {
 
   const cacheKey = profile ? `citas-${profile.id}` : null;
   const { data, loading, reload, setData: setCitasData } = useCachedLoad<CitasData>(cacheKey, async () => {
-    if (!profile) return { appointments: [], reportIds: new Map() };
-    const [result, reportMap] = await Promise.all([
+    if (!profile) return { appointments: [], requests: [], reportIds: new Map() };
+    const [result, requests, reportMap] = await Promise.all([
       getClientAppointments(profile.id),
+      getClientAppointmentRequests(profile.id),
       getClientReportIdsByAppointments(profile.id),
     ]);
     // Sincronizar recordatorios locales con las citas vigentes
@@ -93,16 +102,40 @@ export default function CitasScreen() {
         serviceName: a.service_name,
       }))
     ).catch((err) => console.warn('sync reminders error', err));
-    return { appointments: result, reportIds: reportMap };
+    return { appointments: result, requests, reportIds: reportMap };
   });
   const appointments = data?.appointments ?? [];
+  const requests = data?.requests ?? [];
   const reportIds = data?.reportIds ?? new Map<string, string>();
 
   function setAppointments(updater: (prev: ClientAppointment[]) => ClientAppointment[]) {
     setCitasData((prev) => ({
       appointments: updater(prev?.appointments ?? []),
+      requests: prev?.requests ?? [],
       reportIds: prev?.reportIds ?? new Map(),
     }));
+  }
+
+  function setRequests(updater: (prev: ClientAppointmentRequest[]) => ClientAppointmentRequest[]) {
+    setCitasData((prev) => ({
+      appointments: prev?.appointments ?? [],
+      requests: updater(prev?.requests ?? []),
+      reportIds: prev?.reportIds ?? new Map(),
+    }));
+  }
+
+  async function handleCancelRequest(request: ClientAppointmentRequest) {
+    if (cancellingRequestId) return;
+    setCancellingRequestId(request.id);
+    try {
+      await cancelAppointmentRequest(request);
+      setRequests((prev) => prev.filter((r) => r.id !== request.id));
+    } catch (err) {
+      console.error('cancel appointment request error', err);
+      Alert.alert('Error', 'No se pudo cancelar la solicitud. Intenta de nuevo.');
+    } finally {
+      setCancellingRequestId(null);
+    }
   }
 
   async function handleRefresh() {
@@ -121,6 +154,17 @@ export default function CitasScreen() {
     // Un cambio real notificado por el servidor SÍ amerita recargar (no es
     // un "por si acaso" al revisitar la pantalla, es un cambio confirmado).
     const unsubscribe = subscribeToClientAppointments(profile.id, () => {
+      reload().catch((err) => console.error('reload citas error', err));
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
+
+  // Solicitudes (appointment_requests, todavía sin fila en appointments) --
+  // suscripción aparte porque viven en una tabla distinta.
+  useEffect(() => {
+    if (!profile) return;
+    const unsubscribe = subscribeToClientAppointmentRequests(profile.id, () => {
       reload().catch((err) => console.error('reload citas error', err));
     });
     return unsubscribe;
@@ -225,6 +269,32 @@ export default function CitasScreen() {
         <Text style={styles.headerTitle}>Tus citas</Text>
         <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona el flujo de citas" size={20} />
       </View>
+
+      {requests.length > 0 && (
+        <View style={styles.requestsSection}>
+          <Text style={styles.sectionTitle}>Solicitudes enviadas</Text>
+          {requests.map((request) => (
+            <View key={request.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{request.business_name}</Text>
+                <StatusBadge label="Esperando respuesta del taller" tone="pending" />
+              </View>
+              {request.service_name && <Text style={styles.cardMeta}>{request.service_name}</Text>}
+              {request.notes && <Text style={styles.cardMeta}>{request.notes}</Text>}
+              <View style={styles.circleActionsRow}>
+                <CircleActionButton
+                  icon="close"
+                  label="Cancelar solicitud"
+                  color={colors.danger}
+                  onPress={() => handleCancelRequest(request)}
+                  loading={cancellingRequestId === request.id}
+                  disabled={cancellingRequestId !== null && cancellingRequestId !== request.id}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       <AppointmentCalendar
         appointments={appointments}
@@ -446,7 +516,8 @@ export default function CitasScreen() {
         <InfoStep number={1} title="Pides una cita">
           <Text style={infoTextStyles.text}>
             Desde el perfil del taller, eliges el servicio y, si quieres, sugieres fecha y hora. Se abre un chat con
-            el taller donde queda registrada tu solicitud.
+            el taller donde queda registrada tu solicitud, y aparece acá arriba en "Solicitudes enviadas" mientras
+            esperas respuesta.
           </Text>
         </InfoStep>
 
@@ -492,6 +563,11 @@ function statusLabel(a: ClientAppointment): string {
   if (a.status === 'pending') return 'Esperando fecha del taller';
   if (a.status === 'scheduled' && a.proposed_by === 'business') return 'El taller propuso una fecha';
   if (a.status === 'scheduled' && a.proposed_by === 'client') return 'Propuesta enviada';
+  // proposed_by debería ser siempre 'business' o 'client' junto con
+  // 'scheduled' (lo fija proposeDate()), pero datos viejos de prueba lo
+  // dejaron en null -- sin este fallback se mostraba el valor crudo del
+  // enum ("scheduled") en la tarjeta en vez de un texto traducido.
+  if (a.status === 'scheduled') return 'Nueva fecha propuesta';
   if (a.status === 'confirmed') return 'Confirmada';
   if (a.status === 'rejected') return 'Rechazada';
   if (a.status === 'cancelled') return 'Cancelada';
@@ -534,6 +610,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+  },
+  requestsSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
   },
   card: {
     backgroundColor: colors.surface,

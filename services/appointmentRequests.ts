@@ -16,6 +16,45 @@ export interface AppointmentRequest {
   created_at: string;
 }
 
+export interface ClientAppointmentRequest extends AppointmentRequest {
+  business_name: string;
+}
+
+// Para "Mis citas": mientras una solicitud está pending nunca existió una
+// fila en `appointments` (esa solo se crea al aceptar, ver
+// acceptAppointmentRequest), así que sin esto el cliente no tenía forma de
+// ver "esperando respuesta del taller" en un solo lugar centralizado. Solo
+// 'pending' a propósito -- igual que la página de servicio (de donde viene
+// la solicitud), rejected/cancelled no se quedan mostrando como historial
+// ahí tampoco, el cliente ya se entera por el chat en el momento.
+export async function getClientAppointmentRequests(clientId: string): Promise<ClientAppointmentRequest[]> {
+  const { data, error } = await supabase
+    .from('appointment_requests')
+    .select('*, businesses(name)')
+    .eq('client_id', clientId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    business_name: row.businesses?.name ?? '',
+  })) as ClientAppointmentRequest[];
+}
+
+export function subscribeToClientAppointmentRequests(clientId: string, onChange: () => void) {
+  const channel = supabase
+    .channel(`client_appointment_requests_${clientId}_${Math.random().toString(36).slice(2)}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'appointment_requests', filter: `client_id=eq.${clientId}` },
+      onChange
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
 export interface CreateAppointmentRequestParams {
   clientId: string;
   businessId: string;
@@ -88,24 +127,30 @@ export async function createAppointmentRequest(
   return request;
 }
 
-export async function getActiveAppointmentRequest(
+// Devuelve TODAS las solicitudes pendientes entre este cliente y este
+// negocio -- antes había una versión "singular" (limit 1) que asumía que
+// nunca habría más de una solicitud pendiente a la vez. Si el cliente
+// agenda dos o más servicios seguidos con el mismo taller antes de que
+// respondan, esa versión solo mostraba la última y la suscripción en
+// tiempo real sobrescribía el estado en vez de acumularlo -- el banner del
+// chat se veía "montado"/cortado y, al aceptar una, la otra desaparecía
+// hasta cerrar y volver a abrir el chat.
+export async function getActiveAppointmentRequests(
   clientId: string,
   businessId: string
-): Promise<AppointmentRequest | null> {
+): Promise<AppointmentRequest[]> {
   const { data, error } = await supabase
     .from('appointment_requests')
     .select('*')
     .eq('client_id', clientId)
     .eq('business_id', businessId)
     .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
   if (error) throw error;
-  return data as unknown as AppointmentRequest | null;
+  return (data ?? []) as unknown as AppointmentRequest[];
 }
 
-// Para la página de servicio: a diferencia de getActiveAppointmentRequest
+// Para la página de servicio: a diferencia de getActiveAppointmentRequests
 // (solo 'pending', usada por el banner del chat), acá también incluimos
 // 'accepted' para poder mostrar el estado "Cita confirmada" igual que
 // product_intents muestra "Apartado confirmado".

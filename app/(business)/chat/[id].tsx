@@ -48,7 +48,7 @@ import {
 } from '../../../services/serviceIntents';
 import {
   acceptAppointmentRequest,
-  getActiveAppointmentRequest,
+  getActiveAppointmentRequests,
   rejectAppointmentRequest,
   subscribeToAppointmentRequest,
   type AppointmentRequest,
@@ -142,11 +142,25 @@ export default function ChatScreen() {
     { key: string; label: string }[]
   >([]);
 
-  // Solicitud de cita pendiente
-  const [appointmentRequest, setAppointmentRequest] =
-    useState<AppointmentRequest | null>(null);
-  const [processingRequest, setProcessingRequest] = useState(false);
-  const [showApproveForm, setShowApproveForm] = useState(false);
+  // Solicitudes de cita pendientes -- lista, no un solo valor: el cliente
+  // puede tener más de una solicitud pendiente a la vez con este negocio
+  // (ej. pidió cita para 2 servicios distintos antes de que el negocio
+  // respondiera). Antes con un solo valor la segunda sobrescribía a la
+  // primera en la suscripción en tiempo real, y al aceptar/rechazar se
+  // perdía por completo hasta cerrar y volver a abrir el chat.
+  const [appointmentRequests, setAppointmentRequests] = useState<
+    AppointmentRequest[]
+  >([]);
+  const [processingRequestId, setProcessingRequestId] = useState<
+    string | null
+  >(null);
+  // id de la solicitud cuyo formulario de "confirmar fecha" está abierto
+  // (null = ninguno). Solo puede haber uno abierto a la vez.
+  const [approvingRequestId, setApprovingRequestId] = useState<string | null>(
+    null,
+  );
+  const approvingRequest =
+    appointmentRequests.find((r) => r.id === approvingRequestId) ?? null;
   const [approvePickerDate, setApprovePickerDate] = useState<Date>(new Date());
   const [approvePickerTime, setApprovePickerTime] = useState<Date>(new Date());
   const [showApproveDatePicker, setShowApproveDatePicker] = useState(false);
@@ -242,7 +256,7 @@ export default function ChatScreen() {
           return;
         }
 
-        const [history, , , , activeRequest] = await Promise.all([
+        const [history, , , , activeRequests] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
           getPendingIntentsForBusinessClient(
@@ -253,7 +267,7 @@ export default function ChatScreen() {
             thread.businessId,
             thread.clientId,
           ).then(setServiceIntents),
-          getActiveAppointmentRequest(thread.clientId, thread.businessId),
+          getActiveAppointmentRequests(thread.clientId, thread.businessId),
         ]);
         // Si el interlocutor es propietario de un negocio (chat B2B), cargamos
         // el negocio para mostrar su nombre y logo en el header en lugar de los
@@ -278,12 +292,7 @@ export default function ChatScreen() {
             () => {},
           );
         setMessages(history);
-        if (activeRequest) {
-          setAppointmentRequest(activeRequest);
-          const prefill = defaultApproveDate(activeRequest.suggested_at);
-          setApprovePickerDate(prefill);
-          setApprovePickerTime(prefill);
-        }
+        setAppointmentRequests(activeRequests);
         if (profile) {
           await markThreadRead(thread.clientId, thread.businessId, profile.id);
         }
@@ -314,13 +323,14 @@ export default function ChatScreen() {
       'business',
       (req) => {
         if (req.status === 'pending') {
-          setAppointmentRequest(req);
-          const prefill = defaultApproveDate(req.suggested_at);
-          setApprovePickerDate(prefill);
-          setApprovePickerTime(prefill);
+          setAppointmentRequests((prev) =>
+            prev.some((r) => r.id === req.id)
+              ? prev.map((r) => (r.id === req.id ? req : r))
+              : [...prev, req],
+          );
         } else {
-          setAppointmentRequest(null);
-          setShowApproveForm(false);
+          setAppointmentRequests((prev) => prev.filter((r) => r.id !== req.id));
+          setApprovingRequestId((prev) => (prev === req.id ? null : prev));
           if (req.status === 'cancelled') {
             const key = `cancelledreq:${req.id}`;
             setCancelledBanners((prev) =>
@@ -382,8 +392,16 @@ export default function ChatScreen() {
         if (message.client_id !== clientId) return;
         setMessages((prev) => {
           if (prev.some((m) => m.id === message.id)) return prev;
-          // mensajes propios se gestionan en handleSend (optimistic), el realtime los ignora
-          if (message.sender_id === profile?.id) return prev;
+          // Los mensajes propios enviados por handleSend ya se agregaron optimistic
+          // (con un id temp_*) y se reconcilian ahí mismo -- si el realtime los
+          // agregara también, saldrían duplicados mientras dura esa reconciliación.
+          // Pero mensajes propios generados por otro lado (aceptar/rechazar una
+          // solicitud de cita, que insertan directo en `messages` sin pasar por
+          // handleSend) nunca tienen esa entrada temp -- filtrarlos siempre por
+          // sender_id hacía que ese mensaje de confirmación no apareciera hasta
+          // reabrir la app. Solo se ignora si hay un envío propio todavía pendiente.
+          const hasPendingOwnSend = message.sender_id === profile?.id && prev.some((m) => m.id.startsWith('temp_'));
+          if (hasPendingOwnSend) return prev;
           return [...prev, message];
         });
         if (profile && message.sender_id !== profile.id) {
@@ -447,20 +465,19 @@ export default function ChatScreen() {
     }
   }
 
-  function openApproveForm() {
-    if (!appointmentRequest) return;
-    const prefill = defaultApproveDate(appointmentRequest.suggested_at);
+  function openApproveForm(request: AppointmentRequest) {
+    const prefill = defaultApproveDate(request.suggested_at);
     setApprovePickerDate(prefill);
     setApprovePickerTime(prefill);
     setShowApproveDatePicker(false);
     setShowApproveTimePicker(false);
     setShowQuoteForm(false);
     setShowQuickReplies(false);
-    setShowApproveForm(true);
+    setApprovingRequestId(request.id);
   }
 
-  async function handleAcceptRequest() {
-    if (!appointmentRequest || processingRequest) return;
+  async function handleAcceptRequest(request: AppointmentRequest) {
+    if (processingRequestId) return;
     const dt = new Date(approvePickerDate);
     dt.setHours(
       approvePickerTime.getHours(),
@@ -472,10 +489,10 @@ export default function ChatScreen() {
       Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
       return;
     }
-    setProcessingRequest(true);
+    setProcessingRequestId(request.id);
     try {
       const newAppointment = await acceptAppointmentRequest(
-        appointmentRequest,
+        request,
         dt.toISOString(),
       );
       // Recordatorio local para el taller
@@ -483,20 +500,20 @@ export default function ChatScreen() {
         appointmentId: newAppointment.id,
         scheduledAt: dt.toISOString(),
         clientLabel: client?.full_name ?? 'Cliente',
-        serviceName: appointmentRequest.service_name ?? undefined,
+        serviceName: request.service_name ?? undefined,
       });
-      setAppointmentRequest(null);
-      setShowApproveForm(false);
+      setAppointmentRequests((prev) => prev.filter((r) => r.id !== request.id));
+      setApprovingRequestId((prev) => (prev === request.id ? null : prev));
     } catch (err) {
       console.error('accept request error', err);
       Alert.alert('Error', 'No se pudo confirmar la cita. Intenta de nuevo.');
     } finally {
-      setProcessingRequest(false);
+      setProcessingRequestId(null);
     }
   }
 
-  async function handleRejectRequest() {
-    if (!appointmentRequest || processingRequest) return;
+  async function handleRejectRequest(request: AppointmentRequest) {
+    if (processingRequestId) return;
     Alert.alert(
       'Rechazar solicitud',
       '¿Seguro que quieres rechazar esta solicitud de cita?',
@@ -506,16 +523,20 @@ export default function ChatScreen() {
           text: 'Sí, rechazar',
           style: 'destructive',
           onPress: async () => {
-            setProcessingRequest(true);
+            setProcessingRequestId(request.id);
             try {
-              await rejectAppointmentRequest(appointmentRequest);
-              setAppointmentRequest(null);
-              setShowApproveForm(false);
+              await rejectAppointmentRequest(request);
+              setAppointmentRequests((prev) =>
+                prev.filter((r) => r.id !== request.id),
+              );
+              setApprovingRequestId((prev) =>
+                prev === request.id ? null : prev,
+              );
             } catch (err) {
               console.error('reject request error', err);
               Alert.alert('Error', 'No se pudo rechazar la solicitud.');
             } finally {
-              setProcessingRequest(false);
+              setProcessingRequestId(null);
             }
           },
         },
@@ -531,7 +552,7 @@ export default function ChatScreen() {
         setPendingImage(asset);
         setShowQuickReplies(false);
         setShowQuoteForm(false);
-        setShowApproveForm(false);
+        setApprovingRequestId(null);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -547,7 +568,7 @@ export default function ChatScreen() {
         setPendingImage(asset);
         setShowQuickReplies(false);
         setShowQuoteForm(false);
-        setShowApproveForm(false);
+        setApprovingRequestId(null);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -636,8 +657,7 @@ export default function ChatScreen() {
   const hasBanner =
     intents.some((i) => !dismissedBanners.has(`intent:${i.id}`)) ||
     serviceIntents.some((i) => !dismissedBanners.has(`svcintent:${i.id}`)) ||
-    (appointmentRequest !== null &&
-      !dismissedBanners.has(`req:${appointmentRequest.id}`)) ||
+    appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
     cancelledBanners.length > 0;
   const approveDateTime = (() => {
     const dt = new Date(approvePickerDate);
@@ -666,16 +686,16 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
           <View style={styles.intentsBanner}>
-            {/* Banner de solicitud de cita (lado taller) */}
-            {appointmentRequest &&
-              !dismissedBanners.has(`req:${appointmentRequest.id}`) && (
-                <View style={styles.intentCard}>
+            {/* Banners de solicitudes de cita (lado taller) -- puede haber
+                más de una a la vez del mismo cliente. */}
+            {appointmentRequests
+              .filter((request) => !dismissedBanners.has(`req:${request.id}`))
+              .map((request) => (
+                <View key={request.id} style={styles.intentCard}>
                   <View style={styles.intentCardTopRow}>
                     <Pressable
                       style={styles.dismissBannerBtn}
-                      onPress={() =>
-                        dismissBanner(`req:${appointmentRequest.id}`)
-                      }
+                      onPress={() => dismissBanner(`req:${request.id}`)}
                     >
                       <Ionicons
                         name="close"
@@ -693,39 +713,37 @@ export default function ChatScreen() {
                         <Text style={styles.intentText} numberOfLines={1}>
                           Solicitud de cita:{' '}
                           <Text style={styles.intentName}>
-                            {appointmentRequest.service_name ??
+                            {request.service_name ??
                               'Sin servicio especificado'}
                           </Text>
                         </Text>
-                        {appointmentRequest.suggested_at ? (
+                        {request.suggested_at ? (
                           <Text style={styles.requestSub}>
                             Fecha sugerida:{' '}
-                            {new Date(
-                              appointmentRequest.suggested_at,
-                            ).toLocaleString('es-EC', {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })}
+                            {new Date(request.suggested_at).toLocaleString(
+                              'es-EC',
+                              { dateStyle: 'medium', timeStyle: 'short' },
+                            )}
                           </Text>
                         ) : null}
                       </View>
                     </View>
                   </View>
-                  {!showApproveForm && (
+                  {approvingRequestId !== request.id && (
                     <View style={styles.intentActions}>
                       <Pressable
                         style={[styles.intentBtn, styles.intentBtnConfirm]}
-                        onPress={openApproveForm}
-                        disabled={processingRequest}
+                        onPress={() => openApproveForm(request)}
+                        disabled={processingRequestId !== null}
                       >
                         <Text style={styles.intentBtnText}>Aceptar</Text>
                       </Pressable>
                       <Pressable
                         style={[styles.intentBtn, styles.intentBtnReject]}
-                        onPress={handleRejectRequest}
-                        disabled={processingRequest}
+                        onPress={() => handleRejectRequest(request)}
+                        disabled={processingRequestId !== null}
                       >
-                        {processingRequest ? (
+                        {processingRequestId === request.id ? (
                           <ActivityIndicator
                             size="small"
                             color={colors.danger}
@@ -744,7 +762,7 @@ export default function ChatScreen() {
                     </View>
                   )}
                 </View>
-              )}
+              ))}
 
             {/* Intents de producto */}
             {intents
@@ -1107,14 +1125,14 @@ export default function ChatScreen() {
             )}
 
             {/* Formulario de confirmación de fecha al aceptar solicitud */}
-            {showApproveForm && appointmentRequest && (
+            {approvingRequest && (
               <View style={styles.approveForm}>
                 <Text style={styles.approveFormTitle}>
                   Confirmar fecha de cita
                 </Text>
-                {appointmentRequest.vehicle_label ? (
+                {approvingRequest.vehicle_label ? (
                   <Text style={styles.approveFormSub}>
-                    Moto: {appointmentRequest.vehicle_label}
+                    Moto: {approvingRequest.vehicle_label}
                   </Text>
                 ) : null}
 
@@ -1188,12 +1206,13 @@ export default function ChatScreen() {
                   <Pressable
                     style={[
                       styles.approveFormBtn,
-                      processingRequest && styles.approveFormBtnDisabled,
+                      processingRequestId !== null &&
+                        styles.approveFormBtnDisabled,
                     ]}
-                    onPress={handleAcceptRequest}
-                    disabled={processingRequest}
+                    onPress={() => handleAcceptRequest(approvingRequest)}
+                    disabled={processingRequestId !== null}
                   >
-                    {processingRequest ? (
+                    {processingRequestId === approvingRequest.id ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <Text style={styles.approveFormBtnText}>
@@ -1203,8 +1222,8 @@ export default function ChatScreen() {
                   </Pressable>
                   <Pressable
                     style={styles.approveFormBtnSecondary}
-                    onPress={() => setShowApproveForm(false)}
-                    disabled={processingRequest}
+                    onPress={() => setApprovingRequestId(null)}
+                    disabled={processingRequestId !== null}
                   >
                     <Text style={styles.approveFormBtnSecondaryText}>
                       Volver
@@ -1245,7 +1264,7 @@ export default function ChatScreen() {
                         setShowAttach(false);
                         setShowQuickReplies((v) => !v);
                         setShowQuoteForm(false);
-                        setShowApproveForm(false);
+                        setApprovingRequestId(null);
                       }}
                     >
                       <Ionicons
@@ -1260,7 +1279,7 @@ export default function ChatScreen() {
                         setShowAttach(false);
                         setShowQuoteForm((v) => !v);
                         setShowQuickReplies(false);
-                        setShowApproveForm(false);
+                        setApprovingRequestId(null);
                       }}
                     >
                       <Ionicons
