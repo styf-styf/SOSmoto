@@ -1,8 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../components/Button';
+import { CircleActionButton } from '../../../components/CircleActionButton';
+import { ContactActionButtons } from '../../../components/ContactActionButtons';
 import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -10,12 +13,26 @@ import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { supabase } from '../../../services/supabase';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getClientProfileForBusiness, getBusinessHistory, type HistoryItem, type ClientProfileForBusiness } from '../../../services/history';
-import { getActiveClientAppointments, type ActiveClientAppointment } from '../../../services/appointments';
+import {
+  cancelAppointment,
+  completeAppointment,
+  getActiveClientAppointments,
+  rejectAppointment,
+  type ActiveClientAppointment,
+} from '../../../services/appointments';
+import {
+  getActiveAppointmentRequests,
+  subscribeToAppointmentRequest,
+  type AppointmentRequest,
+} from '../../../services/appointmentRequests';
+import { useBusinessAppointmentRequestActions } from '../../../hooks/useBusinessAppointmentRequestActions';
+import { useAppointmentRescheduleActions } from '../../../hooks/useAppointmentRescheduleActions';
 import { getBusinessClientReports, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { getVehicles } from '../../../services/vehicles';
 import { getClientProductIntents } from '../../../services/productIntents';
-import { toWhatsappLink } from '../../../utils/whatsapp';
-import { formatVehicle, type Vehicle, type ProductIntentWithProduct } from '../../../types/database';
+import { getClientServiceIntents, updateServiceIntentStatus } from '../../../services/serviceIntents';
+import { getBusinessClientByClientId, upsertClientNotes, type BusinessClientRecord } from '../../../services/businessClients';
+import { formatVehicle, type Vehicle, type ProductIntentWithProduct, type ServiceIntentWithService } from '../../../types/database';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -29,14 +46,25 @@ export default function ClienteDetailScreen() {
   const [client, setClient] = useState<ClientProfileForBusiness | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeAppointments, setActiveAppointments] = useState<ActiveClientAppointment[]>([]);
+  const [appointmentRequests, setAppointmentRequests] = useState<AppointmentRequest[]>([]);
   const [clientReports, setClientReports] = useState<ServiceReportWithBusiness[]>([]);
   const [clientVehicles, setClientVehicles] = useState<Vehicle[]>([]);
   const [productIntents, setProductIntents] = useState<ProductIntentWithProduct[]>([]);
+  const [serviceIntents, setServiceIntents] = useState<ServiceIntentWithService[]>([]);
+  const [processingServiceIntentId, setProcessingServiceIntentId] = useState<string | null>(null);
+  const [clientRecord, setClientRecord] = useState<BusinessClientRecord | null>(null);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const [isStore, setIsStore] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { processingId: processingIntentId, handleAction: handleIntentAction } = useProductIntentAction(setProductIntents);
+  const requestActions = useBusinessAppointmentRequestActions<AppointmentRequest>(setAppointmentRequests);
+  const rescheduleActions = useAppointmentRescheduleActions('business', (aptId, patch) =>
+    setActiveAppointments((prev) => prev.map((a) => (a.id === aptId ? { ...a, ...patch } : a)))
+  );
   const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -51,6 +79,11 @@ export default function ClienteDetailScreen() {
     const storeType = work.business.business_type === 'store';
     setIsStore(storeType);
 
+    // Notas privadas -- aplica a cualquier tipo de negocio, no solo taller.
+    const clientBc = await getBusinessClientByClientId(work.business.id, id).catch(() => null);
+    setClientRecord(clientBc);
+    setNotesDraft(clientBc?.notes ?? '');
+
     // Los apartados/compras de producto no son exclusivos de tienda -- un
     // taller también puede vender productos de su catálogo.
     const intents = await getClientProductIntents(work.business.id, id);
@@ -58,9 +91,11 @@ export default function ClienteDetailScreen() {
 
     if (storeType) return;
 
-    const [items, active, reports, vehs] = await Promise.all([
+    const [items, active, requests, svcIntents, reports, vehs] = await Promise.all([
       getBusinessHistory(work.business.id, { clientId: id }),
       getActiveClientAppointments(work.business.id, id),
+      getActiveAppointmentRequests(id, work.business.id),
+      getClientServiceIntents(work.business.id, id),
       getBusinessClientReports(work.business.id, id).then(async (rpts) => {
         const { data: biz } = await supabase.from('businesses').select('name').eq('id', work.business.id).maybeSingle();
         return rpts.map((r) => ({ ...r, business_name: (biz as any)?.name ?? '' }));
@@ -69,13 +104,114 @@ export default function ClienteDetailScreen() {
     ]);
     setHistory(items);
     setActiveAppointments(active);
+    setAppointmentRequests(requests);
+    setServiceIntents(svcIntents);
     setClientReports(reports);
     setClientVehicles(vehs);
   }, [profile, id]);
 
+  // Solicitudes de cita en tiempo real -- para que una solicitud nueva (o
+  // una que el cliente cancele) aparezca sin tener que salir y volver a
+  // entrar a este perfil.
+  useEffect(() => {
+    if (!businessId || !id || isStore) return;
+    const unsubscribe = subscribeToAppointmentRequest(id, businessId, 'business', (req) => {
+      if (req.status === 'pending') {
+        setAppointmentRequests((prev) =>
+          prev.some((r) => r.id === req.id) ? prev.map((r) => (r.id === req.id ? req : r)) : [...prev, req]
+        );
+      } else {
+        setAppointmentRequests((prev) => prev.filter((r) => r.id !== req.id));
+        requestActions.resetIfApproving(req.id);
+      }
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId, id, isStore]);
+
   async function handleRefresh() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
+  }
+
+  function handleRejectAppointment(aptId: string) {
+    Alert.alert('Rechazar cita', '¿Seguro que quieres rechazar esta cita? El cliente será notificado.', [
+      { text: 'No rechazar', style: 'cancel' },
+      {
+        text: 'Sí, rechazar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await rejectAppointment(aptId);
+            setActiveAppointments((prev) => prev.filter((a) => a.id !== aptId));
+          } catch (err) {
+            console.error('reject appointment error', err);
+            Alert.alert('Error', 'No se pudo rechazar la cita.');
+          }
+        },
+      },
+    ]);
+  }
+
+  function handleCancelAppointment(aptId: string) {
+    Alert.alert('Cancelar cita', '¿Seguro que quieres cancelar esta cita? El cliente será notificado.', [
+      { text: 'No cancelar', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelAppointment(aptId, 'business');
+            setActiveAppointments((prev) => prev.filter((a) => a.id !== aptId));
+          } catch (err) {
+            console.error('cancel appointment error', err);
+            Alert.alert('Error', 'No se pudo cancelar la cita.');
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleCompleteAppointment(aptId: string) {
+    try {
+      await completeAppointment(aptId);
+      setActiveAppointments((prev) => prev.filter((a) => a.id !== aptId));
+    } catch (err) {
+      console.error('complete appointment error', err);
+    }
+  }
+
+  async function handleServiceIntentAction(intentId: string, status: 'confirmed' | 'unavailable') {
+    setProcessingServiceIntentId(intentId);
+    try {
+      await updateServiceIntentStatus(intentId, status);
+      setServiceIntents((prev) => prev.map((i) => (i.id === intentId ? { ...i, status } : i)));
+    } catch (err) {
+      console.error('update service intent status error', err);
+      Alert.alert('Error', 'No se pudo actualizar el servicio agendado.');
+    } finally {
+      setProcessingServiceIntentId(null);
+    }
+  }
+
+  function startEditingNotes() {
+    setNotesDraft(clientRecord?.notes ?? '');
+    setEditingNotes(true);
+  }
+
+  async function handleSaveNotes() {
+    if (!businessId || !id) return;
+    setSavingNotes(true);
+    try {
+      const updated = await upsertClientNotes(businessId, id, notesDraft);
+      setClientRecord(updated);
+      setEditingNotes(false);
+    } catch (err) {
+      console.error('save client notes error', err);
+      Alert.alert('Error', 'No se pudieron guardar las notas.');
+    } finally {
+      setSavingNotes(false);
+    }
   }
 
   useFocusEffect(
@@ -162,23 +298,28 @@ export default function ClienteDetailScreen() {
         </View>
       )}
 
+      {/* Referencia histórica -- vehículo(s) que este cliente tenía
+          registrados cuando todavía era "externo" (antes de tener la app).
+          Solo de lectura a propósito: es un dato que el negocio anotó a su
+          criterio, no algo que el cliente declaró él mismo, así que no se
+          mezcla con su perfil real de vehículos (tabla `vehicles`). */}
+      {!isStore && (clientRecord?.vehicles?.length ?? 0) > 0 && (
+        <View style={styles.vehiclesCardMuted}>
+          <Text style={styles.vehiclesLabel}>Antes de tener la app tenía registrado</Text>
+          {clientRecord!.vehicles.map((v, i) => (
+            <View key={i} style={styles.vehicleChip}>
+              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.vehicleChipText}>
+                {[v.brand, v.model, v.year, v.plate].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Acciones rápidas */}
       <View style={styles.actionsRow}>
-        {client.phone && (
-          <Pressable style={styles.actionBtn} onPress={() => Linking.openURL(`tel:${client.phone}`)}>
-            <Ionicons name="call-outline" size={20} color={colors.primary} />
-            <Text style={styles.actionLabel}>Llamar</Text>
-          </Pressable>
-        )}
-        {client.phone && (
-          <Pressable
-            style={styles.actionBtn}
-            onPress={() => Linking.openURL(toWhatsappLink(client.phone))}
-          >
-            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-            <Text style={styles.actionLabel}>WhatsApp</Text>
-          </Pressable>
-        )}
+        {client.phone && <ContactActionButtons phone={client.phone} />}
         <Pressable
           style={[styles.actionBtn, isPending && styles.actionBtnDisabled]}
           onPress={() => !isPending && router.push(`/(business)/chat/${id}`)}
@@ -197,37 +338,328 @@ export default function ClienteDetailScreen() {
         )}
       </View>
 
+      {/* Notas privadas -- nunca las ve el cliente, sirven para que
+          cualquier mecánico que lo atienda sepa de un vistazo cómo tratarlo
+          (preferencias de contacto/pago, detalles de su moto, etc.). */}
+      <View style={styles.notesCard}>
+        <View style={styles.notesHeader}>
+          <Text style={styles.notesTitle}>Notas privadas</Text>
+          {!editingNotes && (
+            <Pressable onPress={startEditingNotes} hitSlop={8}>
+              <Ionicons
+                name={clientRecord?.notes ? 'create-outline' : 'add-circle-outline'}
+                size={20}
+                color={colors.primary}
+              />
+            </Pressable>
+          )}
+        </View>
+        {editingNotes ? (
+          <>
+            <TextInput
+              style={styles.notesInput}
+              value={notesDraft}
+              onChangeText={setNotesDraft}
+              placeholder="Ej: prefiere WhatsApp, paga en efectivo, moto modificada..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+            />
+            <View style={styles.notesActions}>
+              <Pressable
+                style={[styles.notesBtn, styles.notesBtnCancel]}
+                onPress={() => setEditingNotes(false)}
+                disabled={savingNotes}
+              >
+                <Text style={styles.notesBtnCancelText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.notesBtn, styles.notesBtnSave, savingNotes && styles.notesBtnDisabled]}
+                onPress={handleSaveNotes}
+                disabled={savingNotes}
+              >
+                {savingNotes ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.notesBtnSaveText}>Guardar</Text>}
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <Text style={clientRecord?.notes ? styles.notesText : styles.notesPlaceholder}>
+            {clientRecord?.notes || 'Sin notas todavía. Toca (+) para agregar una.'}
+          </Text>
+        )}
+      </View>
+
+      {/* Solicitudes de cita sin responder -- antes solo se veían en el chat */}
+      {!isStore && appointmentRequests.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Solicitudes de cita</Text>
+          {appointmentRequests.map((request) => (
+            <View key={request.id} style={styles.historyCard}>
+              <View style={styles.historyHeader}>
+                <StatusBadge label="Sin responder" tone="pending" />
+                {request.suggested_at && (
+                  <Text style={styles.historyDate}>{formatDate(request.suggested_at)}</Text>
+                )}
+              </View>
+              {request.service_name && <Text style={styles.historyMeta}>{request.service_name}</Text>}
+              {request.notes && <Text style={styles.historyDesc}>{request.notes}</Text>}
+
+              {requestActions.approvingRequestId === request.id ? (
+                <View style={styles.proposeBox}>
+                  <Text style={styles.proposeTitle}>Confirmar fecha de cita</Text>
+                  <Text style={styles.fieldLabel}>Fecha</Text>
+                  <Pressable
+                    style={styles.pickerButton}
+                    onPress={() => requestActions.setShowApproveDatePicker((prev) => !prev)}
+                  >
+                    <Text style={styles.pickerButtonText}>
+                      {requestActions.approvePickerDate.toLocaleDateString('es-EC', {
+                        day: '2-digit', month: 'long', year: 'numeric',
+                      })}
+                    </Text>
+                  </Pressable>
+                  {requestActions.showApproveDatePicker && (
+                    <DateTimePicker
+                      value={requestActions.approvePickerDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                      minimumDate={new Date()}
+                      onChange={requestActions.handleApproveDateChange}
+                    />
+                  )}
+                  <Text style={styles.fieldLabel}>Hora</Text>
+                  <Pressable
+                    style={styles.pickerButton}
+                    onPress={() => requestActions.setShowApproveTimePicker((prev) => !prev)}
+                  >
+                    <Text style={styles.pickerButtonText}>
+                      {requestActions.approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </Pressable>
+                  {requestActions.showApproveTimePicker && (
+                    <DateTimePicker
+                      value={requestActions.approvePickerTime}
+                      mode="time"
+                      display="spinner"
+                      onChange={requestActions.handleApproveTimeChange}
+                    />
+                  )}
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton icon="close" label="Cancelar" color={colors.textMuted} variant="outline" onPress={requestActions.cancelApproveForm} />
+                    <CircleActionButton
+                      icon="checkmark"
+                      label="Confirmar cita"
+                      color={colors.primary}
+                      loading={requestActions.processingRequestId === request.id}
+                      onPress={() => requestActions.handleAcceptRequest(request, client.full_name)}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Rechazar"
+                    color={colors.danger}
+                    onPress={() => requestActions.handleRejectRequest(request)}
+                    disabled={requestActions.processingRequestId !== null}
+                  />
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Proponer fecha"
+                    color={colors.primary}
+                    onPress={() => requestActions.openApproveForm(request)}
+                    disabled={requestActions.processingRequestId !== null}
+                  />
+                </View>
+              )}
+            </View>
+          ))}
+        </>
+      )}
+
       {/* Próximas citas activas */}
       {!isStore && activeAppointments.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Próximas citas</Text>
-          {activeAppointments.map((apt) => (
-            <Pressable
-              key={apt.id}
-              style={styles.activeAptCard}
-              onPress={() => router.push('/(business)/agenda-negocio')}
-            >
-              <View style={styles.activeAptHeader}>
-                <StatusBadge label={aptStatusLabel(apt)} tone={aptTone(apt)} />
-                {apt.requested_at && (
-                  <Text style={styles.aptDate}>
-                    {new Date(apt.requested_at).toLocaleString('es-EC', {
-                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                    })}
-                  </Text>
+          {activeAppointments.map((apt) => {
+            const clientProposed = apt.status === 'scheduled' && apt.proposed_by === 'client';
+            const businessProposed = apt.status === 'scheduled' && apt.proposed_by === 'business';
+            const isRescheduling = rescheduleActions.reschedulingId === apt.id;
+            return (
+              <View key={apt.id} style={styles.activeAptCard}>
+                <View style={styles.activeAptHeader}>
+                  <StatusBadge label={aptStatusLabel(apt)} tone={aptTone(apt)} />
+                  {apt.requested_at && (
+                    <Text style={styles.aptDate}>
+                      {new Date(apt.requested_at).toLocaleString('es-EC', {
+                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </Text>
+                  )}
+                </View>
+                {apt.service_name && (
+                  <Text style={styles.aptService}>{apt.service_name}</Text>
                 )}
+                {apt.notes && (
+                  <Text style={styles.aptNotes} numberOfLines={1}>{apt.notes}</Text>
+                )}
+
+                {isRescheduling ? (
+                  <View style={styles.proposeBox}>
+                    <Text style={styles.proposeTitle}>{clientProposed ? 'Proponer otra fecha' : 'Proponer fecha'}</Text>
+                    <Text style={styles.fieldLabel}>Fecha</Text>
+                    <Pressable
+                      style={styles.pickerButton}
+                      onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}
+                    >
+                      <Text style={styles.pickerButtonText}>
+                        {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                          day: '2-digit', month: 'long', year: 'numeric',
+                        })}
+                      </Text>
+                    </Pressable>
+                    {rescheduleActions.showDatePicker && (
+                      <DateTimePicker
+                        value={rescheduleActions.pickerDate}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                        minimumDate={new Date()}
+                        onChange={rescheduleActions.handleDateChange}
+                      />
+                    )}
+                    <Text style={styles.fieldLabel}>Hora</Text>
+                    <Pressable
+                      style={styles.pickerButton}
+                      onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}
+                    >
+                      <Text style={styles.pickerButtonText}>
+                        {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </Pressable>
+                    {rescheduleActions.showTimePicker && (
+                      <DateTimePicker
+                        value={rescheduleActions.pickerTime}
+                        mode="time"
+                        display="spinner"
+                        onChange={rescheduleActions.handleTimeChange}
+                      />
+                    )}
+                    <View style={styles.circleActionsRow}>
+                      <CircleActionButton icon="close" label="Cancelar" color={colors.textMuted} variant="outline" onPress={rescheduleActions.cancelRescheduling} />
+                      <CircleActionButton
+                        icon="checkmark"
+                        label="Confirmar fecha"
+                        color={colors.primary}
+                        loading={rescheduleActions.saving}
+                        onPress={() => rescheduleActions.confirmReschedule(apt.id)}
+                      />
+                    </View>
+                  </View>
+                ) : apt.status === 'pending' ? (
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton icon="close" label="Rechazar" color={colors.danger} onPress={() => handleRejectAppointment(apt.id)} />
+                    <CircleActionButton icon="calendar-outline" label="Proponer fecha" color={colors.primary} onPress={() => rescheduleActions.startRescheduling(apt.id)} />
+                  </View>
+                ) : clientProposed ? (
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton icon="close" label="Rechazar" color={colors.danger} onPress={() => handleRejectAppointment(apt.id)} />
+                    <CircleActionButton icon="calendar-outline" label="Proponer otra" color={colors.primary} variant="outline" onPress={() => rescheduleActions.startRescheduling(apt.id)} />
+                    <CircleActionButton
+                      icon="checkmark"
+                      label="Aceptar"
+                      color={colors.primary}
+                      onPress={() => rescheduleActions.approve(apt.id)}
+                      loading={rescheduleActions.approvingId === apt.id}
+                    />
+                  </View>
+                ) : businessProposed ? (
+                  <View style={styles.waitingRow}>
+                    <Text style={styles.waitingText}>Esperando respuesta del cliente.</Text>
+                    <View style={styles.circleActionsRow}>
+                      <CircleActionButton icon="calendar-outline" label="Cambiar fecha" color={colors.primary} variant="outline" onPress={() => rescheduleActions.startRescheduling(apt.id)} />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton icon="close" label="Cancelar" color={colors.danger} onPress={() => handleCancelAppointment(apt.id)} />
+                    <CircleActionButton icon="calendar-outline" label="Reagendar" color={colors.primary} variant="outline" onPress={() => rescheduleActions.startRescheduling(apt.id)} />
+                    <CircleActionButton icon="checkmark" label="Completar" color={colors.primary} onPress={() => handleCompleteAppointment(apt.id)} />
+                  </View>
+                )}
+
+                <Pressable onPress={() => router.push('/(business)/agenda-negocio')}>
+                  <Text style={styles.aptLink}>Ver en agenda →</Text>
+                </Pressable>
               </View>
-              {apt.service_name && (
-                <Text style={styles.aptService}>{apt.service_name}</Text>
-              )}
-              {apt.notes && (
-                <Text style={styles.aptNotes} numberOfLines={1}>{apt.notes}</Text>
-              )}
-              <Text style={styles.aptLink}>Ver en agenda →</Text>
-            </Pressable>
-          ))}
+            );
+          })}
         </>
       )}
+
+      {/* Servicios agendados -- misma idea que "Apartados de producto" de abajo */}
+      {!isStore && serviceIntents.length > 0 && (() => {
+        const openServiceIntents = serviceIntents.filter((i) => i.status === 'pending' || i.status === 'confirmed');
+        const pastServiceIntents = serviceIntents.filter((i) => i.status !== 'pending' && i.status !== 'confirmed');
+        return (
+          <>
+            <Text style={styles.sectionTitle}>Servicios agendados</Text>
+            {openServiceIntents.length === 0 ? (
+              <Text style={styles.placeholder}>Sin servicios agendados activos.</Text>
+            ) : (
+              openServiceIntents.map((intent) => (
+                <View key={intent.id} style={styles.historyCard}>
+                  <View style={styles.historyHeader}>
+                    <View style={[styles.badge, styles.badgeAppt]}>
+                      <Text style={styles.badgeText}>{intent.status === 'confirmed' ? 'Confirmado' : 'Pendiente'}</Text>
+                    </View>
+                    <Text style={styles.historyDate}>{formatDate(intent.created_at)}</Text>
+                  </View>
+                  <Text style={styles.historyDesc}>
+                    {intent.service_name}
+                    {intent.service_price != null ? ` · $${intent.service_price.toFixed(2)}` : ''}
+                  </Text>
+                  {intent.status === 'pending' && (
+                    <View style={styles.intentActionsRow}>
+                      <Button
+                        title="Confirmar"
+                        onPress={() => handleServiceIntentAction(intent.id, 'confirmed')}
+                        loading={processingServiceIntentId === intent.id}
+                        style={styles.flexButton}
+                      />
+                      <Button
+                        title="No disponible"
+                        variant="secondary"
+                        onPress={() => handleServiceIntentAction(intent.id, 'unavailable')}
+                        loading={processingServiceIntentId === intent.id}
+                        style={styles.flexButton}
+                      />
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+
+            {pastServiceIntents.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Historial de servicios agendados</Text>
+                {pastServiceIntents.map((intent) => (
+                  <View key={intent.id} style={styles.historyCard}>
+                    <View style={styles.historyHeader}>
+                      <View style={[styles.badge, intent.status === 'unavailable' || intent.status === 'cancelled' ? styles.badgeAid : styles.badgeAppt]}>
+                        <Text style={styles.badgeText}>
+                          {intent.status === 'unavailable' ? 'No disponible' : intent.status === 'cancelled' ? 'Cancelado' : 'Confirmado'}
+                        </Text>
+                      </View>
+                      <Text style={styles.historyDate}>{formatDate(intent.created_at)}</Text>
+                    </View>
+                    <Text style={styles.historyDesc}>{intent.service_name}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* Informes de servicio (standalone — sin cita ni auxilio vinculado) */}
       {!isStore && (() => {
@@ -641,6 +1073,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: 12,
     padding: 14, marginBottom: 16, gap: 8,
   },
+  vehiclesCardMuted: {
+    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, padding: 14, marginBottom: 16, gap: 8,
+  },
   vehiclesLabel: {
     fontSize: 12, fontWeight: '700', color: colors.textMuted,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
@@ -651,4 +1087,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 7,
   },
   vehicleChipText: { fontSize: 13, color: colors.text },
+
+  notesCard: {
+    backgroundColor: colors.surface, borderRadius: 12,
+    padding: 14, marginBottom: 16,
+  },
+  notesHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6,
+  },
+  notesTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+  notesText: { fontSize: 14, color: colors.text, lineHeight: 20 },
+  notesPlaceholder: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
+  notesInput: {
+    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text,
+    backgroundColor: colors.background, minHeight: 80, textAlignVertical: 'top',
+  },
+  notesActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  notesBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
+  notesBtnCancel: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  notesBtnCancelText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  notesBtnSave: { backgroundColor: colors.primary },
+  notesBtnSaveText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  notesBtnDisabled: { opacity: 0.6 },
+
+  circleActionsRow: {
+    flexDirection: 'row', marginTop: 10,
+  },
+  waitingRow: { marginTop: 8, gap: 8 },
+  waitingText: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
+  proposeBox: {
+    marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10,
+  },
+  proposeTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 10 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 },
+  pickerButton: {
+    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, marginBottom: 10,
+  },
+  pickerButtonText: { fontSize: 14, fontWeight: '600', color: colors.text },
 });

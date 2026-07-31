@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { distanceKm } from '../utils/distance';
 import { notifyUser } from './notifications';
+import { subscribeToTable } from './realtime';
 import type {
   Business,
   HelpRequest,
@@ -228,46 +229,20 @@ export async function getHelpRequestById(
 export function subscribeToHelpRequest(id: string, onChange: () => void) {
   // Nombre único por suscripción: si dos componentes se suscriben al mismo id a la vez,
   // supabase-js reutiliza el canal existente por nombre y falla al volver a llamar .on() tras subscribe().
-  const channel = supabase
-    .channel(`help_request_${id}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'help_requests',
-        filter: `id=eq.${id}`,
-      },
-      onChange,
-    )
-    .subscribe();
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable(`help_request_${id}`, 'help_requests', '*', `id=eq.${id}`, onChange);
 }
 
 export function subscribeToBusinessRequests(
   businessId: string,
   onChange: () => void,
 ) {
-  const channel = supabase
-    .channel(
-      `business_requests_${businessId}_${Math.random().toString(36).slice(2)}`,
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'help_request_notifications',
-        filter: `business_id=eq.${businessId}`,
-      },
-      onChange,
-    )
-    .subscribe();
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable(
+    `business_requests_${businessId}`,
+    'help_request_notifications',
+    '*',
+    `business_id=eq.${businessId}`,
+    onChange,
+  );
 }
 
 export interface PendingHelpRequest {

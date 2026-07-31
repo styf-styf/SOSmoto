@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
+import { notifyAndLogBusinessEvent, notifyAndLogClientEvent } from './intentNotifications';
 import { notifyUser } from './notifications';
+import { subscribeToTable } from './realtime';
 import { addStockMovement, addVariantStockMovement } from './inventory';
 import { getEffectiveUnitPrice } from './catalog';
 import type { ProductIntent, ProductIntentWithProduct, ProductIntentWithDetails, ProductIntentStatus, ProductPriceTier, Review } from '../types/database';
@@ -84,20 +86,18 @@ export async function createProductIntent(
   if (business?.owner_id && product?.name) {
     const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
     const buyerLabel = await getBuyerLabel(clientId);
-    await notifyUser(
-      business.owner_id,
-      'Producto apartado',
-      `${buyerLabel} quiere apartar: ${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`,
-      { type: 'product_intent', productId, businessId }
-    );
+    const productLabel = `${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`;
     // Mismo patrón que appointmentRequests.ts -- deja un rastro permanente en
     // el historial del chat, a diferencia del banner en vivo que desaparece
     // en cuanto el intent se resuelve.
-    await supabase.from('messages').insert({
-      client_id: clientId,
-      business_id: businessId,
-      sender_id: clientId,
-      body: `📦 Quiere apartar: ${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`,
+    await notifyAndLogClientEvent({
+      notifyUserId: business.owner_id,
+      title: 'Producto apartado',
+      body: `${buyerLabel} quiere apartar: ${productLabel}`,
+      data: { type: 'product_intent', productId, businessId },
+      clientId,
+      businessId,
+      messageBody: `📦 Quiere apartar: ${productLabel}`,
     });
   }
 
@@ -138,19 +138,14 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
     const qtyPrefix = intent.quantity > 1 ? `${intent.quantity} x ` : '';
     const buyerLabel = await getBuyerLabel(intent.client_id);
 
-    if (business?.owner_id) {
-      await notifyUser(
-        business.owner_id,
-        'Apartado cancelado',
-        `${buyerLabel} canceló: ${qtyPrefix}${productName}`,
-        { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id }
-      );
-    }
-    await supabase.from('messages').insert({
-      client_id: intent.client_id,
-      business_id: intent.business_id,
-      sender_id: intent.client_id,
-      body: `❌ Canceló: ${qtyPrefix}${productName}`,
+    await notifyAndLogClientEvent({
+      notifyUserId: business?.owner_id,
+      title: 'Apartado cancelado',
+      body: `${buyerLabel} canceló: ${qtyPrefix}${productName}`,
+      data: { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id },
+      clientId: intent.client_id,
+      businessId: intent.business_id,
+      messageBody: `❌ Canceló: ${qtyPrefix}${productName}`,
     });
   }
 }
@@ -224,25 +219,19 @@ export async function updateIntentStatus(
         : status === 'unavailable'
         ? `El negocio indicó que "${productName}" no está disponible en este momento`
         : `La venta de "${productName}" fue cancelada por el negocio`;
-    await notifyUser(intent.client_id, title, body, { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id });
-
-    // sender_id debe ser quien está autenticado ahora mismo (RLS de messages
-    // exige sender_id = auth.uid()) -- puede ser el dueño o cualquier
-    // empleado con permiso, nunca asumir que es el dueño.
-    const { data: authData } = await supabase.auth.getUser();
     const messageBody =
       status === 'confirmed' ? `✅ Confirmado: ${productName}` :
       status === 'sold' ? `🎉 Compra confirmada: ${productName}` :
       status === 'unavailable' ? `⚠️ No disponible: ${productName}` :
       `❌ Venta cancelada: ${productName}`;
-    if (authData.user) {
-      await supabase.from('messages').insert({
-        client_id: intent.client_id,
-        business_id: intent.business_id,
-        sender_id: authData.user.id,
-        body: messageBody,
-      });
-    }
+    await notifyAndLogBusinessEvent({
+      clientId: intent.client_id,
+      businessId: intent.business_id,
+      title,
+      body,
+      data: { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id },
+      messageBody,
+    });
 
     if (status === 'sold') {
       await notifyUser(
@@ -287,28 +276,23 @@ export function subscribeToClientIntent(
   onUpdate: (intent: ProductIntent | null) => void,
   onUnavailable?: () => void
 ) {
-  const channel = supabase
-    .channel(`product_intent_${clientId}_${productId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'product_intents', filter: `client_id=eq.${clientId}` },
-      (payload) => {
-        const row = payload.new as ProductIntent;
-        if (row.product_id !== productId) return;
-        if ((row.variant_id ?? null) !== (variantId ?? null)) return;
-        if (row.status === 'confirmed' || row.status === 'pending') {
-          onUpdate(row);
-        } else {
-          onUpdate(null);
-          if (row.status === 'unavailable') onUnavailable?.();
-        }
+  return subscribeToTable<ProductIntent>(
+    `product_intent_${clientId}_${productId}`,
+    'product_intents',
+    'UPDATE',
+    `client_id=eq.${clientId}`,
+    (payload) => {
+      const row = payload.new as ProductIntent;
+      if (row.product_id !== productId) return;
+      if ((row.variant_id ?? null) !== (variantId ?? null)) return;
+      if (row.status === 'confirmed' || row.status === 'pending') {
+        onUpdate(row);
+      } else {
+        onUpdate(null);
+        if (row.status === 'unavailable') onUnavailable?.();
       }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    }
+  );
 }
 
 // Avisa (sin payload propio, el caller vuelve a pedir la lista) cuando cambia
@@ -319,21 +303,16 @@ export function subscribeToClientProductIntentsForBusiness(
   businessId: string,
   onChange: () => void
 ) {
-  const channel = supabase
-    .channel(`product_intents_biz_${clientId}_${businessId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'product_intents', filter: `client_id=eq.${clientId}` },
-      (payload) => {
-        const row = (payload.new ?? payload.old) as ProductIntent;
-        if (row.business_id === businessId) onChange();
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable<ProductIntent>(
+    `product_intents_biz_${clientId}_${businessId}`,
+    'product_intents',
+    '*',
+    `client_id=eq.${clientId}`,
+    (payload) => {
+      const row = (payload.new ?? payload.old) as ProductIntent;
+      if (row.business_id === businessId) onChange();
+    }
+  );
 }
 
 // Lado negocio: avisa con la etiqueta ya armada ("2 x Casco MT") cuando el
@@ -345,29 +324,24 @@ export function subscribeToProductIntentCancelled(
   clientId: string,
   onCancelled: (intentId: string, label: string) => void
 ) {
-  const channel = supabase
-    .channel(`product_intent_cancel_${businessId}_${clientId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'product_intents', filter: `business_id=eq.${businessId}` },
-      async (payload) => {
-        const row = payload.new as ProductIntent;
-        if (row.client_id !== clientId || row.status !== 'cancelled_by_client') return;
-        const { data: product } = await supabase.from('products').select('name').eq('id', row.product_id).maybeSingle();
-        let variantLabel: string | null = null;
-        if (row.variant_id) {
-          const { data: variant } = await supabase.from('product_variants').select('label').eq('id', row.variant_id).maybeSingle();
-          variantLabel = variant?.label ?? null;
-        }
-        const qtyPrefix = row.quantity > 1 ? `${row.quantity} × ` : '';
-        onCancelled(row.id, `${qtyPrefix}${withVariantLabel(product?.name ?? 'un producto', variantLabel)}`);
+  return subscribeToTable<ProductIntent>(
+    `product_intent_cancel_${businessId}_${clientId}`,
+    'product_intents',
+    'UPDATE',
+    `business_id=eq.${businessId}`,
+    async (payload) => {
+      const row = payload.new as ProductIntent;
+      if (row.client_id !== clientId || row.status !== 'cancelled_by_client') return;
+      const { data: product } = await supabase.from('products').select('name').eq('id', row.product_id).maybeSingle();
+      let variantLabel: string | null = null;
+      if (row.variant_id) {
+        const { data: variant } = await supabase.from('product_variants').select('label').eq('id', row.variant_id).maybeSingle();
+        variantLabel = variant?.label ?? null;
       }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+      const qtyPrefix = row.quantity > 1 ? `${row.quantity} × ` : '';
+      onCancelled(row.id, `${qtyPrefix}${withVariantLabel(product?.name ?? 'un producto', variantLabel)}`);
+    }
+  );
 }
 
 export async function getBusinessProductIntents(businessId: string): Promise<ProductIntentWithDetails[]> {

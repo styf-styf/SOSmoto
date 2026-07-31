@@ -19,23 +19,15 @@ import {
   type AppointmentRequest,
 } from '../../../../services/appointmentRequests';
 import {
-  approveAppointment,
   cancelAppointment,
   getActiveAppointmentForService,
-  proposeDate,
   subscribeToClientAppointments,
 } from '../../../../services/appointments';
+import { useAppointmentRescheduleActions } from '../../../../hooks/useAppointmentRescheduleActions';
 import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 import type { Appointment } from '../../../../types/database';
-
-function defaultCounterTime(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(9, 0, 0, 0);
-  return d;
-}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
@@ -55,13 +47,9 @@ export default function ServiceDetailScreen() {
   // citas" (aprobar/proponer otra fecha), que necesita status/proposed_by.
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
   const [cancellingAppointment, setCancellingAppointment] = useState(false);
-  const [approving, setApproving] = useState(false);
-  const [countering, setCountering] = useState(false);
-  const [pickerDate, setPickerDate] = useState(() => defaultCounterTime());
-  const [pickerTime, setPickerTime] = useState(() => defaultCounterTime());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [savingCounter, setSavingCounter] = useState(false);
+  const rescheduleActions = useAppointmentRescheduleActions('client', (id, patch) =>
+    setActiveAppointment((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev))
+  );
   const [showReportModal, setShowReportModal] = useState(false);
 
   const load = useCallback(async () => {
@@ -180,66 +168,6 @@ export default function ServiceDetailScreen() {
         },
       },
     ]);
-  }
-
-  async function handleApprove() {
-    if (!activeAppointment) return;
-    setApproving(true);
-    try {
-      await approveAppointment(activeAppointment.id);
-      setActiveAppointment((prev) => (prev ? { ...prev, status: 'confirmed' } : prev));
-    } catch (err) {
-      console.error('approve appointment error', err);
-      Alert.alert('Error', 'No se pudo aprobar. Intenta de nuevo.');
-    } finally {
-      setApproving(false);
-    }
-  }
-
-  function startCounter() {
-    setCountering(true);
-    const def = defaultCounterTime();
-    setPickerDate(def);
-    setPickerTime(def);
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-  }
-
-  function cancelCounter() {
-    setCountering(false);
-  }
-
-  function handleDateChange(event: unknown, date?: Date) {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (date) setPickerDate(date);
-  }
-
-  function handleTimeChange(event: unknown, time?: Date) {
-    if (Platform.OS === 'android') setShowTimePicker(false);
-    if (time) setPickerTime(time);
-  }
-
-  async function handleCounter() {
-    if (!activeAppointment) return;
-    const dt = new Date(pickerDate);
-    dt.setHours(pickerTime.getHours(), pickerTime.getMinutes(), 0, 0);
-    if (dt.getTime() < Date.now()) {
-      Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
-      return;
-    }
-    setSavingCounter(true);
-    try {
-      await proposeDate(activeAppointment.id, dt.toISOString(), 'client');
-      setActiveAppointment((prev) =>
-        prev ? { ...prev, status: 'scheduled', requested_at: dt.toISOString(), proposed_by: 'client' } : prev
-      );
-      setCountering(false);
-    } catch (err) {
-      console.error('counter propose error', err);
-      Alert.alert('Error', 'No se pudo enviar la contra-propuesta.');
-    } finally {
-      setSavingCounter(false);
-    }
   }
 
   useEffect(() => {
@@ -370,39 +298,41 @@ export default function ServiceDetailScreen() {
               />
             </View>
           </>
-        ) : countering ? (
+        ) : rescheduleActions.reschedulingId === activeAppointment!.id ? (
           <View style={styles.counterBox}>
             <Text style={styles.counterTitle}>Proponer otra fecha</Text>
             <Text style={styles.fieldLabel}>Fecha</Text>
-            <Pressable style={styles.pickerButton} onPress={() => setShowDatePicker((prev) => !prev)}>
+            <Pressable style={styles.pickerButton} onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}>
               <Text style={styles.pickerButtonText}>
-                {pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                {rescheduleActions.pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
               </Text>
             </Pressable>
-            {showDatePicker && (
+            {rescheduleActions.showDatePicker && (
               <DateTimePicker
-                value={pickerDate}
+                value={rescheduleActions.pickerDate}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
                 minimumDate={new Date()}
-                onChange={handleDateChange}
+                onChange={rescheduleActions.handleDateChange}
               />
             )}
             <Text style={styles.fieldLabel}>Hora</Text>
-            <Pressable style={styles.pickerButton} onPress={() => setShowTimePicker((prev) => !prev)}>
+            <Pressable style={styles.pickerButton} onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}>
               <Text style={styles.pickerButtonText}>
-                {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </Pressable>
-            {showTimePicker && <DateTimePicker value={pickerTime} mode="time" display="spinner" onChange={handleTimeChange} />}
+            {rescheduleActions.showTimePicker && (
+              <DateTimePicker value={rescheduleActions.pickerTime} mode="time" display="spinner" onChange={rescheduleActions.handleTimeChange} />
+            )}
             <View style={styles.circleActionsRow}>
-              <CircleActionButton icon="close" label="Cancelar" color={colors.textMuted} variant="outline" onPress={cancelCounter} />
+              <CircleActionButton icon="close" label="Cancelar" color={colors.textMuted} variant="outline" onPress={rescheduleActions.cancelRescheduling} />
               <CircleActionButton
                 icon="checkmark"
                 label="Enviar propuesta"
                 color={colors.primary}
-                loading={savingCounter}
-                onPress={handleCounter}
+                loading={rescheduleActions.saving}
+                onPress={() => rescheduleActions.confirmReschedule(activeAppointment!.id)}
               />
             </View>
           </View>
@@ -413,8 +343,14 @@ export default function ServiceDetailScreen() {
             </Text>
             <View style={styles.circleActionsRow}>
               <CircleActionButton icon="close" label="Cancelar" color={colors.danger} onPress={handleCancelAppointment} disabled={cancellingAppointment} />
-              <CircleActionButton icon="calendar-outline" label="Proponer otra" color={colors.primary} variant="outline" onPress={startCounter} />
-              <CircleActionButton icon="checkmark" label="Aprobar" color={colors.primary} onPress={handleApprove} loading={approving} />
+              <CircleActionButton icon="calendar-outline" label="Proponer otra" color={colors.primary} variant="outline" onPress={() => rescheduleActions.startRescheduling(activeAppointment!.id)} />
+              <CircleActionButton
+                icon="checkmark"
+                label="Aprobar"
+                color={colors.primary}
+                onPress={() => rescheduleActions.approve(activeAppointment!.id)}
+                loading={rescheduleActions.approvingId === activeAppointment!.id}
+              />
             </View>
           </>
         ) : activeAppointment!.status === 'scheduled' ? (
@@ -437,7 +373,7 @@ export default function ServiceDetailScreen() {
             </Text>
             <View style={styles.circleActionsRow}>
               <CircleActionButton icon="close" label="Cancelar" color={colors.danger} onPress={handleCancelAppointment} loading={cancellingAppointment} />
-              <CircleActionButton icon="calendar-outline" label="Reagendar" color={colors.primary} variant="outline" onPress={startCounter} />
+              <CircleActionButton icon="calendar-outline" label="Reagendar" color={colors.primary} variant="outline" onPress={() => rescheduleActions.startRescheduling(activeAppointment!.id)} />
             </View>
           </>
         )}

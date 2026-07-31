@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { notifyUser } from './notifications';
+import { subscribeToTable } from './realtime';
 import type { Appointment } from '../types/database';
 
 export interface AppointmentRequest {
@@ -42,17 +43,56 @@ export async function getClientAppointmentRequests(clientId: string): Promise<Cl
 }
 
 export function subscribeToClientAppointmentRequests(clientId: string, onChange: () => void) {
-  const channel = supabase
-    .channel(`client_appointment_requests_${clientId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'appointment_requests', filter: `client_id=eq.${clientId}` },
-      onChange
-    )
-    .subscribe();
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable(
+    `client_appointment_requests_${clientId}`,
+    'appointment_requests',
+    '*',
+    `client_id=eq.${clientId}`,
+    onChange
+  );
+}
+
+export interface BusinessAppointmentRequest extends AppointmentRequest {
+  client_name: string;
+}
+
+// Simétrico a getClientAppointmentRequests -- para la agenda del taller
+// (antes solo se veían/respondían desde el banner del chat, sin una vista
+// centralizada como la que ya tiene el cliente en "Mis citas"). Batch
+// query aparte a `users` (no join embebido) -- mismo patrón que
+// getBusinessAppointments, porque el join directo a `users` no siempre
+// pasa las políticas RLS al leer desde el lado del negocio.
+export async function getBusinessAppointmentRequests(businessId: string): Promise<BusinessAppointmentRequest[]> {
+  const { data, error } = await supabase
+    .from('appointment_requests')
+    .select('*')
+    .eq('business_id', businessId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+
+  const rows = data ?? [];
+  const clientIds = Array.from(new Set(rows.map((r: any) => r.client_id as string)));
+  const { data: clients, error: clientsError } = clientIds.length
+    ? await supabase.from('users').select('id, full_name').in('id', clientIds)
+    : { data: [], error: null };
+  if (clientsError) throw clientsError;
+  const nameById = new Map((clients ?? []).map((c: any) => [c.id as string, c.full_name as string]));
+
+  return rows.map((row: any) => ({
+    ...row,
+    client_name: nameById.get(row.client_id) ?? 'Cliente',
+  })) as BusinessAppointmentRequest[];
+}
+
+export function subscribeToBusinessAppointmentRequests(businessId: string, onChange: () => void) {
+  return subscribeToTable(
+    `business_appointment_requests_${businessId}`,
+    'appointment_requests',
+    '*',
+    `business_id=eq.${businessId}`,
+    onChange
+  );
 }
 
 export interface CreateAppointmentRequestParams {
@@ -299,18 +339,16 @@ export function subscribeToAppointmentRequest(
 ) {
   const filter =
     role === 'client' ? `client_id=eq.${clientId}` : `business_id=eq.${businessId}`;
-  const channel = supabase
-    .channel(`appreq_${clientId}_${businessId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'appointment_requests', filter },
-      (payload) => {
-        const req = payload.new as AppointmentRequest;
-        if (req.client_id === clientId && req.business_id === businessId) {
-          onChange(req);
-        }
+  return subscribeToTable<AppointmentRequest>(
+    `appreq_${clientId}_${businessId}`,
+    'appointment_requests',
+    '*',
+    filter,
+    (payload) => {
+      const req = payload.new as AppointmentRequest;
+      if (req.client_id === clientId && req.business_id === businessId) {
+        onChange(req);
       }
-    )
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
+    }
+  );
 }

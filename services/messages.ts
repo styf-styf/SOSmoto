@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getBusinessById } from './businesses';
 import { notifyUser } from './notifications';
+import { subscribeToTable } from './realtime';
 import type { Message } from '../types/database';
 
 export async function getMessages(clientId: string, businessId: string): Promise<Message[]> {
@@ -68,18 +69,13 @@ export function subscribeToMessages(
   filterValue: string,
   onInsert: (message: Message) => void
 ) {
-  const channel = supabase
-    .channel(`messages_${filterColumn}_${filterValue}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages', filter: `${filterColumn}=eq.${filterValue}` },
-      (payload) => onInsert(payload.new as Message)
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable<Message>(
+    `messages_${filterColumn}_${filterValue}`,
+    'messages',
+    'INSERT',
+    `${filterColumn}=eq.${filterValue}`,
+    (payload) => onInsert(payload.new as Message)
+  );
 }
 
 // Para el punto rojo de "no leído": reacciona a inserts (mensaje nuevo) y
@@ -89,18 +85,13 @@ export function subscribeToThreadChanges(
   filterValue: string,
   onChange: () => void
 ) {
-  const channel = supabase
-    .channel(`messages_changes_${filterColumn}_${filterValue}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'messages', filter: `${filterColumn}=eq.${filterValue}` },
-      onChange
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable(
+    `messages_changes_${filterColumn}_${filterValue}`,
+    'messages',
+    '*',
+    `${filterColumn}=eq.${filterValue}`,
+    onChange
+  );
 }
 
 export async function hasUnreadMessagesForClient(clientId: string): Promise<boolean> {

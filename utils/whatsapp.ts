@@ -11,6 +11,7 @@ export function toWhatsappNumber(raw: string | null | undefined): string {
   return `593${digits}`;
 }
 
-export function toWhatsappLink(raw: string | null | undefined): string {
-  return `https://wa.me/${toWhatsappNumber(raw)}`;
+export function toWhatsappLink(raw: string | null | undefined, message?: string): string {
+  const base = `https://wa.me/${toWhatsappNumber(raw)}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }

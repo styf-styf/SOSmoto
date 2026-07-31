@@ -10,30 +10,22 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import {
-  approveAppointment,
   cancelAppointment,
   getClientAppointments,
-  proposeDate,
   subscribeToClientAppointments,
   type ClientAppointment,
 } from '../../services/appointments';
 import {
-  cancelAppointmentRequest,
   getClientAppointmentRequests,
   subscribeToClientAppointmentRequests,
   type ClientAppointmentRequest,
 } from '../../services/appointmentRequests';
+import { useClientAppointmentRequestCancel } from '../../hooks/useClientAppointmentRequestCancel';
+import { useAppointmentRescheduleActions } from '../../hooks/useAppointmentRescheduleActions';
 import { syncAppointmentReminders } from '../../services/appointmentReminders';
 import { getClientReportIdsByAppointments } from '../../services/serviceReports';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-
-function defaultCounterTime(): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(9, 0, 0, 0);
-  return d;
-}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
@@ -71,15 +63,6 @@ interface CitasData {
 export default function CitasScreen() {
   const { profile } = useAuth();
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
-
-  // Contra-propuesta del cliente
-  const [counteringId, setCounteringId] = useState<string | null>(null);
-  const [pickerDate, setPickerDate] = useState(() => defaultCounterTime());
-  const [pickerTime, setPickerTime] = useState(() => defaultCounterTime());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [savingCounter, setSavingCounter] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -116,6 +99,10 @@ export default function CitasScreen() {
     }));
   }
 
+  const rescheduleActions = useAppointmentRescheduleActions('client', (id, patch) =>
+    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)))
+  );
+
   function setRequests(updater: (prev: ClientAppointmentRequest[]) => ClientAppointmentRequest[]) {
     setCitasData((prev) => ({
       appointments: prev?.appointments ?? [],
@@ -124,19 +111,7 @@ export default function CitasScreen() {
     }));
   }
 
-  async function handleCancelRequest(request: ClientAppointmentRequest) {
-    if (cancellingRequestId) return;
-    setCancellingRequestId(request.id);
-    try {
-      await cancelAppointmentRequest(request);
-      setRequests((prev) => prev.filter((r) => r.id !== request.id));
-    } catch (err) {
-      console.error('cancel appointment request error', err);
-      Alert.alert('Error', 'No se pudo cancelar la solicitud. Intenta de nuevo.');
-    } finally {
-      setCancellingRequestId(null);
-    }
-  }
+  const { cancellingRequestId, cancelRequest } = useClientAppointmentRequestCancel<ClientAppointmentRequest>(setRequests);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -171,43 +146,6 @@ export default function CitasScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
-  function startCounter(id: string) {
-    setCounteringId(id);
-    const def = defaultCounterTime();
-    setPickerDate(def);
-    setPickerTime(def);
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-  }
-
-  function cancelCounter() {
-    setCounteringId(null);
-  }
-
-  function handleDateChange(event: any, date?: Date) {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (date) setPickerDate(date);
-  }
-
-  function handleTimeChange(event: any, time?: Date) {
-    if (Platform.OS === 'android') setShowTimePicker(false);
-    if (time) setPickerTime(time);
-  }
-
-  async function handleApprove(id: string) {
-    if (processingId) return;
-    setProcessingId(id);
-    try {
-      await approveAppointment(id);
-      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'confirmed' } : a)));
-    } catch (err) {
-      console.error('approve appointment error', err);
-      Alert.alert('Error', 'No se pudo aprobar. Intenta de nuevo.');
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
   async function handleCancel(id: string) {
     if (processingId) return;
     setProcessingId(id);
@@ -219,32 +157,6 @@ export default function CitasScreen() {
       Alert.alert('Error', 'No se pudo cancelar. Intenta de nuevo.');
     } finally {
       setProcessingId(null);
-    }
-  }
-
-  async function handleCounter(id: string) {
-    const dt = new Date(pickerDate);
-    dt.setHours(pickerTime.getHours(), pickerTime.getMinutes(), 0, 0);
-
-    if (dt.getTime() < Date.now()) {
-      Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
-      return;
-    }
-
-    setSavingCounter(true);
-    try {
-      await proposeDate(id, dt.toISOString(), 'client');
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === id ? { ...a, status: 'scheduled', requested_at: dt.toISOString(), proposed_by: 'client' } : a
-        )
-      );
-      setCounteringId(null);
-    } catch (err) {
-      console.error('counter propose error', err);
-      Alert.alert('Error', 'No se pudo enviar la contra-propuesta.');
-    } finally {
-      setSavingCounter(false);
     }
   }
 
@@ -286,7 +198,7 @@ export default function CitasScreen() {
                   icon="close"
                   label="Cancelar solicitud"
                   color={colors.danger}
-                  onPress={() => handleCancelRequest(request)}
+                  onPress={() => cancelRequest(request)}
                   loading={cancellingRequestId === request.id}
                   disabled={cancellingRequestId !== null && cancellingRequestId !== request.id}
                 />
@@ -360,7 +272,7 @@ export default function CitasScreen() {
               )}
 
               {/* Taller propuso → cliente aprueba o contra-propone */}
-              {businessProposed && counteringId !== appointment.id && (
+              {businessProposed && rescheduleActions.reschedulingId !== appointment.id && (
                 <View style={styles.circleActionsRow}>
                   <CircleActionButton
                     icon="close"
@@ -374,63 +286,63 @@ export default function CitasScreen() {
                     label="Proponer otra"
                     color={colors.primary}
                     variant="outline"
-                    onPress={() => startCounter(appointment.id)}
+                    onPress={() => rescheduleActions.startRescheduling(appointment.id)}
                     disabled={processingId !== null}
                   />
                   <CircleActionButton
                     icon="checkmark"
                     label="Aprobar"
                     color={colors.primary}
-                    onPress={() => handleApprove(appointment.id)}
-                    loading={processingId === appointment.id}
-                    disabled={processingId !== null && processingId !== appointment.id}
+                    onPress={() => rescheduleActions.approve(appointment.id)}
+                    loading={rescheduleActions.approvingId === appointment.id}
+                    disabled={rescheduleActions.approvingId !== null && rescheduleActions.approvingId !== appointment.id}
                   />
                 </View>
               )}
 
               {/* Formulario de contra-propuesta del cliente */}
-              {counteringId === appointment.id && (
+              {rescheduleActions.reschedulingId === appointment.id && (
                 <View style={styles.counterBox}>
                   <Text style={styles.counterTitle}>Proponer otra fecha</Text>
 
                   <Text style={styles.fieldLabel}>Fecha</Text>
                   <Pressable
                     style={styles.pickerButton}
-                    onPress={() => setShowDatePicker((prev) => !prev)}
+                    onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {pickerDate.toLocaleDateString('es-EC', {
+                      {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
                       })}
                     </Text>
                   </Pressable>
-                  {showDatePicker && (
+                  {rescheduleActions.showDatePicker && (
                     <DateTimePicker
-                      value={pickerDate}
+                      value={rescheduleActions.pickerDate}
                       mode="date"
                       display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
                       minimumDate={new Date()}
-                      onChange={handleDateChange}
+                      onChange={rescheduleActions.handleDateChange}
                     />
                   )}
 
                   <Text style={styles.fieldLabel}>Hora</Text>
                   <Pressable
                     style={styles.pickerButton}
-                    onPress={() => setShowTimePicker((prev) => !prev)}
+                    onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </Pressable>
-                  {showTimePicker && (
+                  {rescheduleActions.showTimePicker && (
                     <DateTimePicker
-                      value={pickerTime}
+                      value={rescheduleActions.pickerTime}
                       mode="time"
                       display="spinner"
-                      onChange={handleTimeChange}
+                      onChange={rescheduleActions.handleTimeChange}
                     />
                   )}
 
@@ -440,21 +352,21 @@ export default function CitasScreen() {
                       label="Cancelar"
                       color={colors.textMuted}
                       variant="outline"
-                      onPress={cancelCounter}
+                      onPress={rescheduleActions.cancelRescheduling}
                     />
                     <CircleActionButton
                       icon="checkmark"
                       label="Enviar propuesta"
                       color={colors.primary}
-                      loading={savingCounter}
-                      onPress={() => handleCounter(appointment.id)}
+                      loading={rescheduleActions.saving}
+                      onPress={() => rescheduleActions.confirmReschedule(appointment.id)}
                     />
                   </View>
                 </View>
               )}
 
               {/* Cliente propuso → esperando respuesta del taller */}
-              {clientProposed && counteringId !== appointment.id && (
+              {clientProposed && rescheduleActions.reschedulingId !== appointment.id && (
                 <View style={styles.waitingRow}>
                   <Text style={styles.waitingText}>Esperando respuesta del taller.</Text>
                   <View style={styles.circleActionsRow}>
@@ -502,7 +414,7 @@ export default function CitasScreen() {
                     label="Proponer otro horario"
                     color={colors.primary}
                     variant="outline"
-                    onPress={() => startCounter(appointment.id)}
+                    onPress={() => rescheduleActions.startRescheduling(appointment.id)}
                     disabled={processingId !== null}
                   />
                 </View>

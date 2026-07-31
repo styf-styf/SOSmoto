@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { ContactActionButtons } from '../../components/ContactActionButtons';
 import { StatusBadge, type StatusBadgeTone } from '../../components/StatusBadge';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -61,6 +62,7 @@ export default function ClienteExternoScreen() {
   const [record, setRecord] = useState<BusinessClientRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState<string>('');
   // Los informes de servicio y las citas son exclusivos de taller -- esta
   // pantalla (a diferencia de cliente/[id].tsx) no filtraba por tipo de
   // negocio y ofrecía "Crear informe" a una tienda, que terminaba en el
@@ -87,6 +89,7 @@ export default function ClienteExternoScreen() {
         .then(async (work) => {
           if (!work) return;
           setBusinessId(work.business.id);
+          setBusinessName(work.business.name);
           setIsStore(work.business.business_type === 'store');
           const [extData, bcRecord] = await Promise.all([
             getExternalClientData(work.business.id, decodedName),
@@ -334,19 +337,21 @@ export default function ClienteExternoScreen() {
 
       {/* Acciones rápidas */}
       <View style={styles.actionsRow}>
-        {displayPhone && (
-          <Pressable style={styles.actionBtn} onPress={() => Linking.openURL(`tel:${displayPhone}`)}>
-            <Ionicons name="call-outline" size={20} color={colors.primary} />
-            <Text style={styles.actionLabel}>Llamar</Text>
-          </Pressable>
-        )}
+        {displayPhone && <ContactActionButtons phone={displayPhone} />}
         {displayPhone && (
           <Pressable
             style={styles.actionBtn}
-            onPress={() => Linking.openURL(toWhatsappLink(displayPhone))}
+            onPress={() =>
+              Linking.openURL(
+                toWhatsappLink(
+                  displayPhone,
+                  `¡Hola ${decodedName}! Soy de ${businessName || 'tu taller de confianza'} en SOSmoto 🏍️. Te recomiendo descargar la app -- desde ahí puedes agendar citas, ver nuestro catálogo y más. Muy pronto disponible aquí: https://sosmoto.net`
+                )
+              )
+            }
           >
-            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-            <Text style={styles.actionLabel}>WhatsApp</Text>
+            <Ionicons name="download-outline" size={20} color={colors.primary} />
+            <Text style={styles.actionLabel}>Invitar a la app</Text>
           </Pressable>
         )}
         {!isStore && (

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { notifyUser } from './notifications';
+import { subscribeToTable } from './realtime';
 import type { Appointment, AppointmentStatus, VehicleInfo } from '../types/database';
 
 // Estadísticas de un servicio puntual (para la vista del negocio en su
@@ -345,29 +346,21 @@ export async function getActiveClientAppointments(
 }
 
 export function subscribeToClientAppointments(clientId: string, onChange: () => void) {
-  const channel = supabase
-    .channel(`client_appointments_${clientId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'appointments', filter: `client_id=eq.${clientId}` },
-      onChange
-    )
-    .subscribe();
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable(
+    `client_appointments_${clientId}`,
+    'appointments',
+    '*',
+    `client_id=eq.${clientId}`,
+    onChange
+  );
 }
 
 export function subscribeToBusinessAppointments(businessId: string, onChange: () => void) {
-  const channel = supabase
-    .channel(`business_appointments_${businessId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'appointments', filter: `business_id=eq.${businessId}` },
-      onChange
-    )
-    .subscribe();
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable(
+    `business_appointments_${businessId}`,
+    'appointments',
+    '*',
+    `business_id=eq.${businessId}`,
+    onChange
+  );
 }

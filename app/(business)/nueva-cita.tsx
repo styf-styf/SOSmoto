@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Platform, Pressable, ScrollView,
+  ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import { createAppointmentByBusiness } from '../../services/appointments';
 import { scheduleAppointmentReminder } from '../../services/appointmentReminders';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getCRMClients, searchUsers, type CRMClient, type UserSearchResult } from '../../services/history';
+import { toWhatsappLink } from '../../utils/whatsapp';
 import type { BusinessType, Service } from '../../types/database';
 
 interface SelectedClient {
@@ -35,6 +36,7 @@ function defaultDate(): Date {
 
 interface NuevaCitaData {
   businessId: string | null;
+  businessName: string;
   businessType: BusinessType | null;
   crmClients: CRMClient[];
   services: Service[];
@@ -66,20 +68,27 @@ export default function NuevaCitaScreen() {
 
   const cacheKey = profile ? `nueva-cita-${profile.id}` : null;
   const { data, loading } = useCachedLoad<NuevaCitaData>(cacheKey, async () => {
-    const empty: NuevaCitaData = { businessId: null, businessType: null, crmClients: [], services: [] };
+    const empty: NuevaCitaData = { businessId: null, businessName: '', businessType: null, crmClients: [], services: [] };
     if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return empty;
     if (work.business.business_type !== 'workshop') {
-      return { ...empty, businessId: work.business.id, businessType: work.business.business_type };
+      return { ...empty, businessId: work.business.id, businessName: work.business.name, businessType: work.business.business_type };
     }
     const [crm, svcList] = await Promise.all([
       getCRMClients(work.business.id),
       getActiveServices(work.business.id),
     ]);
-    return { businessId: work.business.id, businessType: work.business.business_type, crmClients: crm, services: svcList };
+    return {
+      businessId: work.business.id,
+      businessName: work.business.name,
+      businessType: work.business.business_type,
+      crmClients: crm,
+      services: svcList,
+    };
   });
   const businessId = data?.businessId ?? null;
+  const businessName = data?.businessName ?? '';
   const businessType = data?.businessType ?? null;
   const crmClients = data?.crmClients ?? [];
   const services = data?.services ?? [];
@@ -195,13 +204,32 @@ export default function NuevaCitaScreen() {
         serviceName: selectedService?.name,
       });
 
-      const msg = selectedClient.isExternal
-        ? 'La cita fue registrada. Recibirás un recordatorio 30 min antes.'
-        : 'El cliente recibirá una notificación para aceptar o reagendar.';
+      if (selectedClient.isExternal && selectedClient.phone) {
+        const dateStr = new Date(scheduledAt).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+        const waMessage =
+          `¡Hola ${selectedClient.full_name}! Te agendé una cita en ${businessName || 'el taller'}` +
+          `${selectedService ? ` para ${selectedService.name}` : ''} el ${dateStr}. Cualquier cambio avísame. ` +
+          `También puedes descargar la app SOSmoto para ver tu cita y más, muy pronto disponible aquí: https://sosmoto.net`;
 
-      Alert.alert('Cita creada', msg, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+        Alert.alert('Cita creada', 'La cita fue registrada. Recibirás un recordatorio 30 min antes.', [
+          { text: 'Ahora no', style: 'cancel', onPress: () => router.back() },
+          {
+            text: 'Avisar por WhatsApp',
+            onPress: () => {
+              Linking.openURL(toWhatsappLink(selectedClient.phone, waMessage));
+              router.back();
+            },
+          },
+        ]);
+      } else {
+        const msg = selectedClient.isExternal
+          ? 'La cita fue registrada. Recibirás un recordatorio 30 min antes.'
+          : 'El cliente recibirá una notificación para aceptar o reagendar.';
+
+        Alert.alert('Cita creada', msg, [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
     } catch (err) {
       console.error('create appointment by business error', err);
       Alert.alert('Error', 'No se pudo crear la cita.');
@@ -266,7 +294,14 @@ export default function NuevaCitaScreen() {
             <Ionicons name="close-circle" size={20} color={colors.textMuted} />
           </Pressable>
         </View>
-      ) : (
+      ) : null}
+      {selectedClient?.isExternal && (
+        <Text style={styles.externalHint}>
+          Este cliente no usa la app: la cita quedará confirmada directo (sin esperar aceptación) y no le llega
+          ninguna notificación -- avísale tú la fecha por fuera de la app.
+        </Text>
+      )}
+      {!selectedClient && (
         <View style={styles.searchWrap}>
           <TextInput
             style={styles.searchInput}
@@ -458,6 +493,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2,
   },
   extTagText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
+  externalHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: -12,
+    marginBottom: 20,
+    lineHeight: 17,
+  },
   chipRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20,
   },

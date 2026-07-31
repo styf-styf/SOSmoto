@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,29 +14,19 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { ImagePickerAsset } from 'expo-image-picker';
 import { ChatHeader } from '../../../components/ChatHeader';
 import { ImageViewerModal } from '../../../components/ImageViewerModal';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
+import { useChatMessaging } from '../../../hooks/useChatMessaging';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
+import { getMessages, markThreadRead, sendMessage } from '../../../services/messages';
 import {
-  getMessages,
-  markThreadRead,
-  sendMessage,
-  subscribeToMessages,
-} from '../../../services/messages';
-import {
-  pickImageFromCamera,
-  pickImageFromLibrary,
-  uploadChatImage,
-} from '../../../services/storage';
-import {
-  cancelAppointmentRequest,
   getActiveAppointmentRequests,
   subscribeToAppointmentRequest,
   type AppointmentRequest,
 } from '../../../services/appointmentRequests';
+import { useClientAppointmentRequestCancel } from '../../../hooks/useClientAppointmentRequestCancel';
 import {
   cancelProductIntent,
   getClientProductIntents,
@@ -50,7 +39,6 @@ import {
 } from '../../../services/serviceIntents';
 import type {
   Business,
-  Message,
   ProductIntentWithProduct,
   ServiceIntentWithService,
 } from '../../../types/database';
@@ -69,24 +57,36 @@ export default function ChatScreen() {
   }>();
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
   const autoSentRef = useRef(false);
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState(prefill ?? '');
   const [loading, setLoading] = useState(true);
-  const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(
-    null,
-  );
-  // chat/asistente.tsx ya tenía este guard (if (!profile || sending) return);
-  // acá faltaba, dejando una ventana breve para mandar el mismo mensaje dos
-  // veces con un doble-toque.
-  const [sending, setSending] = useState(false);
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
-  const [showAttach, setShowAttach] = useState(false);
+  const chat = useChatMessaging({
+    role: 'client',
+    clientId,
+    businessId,
+    profileId: profile?.id,
+    initialText: prefill,
+  });
+  const {
+    scrollRef,
+    messages,
+    setMessages,
+    text,
+    setText,
+    sending,
+    pendingImage,
+    setPendingImage,
+    viewingImage,
+    setViewingImage,
+    showAttach,
+    setShowAttach,
+    handleCamera,
+    handleGallery,
+    handleSend,
+  } = chat;
 
   // Banner de solicitud de cita -- lista, no un solo valor: el cliente
   // puede tener más de una solicitud pendiente a la vez con el mismo
@@ -94,9 +94,7 @@ export default function ChatScreen() {
   const [appointmentRequests, setAppointmentRequests] = useState<
     AppointmentRequest[]
   >([]);
-  const [cancellingRequestId, setCancellingRequestId] = useState<
-    string | null
-  >(null);
+  const { cancellingRequestId, cancelRequest } = useClientAppointmentRequestCancel<AppointmentRequest>(setAppointmentRequests);
 
   // Banner de apartados de producto pendientes/confirmados
   const [productIntents, setProductIntents] = useState<
@@ -242,152 +240,6 @@ export default function ChatScreen() {
       });
   }, [loading, clientId, businessId, autoSend, profile, prefill]);
 
-  useEffect(() => {
-    if (!businessId || !clientId) return;
-    const unsubscribe = subscribeToMessages(
-      'client_id',
-      clientId,
-      (message) => {
-        if (message.business_id !== businessId) return;
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === message.id)) return prev;
-          // Los mensajes propios enviados por handleSend ya se agregaron optimistic
-          // (con un id temp_*) y se reconcilian ahí mismo -- si el realtime los
-          // agregara también, saldrían duplicados mientras dura esa reconciliación.
-          // Pero mensajes propios generados por otro lado (cancelar una solicitud
-          // de cita, que inserta directo en `messages` sin pasar por handleSend)
-          // nunca tienen esa entrada temp -- filtrarlos siempre por sender_id hacía
-          // que ese mensaje no apareciera hasta reabrir la app. Solo se ignora si
-          // hay un envío propio todavía pendiente.
-          const hasPendingOwnSend = message.sender_id === profile?.id && prev.some((m) => m.id.startsWith('temp_'));
-          if (hasPendingOwnSend) return prev;
-          return [...prev, message];
-        });
-        if (profile && message.sender_id !== profile.id) {
-          markThreadRead(clientId, businessId, profile.id).catch((err) =>
-            console.error('mark thread read error', err),
-          );
-        }
-      },
-    );
-    return unsubscribe;
-  }, [businessId, clientId, profile]);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }
-  }, [messages.length]);
-
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-    return sub.remove;
-  }, []);
-
-  async function handleCamera() {
-    setShowAttach(false);
-    try {
-      const asset = await pickImageFromCamera(null);
-      if (asset) setPendingImage(asset);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      Alert.alert('Error', msg || 'No se pudo acceder a la cámara.');
-    }
-  }
-
-  async function handleGallery() {
-    setShowAttach(false);
-    try {
-      const asset = await pickImageFromLibrary(null);
-      if (asset) setPendingImage(asset);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      Alert.alert('Error', msg || 'No se pudo acceder a la galería.');
-    }
-  }
-
-  async function handleSend() {
-    if (!profile || !clientId || !businessId || sending) return;
-    const body = text.trim();
-    if (!body && !pendingImage) return;
-
-    setSending(true);
-    setText('');
-    const imageToSend = pendingImage;
-    setPendingImage(null);
-
-    const tempId = `temp_${Date.now()}`;
-    const optimistic: Message = {
-      id: tempId,
-      client_id: clientId,
-      business_id: businessId,
-      sender_id: profile.id,
-      body,
-      image_url: imageToSend ? imageToSend.uri : null,
-      created_at: new Date().toISOString(),
-      read_at: null,
-    };
-    setMessages((prev) => [...prev, optimistic]);
-
-    try {
-      let imageUrl: string | undefined;
-      if (imageToSend) {
-        imageUrl = await uploadChatImage(imageToSend, profile.id, businessId, clientId);
-      }
-      const message = await sendMessage({
-        clientId,
-        businessId,
-        senderId: profile.id,
-        body,
-        imageUrl,
-      });
-      setMessages((prev) => {
-        const without = prev.filter((m) => m.id !== tempId);
-        return without.some((m) => m.id === message.id)
-          ? without
-          : [...without, message];
-      });
-    } catch (err) {
-      console.error('send message error', err);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setText(body);
-      if (imageToSend) setPendingImage(imageToSend);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function handleCancelRequest(request: AppointmentRequest) {
-    if (cancellingRequestId) return;
-    Alert.alert(
-      'Cancelar solicitud',
-      '¿Seguro que quieres cancelar la solicitud de cita?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            setCancellingRequestId(request.id);
-            try {
-              await cancelAppointmentRequest(request);
-              setAppointmentRequests((prev) =>
-                prev.filter((r) => r.id !== request.id),
-              );
-            } catch (err) {
-              console.error('cancel request error', err);
-              Alert.alert('Error', 'No se pudo cancelar la solicitud.');
-            } finally {
-              setCancellingRequestId(null);
-            }
-          },
-        },
-      ],
-    );
-  }
-
   async function handleCancelIntent(intentId: string) {
     if (cancellingIntentId) return;
     Alert.alert(
@@ -507,7 +359,7 @@ export default function ChatScreen() {
               </View>
               <Pressable
                 style={styles.cancelRequestBtn}
-                onPress={() => handleCancelRequest(request)}
+                onPress={() => cancelRequest(request)}
                 disabled={cancellingRequestId !== null}
               >
                 {cancellingRequestId === request.id ? (
@@ -786,7 +638,7 @@ export default function ChatScreen() {
           />
           <Pressable
             style={styles.sendButton}
-            onPress={handleSend}
+            onPress={() => handleSend()}
             disabled={(!text.trim() && !pendingImage) || sending}
           >
             <Ionicons name="send" size={18} color="#fff" />

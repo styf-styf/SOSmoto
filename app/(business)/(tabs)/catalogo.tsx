@@ -21,6 +21,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../../components/Button';
 import { CategoryPicker } from '../../../components/CategoryPicker';
 import { GradientShade } from '../../../components/GradientShade';
+import { MultiPhotoPicker } from '../../../components/MultiPhotoPicker';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -815,28 +816,17 @@ function ServiceForm({
       <Text style={styles.fieldLabel}>
         Fotos ({photos.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photosRow}>
-        {photos.map((url, index) => (
-          <View key={`${url}-${index}`} style={styles.photoThumbWrap}>
-            <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
-            <Pressable style={styles.photoRemoveBtn} onPress={() => handleRemovePhoto(index)}>
-              <Ionicons name="close-circle" size={20} color={colors.danger} />
-            </Pressable>
-          </View>
-        ))}
-        {!atPhotoLimit && (
-          <Pressable style={styles.photoAddTile} onPress={handlePickPhoto} disabled={uploadingPhoto}>
-            {uploadingPhoto ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <>
-                <Ionicons name="add" size={22} color={colors.primary} />
-                <Text style={styles.photoAddTileText}>Agregar</Text>
-              </>
-            )}
-          </Pressable>
-        )}
-      </ScrollView>
+      <MultiPhotoPicker
+        photos={photos}
+        onRemove={handleRemovePhoto}
+        onAdd={handlePickPhoto}
+        max={maxPhotos}
+        uploading={uploadingPhoto}
+        thumbSize={90}
+        gap={10}
+        borderRadius={10}
+        addLabel="Agregar"
+      />
       {atPhotoLimit && (
         <Text style={styles.photoLimitHint}>
           Tu plan {limits?.planName ?? 'free'} permite hasta {maxPhotos} foto{maxPhotos === 1 ? '' : 's'}. Sube de plan para agregar más.
@@ -1333,28 +1323,17 @@ function ProductForm({
       <Text style={styles.fieldLabel}>
         Fotos ({photos.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photosRow}>
-        {photos.map((url, index) => (
-          <View key={`${url}-${index}`} style={styles.photoThumbWrap}>
-            <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
-            <Pressable style={styles.photoRemoveBtn} onPress={() => handleRemovePhoto(index)}>
-              <Ionicons name="close-circle" size={20} color={colors.danger} />
-            </Pressable>
-          </View>
-        ))}
-        {!atPhotoLimit && (
-          <Pressable style={styles.photoAddTile} onPress={handlePickPhoto} disabled={uploadingPhoto}>
-            {uploadingPhoto ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <>
-                <Ionicons name="add" size={22} color={colors.primary} />
-                <Text style={styles.photoAddTileText}>Agregar</Text>
-              </>
-            )}
-          </Pressable>
-        )}
-      </ScrollView>
+      <MultiPhotoPicker
+        photos={photos}
+        onRemove={handleRemovePhoto}
+        onAdd={handlePickPhoto}
+        max={maxPhotos}
+        uploading={uploadingPhoto}
+        thumbSize={90}
+        gap={10}
+        borderRadius={10}
+        addLabel="Agregar"
+      />
       {atPhotoLimit && (
         <Text style={styles.photoLimitHint}>
           Tu plan {limits?.planName ?? 'free'} permite hasta {maxPhotos} foto{maxPhotos === 1 ? '' : 's'}. Sube de plan para agregar más.
@@ -1673,43 +1652,6 @@ const styles = StyleSheet.create({
   },
   addVariantBtnText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  photosRow: {
-    gap: 10,
-    marginBottom: 6,
-    paddingTop: 8,
-  },
-  photoThumbWrap: {
-    position: 'relative',
-  },
-  photoThumb: {
-    width: 90,
-    aspectRatio: 3 / 4,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  photoRemoveBtn: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  photoAddTile: {
-    width: 90,
-    aspectRatio: 3 / 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  photoAddTileText: {
-    fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
   },

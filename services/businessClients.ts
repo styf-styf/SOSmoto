@@ -209,3 +209,36 @@ export async function isAppClientAdded(
     .eq('client_id', clientId);
   return (count ?? 0) > 0;
 }
+
+// Notas privadas del negocio sobre un cliente real de la app -- el campo
+// `notes` ya existía en business_clients (se usaba para clientes externos,
+// ver updateExternalClient) pero nunca se leía/editaba para un cliente
+// real. No siempre existe una fila todavía (el cliente puede aparecer en el
+// perfil por tener una cita/interacción, sin que el negocio lo haya
+// agregado explícitamente) -- por eso hace upsert en vez de asumir que ya
+// existe. A propósito NO usa addAppClient (esa crea la fila en status
+// 'pending' y le manda una notificación de invitación al cliente -- acá el
+// negocio ya está interactuando con un cliente real, no tiene sentido
+// "invitarlo" solo porque se le escribió una nota privada).
+export async function upsertClientNotes(
+  businessId: string,
+  clientId: string,
+  notes: string
+): Promise<BusinessClientRecord> {
+  const existing = await getBusinessClientByClientId(businessId, clientId);
+  if (existing) {
+    const { data, error } = await bc()
+      .update({ notes: notes.trim() || null })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as BusinessClientRecord;
+  }
+  const { data, error } = await bc()
+    .insert({ business_id: businessId, client_id: clientId, status: 'accepted', notes: notes.trim() || null })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as BusinessClientRecord;
+}

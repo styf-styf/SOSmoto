@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { notifyUser } from './notifications';
+import { notifyAndLogBusinessEvent, notifyAndLogClientEvent } from './intentNotifications';
+import { subscribeToTable } from './realtime';
 import type { ServiceIntent, ServiceIntentWithService, ServiceIntentStatus } from '../types/database';
 
 export async function getClientIntentForService(
@@ -42,20 +43,17 @@ export async function createServiceIntent(
     .eq('id', serviceId)
     .maybeSingle();
   if (business?.owner_id && service?.name) {
-    await notifyUser(
-      business.owner_id,
-      'Servicio agendado',
-      `Un cliente quiere agendar: ${service.name}`,
-      { type: 'service_intent', serviceId, businessId }
-    );
     // Mismo patrón que appointmentRequests.ts (createAppointmentRequest) --
     // deja un rastro permanente en el historial del chat, a diferencia del
     // banner en vivo que desaparece en cuanto el intent se resuelve.
-    await supabase.from('messages').insert({
-      client_id: clientId,
-      business_id: businessId,
-      sender_id: clientId,
-      body: `🔧 Quiere agendar: ${service.name}`,
+    await notifyAndLogClientEvent({
+      notifyUserId: business.owner_id,
+      title: 'Servicio agendado',
+      body: `Un cliente quiere agendar: ${service.name}`,
+      data: { type: 'service_intent', serviceId, businessId },
+      clientId,
+      businessId,
+      messageBody: `🔧 Quiere agendar: ${service.name}`,
     });
   }
 
@@ -89,19 +87,14 @@ export async function cancelServiceIntent(intentId: string): Promise<void> {
       .maybeSingle();
     const serviceName = service?.name ?? 'un servicio';
 
-    if (business?.owner_id) {
-      await notifyUser(
-        business.owner_id,
-        'Solicitud de servicio cancelada',
-        `El cliente canceló: ${serviceName}`,
-        { type: 'service_intent', serviceId: intent.service_id, businessId: intent.business_id }
-      );
-    }
-    await supabase.from('messages').insert({
-      client_id: intent.client_id,
-      business_id: intent.business_id,
-      sender_id: intent.client_id,
-      body: `❌ Canceló: ${serviceName}`,
+    await notifyAndLogClientEvent({
+      notifyUserId: business?.owner_id,
+      title: 'Solicitud de servicio cancelada',
+      body: `El cliente canceló: ${serviceName}`,
+      data: { type: 'service_intent', serviceId: intent.service_id, businessId: intent.business_id },
+      clientId: intent.client_id,
+      businessId: intent.business_id,
+      messageBody: `❌ Canceló: ${serviceName}`,
     });
   }
 }
@@ -135,23 +128,17 @@ export async function updateServiceIntentStatus(
       status === 'confirmed'
         ? `Tu cita para "${serviceName}" fue confirmada por el negocio`
         : `El negocio indicó que "${serviceName}" no está disponible en este momento`;
-    await notifyUser(intent.client_id, title, body, { type: 'service_intent', serviceId: intent.service_id, businessId: intent.business_id });
+    const messageBody =
+      status === 'confirmed' ? `✅ Confirmado: ${serviceName}` : `⚠️ No disponible: ${serviceName}`;
 
-    // sender_id debe ser quien está autenticado ahora mismo (RLS de messages
-    // exige sender_id = auth.uid()) -- puede ser el dueño o cualquier
-    // empleado con permiso, nunca asumir que es el dueño.
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user) {
-      await supabase.from('messages').insert({
-        client_id: intent.client_id,
-        business_id: intent.business_id,
-        sender_id: authData.user.id,
-        body:
-          status === 'confirmed'
-            ? `✅ Confirmado: ${serviceName}`
-            : `⚠️ No disponible: ${serviceName}`,
-      });
-    }
+    await notifyAndLogBusinessEvent({
+      clientId: intent.client_id,
+      businessId: intent.business_id,
+      title,
+      body,
+      data: { type: 'service_intent', serviceId: intent.service_id, businessId: intent.business_id },
+      messageBody,
+    });
   }
 }
 
@@ -187,21 +174,16 @@ export function subscribeToClientServiceIntentsForBusiness(
   businessId: string,
   onChange: () => void
 ) {
-  const channel = supabase
-    .channel(`service_intents_biz_${clientId}_${businessId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'service_intents', filter: `client_id=eq.${clientId}` },
-      (payload) => {
-        const row = (payload.new ?? payload.old) as ServiceIntent;
-        if (row.business_id === businessId) onChange();
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable<ServiceIntent>(
+    `service_intents_biz_${clientId}_${businessId}`,
+    'service_intents',
+    '*',
+    `client_id=eq.${clientId}`,
+    (payload) => {
+      const row = (payload.new ?? payload.old) as ServiceIntent;
+      if (row.business_id === businessId) onChange();
+    }
+  );
 }
 
 // Lado negocio: avisa con la etiqueta ya armada cuando el cliente cancela un
@@ -212,23 +194,18 @@ export function subscribeToServiceIntentCancelled(
   clientId: string,
   onCancelled: (intentId: string, label: string) => void
 ) {
-  const channel = supabase
-    .channel(`service_intent_cancel_${businessId}_${clientId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'service_intents', filter: `business_id=eq.${businessId}` },
-      async (payload) => {
-        const row = payload.new as ServiceIntent;
-        if (row.client_id !== clientId || row.status !== 'cancelled') return;
-        const { data: service } = await supabase.from('services').select('name').eq('id', row.service_id).maybeSingle();
-        onCancelled(row.id, service?.name ?? 'un servicio');
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToTable<ServiceIntent>(
+    `service_intent_cancel_${businessId}_${clientId}`,
+    'service_intents',
+    'UPDATE',
+    `business_id=eq.${businessId}`,
+    async (payload) => {
+      const row = payload.new as ServiceIntent;
+      if (row.client_id !== clientId || row.status !== 'cancelled') return;
+      const { data: service } = await supabase.from('services').select('name').eq('id', row.service_id).maybeSingle();
+      onCancelled(row.id, service?.name ?? 'un servicio');
+    }
+  );
 }
 
 export async function getPendingServiceIntentsForBusinessClient(
@@ -261,25 +238,20 @@ export function subscribeToClientServiceIntent(
   onUpdate: (intent: ServiceIntent | null) => void,
   onUnavailable?: () => void
 ) {
-  const channel = supabase
-    .channel(`service_intent_${clientId}_${serviceId}_${Math.random().toString(36).slice(2)}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'service_intents', filter: `client_id=eq.${clientId}` },
-      (payload) => {
-        const row = payload.new as ServiceIntent;
-        if (row.service_id !== serviceId) return;
-        if (row.status === 'confirmed' || row.status === 'pending') {
-          onUpdate(row);
-        } else {
-          onUpdate(null);
-          if (row.status === 'unavailable') onUnavailable?.();
-        }
+  return subscribeToTable<ServiceIntent>(
+    `service_intent_${clientId}_${serviceId}`,
+    'service_intents',
+    'UPDATE',
+    `client_id=eq.${clientId}`,
+    (payload) => {
+      const row = payload.new as ServiceIntent;
+      if (row.service_id !== serviceId) return;
+      if (row.status === 'confirmed' || row.status === 'pending') {
+        onUpdate(row);
+      } else {
+        onUpdate(null);
+        if (row.status === 'unavailable') onUnavailable?.();
       }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+    }
+  );
 }

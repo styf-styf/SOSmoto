@@ -13,27 +13,25 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import {
-  approveAppointment,
   cancelAppointment,
   completeAppointment,
   getBusinessAppointments,
-  proposeDate,
-  rescheduleDirect,
   rejectAppointment,
   subscribeToBusinessAppointments,
   type BusinessAppointment,
 } from '../../services/appointments';
+import {
+  getBusinessAppointmentRequests,
+  subscribeToBusinessAppointmentRequests,
+  type BusinessAppointmentRequest,
+} from '../../services/appointmentRequests';
+import { useBusinessAppointmentRequestActions } from '../../hooks/useBusinessAppointmentRequestActions';
+import { useAppointmentRescheduleActions } from '../../hooks/useAppointmentRescheduleActions';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { syncAppointmentReminders } from '../../services/appointmentReminders';
 import { formatVehicle, type BusinessType } from '../../types/database';
 import { createClientReview, getReviewedTargetIds } from '../../services/reviews';
 import { getReportIdsByAppointments, type AppointmentReportInfo } from '../../services/serviceReports';
-
-function defaultTime(): Date {
-  const d = new Date();
-  d.setHours(d.getHours() + 1, 0, 0, 0);
-  return d;
-}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
@@ -43,20 +41,13 @@ interface AgendaData {
   businessId: string | null;
   businessType: BusinessType | null;
   appointments: BusinessAppointment[];
+  requests: BusinessAppointmentRequest[];
   reviewedAppointmentIds: Set<string>;
   reportIdsByAppointment: Map<string, AppointmentReportInfo>;
 }
 
 export default function AgendaNegocioScreen() {
   const { profile } = useAuth();
-
-  // Panel de proponer/contra-proponer fecha
-  const [proposingId, setProposingId] = useState<string | null>(null);
-  const [pickerDate, setPickerDate] = useState(() => new Date());
-  const [pickerTime, setPickerTime] = useState(() => defaultTime());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [ratingId, setRatingId] = useState<string | null>(null);
@@ -72,6 +63,7 @@ export default function AgendaNegocioScreen() {
       businessId: null,
       businessType: null,
       appointments: [],
+      requests: [],
       reviewedAppointmentIds: new Set(),
       reportIdsByAppointment: new Map(),
     };
@@ -81,8 +73,9 @@ export default function AgendaNegocioScreen() {
     if (work.business.business_type !== 'workshop') {
       return { ...empty, businessId: work.business.id, businessType: work.business.business_type };
     }
-    const [result, { appointmentIds }, reportMap] = await Promise.all([
+    const [result, requests, { appointmentIds }, reportMap] = await Promise.all([
       getBusinessAppointments(work.business.id),
+      getBusinessAppointmentRequests(work.business.id),
       getReviewedTargetIds(profile.id),
       getReportIdsByAppointments(work.business.id),
     ]);
@@ -100,6 +93,7 @@ export default function AgendaNegocioScreen() {
       businessId: work.business.id,
       businessType: work.business.business_type,
       appointments: result,
+      requests,
       reviewedAppointmentIds: appointmentIds,
       reportIdsByAppointment: reportMap,
     };
@@ -107,12 +101,23 @@ export default function AgendaNegocioScreen() {
   const businessId = data?.businessId ?? null;
   const businessType = data?.businessType ?? null;
   const appointments = data?.appointments ?? [];
+  const requests = data?.requests ?? [];
   const reviewedAppointmentIds = data?.reviewedAppointmentIds ?? new Set<string>();
   const reportIdsByAppointment = data?.reportIdsByAppointment ?? new Map<string, AppointmentReportInfo>();
 
   function setAppointments(updater: (prev: BusinessAppointment[]) => BusinessAppointment[]) {
     setData((prev) => (prev ? { ...prev, appointments: updater(prev.appointments) } : prev));
   }
+
+  const rescheduleActions = useAppointmentRescheduleActions('business', (id, patch) =>
+    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)))
+  );
+
+  function setRequests(updater: (prev: BusinessAppointmentRequest[]) => BusinessAppointmentRequest[]) {
+    setData((prev) => (prev ? { ...prev, requests: updater(prev.requests) } : prev));
+  }
+
+  const requestActions = useBusinessAppointmentRequestActions<BusinessAppointmentRequest>(setRequests);
 
   function setReviewedAppointmentIds(updater: (prev: Set<string>) => Set<string>) {
     setData((prev) => (prev ? { ...prev, reviewedAppointmentIds: updater(prev.reviewedAppointmentIds) } : prev));
@@ -140,6 +145,17 @@ export default function AgendaNegocioScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
+  // Solicitudes (appointment_requests, todavía sin fila en appointments) --
+  // suscripción aparte porque viven en una tabla distinta.
+  useEffect(() => {
+    if (!businessId) return;
+    const unsubscribe = subscribeToBusinessAppointmentRequests(businessId, () => {
+      reload().catch((err) => console.error('reload agenda error', err));
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
+
   // Recarga el mapa de informes cada vez que la pantalla recupera el foco
   // (ej. al volver de nuevo-informe tras guardar borrador) -- este sí es un
   // caso de "algo cambió en otra pantalla", no un refresco "por si acaso".
@@ -152,79 +168,6 @@ export default function AgendaNegocioScreen() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [businessId])
   );
-
-  function startProposing(id: string) {
-    setProposingId(id);
-    setPickerDate(new Date());
-    setPickerTime(defaultTime());
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-  }
-
-  function cancelProposing() {
-    setProposingId(null);
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-  }
-
-  function handleDateChange(event: any, date?: Date) {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (date) setPickerDate(date);
-  }
-
-  function handleTimeChange(event: any, time?: Date) {
-    if (Platform.OS === 'android') setShowTimePicker(false);
-    if (time) setPickerTime(time);
-  }
-
-  async function handleConfirmPropose(id: string, isExternal: boolean) {
-    const dt = new Date(pickerDate);
-    dt.setHours(pickerTime.getHours(), pickerTime.getMinutes(), 0, 0);
-
-    if (dt.getTime() < Date.now()) {
-      Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (isExternal) {
-        await rescheduleDirect(id, dt.toISOString());
-        setAppointments((prev) =>
-          prev.map((a) =>
-            a.id === id
-              ? { ...a, status: 'confirmed', requested_at: dt.toISOString(), proposed_by: null }
-              : a
-          )
-        );
-      } else {
-        await proposeDate(id, dt.toISOString(), 'business');
-        setAppointments((prev) =>
-          prev.map((a) =>
-            a.id === id
-              ? { ...a, status: 'scheduled', requested_at: dt.toISOString(), proposed_by: 'business' }
-              : a
-          )
-        );
-      }
-      setProposingId(null);
-    } catch (err) {
-      console.error('propose date error', err);
-      Alert.alert('Error', 'No se pudo reagendar la cita.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleAccept(id: string) {
-    try {
-      await approveAppointment(id);
-      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'confirmed' } : a)));
-    } catch (err) {
-      console.error('approve appointment error', err);
-      Alert.alert('Error', 'No se pudo aceptar la cita.');
-    }
-  }
 
   function handleReject(id: string) {
     Alert.alert('Rechazar cita', '¿Seguro que quieres rechazar esta cita? El cliente será notificado.', [
@@ -350,6 +293,89 @@ export default function AgendaNegocioScreen() {
         <InfoButton onPress={() => setShowInfo(true)} accessibilityLabel="Cómo funciona el flujo de citas" />
       </View>
 
+      {requests.length > 0 && (
+        <View style={styles.requestsSection}>
+          <Text style={styles.sectionTitle}>Solicitudes de cita</Text>
+          {requests.map((request) => (
+            <View key={request.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{request.client_name}</Text>
+                <StatusBadge label="Sin responder" tone="pending" />
+              </View>
+              {request.service_name && <Text style={styles.cardMeta}>{request.service_name}</Text>}
+              {request.vehicle_label && <Text style={styles.cardMeta}>{request.vehicle_label}</Text>}
+              {request.notes && <Text style={styles.cardMeta}>{request.notes}</Text>}
+              {request.suggested_at && (
+                <View style={styles.dateRow}>
+                  <Text style={styles.dateLabel}>El cliente sugiere:</Text>
+                  <Text style={styles.dateValue}>{fmtDate(request.suggested_at)}</Text>
+                </View>
+              )}
+
+              {requestActions.approvingRequestId === request.id ? (
+                <View style={styles.proposeBox}>
+                  <Text style={styles.proposeTitle}>Confirmar fecha de cita</Text>
+
+                  <Text style={styles.fieldLabel}>Fecha</Text>
+                  <Pressable style={styles.pickerButton} onPress={() => requestActions.setShowApproveDatePicker((prev) => !prev)}>
+                    <Text style={styles.pickerButtonText}>
+                      {requestActions.approvePickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </Text>
+                  </Pressable>
+                  {requestActions.showApproveDatePicker && (
+                    <DateTimePicker
+                      value={requestActions.approvePickerDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                      minimumDate={new Date()}
+                      onChange={requestActions.handleApproveDateChange}
+                    />
+                  )}
+
+                  <Text style={styles.fieldLabel}>Hora</Text>
+                  <Pressable style={styles.pickerButton} onPress={() => requestActions.setShowApproveTimePicker((prev) => !prev)}>
+                    <Text style={styles.pickerButtonText}>
+                      {requestActions.approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </Pressable>
+                  {requestActions.showApproveTimePicker && (
+                    <DateTimePicker value={requestActions.approvePickerTime} mode="time" display="spinner" onChange={requestActions.handleApproveTimeChange} />
+                  )}
+
+                  <View style={styles.circleActionsRow}>
+                    <CircleActionButton icon="close" label="Cancelar" color={colors.textMuted} variant="outline" onPress={requestActions.cancelApproveForm} />
+                    <CircleActionButton
+                      icon="checkmark"
+                      label="Confirmar cita"
+                      color={colors.primary}
+                      loading={requestActions.processingRequestId === request.id}
+                      onPress={() => requestActions.handleAcceptRequest(request, request.client_name)}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.circleActionsRow}>
+                  <CircleActionButton
+                    icon="close"
+                    label="Rechazar"
+                    color={colors.danger}
+                    onPress={() => requestActions.handleRejectRequest(request)}
+                    disabled={requestActions.processingRequestId !== null}
+                  />
+                  <CircleActionButton
+                    icon="calendar-outline"
+                    label="Proponer fecha"
+                    color={colors.primary}
+                    onPress={() => requestActions.openApproveForm(request)}
+                    disabled={requestActions.processingRequestId !== null}
+                  />
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+
       <AppointmentCalendar
         appointments={appointments}
         selectedDate={selectedDate}
@@ -410,7 +436,7 @@ export default function AgendaNegocioScreen() {
               )}
 
               {/* Sin fecha aún → proponer o rechazar */}
-              {appointment.status === 'pending' && proposingId !== appointment.id && (
+              {appointment.status === 'pending' && rescheduleActions.reschedulingId !== appointment.id && (
                 <View style={styles.circleActionsRow}>
                   <CircleActionButton
                     icon="close"
@@ -422,13 +448,13 @@ export default function AgendaNegocioScreen() {
                     icon="calendar-outline"
                     label="Proponer fecha"
                     color={colors.primary}
-                    onPress={() => startProposing(appointment.id)}
+                    onPress={() => rescheduleActions.startRescheduling(appointment.id)}
                   />
                 </View>
               )}
 
               {/* Cliente propuso → aceptar o contra-proponer */}
-              {clientProposed && proposingId !== appointment.id && (
+              {clientProposed && rescheduleActions.reschedulingId !== appointment.id && (
                 <View style={styles.circleActionsRow}>
                   <CircleActionButton
                     icon="close"
@@ -441,19 +467,20 @@ export default function AgendaNegocioScreen() {
                     label="Proponer otra"
                     color={colors.primary}
                     variant="outline"
-                    onPress={() => startProposing(appointment.id)}
+                    onPress={() => rescheduleActions.startRescheduling(appointment.id)}
                   />
                   <CircleActionButton
                     icon="checkmark"
                     label="Aceptar"
                     color={colors.primary}
-                    onPress={() => handleAccept(appointment.id)}
+                    loading={rescheduleActions.approvingId === appointment.id}
+                    onPress={() => rescheduleActions.approve(appointment.id)}
                   />
                 </View>
               )}
 
               {/* Taller propuso → esperando que el cliente responda */}
-              {businessProposed && proposingId !== appointment.id && (
+              {businessProposed && rescheduleActions.reschedulingId !== appointment.id && (
                 <View style={styles.waitingRow}>
                   <Text style={styles.waitingText}>Esperando respuesta del cliente.</Text>
                   <View style={styles.circleActionsRow}>
@@ -462,14 +489,14 @@ export default function AgendaNegocioScreen() {
                       label="Cambiar fecha"
                       color={colors.primary}
                       variant="outline"
-                      onPress={() => startProposing(appointment.id)}
+                      onPress={() => rescheduleActions.startRescheduling(appointment.id)}
                     />
                   </View>
                 </View>
               )}
 
               {/* Panel de proponer/contra-proponer fecha */}
-              {proposingId === appointment.id && (
+              {rescheduleActions.reschedulingId === appointment.id && (
                 <View style={styles.proposeBox}>
                   <Text style={styles.proposeTitle}>
                     {clientProposed ? 'Proponer otra fecha' : 'Proponer fecha'}
@@ -478,41 +505,41 @@ export default function AgendaNegocioScreen() {
                   <Text style={styles.fieldLabel}>Fecha</Text>
                   <Pressable
                     style={styles.pickerButton}
-                    onPress={() => setShowDatePicker((prev) => !prev)}
+                    onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {pickerDate.toLocaleDateString('es-EC', {
+                      {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
                       })}
                     </Text>
                   </Pressable>
-                  {showDatePicker && (
+                  {rescheduleActions.showDatePicker && (
                     <DateTimePicker
-                      value={pickerDate}
+                      value={rescheduleActions.pickerDate}
                       mode="date"
                       display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
                       minimumDate={new Date()}
-                      onChange={handleDateChange}
+                      onChange={rescheduleActions.handleDateChange}
                     />
                   )}
 
                   <Text style={styles.fieldLabel}>Hora</Text>
                   <Pressable
                     style={styles.pickerButton}
-                    onPress={() => setShowTimePicker((prev) => !prev)}
+                    onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </Pressable>
-                  {showTimePicker && (
+                  {rescheduleActions.showTimePicker && (
                     <DateTimePicker
-                      value={pickerTime}
+                      value={rescheduleActions.pickerTime}
                       mode="time"
                       display="spinner"
-                      onChange={handleTimeChange}
+                      onChange={rescheduleActions.handleTimeChange}
                     />
                   )}
 
@@ -522,21 +549,21 @@ export default function AgendaNegocioScreen() {
                       label="Cancelar"
                       color={colors.textMuted}
                       variant="outline"
-                      onPress={cancelProposing}
+                      onPress={rescheduleActions.cancelRescheduling}
                     />
                     <CircleActionButton
                       icon="checkmark"
                       label="Confirmar fecha"
                       color={colors.primary}
-                      loading={saving}
-                      onPress={() => handleConfirmPropose(appointment.id, appointment.client_id === null)}
+                      loading={rescheduleActions.saving}
+                      onPress={() => rescheduleActions.confirmReschedule(appointment.id, { isExternal: appointment.client_id === null })}
                     />
                   </View>
                 </View>
               )}
 
               {/* Confirmada */}
-              {appointment.status === 'confirmed' && proposingId !== appointment.id && (
+              {appointment.status === 'confirmed' && rescheduleActions.reschedulingId !== appointment.id && (
                 <View style={styles.circleActionsRow}>
                   <CircleActionButton
                     icon="close"
@@ -549,7 +576,7 @@ export default function AgendaNegocioScreen() {
                     label="Reagendar"
                     color={colors.primary}
                     variant="outline"
-                    onPress={() => startProposing(appointment.id)}
+                    onPress={() => rescheduleActions.startRescheduling(appointment.id)}
                   />
                   <CircleActionButton
                     icon="checkmark"
@@ -642,8 +669,10 @@ export default function AgendaNegocioScreen() {
       <InfoModal visible={showInfo} title="Cómo funciona el flujo de citas" onClose={() => setShowInfo(false)}>
         <InfoStep number={1} title="Cómo llega una cita nueva">
           <Text style={infoTextStyles.text}>
-            Si el cliente pidió la cita sin sugerir fecha, la ves como "Sin fecha aún" -- te toca a ti proponer una
-            con "Proponer fecha".
+            Cuando un cliente pide una cita por primera vez, aparece en "Solicitudes de cita" arriba del calendario
+            (antes solo se veía en el chat) -- puedes rechazarla o confirmarle una fecha ahí mismo, sin entrar al
+            chat. Ya aceptada, si no le pusiste fecha todavía la ves como "Sin fecha aún" en la lista de abajo -- te
+            toca a ti proponer una con "Proponer fecha".
           </Text>
         </InfoStep>
 
@@ -679,6 +708,16 @@ export default function AgendaNegocioScreen() {
             Después de completar, puedes crear un informe de lo que hiciste (queda disponible para el cliente) y
             calificar al cliente -- esa calificación es interna, no pública, y ayuda a detectar clientes que cancelan
             seguido o no se presentan.
+          </Text>
+        </InfoStep>
+
+        <InfoStep number={7} title="Si el cliente no usa la app">
+          <Text style={infoTextStyles.text}>
+            Puedes agendarle una cita igual: en "Clientes" agrégalo primero como cliente externo (nombre y teléfono),
+            y en "Nueva cita" búscalo y elígelo -- aparece con la etiqueta "Externo". Esa cita se crea directo como
+            "Confirmada" (no hay nadie del otro lado que pueda aceptar/rechazar en la app) y no se envía ninguna
+            notificación -- avisarle la fecha queda por tu cuenta (llamada, WhatsApp, en persona). Solo tú recibes un
+            recordatorio local 30 minutos antes.
           </Text>
         </InfoStep>
       </InfoModal>
@@ -742,6 +781,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
   },
+  requestsSection: { marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 },
   topBtns: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   newCitaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
