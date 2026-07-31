@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '../../../../components/Button';
+import { CircleActionButton } from '../../../../components/CircleActionButton';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
@@ -16,10 +18,28 @@ import {
   subscribeToAppointmentRequest,
   type AppointmentRequest,
 } from '../../../../services/appointmentRequests';
-import { cancelAppointment, getActiveAppointmentForService } from '../../../../services/appointments';
+import {
+  approveAppointment,
+  cancelAppointment,
+  getActiveAppointmentForService,
+  proposeDate,
+  subscribeToClientAppointments,
+} from '../../../../services/appointments';
 import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
+import type { Appointment } from '../../../../types/database';
+
+function defaultCounterTime(): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  return d;
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,8 +50,18 @@ export default function ServiceDetailScreen() {
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
   const [appointmentRequest, setAppointmentRequest] = useState<AppointmentRequest | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const [confirmedAppointmentId, setConfirmedAppointmentId] = useState<string | null>(null);
+  // Cita ya creada (aceptada) para este servicio -- objeto completo (no solo
+  // el id) porque ahora replicamos acá el mismo flujo de reagendar de "Mis
+  // citas" (aprobar/proponer otra fecha), que necesita status/proposed_by.
+  const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
   const [cancellingAppointment, setCancellingAppointment] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [countering, setCountering] = useState(false);
+  const [pickerDate, setPickerDate] = useState(() => defaultCounterTime());
+  const [pickerTime, setPickerTime] = useState(() => defaultCounterTime());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [savingCounter, setSavingCounter] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
   const load = useCallback(async () => {
@@ -53,34 +83,35 @@ export default function ServiceDetailScreen() {
       .finally(() => setLoading(false));
   }, [load]);
 
+  // Recarga el estado de la solicitud/cita desde la base -- se llama al
+  // montar y desde ambas suscripciones en tiempo real (appointment_requests
+  // Y appointments), en vez de intentar recomputar el estado a mano a
+  // partir del payload del cambio: así cualquier transición (aceptada,
+  // reagendada, cancelada, completada) siempre refleja la verdad actual sin
+  // casos particulares que se puedan desincronizar.
+  const loadAppointmentState = useCallback(async () => {
+    if (!profile?.id || !service) return;
+    const [req, appt] = await Promise.all([
+      getAppointmentRequestForService(profile.id, service.business_id, service.id).catch((err) => {
+        console.error('load appointment request error', err);
+        return null;
+      }),
+      getActiveAppointmentForService(profile.id, service.business_id, service.id).catch((err) => {
+        console.error('load active appointment error', err);
+        return null;
+      }),
+    ]);
+    setAppointmentRequest(req);
+    setActiveAppointment(appt);
+  }, [profile?.id, service]);
+
   // Separado de `load`: profile arranca en null y se resuelve un instante
   // después -- si esto viviera dentro de `load` (que depende de profile),
   // cada resolución de profile volvía a disparar setLoading(true) sobre
   // toda la pantalla, y además duplicaba el incremento de vistas.
   useEffect(() => {
-    if (!profile?.id || !service) return;
-    let cancelled = false;
-    (async () => {
-      const req = await getAppointmentRequestForService(profile.id, service.business_id, service.id).catch((err) => {
-        console.error('load appointment request error', err);
-        return null;
-      });
-      if (cancelled) return;
-      setAppointmentRequest(req);
-      if (req?.status === 'accepted') {
-        getActiveAppointmentForService(profile.id, service.business_id, service.id)
-          .then((appt) => {
-            if (!cancelled) setConfirmedAppointmentId(appt?.id ?? null);
-          })
-          .catch((err) => console.error('load confirmed appointment error', err));
-      } else {
-        setConfirmedAppointmentId(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.id, service]);
+    loadAppointmentState().catch((err) => console.error('load appointment state error', err));
+  }, [loadAppointmentState]);
 
   // Si el usuario volvió a Inicio antes de entrar acá, esta es la primera
   // pantalla de servicio que gana foco después de eso: reinicia la pila
@@ -98,20 +129,19 @@ export default function ServiceDetailScreen() {
     if (!profile?.id || !service?.business_id) return;
     return subscribeToAppointmentRequest(profile.id, service.business_id, 'client', (req) => {
       if (req.service_id !== service.id) return;
-      if (req.status === 'accepted') {
-        setAppointmentRequest(req);
-        getActiveAppointmentForService(profile.id, service.business_id, service.id)
-          .then((appt) => setConfirmedAppointmentId(appt?.id ?? null))
-          .catch((err) => console.error('load confirmed appointment error', err));
-      } else if (req.status === 'pending') {
-        setAppointmentRequest(req);
-        setConfirmedAppointmentId(null);
-      } else {
-        setAppointmentRequest(null);
-        setConfirmedAppointmentId(null);
-      }
+      loadAppointmentState().catch((err) => console.error('reload after request change error', err));
     });
-  }, [profile?.id, service?.business_id, service?.id]);
+  }, [profile?.id, service?.business_id, service?.id, loadAppointmentState]);
+
+  // La cita confirmada puede cambiar (reagendada, cancelada, completada) sin
+  // que la fila de appointment_requests se toque -- necesita su propia
+  // suscripción a la tabla appointments, no solo la de arriba.
+  useEffect(() => {
+    if (!profile?.id) return;
+    return subscribeToClientAppointments(profile.id, () => {
+      loadAppointmentState().catch((err) => console.error('reload after appointment change error', err));
+    });
+  }, [profile?.id, loadAppointmentState]);
 
   async function handleCancelRequest() {
     if (!appointmentRequest) return;
@@ -128,19 +158,19 @@ export default function ServiceDetailScreen() {
   }
 
   function handleCancelAppointment() {
-    if (!confirmedAppointmentId) return;
-    Alert.alert('Cancelar cita', '¿Seguro que quieres cancelar esta cita ya confirmada?', [
+    if (!activeAppointment) return;
+    Alert.alert('Cancelar cita', '¿Seguro que quieres cancelar esta cita?', [
       { text: 'No cancelar', style: 'cancel' },
       {
         text: 'Sí, cancelar',
         style: 'destructive',
         onPress: async () => {
-          if (!confirmedAppointmentId) return;
+          if (!activeAppointment) return;
           setCancellingAppointment(true);
           try {
-            await cancelAppointment(confirmedAppointmentId, 'client');
+            await cancelAppointment(activeAppointment.id, 'client');
             setAppointmentRequest(null);
-            setConfirmedAppointmentId(null);
+            setActiveAppointment(null);
           } catch (err) {
             console.error('cancel appointment error', err);
             Alert.alert('Error', 'No se pudo cancelar la cita. Intenta de nuevo.');
@@ -150,6 +180,66 @@ export default function ServiceDetailScreen() {
         },
       },
     ]);
+  }
+
+  async function handleApprove() {
+    if (!activeAppointment) return;
+    setApproving(true);
+    try {
+      await approveAppointment(activeAppointment.id);
+      setActiveAppointment((prev) => (prev ? { ...prev, status: 'confirmed' } : prev));
+    } catch (err) {
+      console.error('approve appointment error', err);
+      Alert.alert('Error', 'No se pudo aprobar. Intenta de nuevo.');
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  function startCounter() {
+    setCountering(true);
+    const def = defaultCounterTime();
+    setPickerDate(def);
+    setPickerTime(def);
+    setShowDatePicker(false);
+    setShowTimePicker(false);
+  }
+
+  function cancelCounter() {
+    setCountering(false);
+  }
+
+  function handleDateChange(event: unknown, date?: Date) {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (date) setPickerDate(date);
+  }
+
+  function handleTimeChange(event: unknown, time?: Date) {
+    if (Platform.OS === 'android') setShowTimePicker(false);
+    if (time) setPickerTime(time);
+  }
+
+  async function handleCounter() {
+    if (!activeAppointment) return;
+    const dt = new Date(pickerDate);
+    dt.setHours(pickerTime.getHours(), pickerTime.getMinutes(), 0, 0);
+    if (dt.getTime() < Date.now()) {
+      Alert.alert('Fecha en el pasado', 'Elige una fecha y hora futuras.');
+      return;
+    }
+    setSavingCounter(true);
+    try {
+      await proposeDate(activeAppointment.id, dt.toISOString(), 'client');
+      setActiveAppointment((prev) =>
+        prev ? { ...prev, status: 'scheduled', requested_at: dt.toISOString(), proposed_by: 'client' } : prev
+      );
+      setCountering(false);
+    } catch (err) {
+      console.error('counter propose error', err);
+      Alert.alert('Error', 'No se pudo enviar la contra-propuesta.');
+    } finally {
+      setSavingCounter(false);
+    }
   }
 
   useEffect(() => {
@@ -239,7 +329,11 @@ export default function ServiceDetailScreen() {
       )}
 
       <View style={styles.buttonGroup}>
-        {!appointmentRequest ? (
+        {!appointmentRequest || (appointmentRequest.status === 'accepted' && !activeAppointment) ? (
+          // Segundo caso: la solicitud fue aceptada pero ya no hay cita
+          // pendiente/programada/confirmada detrás (se completó, o se
+          // canceló/rechazó justo ahora) -- tratarlo igual que "sin
+          // solicitud" para poder volver a agendar.
           <Button
             title="Solicitar cita"
             onPress={() =>
@@ -250,20 +344,7 @@ export default function ServiceDetailScreen() {
             }
             style={styles.apartarButton}
           />
-        ) : appointmentRequest.status === 'accepted' ? (
-          <>
-            <Button
-              title="Cancelar cita"
-              onPress={handleCancelAppointment}
-              loading={cancellingAppointment}
-              disabled={!confirmedAppointmentId}
-              style={styles.buttonCancel}
-            />
-            <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
-              ✓ Cita confirmada por el taller
-            </Text>
-          </>
-        ) : (
+        ) : appointmentRequest.status !== 'accepted' ? (
           <>
             <Button
               title="Cancelar solicitud"
@@ -274,6 +355,90 @@ export default function ServiceDetailScreen() {
             <Text style={styles.intentBadge}>
               Solicitud enviada — en espera de respuesta del taller
             </Text>
+          </>
+        ) : activeAppointment!.status === 'pending' ? (
+          <>
+            <Text style={styles.waitingText}>El taller elegirá una fecha y te avisará.</Text>
+            <View style={styles.circleActionsRow}>
+              <CircleActionButton
+                icon="close"
+                label="Cancelar cita"
+                color={colors.danger}
+                onPress={handleCancelAppointment}
+                loading={cancellingAppointment}
+                disabled={cancellingAppointment}
+              />
+            </View>
+          </>
+        ) : countering ? (
+          <View style={styles.counterBox}>
+            <Text style={styles.counterTitle}>Proponer otra fecha</Text>
+            <Text style={styles.fieldLabel}>Fecha</Text>
+            <Pressable style={styles.pickerButton} onPress={() => setShowDatePicker((prev) => !prev)}>
+              <Text style={styles.pickerButtonText}>
+                {pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </Text>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={pickerDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                minimumDate={new Date()}
+                onChange={handleDateChange}
+              />
+            )}
+            <Text style={styles.fieldLabel}>Hora</Text>
+            <Pressable style={styles.pickerButton} onPress={() => setShowTimePicker((prev) => !prev)}>
+              <Text style={styles.pickerButtonText}>
+                {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </Pressable>
+            {showTimePicker && <DateTimePicker value={pickerTime} mode="time" display="spinner" onChange={handleTimeChange} />}
+            <View style={styles.circleActionsRow}>
+              <CircleActionButton icon="close" label="Cancelar" color={colors.textMuted} variant="outline" onPress={cancelCounter} />
+              <CircleActionButton
+                icon="checkmark"
+                label="Enviar propuesta"
+                color={colors.primary}
+                loading={savingCounter}
+                onPress={handleCounter}
+              />
+            </View>
+          </View>
+        ) : activeAppointment!.status === 'scheduled' && activeAppointment!.proposed_by === 'business' ? (
+          <>
+            <Text style={styles.intentBadge}>
+              El taller propone: {activeAppointment!.requested_at ? fmtDate(activeAppointment!.requested_at) : ''}
+            </Text>
+            <View style={styles.circleActionsRow}>
+              <CircleActionButton icon="close" label="Cancelar" color={colors.danger} onPress={handleCancelAppointment} disabled={cancellingAppointment} />
+              <CircleActionButton icon="calendar-outline" label="Proponer otra" color={colors.primary} variant="outline" onPress={startCounter} />
+              <CircleActionButton icon="checkmark" label="Aprobar" color={colors.primary} onPress={handleApprove} loading={approving} />
+            </View>
+          </>
+        ) : activeAppointment!.status === 'scheduled' ? (
+          <>
+            <Text style={styles.waitingText}>Esperando respuesta del taller.</Text>
+            <View style={styles.circleActionsRow}>
+              <CircleActionButton
+                icon="close"
+                label="Cancelar cita"
+                color={colors.danger}
+                onPress={handleCancelAppointment}
+                loading={cancellingAppointment}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.intentBadge, styles.intentBadgeConfirmed]}>
+              ✓ Cita confirmada{activeAppointment!.requested_at ? ` — ${fmtDate(activeAppointment!.requested_at)}` : ''}
+            </Text>
+            <View style={styles.circleActionsRow}>
+              <CircleActionButton icon="close" label="Cancelar" color={colors.danger} onPress={handleCancelAppointment} loading={cancellingAppointment} />
+              <CircleActionButton icon="calendar-outline" label="Reagendar" color={colors.primary} variant="outline" onPress={startCounter} />
+            </View>
           </>
         )}
 
@@ -431,6 +596,49 @@ const styles = StyleSheet.create({
   },
   intentBadgeConfirmed: {
     color: colors.success,
+  },
+  waitingText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  circleActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  counterBox: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+  },
+  counterTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  pickerButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    marginBottom: 12,
+  },
+  pickerButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
   },
   actionsRow: {
     flexDirection: 'row',

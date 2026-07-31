@@ -184,6 +184,26 @@ export async function getActiveAppointmentForService(
   return data as Appointment | null;
 }
 
+// acceptAppointmentRequest() deja el appointment_requests original en
+// 'accepted' para siempre (no hay FK entre appointments y
+// appointment_requests, se correlacionan por client_id+business_id+
+// service_id) -- si la cita confirmada se cancela/rechaza después sin
+// tocar esa fila, getAppointmentRequestForService() la sigue devolviendo
+// como 'accepted' pero ya sin cita activa detrás, dejando el botón
+// "Cancelar cita" de la pantalla de servicio deshabilitado para siempre en
+// vez de volver a mostrar "Solicitar cita".
+async function cancelMatchingAppointmentRequest(appointment: Appointment): Promise<void> {
+  if (!appointment.client_id || !appointment.service_id) return;
+  const { error } = await supabase
+    .from('appointment_requests')
+    .update({ status: 'cancelled' })
+    .eq('client_id', appointment.client_id)
+    .eq('business_id', appointment.business_id)
+    .eq('service_id', appointment.service_id)
+    .eq('status', 'accepted');
+  if (error) console.error('cancel matching appointment request error', error);
+}
+
 export async function cancelAppointment(id: string, cancelledBy: 'client' | 'business'): Promise<void> {
   const { data, error } = await supabase
     .from('appointments')
@@ -194,6 +214,7 @@ export async function cancelAppointment(id: string, cancelledBy: 'client' | 'bus
   if (error) throw error;
 
   const appointment = data as unknown as Appointment & { businesses: { owner_id: string } | null };
+  await cancelMatchingAppointmentRequest(appointment);
   if (cancelledBy === 'client' && appointment.businesses) {
     await notifyUser(appointment.businesses.owner_id, 'Cita cancelada', 'El cliente canceló la cita.', {
       type: 'appointment_cancelled',
@@ -217,6 +238,7 @@ export async function rejectAppointment(id: string): Promise<void> {
   if (error) throw error;
 
   const appointment = data as Appointment;
+  await cancelMatchingAppointmentRequest(appointment);
   if (appointment.client_id) {
     await notifyUser(appointment.client_id, 'Cita rechazada', 'El negocio no pudo confirmar tu cita.', {
       type: 'appointment_rejected',

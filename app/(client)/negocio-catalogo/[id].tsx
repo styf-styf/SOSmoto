@@ -88,19 +88,23 @@ export default function NegocioCatalogoScreen() {
 
       {/* Cabecera del negocio */}
       <View style={styles.businessHeader}>
-        <View style={styles.businessLogoWrap}>
-          {business.logo_url ? (
-            <Image source={{ uri: business.logo_url }} style={styles.businessLogo} />
-          ) : (
-            <Ionicons name="storefront" size={28} color={colors.primary} />
+        <View style={styles.businessLogoOuter}>
+          <View style={styles.businessLogoWrap}>
+            {business.logo_url ? (
+              <Image source={{ uri: business.logo_url }} style={styles.businessLogo} />
+            ) : (
+              <Ionicons name="storefront" size={28} color={colors.primary} />
+            )}
+          </View>
+          {business.is_verified && (
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+            </View>
           )}
         </View>
         <View style={styles.businessInfo}>
           <View style={styles.businessNameRow}>
             <Text style={styles.businessName}>{business.name}</Text>
-            {business.is_verified && (
-              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-            )}
           </View>
           <Text style={styles.businessCity}>{business.city}</Text>
         </View>
@@ -194,6 +198,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  businessLogoOuter: {
+    width: 48,
+    height: 48,
+  },
   businessLogoWrap: {
     width: 48,
     height: 48,
@@ -202,6 +210,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: colors.background,
+    borderRadius: 8,
   },
   businessLogo: {
     width: 48,

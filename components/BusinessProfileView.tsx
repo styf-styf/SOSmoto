@@ -276,6 +276,11 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
                 </View>
               )}
             </View>
+            {business.is_verified && (
+              <View style={styles.verifiedBadgeTopRight}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              </View>
+            )}
             {isOwner && !uploadingLogo && (
               <View style={styles.avatarBadge}>
                 <Ionicons name="camera" size={14} color="#fff" />
@@ -283,18 +288,24 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             )}
           </Pressable>
         ) : (
-          <View style={styles.avatar}>
-            {logoUrl ? (
-              <Image source={{ uri: logoUrl }} style={styles.avatarImage} />
-            ) : (
-              <Ionicons name="storefront" size={36} color={colors.primary} />
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}>
+              {logoUrl ? (
+                <Image source={{ uri: logoUrl }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="storefront" size={36} color={colors.primary} />
+              )}
+            </View>
+            {business.is_verified && (
+              <View style={styles.verifiedBadgeBottomRight}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              </View>
             )}
           </View>
         )}
         <View style={styles.headerText}>
           <View style={styles.nameRow}>
             <Text style={styles.title}>{business.name}</Text>
-            {business.is_verified && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
           </View>
           {mode === 'public' && <Text style={styles.subtitle}>{businessTypeLabel[business.business_type]}</Text>}
           {/* Una marca no tiene dirección ni ciudad real -- sin este
@@ -686,6 +697,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // mode 'self': arriba a la derecha para no chocar con avatarBadge (cámara
+  // de editar), que ya ocupa la esquina inferior derecha.
+  verifiedBadgeTopRight: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+  },
+  // mode 'public': abajo a la derecha, ahí no hay ningún otro badge.
+  verifiedBadgeBottomRight: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: colors.background,
+    borderRadius: 8,
   },
   headerText: {
     flex: 1,
