@@ -347,6 +347,14 @@ export default function ChatScreen() {
     }
   }
 
+  // Cierra los paneles que flotan sobre el campo de texto (sugerencias de
+  // mensajes, cotización) al tocar fuera de ellos -- no toca el formulario
+  // de aprobar cita (approvingRequest), que tiene su propio botón "Volver".
+  function dismissFloatingPanels() {
+    setShowQuickReplies(false);
+    setShowQuoteForm(false);
+  }
+
   function openApproveForm(request: AppointmentRequest) {
     setShowQuoteForm(false);
     setShowQuickReplies(false);
@@ -593,6 +601,7 @@ export default function ChatScreen() {
           </View>
         )}
 
+        <Pressable style={styles.flex} onPress={dismissFloatingPanels}>
         <ScrollView
           ref={scrollRef}
           style={styles.flex}
@@ -708,6 +717,7 @@ export default function ChatScreen() {
             })
           )}
         </ScrollView>
+        </Pressable>
 
         {isLimited || !canReplyChat ? (
           <View style={styles.limitedNotice}>
@@ -994,6 +1004,7 @@ export default function ChatScreen() {
                 placeholderTextColor={colors.textMuted}
                 value={text}
                 onChangeText={setText}
+                onFocus={dismissFloatingPanels}
                 multiline
                 blurOnSubmit={false}
                 maxLength={4000}
