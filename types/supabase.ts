@@ -1672,7 +1672,7 @@ export interface Database {
     Functions: {
       find_user_id_by_email: {
         Args: { target_email: string };
-        Returns: string | null;
+        Returns: { id: string; role: 'client' | 'business' | 'admin' }[];
       };
       get_business_employees: {
         Args: { target_business_id: string };

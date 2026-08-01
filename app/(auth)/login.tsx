@@ -1,11 +1,20 @@
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { Button } from '../../components/Button';
+import { SaveAccountPrompt } from '../../components/SaveAccountPrompt';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
+import { useSaveAccountFlow } from '../../hooks/useSaveAccountFlow';
 import { resendSignupCode, sendPasswordResetEmail, signIn } from '../../services/auth';
+import {
+  getSavedAccounts,
+  removeSavedAccount,
+  switchToAccount,
+  type SavedAccount,
+} from '../../services/accountSwitcher';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -13,6 +22,53 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const saveFlow = useSaveAccountFlow();
+
+  useEffect(() => {
+    getSavedAccounts()
+      .then(setSavedAccounts)
+      .catch((err) => console.error('load saved accounts error', err));
+  }, []);
+
+  async function handleQuickSwitch(account: SavedAccount) {
+    if (switchingId) return;
+    setSwitchingId(account.userId);
+    try {
+      const result = await switchToAccount(account.userId);
+      if (result.ok) {
+        router.replace('/');
+        return;
+      }
+      setSavedAccounts((prev) => prev.filter((a) => a.userId !== account.userId));
+      setEmail(account.email);
+      Alert.alert('Sesión vencida', 'Ingresa tu contraseña para volver a entrar a esta cuenta.');
+    } catch (err) {
+      console.error('quick switch error', err);
+      Alert.alert('Error', 'No se pudo cambiar de cuenta.');
+    } finally {
+      setSwitchingId(null);
+    }
+  }
+
+  function handleForgetAccount(userId: string) {
+    Alert.alert(
+      'Quitar cuenta',
+      '¿Quitar esta cuenta del inicio rápido? Vas a necesitar tu contraseña la próxima vez.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Quitar',
+          style: 'destructive',
+          onPress: async () => {
+            await removeSavedAccount(userId).catch((err) => console.error('remove saved account error', err));
+            setSavedAccounts((prev) => prev.filter((a) => a.userId !== userId));
+          },
+        },
+      ]
+    );
+  }
 
   async function handleLogin() {
     if (!email || !password) {
@@ -22,8 +78,12 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
-      router.replace('/');
+      const { user } = await signIn(email.trim(), password);
+      if (user) {
+        await saveFlow.check(user.id, 'login', () => router.replace('/'));
+      } else {
+        router.replace('/');
+      }
     } catch (err) {
       const raw = err instanceof Error ? err.message : '';
       if (/email.not.confirmed/i.test(raw)) {
@@ -62,9 +122,51 @@ export default function LoginScreen() {
   const disabled = loading || resetting;
 
   return (
+    <>
     <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>SOSmoto</Text>
       <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
+
+      {savedAccounts.length > 0 && (
+        <>
+          <View style={styles.savedAccountsRow}>
+            {savedAccounts.map((account) => (
+              <View key={account.userId} style={styles.savedAccountItem}>
+                <Pressable
+                  onPress={() => handleQuickSwitch(account)}
+                  disabled={switchingId !== null}
+                  style={styles.savedAvatarWrap}
+                >
+                  <View style={styles.savedAvatarCircle}>
+                    {account.avatarUrl ? (
+                      <Image source={{ uri: account.avatarUrl }} style={styles.savedAvatarImage} />
+                    ) : (
+                      <Ionicons name="person" size={24} color={colors.textMuted} />
+                    )}
+                  </View>
+                  {switchingId === account.userId && (
+                    <View style={styles.savedAvatarLoading}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    </View>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={styles.savedRemoveBtn}
+                  onPress={() => handleForgetAccount(account.userId)}
+                  hitSlop={8}
+                  disabled={switchingId !== null}
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </Pressable>
+                <Text style={styles.savedAccountName} numberOfLines={1}>
+                  {account.displayName}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.orDivider}>o usa otra cuenta</Text>
+        </>
+      )}
 
       <TextField
         label="Correo electrónico"
@@ -101,6 +203,16 @@ export default function LoginScreen() {
         </Link>
       </View>
     </KeyboardAwareScrollView>
+    <SaveAccountPrompt
+      visible={saveFlow.visible}
+      displayName={saveFlow.displayName}
+      email={saveFlow.email}
+      avatarUrl={saveFlow.avatarUrl}
+      saving={saveFlow.saving}
+      onSave={saveFlow.onSave}
+      onSkip={saveFlow.onSkip}
+    />
+    </>
   );
 }
 
@@ -123,6 +235,65 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 32,
+  },
+  savedAccountsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 16,
+  },
+  savedAccountItem: {
+    alignItems: 'center',
+    width: 76,
+  },
+  savedAvatarWrap: {
+    position: 'relative',
+  },
+  savedAvatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  savedAvatarImage: {
+    width: 56,
+    height: 56,
+  },
+  savedAvatarLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedRemoveBtn: {
+    position: 'absolute',
+    top: -4,
+    right: 6,
+    backgroundColor: colors.background,
+    borderRadius: 9,
+  },
+  savedAccountName: {
+    fontSize: 11,
+    color: colors.text,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  orDivider: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   forgotLink: {
     alignSelf: 'flex-end',

@@ -67,13 +67,25 @@ export async function addEmployeeByEmail(
     }
   }
 
-  const { data: userId, error: lookupError } = await supabase.rpc('find_user_id_by_email', {
+  const { data: found, error: lookupError } = await supabase.rpc('find_user_id_by_email', {
     target_email: email.trim().toLowerCase(),
   });
   if (lookupError) throw lookupError;
-  if (!userId) {
+  const foundUser = found?.[0];
+  if (!foundUser) {
     throw new Error('No encontramos un usuario con ese correo. Debe registrarse en la app primero.');
   }
+  // Si esa cuenta es 'client', nunca podrá aceptar la invitación -- la
+  // pantalla para aceptarla solo vive dentro de la app de negocio, a la que
+  // un rol 'client' nunca entra (ver app/index.tsx). Antes esto fallaba en
+  // silencio: la invitación se mandaba igual y quedaba fantasma para
+  // siempre, sin ningún aviso de que algo estaba mal.
+  if (foundUser.role !== 'business') {
+    throw new Error(
+      'Esa cuenta está registrada como cliente, no como negocio. Solo se puede invitar a cuentas que se registraron eligiendo "Soy negocio" -- pídele que cree una cuenta nueva con ese rol.'
+    );
+  }
+  const userId = foundUser.id;
 
   const { data: existing, error: existingError } = await supabase
     .from('business_employees')

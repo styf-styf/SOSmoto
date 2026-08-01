@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
+import { syncActiveAccountTokens } from '../services/accountSwitcher';
 import type { User } from '../types/database';
 
 // Marca liviana, propia de la app -- no es la sesión real (esa vive en el
@@ -96,6 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSessionLoaded(true);
         setSessionAmbiguous(false);
         AsyncStorage.setItem(HAD_SESSION_KEY, '1').catch(() => {});
+        // Si esta cuenta está guardada para inicio rápido (ver
+        // services/accountSwitcher.ts), mantiene su token sincronizado --
+        // Supabase rota el refresh token en cada uso, y sin esto el
+        // guardado quedaría vencido la próxima vez que se use el switcher.
+        syncActiveAccountTokens(newSession.user.id, newSession.access_token, newSession.refresh_token).catch(() => {});
         return;
       }
       if (event === 'SIGNED_OUT') {

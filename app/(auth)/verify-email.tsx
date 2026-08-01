@@ -3,8 +3,10 @@ import { Alert, StyleSheet, Text } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
+import { SaveAccountPrompt } from '../../components/SaveAccountPrompt';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
+import { useSaveAccountFlow } from '../../hooks/useSaveAccountFlow';
 import { resendSignupCode, verifySignupCode } from '../../services/auth';
 import { translateAuthError } from '../../utils/authErrors';
 
@@ -13,6 +15,7 @@ export default function VerifyEmailScreen() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const saveFlow = useSaveAccountFlow();
 
   async function handleVerify() {
     if (code.trim().length !== 8) {
@@ -21,8 +24,12 @@ export default function VerifyEmailScreen() {
     }
     setLoading(true);
     try {
-      await verifySignupCode(email, code.trim());
-      router.replace('/');
+      const data = await verifySignupCode(email, code.trim());
+      if (data.session && data.user) {
+        await saveFlow.check(data.user.id, 'signup', () => router.replace('/'));
+      } else {
+        router.replace('/');
+      }
     } catch (err) {
       const message = err instanceof Error ? translateAuthError(err.message) : 'No se pudo verificar el código.';
       Alert.alert('Error', message);
@@ -47,6 +54,7 @@ export default function VerifyEmailScreen() {
   const disabled = loading || resending;
 
   return (
+    <>
     <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Verifica tu correo</Text>
       <Text style={styles.subtitle}>Enviamos un código de 8 dígitos a{'\n'}{email}</Text>
@@ -69,6 +77,16 @@ export default function VerifyEmailScreen() {
         variant="secondary"
       />
     </KeyboardAwareScrollView>
+    <SaveAccountPrompt
+      visible={saveFlow.visible}
+      displayName={saveFlow.displayName}
+      email={saveFlow.email}
+      avatarUrl={saveFlow.avatarUrl}
+      saving={saveFlow.saving}
+      onSave={saveFlow.onSave}
+      onSkip={saveFlow.onSkip}
+    />
+    </>
   );
 }
 

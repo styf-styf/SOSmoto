@@ -4,8 +4,10 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
+import { SaveAccountPrompt } from '../../components/SaveAccountPrompt';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
+import { useSaveAccountFlow } from '../../hooks/useSaveAccountFlow';
 import { signUp } from '../../services/auth';
 import type { UserRole } from '../../types/database';
 import { translateAuthError } from '../../utils/authErrors';
@@ -46,6 +48,7 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
+  const saveFlow = useSaveAccountFlow();
 
   function clearError(field: keyof FormErrors) {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
@@ -85,8 +88,8 @@ export default function RegisterScreen() {
         phone: phone.trim() || undefined,
         role,
       });
-      if (data.session) {
-        router.replace('/');
+      if (data.session && data.user) {
+        await saveFlow.check(data.user.id, 'signup', () => router.replace('/'));
       } else {
         router.replace({ pathname: '/(auth)/verify-email', params: { email: trimmedEmail } });
       }
@@ -100,6 +103,7 @@ export default function RegisterScreen() {
   }
 
   return (
+    <>
     <KeyboardAwareScrollView contentContainerStyle={styles.container} bottomOffset={32} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Crear cuenta</Text>
 
@@ -221,6 +225,16 @@ export default function RegisterScreen() {
         </Link>
       </View>
     </KeyboardAwareScrollView>
+    <SaveAccountPrompt
+      visible={saveFlow.visible}
+      displayName={saveFlow.displayName}
+      email={saveFlow.email}
+      avatarUrl={saveFlow.avatarUrl}
+      saving={saveFlow.saving}
+      onSave={saveFlow.onSave}
+      onSkip={saveFlow.onSkip}
+    />
+    </>
   );
 }
 
