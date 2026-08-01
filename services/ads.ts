@@ -5,6 +5,13 @@ import type { Ad, AdKind, AdPricing, AdTargetScope, BusinessType } from '../type
 
 type Coords = { latitude: number; longitude: number };
 
+// impressions/clicks (y payment_id/rejection_reason, metadata interna sin
+// consumidor público) quedan afuera a propósito -- la columna ya no es
+// seleccionable por authenticated/anon (ver migración 0156). El dueño ve
+// sus propias métricas vía get_business_ads_with_metrics, no por acá.
+const AD_PUBLIC_COLUMNS =
+  'id, business_id, title, link_url, target_city, status, starts_at, ends_at, kind, category_id, item_name, product_id, service_id, photos, target_scope, target_lat, target_lng, target_radius_km, link_label, created_at, paused_at';
+
 export interface AdWithBusiness extends Ad {
   business: {
     name: string;
@@ -24,7 +31,7 @@ export interface AdWithBusiness extends Ad {
 export async function getAdById(adId: string): Promise<AdWithBusiness | null> {
   const { data, error } = await supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url, is_verified, owner_id)')
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, owner_id)`)
     .eq('id', adId)
     .maybeSingle();
   if (error) throw error;
@@ -166,12 +173,14 @@ export async function resubmitRejectedAd(params: ResubmitAdParams): Promise<Ad> 
   return data.ad as Ad;
 }
 
+// Vía RPC (no select('*') directo) -- es el único lugar de la app que
+// necesita impressions/clicks/rejection_reason de las campañas del propio
+// negocio (ver publicidad.tsx), columnas que ya no son seleccionables
+// directo por ningún rol autenticado (ver migración 0156).
 export async function getBusinessAds(businessId: string): Promise<Ad[]> {
-  const { data, error } = await supabase
-    .from('ads')
-    .select('*')
-    .eq('business_id', businessId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('get_business_ads_with_metrics', {
+    target_business_id: businessId,
+  });
   if (error) throw error;
   return (data ?? []) as Ad[];
 }
@@ -195,7 +204,7 @@ async function getEligibleRadiusAds(
   const lngDelta = MAX_RADIUS_AD_BOUNDING_KM / (111 * Math.cos((coords.latitude * Math.PI) / 180));
   let query = supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url, is_verified, business_type)')
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, business_type)`)
     .eq('status', 'active')
     .eq('target_scope', 'radius')
     .lte('starts_at', nowIso)
@@ -237,7 +246,7 @@ async function getEligibleAds(
   const nowIso = new Date().toISOString();
   let query = supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url, is_verified, business_type)')
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, business_type)`)
     .eq('status', 'active')
     .neq('target_scope', 'radius')
     .lte('starts_at', nowIso)
@@ -351,7 +360,7 @@ export async function searchActiveAds(
   const nowIso = new Date().toISOString();
   let dbQuery = supabase
     .from('ads')
-    .select('*, business:businesses(name, logo_url, is_verified, business_type)')
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, business_type)`)
     .eq('status', 'active')
     .neq('target_scope', 'radius')
     .lte('starts_at', nowIso)
@@ -390,18 +399,22 @@ export async function registerAdClick(adId: string): Promise<void> {
 // Pausar deja de mostrar la campaña sin cancelarla para siempre -- guarda
 // paused_at para que resumeAd() pueda correr ends_at hacia adelante lo que
 // haya durado pausada, sin robarle días ya pagados al negocio.
-export async function pauseAd(adId: string): Promise<Ad> {
+// El objeto devuelto NO trae impressions/clicks (columnas ya no
+// seleccionables, ver migración 0156) -- pausar/reanudar nunca las cambia,
+// así que publicidad.tsx conserva las que ya tenía en el estado local al
+// mezclar esta respuesta en vez de reemplazar la fila entera.
+export async function pauseAd(adId: string): Promise<Partial<Ad>> {
   const { data, error } = await supabase
     .from('ads')
     .update({ status: 'paused', paused_at: new Date().toISOString() })
     .eq('id', adId)
-    .select()
+    .select(AD_PUBLIC_COLUMNS)
     .single();
   if (error) throw error;
-  return data as Ad;
+  return data as Partial<Ad>;
 }
 
-export async function resumeAd(adId: string): Promise<Ad> {
+export async function resumeAd(adId: string): Promise<Partial<Ad>> {
   const { data: current, error: fetchError } = await supabase
     .from('ads')
     .select('ends_at, paused_at')
@@ -419,8 +432,8 @@ export async function resumeAd(adId: string): Promise<Ad> {
     .from('ads')
     .update({ status: 'active', paused_at: null, ends_at: endsAt })
     .eq('id', adId)
-    .select()
+    .select(AD_PUBLIC_COLUMNS)
     .single();
   if (error) throw error;
-  return data as Ad;
+  return data as Partial<Ad>;
 }

@@ -427,7 +427,7 @@ export default function PublicidadScreen() {
           onPress: async () => {
             try {
               const updated = await pauseAd(ad.id);
-              setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? updated : a)) } : prev));
+              setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? { ...a, ...updated } : a)) } : prev));
             } catch (err) {
               console.error('pause ad error', err);
               Alert.alert('Error', 'No se pudo pausar la campaña. Intenta de nuevo.');
@@ -441,7 +441,7 @@ export default function PublicidadScreen() {
   async function handleResume(ad: Ad) {
     try {
       const updated = await resumeAd(ad.id);
-      setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? updated : a)) } : prev));
+      setData((prev) => (prev ? { ...prev, ads: prev.ads.map((a) => (a.id === ad.id ? { ...a, ...updated } : a)) } : prev));
     } catch (err) {
       console.error('resume ad error', err);
       Alert.alert('Error', 'No se pudo reanudar la campaña. Intenta de nuevo.');

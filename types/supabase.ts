@@ -1756,6 +1756,10 @@ export interface Database {
         Args: { p_target_user_id: string };
         Returns: string | null;
       };
+      get_business_ads_with_metrics: {
+        Args: { target_business_id: string };
+        Returns: unknown[];
+      };
     };
   };
 }
