@@ -271,11 +271,7 @@ export default function DatosNegocioScreen() {
     <Stack.Screen
       options={{
         headerRight: () =>
-          !isOwner ? null : editing ? (
-            <Pressable onPress={handleCancelEdit} hitSlop={8}>
-              <Text style={styles.headerActionText}>Cancelar</Text>
-            </Pressable>
-          ) : (
+          !isOwner || editing ? null : (
             <Pressable onPress={() => setEditing(true)} hitSlop={8}>
               <Ionicons name="create-outline" size={22} color={colors.primary} />
             </Pressable>
@@ -474,6 +470,13 @@ export default function DatosNegocioScreen() {
             loading={saving}
             style={styles.saveButton}
           />
+          <Button
+            title="Cancelar"
+            variant="secondary"
+            onPress={handleCancelEdit}
+            disabled={saving}
+            style={styles.cancelButton}
+          />
         </>
       )}
 
@@ -561,12 +564,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
   },
-  headerActionText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary,
-    paddingHorizontal: 4,
-  },
   infoCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -636,6 +633,9 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 24,
+  },
+  cancelButton: {
+    marginTop: 10,
   },
   fieldLabel: {
     fontSize: 14,
