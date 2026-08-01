@@ -154,6 +154,12 @@ export default function ClientPerfilScreen() {
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>Siguiendo</Text>
+      {/* A diferencia de actionsRow (que solo se acerca al margen de las
+          tarjetas), este carrusel cancela TODO el padding del contenedor --
+          el viewport ocupa el ancho completo de la pantalla para que el
+          avatar que no alcanza a entrar quede cortado justo en el borde
+          derecho real (asoma un poco del siguiente, invitando a deslizar),
+          no en un borde artificial más adentro. */}
       {following.length === 0 ? (
         <Text style={styles.placeholder}>
           Aún no sigues a ningún negocio. Explora "Buscar" y sigue talleres para ver sus novedades aquí.
@@ -162,7 +168,7 @@ export default function ClientPerfilScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: EDGE_INSET }}
+          style={styles.followingScroll}
           contentContainerStyle={styles.followingRow}
         >
           {following.map((business) => (
@@ -348,8 +354,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
   },
+  // Cancela el paddingHorizontal del contenedor (SIDE_PADDING) para que el
+  // viewport del carrusel sea el ancho real de la pantalla -- ver comentario
+  // junto al ScrollView.
+  followingScroll: {
+    marginHorizontal: -SIDE_PADDING,
+  },
   followingRow: {
     gap: 16,
+    paddingLeft: CARD_MARGIN,
+    // Sin padding a la derecha a propósito: el último avatar que no alcanza
+    // a entrar se corta justo en el borde real de la pantalla (el "un poco
+    // del siguiente avatar" pedido), no antes.
   },
   followingItem: {
     width: 64,
