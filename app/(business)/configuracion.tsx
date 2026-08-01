@@ -30,7 +30,6 @@ const appVersion = Constants.expoConfig?.version ?? '?';
 import { ADS_ENABLED } from '../../constants/features';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
-import { getPendingRequests } from '../../services/helpRequests';
 import type { Business } from '../../types/database';
 
 const planLabel: Record<string, string> = {
@@ -42,7 +41,6 @@ const planLabel: Record<string, string> = {
 interface BusinessConfigData {
   business: Business | null;
   plan: PlanLimits | null;
-  pendingCount: number;
   employeeCount: number;
 }
 
@@ -62,7 +60,6 @@ export default function BusinessConfiguracionScreen() {
         return {
           business: null,
           plan: null,
-          pendingCount: 0,
           employeeCount: 0,
         };
       const work = await getMyWorkBusiness(profile.id);
@@ -71,25 +68,21 @@ export default function BusinessConfiguracionScreen() {
         return {
           business: null,
           plan: null,
-          pendingCount: 0,
           employeeCount: 0,
         };
-      const [planLimits, pending, employees] = await Promise.all([
+      const [planLimits, employees] = await Promise.all([
         getPlanLimits(myBusiness.id),
-        getPendingRequests(myBusiness.id),
         getEmployees(myBusiness.id),
       ]);
       return {
         business: myBusiness,
         plan: planLimits,
-        pendingCount: pending.length,
         employeeCount: employees.length,
       };
     },
   );
   const business = data?.business ?? null;
   const plan = data?.plan ?? null;
-  const pendingCount = data?.pendingCount ?? 0;
   const employeeCount = data?.employeeCount ?? 0;
 
   async function handleRefresh() {
@@ -179,35 +172,15 @@ export default function BusinessConfiguracionScreen() {
         />
       }
     >
-      <View style={styles.planBadge}>
-        <Text style={styles.planBadgeText}>
-          Plan {plan ? (planLabel[plan.planName] ?? plan.planName) : '...'}
-          {business.is_verified ? ' · Verificado' : ''}
-        </Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionTitle, styles.sectionTitleInRow]}>Mi negocio</Text>
+        <View style={styles.planBadge}>
+          <Text style={styles.planBadgeText}>
+            Plan {plan ? (planLabel[plan.planName] ?? plan.planName) : '...'}
+            {business.is_verified ? ' · Verificado' : ''}
+          </Text>
+        </View>
       </View>
-
-      {business.business_type === 'workshop' && (
-        <Pressable
-          style={styles.statCard}
-          onPress={() => router.push('/(business)/solicitudes')}
-        >
-          <Text style={styles.statLabel}>
-            Solicitudes de auxilio pendientes
-          </Text>
-          <Text
-            style={[
-              styles.statValue,
-              pendingCount > 0 && styles.statValueAlert,
-            ]}
-          >
-            {pendingCount}
-          </Text>
-        </Pressable>
-      )}
-
-      <View style={styles.divider} />
-
-      <Text style={styles.sectionTitle}>Mi negocio</Text>
       <View style={styles.menuGroup}>
         <MenuRow
           icon="storefront-outline"
@@ -471,31 +444,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginBottom: 16,
-    alignSelf: 'flex-start',
   },
   planBadgeText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
-  },
-  statCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-  },
-  statLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 6,
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  statValueAlert: {
-    color: colors.danger,
   },
   sectionTitle: {
     fontSize: 14,
@@ -505,6 +458,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  // Fila que junta el título de sección "Mi negocio" con el chip de plan y
+  // verificado (esquina superior derecha) -- el margen vertical vive acá en
+  // vez de en el Text (sectionTitleInRow lo resetea) para no duplicarlo.
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  sectionTitleInRow: {
+    marginTop: 0,
+    marginBottom: 0,
   },
   divider: {
     height: 1,
