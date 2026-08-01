@@ -720,7 +720,11 @@ export default function ChatScreen() {
         ) : (
           <>
             {showQuickReplies && (
-              <View style={styles.quickRepliesRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickRepliesRow}
+              >
                 {QUICK_REPLIES.map((reply) => (
                   <Pressable
                     key={reply}
@@ -733,7 +737,7 @@ export default function ChatScreen() {
                     <Text style={styles.quickReplyText}>{reply}</Text>
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
             )}
 
             {showQuoteForm && (
@@ -1122,7 +1126,6 @@ const styles = StyleSheet.create({
   },
   quickRepliesRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,

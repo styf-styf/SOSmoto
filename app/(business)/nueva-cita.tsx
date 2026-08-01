@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView,
+  ActivityIndicator, Alert, Image, Linking, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +24,32 @@ interface SelectedClient {
   id: string | null;
   full_name: string;
   phone: string | null;
+  avatarUrl: string | null;
   isExternal: boolean;
+}
+
+// Foto real del cliente en vez de un ícono genérico cuando está disponible
+// (clientes externos, o resultados de búsqueda sin foto, caen al ícono).
+function ClientAvatarIcon({
+  avatarUrl,
+  size,
+  fallbackIcon,
+  color,
+}: {
+  avatarUrl: string | null;
+  size: number;
+  fallbackIcon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}) {
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    );
+  }
+  return <Ionicons name={fallbackIcon} size={size} color={color} />;
 }
 
 function defaultDate(): Date {
@@ -103,6 +128,7 @@ export default function NuevaCitaScreen() {
         id: found.id,
         full_name: found.full_name,
         phone: found.phone,
+        avatarUrl: found.avatar_url,
         isExternal: false,
       });
     }
@@ -136,6 +162,7 @@ export default function NuevaCitaScreen() {
       id: client.is_external ? null : client.id,
       full_name: client.full_name,
       phone: client.phone,
+      avatarUrl: client.avatar_url,
       isExternal: client.is_external ?? false,
     });
     setSearch('');
@@ -148,6 +175,7 @@ export default function NuevaCitaScreen() {
       id: user.id,
       full_name: user.full_name,
       phone: user.phone,
+      avatarUrl: user.avatar_url,
       isExternal: false,
     });
     setSearch('');
@@ -274,9 +302,10 @@ export default function NuevaCitaScreen() {
       <Text style={styles.fieldLabel}>Cliente *</Text>
       {selectedClient ? (
         <View style={styles.selectedClient}>
-          <Ionicons
-            name={selectedClient.isExternal ? 'person-outline' : 'person-circle-outline'}
-            size={20}
+          <ClientAvatarIcon
+            avatarUrl={selectedClient.avatarUrl}
+            size={36}
+            fallbackIcon={selectedClient.isExternal ? 'person-outline' : 'person-circle-outline'}
             color={colors.primary}
           />
           <View style={{ flex: 1 }}>
@@ -318,9 +347,10 @@ export default function NuevaCitaScreen() {
                   <Text style={styles.suggestionSection}>Mis clientes</Text>
                   {crmFiltered.map((c) => (
                     <Pressable key={c.id} style={styles.suggestionRow} onPress={() => handleSelectCrm(c)}>
-                      <Ionicons
-                        name={c.is_external ? 'person-outline' : 'person-circle-outline'}
-                        size={16}
+                      <ClientAvatarIcon
+                        avatarUrl={c.avatar_url}
+                        size={28}
+                        fallbackIcon={c.is_external ? 'person-outline' : 'person-circle-outline'}
                         color={colors.textMuted}
                       />
                       <View style={{ flex: 1 }}>
@@ -337,7 +367,12 @@ export default function NuevaCitaScreen() {
                   <Text style={styles.suggestionSection}>En la app</Text>
                   {globalResults.map((u) => (
                     <Pressable key={u.id} style={styles.suggestionRow} onPress={() => handleSelectGlobal(u)}>
-                      <Ionicons name="person-circle-outline" size={16} color={colors.primary} />
+                      <ClientAvatarIcon
+                        avatarUrl={u.avatar_url}
+                        size={28}
+                        fallbackIcon="person-circle-outline"
+                        color={colors.primary}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.suggestionName}>{u.full_name}</Text>
                         {u.phone && <Text style={styles.suggestionPhone}>{u.phone}</Text>}

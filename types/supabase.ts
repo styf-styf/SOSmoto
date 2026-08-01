@@ -1792,7 +1792,7 @@ export interface Database {
       };
       search_clients_by_name: {
         Args: { search_query: string };
-        Returns: { id: string; full_name: string; phone: string | null }[];
+        Returns: { id: string; full_name: string; phone: string | null; avatar_url: string | null }[];
       };
       get_pending_client_names: {
         Args: { target_client_ids: string[] };
