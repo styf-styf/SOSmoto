@@ -64,10 +64,16 @@ export async function updatePost(
 // teléfono a cualquier autenticado sin relación real con él. Se resuelven
 // aparte vía la vista pública `public_profiles` (solo nombre/avatar) en
 // attachClientProfiles, después de traer los posts.
+// owner_id fuera del embed a propósito -- exponía la identidad personal del
+// dueño de CUALQUIER negocio a cualquiera que viera CUALQUIER publicación
+// (feed público). "¿Es mi publicación?" ya no depende de owner_id, se
+// resuelve solo con author_business.id === viewerBusinessId (ver
+// PostDetail.tsx/PostCard.tsx -- ese chequeo ya era el más completo, cubre
+// también a empleados, no solo al dueño).
 const FEED_SELECT = `
   *,
-  author_business:businesses!posts_business_id_fkey(id, name, logo_url, is_verified, owner_id, business_type),
-  tag_business:businesses!posts_tag_business_id_fkey(id, name),
+  author_business:businesses_public!posts_business_id_fkey(id, name, logo_url, is_verified, business_type),
+  tag_business:businesses_public!posts_tag_business_id_fkey(id, name),
   tag_service:services!posts_tag_service_id_fkey(id, name),
   tag_product:products!posts_tag_product_id_fkey(id, name)
 `;
@@ -78,7 +84,6 @@ export interface PostWithAuthor extends Post {
     name: string;
     logo_url: string | null;
     is_verified: boolean;
-    owner_id: string;
     business_type: string;
   } | null;
   author_client: { id: string; full_name: string; avatar_url: string | null } | null;

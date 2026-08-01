@@ -81,7 +81,7 @@ export async function getPendingInvitations(
   clientId: string
 ): Promise<PendingInvitation[]> {
   const { data, error } = await bc()
-    .select('id, business_id, created_at, businesses(id, name, logo_url, city)')
+    .select('id, business_id, created_at, businesses:businesses_public(id, name, logo_url, city)')
     .eq('client_id', clientId)
     .eq('status', 'pending');
   if (error) throw error;

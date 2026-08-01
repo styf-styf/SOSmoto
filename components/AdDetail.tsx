@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { PhotoCarousel } from './PhotoCarousel';
 import { getAdById, registerAdClick, type AdWithBusiness } from '../services/ads';
+import { getBusinessOwnerForChat } from '../services/businesses';
 
 export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole?: 'client' | 'business' }) {
   const prefix = userRole === 'business' ? '/(business)' : '/(client)';
@@ -59,12 +60,16 @@ export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole
   // -- para los vinculados a un producto/servicio real, handleViewCatalogItem
   // ya lleva a una página que tiene su propio botón de chat, así que este
   // quedaría duplicado.
-  function handleChat() {
+  async function handleChat() {
     if (!ad) return;
     registerAdClick(ad.id).catch((err) => console.error('register ad click error', err));
     if (userRole === 'business') {
-      if (!ad.business?.owner_id) return;
-      router.push(`/(business)/chat/${ad.business.owner_id}?sellerBusinessId=${ad.business_id}`);
+      const ownerId = await getBusinessOwnerForChat(ad.business_id).catch((err) => {
+        console.error('get business owner for chat error', err);
+        return null;
+      });
+      if (!ownerId) return;
+      router.push(`/(business)/chat/${ownerId}?sellerBusinessId=${ad.business_id}`);
     } else {
       router.push(`/(client)/chat/${ad.business_id}`);
     }

@@ -29,7 +29,7 @@ import { colors } from '../../../constants/colors';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
-import { getBusinessById } from '../../../services/businesses';
+import { getBusinessById, getBusinessPhoneForClient } from '../../../services/businesses';
 import {
   cancelHelpRequest,
   completeHelpRequest,
@@ -131,8 +131,13 @@ export default function AuxilioScreen() {
       setBusiness(null);
       return;
     }
-    getBusinessById(activeRequest.accepted_business_id)
-      .then(setBusiness)
+    const businessId = activeRequest.accepted_business_id;
+    // phone se resuelve aparte (businesses_public no lo trae, ver
+    // services/businesses.ts) -- se piden juntos y se mergean en un solo
+    // setBusiness para no perder el teléfono si esta llamada resuelve antes
+    // que getBusinessById (nada garantiza el orden entre las dos).
+    Promise.all([getBusinessById(businessId), getBusinessPhoneForClient(businessId).catch(() => null)])
+      .then(([loadedBusiness, phone]) => setBusiness(loadedBusiness ? { ...loadedBusiness, phone } : loadedBusiness))
       .catch((err) => console.error('load business error', err));
   }, [activeRequest?.accepted_business_id]);
 

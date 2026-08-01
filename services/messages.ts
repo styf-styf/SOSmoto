@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getBusinessById } from './businesses';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyUser } from './notifications';
 import { subscribeToTable } from './realtime';
 import type { Message } from '../types/database';
@@ -41,10 +41,10 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
 
   const message = data as Message;
   if (message.sender_id === message.client_id) {
-    const business = await getBusinessById(message.business_id);
-    if (business) {
+    const ownerId = await getBusinessOwnerForNotify(message.business_id);
+    if (ownerId) {
       await notifyUser(
-        business.owner_id,
+        ownerId,
         'Nuevo mensaje',
         'Tienes un mensaje nuevo',
         { type: 'message', businessId: message.business_id, clientId: message.client_id },

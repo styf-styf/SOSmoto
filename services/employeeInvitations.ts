@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBusinessOwnerForNotify } from './businesses';
 import { getPlanLimits } from './catalog';
 import { notifyUser } from './notifications';
 import type { EmployeePermissions } from './employees';
@@ -42,7 +43,7 @@ export async function sendEmployeeInvitation(
   if (error) throw error;
 
   const { data: business } = await supabase
-    .from('businesses')
+    .from('businesses_public')
     .select('name')
     .eq('id', businessId)
     .maybeSingle();
@@ -63,7 +64,7 @@ export async function getMyPendingInvitations(
 ): Promise<EmployeeInvitationWithBusiness[]> {
   const { data, error } = await supabase
     .from('employee_invitations')
-    .select('*, businesses(name, logo_url)')
+    .select('*, businesses:businesses_public(name, logo_url)')
     .eq('invitee_id', userId)
     .eq('status', 'pending')
     .gt('expires_at', new Date().toISOString())
@@ -159,15 +160,16 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
     .eq('id', invitationId);
   if (error) throw error;
 
-  const [{ data: business }, { data: invitee }] = await Promise.all([
-    supabase.from('businesses').select('owner_id, name').eq('id', inv.business_id).maybeSingle(),
+  const [ownerId, { data: business }, { data: invitee }] = await Promise.all([
+    getBusinessOwnerForNotify(inv.business_id),
+    supabase.from('businesses_public').select('name').eq('id', inv.business_id).maybeSingle(),
     supabase.from('users').select('full_name').eq('id', inv.invitee_id).maybeSingle(),
   ]);
-  if (business?.owner_id) {
+  if (ownerId) {
     await notifyUser(
-      business.owner_id,
+      ownerId,
       'Invitación aceptada',
-      `${invitee?.full_name ?? 'La persona'} aceptó unirse a ${business.name ?? 'tu negocio'}`,
+      `${invitee?.full_name ?? 'La persona'} aceptó unirse a ${business?.name ?? 'tu negocio'}`,
       { type: 'employee_invitation_accepted', businessId: inv.business_id }
     );
   }
@@ -187,15 +189,16 @@ export async function rejectInvitation(invitationId: string): Promise<void> {
     .eq('id', invitationId);
   if (error) throw error;
 
-  const [{ data: business }, { data: invitee }] = await Promise.all([
-    supabase.from('businesses').select('owner_id, name').eq('id', inv.business_id).maybeSingle(),
+  const [ownerId, { data: business }, { data: invitee }] = await Promise.all([
+    getBusinessOwnerForNotify(inv.business_id),
+    supabase.from('businesses_public').select('name').eq('id', inv.business_id).maybeSingle(),
     supabase.from('users').select('full_name').eq('id', inv.invitee_id).maybeSingle(),
   ]);
-  if (business?.owner_id) {
+  if (ownerId) {
     await notifyUser(
-      business.owner_id,
+      ownerId,
       'Invitación rechazada',
-      `${invitee?.full_name ?? 'La persona'} rechazó la invitación para ${business.name ?? 'tu negocio'}`,
+      `${invitee?.full_name ?? 'La persona'} rechazó la invitación para ${business?.name ?? 'tu negocio'}`,
       { type: 'employee_invitation_rejected', businessId: inv.business_id }
     );
   }

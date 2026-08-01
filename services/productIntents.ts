@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyAndLogBusinessEvent, notifyAndLogClientEvent } from './intentNotifications';
 import { notifyUser } from './notifications';
 import { subscribeToTable } from './realtime';
@@ -33,8 +34,8 @@ function withVariantLabel(name: string, variantLabel?: string | null): string {
 // pide, no asumir siempre "un cliente". Si el comprador es dueño de un
 // negocio, usamos su nombre comercial; si no, "Un cliente".
 async function getBuyerLabel(buyerId: string): Promise<string> {
-  const { data } = await supabase.from('businesses').select('name').eq('owner_id', buyerId).maybeSingle();
-  return data?.name ?? 'Un cliente';
+  const { data } = await supabase.rpc('resolve_owned_businesses', { target_ids: [buyerId] });
+  return data?.[0]?.name ?? 'Un cliente';
 }
 
 export async function getClientIntentForProduct(
@@ -68,11 +69,7 @@ export async function createProductIntent(
     .single();
   if (error) throw error;
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', businessId)
-    .maybeSingle();
+  const ownerId = await getBusinessOwnerForNotify(businessId);
   const { data: product } = await supabase
     .from('products')
     .select('name')
@@ -83,7 +80,7 @@ export async function createProductIntent(
     const { data: variant } = await supabase.from('product_variants').select('label').eq('id', variantId).maybeSingle();
     variantLabel = variant?.label ?? null;
   }
-  if (business?.owner_id && product?.name) {
+  if (ownerId && product?.name) {
     const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
     const buyerLabel = await getBuyerLabel(clientId);
     const productLabel = `${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`;
@@ -91,7 +88,7 @@ export async function createProductIntent(
     // el historial del chat, a diferencia del banner en vivo que desaparece
     // en cuanto el intent se resuelve.
     await notifyAndLogClientEvent({
-      notifyUserId: business.owner_id,
+      notifyUserId: ownerId,
       title: 'Producto apartado',
       body: `${buyerLabel} quiere apartar: ${productLabel}`,
       data: { type: 'product_intent', productId, businessId },
@@ -119,11 +116,7 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
   if (error) throw error;
 
   if (intent) {
-    const { data: business } = await supabase
-      .from('businesses')
-      .select('owner_id')
-      .eq('id', intent.business_id)
-      .maybeSingle();
+    const ownerId = await getBusinessOwnerForNotify(intent.business_id);
     const { data: product } = await supabase
       .from('products')
       .select('name')
@@ -139,7 +132,7 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
     const buyerLabel = await getBuyerLabel(intent.client_id);
 
     await notifyAndLogClientEvent({
-      notifyUserId: business?.owner_id,
+      notifyUserId: ownerId,
       title: 'Apartado cancelado',
       body: `${buyerLabel} canceló: ${qtyPrefix}${productName}`,
       data: { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id },
@@ -394,10 +387,8 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
   const buyerIds = [...new Set(rows.map((row) => row.client_id))];
   const buyerBusinessByOwnerId = new Map<string, { name: string; logo_url: string | null }>();
   if (buyerIds.length > 0) {
-    const { data: buyerBusinesses } = await supabase.from('businesses').select('owner_id, name, logo_url').in('owner_id', buyerIds);
-    (buyerBusinesses ?? []).forEach((b: { owner_id: string; name: string; logo_url: string | null }) =>
-      buyerBusinessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url })
-    );
+    const { data: buyerBusinesses } = await supabase.rpc('resolve_owned_businesses', { target_ids: buyerIds });
+    (buyerBusinesses ?? []).forEach((b) => buyerBusinessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url }));
   }
 
   return rows.map((row) => {
@@ -476,7 +467,7 @@ export async function getMyProductPurchases(userId: string): Promise<MyProductPu
   const { data, error } = await supabase
     .from('product_intents')
     .select(
-      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers), businesses(name)'
+      '*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers), businesses:businesses_public(name)'
     )
     .eq('client_id', userId)
     .order('created_at', { ascending: false });

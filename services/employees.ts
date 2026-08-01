@@ -144,7 +144,7 @@ export async function removeEmployee(employeeId: string): Promise<void> {
   // Fire-and-forget: el mecánico verá el aviso al reabrir la app
   if (emp?.user_id && emp?.business_id) {
     supabase
-      .from('businesses')
+      .from('businesses_public')
       .select('name')
       .eq('id', emp.business_id)
       .single()

@@ -135,7 +135,6 @@ export async function getAllProducts(businessId: string): Promise<Product[]> {
 
 export interface ServiceWithBusiness extends Service {
   business_name: string;
-  business_owner_id: string;
   business_logo_url: string | null;
   business_is_verified: boolean;
   category_name: string;
@@ -143,7 +142,6 @@ export interface ServiceWithBusiness extends Service {
 
 export interface ProductWithBusiness extends Product {
   business_name: string;
-  business_owner_id: string;
   business_logo_url: string | null;
   business_is_verified: boolean;
   business_type: BusinessType;
@@ -190,15 +188,22 @@ export async function incrementServiceViews(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// business_owner_id ya no viaja acá (businesses_public no lo tiene, ver
+// migración 0157) -- servicio/[id].tsx y producto/[id].tsx lo resuelven
+// bajo demanda al tocar "Mensaje al vendedor" (getBusinessOwnerForChat),
+// no en cada carga de la ficha.
 export async function getServiceById(id: string): Promise<ServiceWithBusiness | null> {
-  const { data, error } = await supabase.from('services').select('*, businesses(name, owner_id, logo_url, is_verified), categories(name)').eq('id', id).maybeSingle();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, businesses:businesses_public(name, logo_url, is_verified), categories(name)')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const { businesses, categories, ...service } = data as any;
   return {
     ...service,
     business_name: businesses?.name ?? '',
-    business_owner_id: businesses?.owner_id ?? '',
     business_logo_url: businesses?.logo_url ?? null,
     business_is_verified: businesses?.is_verified ?? false,
     category_name: categories?.name ?? '',
@@ -209,7 +214,7 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
   const [{ data, error }, variants] = await Promise.all([
     supabase
       .from('products')
-      .select('*, businesses(name, owner_id, logo_url, is_verified, business_type), categories(name)')
+      .select('*, businesses:businesses_public(name, logo_url, is_verified, business_type), categories(name)')
       .eq('id', id)
       .maybeSingle(),
     getProductVariants(id),
@@ -220,7 +225,6 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
   return {
     ...product,
     business_name: businesses?.name ?? '',
-    business_owner_id: businesses?.owner_id ?? '',
     business_logo_url: businesses?.logo_url ?? null,
     business_is_verified: businesses?.is_verified ?? false,
     business_type: businesses?.business_type ?? 'workshop',
@@ -234,7 +238,7 @@ export async function getProductById(id: string): Promise<ProductWithBusiness | 
 export async function getProductsByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('*, businesses(name, logo_url, is_deactivated)')
+    .select('*, businesses:businesses_public(name, logo_url, is_deactivated)')
     .eq('category_id', categoryId)
     .eq('is_active', true)
     .neq('id', excludeId)
@@ -265,7 +269,7 @@ export async function getProductsByCategory(categoryId: string, excludeId: strin
 export async function getServicesByCategory(categoryId: string, excludeId: string, limit = 20): Promise<FeedCatalogItem[]> {
   const { data, error } = await supabase
     .from('services')
-    .select('*, businesses(name, logo_url, is_deactivated)')
+    .select('*, businesses:businesses_public(name, logo_url, is_deactivated)')
     .eq('category_id', categoryId)
     .eq('is_active', true)
     .neq('id', excludeId)
@@ -331,13 +335,13 @@ export async function getFeedCatalogPool(
   const [servicesResult, productsResult] = await Promise.all([
     supabase
       .from('services')
-      .select('*, businesses(name, logo_url, business_type, is_deactivated)')
+      .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(limit),
     supabase
       .from('products')
-      .select('*, businesses(name, logo_url, business_type, is_deactivated)')
+      .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(limit),
@@ -423,7 +427,7 @@ export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCa
     kinds.includes('product')
       ? supabase
           .from('products')
-          .select('*, businesses(name, logo_url, business_type, is_deactivated)')
+          .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
           .eq('is_active', true)
           .ilike('name', `%${term}%`)
           .order('created_at', { ascending: false })
@@ -432,7 +436,7 @@ export async function searchCatalog(params: SearchCatalogParams): Promise<FeedCa
     kinds.includes('service')
       ? supabase
           .from('services')
-          .select('*, businesses(name, logo_url, business_type, is_deactivated)')
+          .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
           .eq('is_active', true)
           .ilike('name', `%${term}%`)
           .order('created_at', { ascending: false })
@@ -503,7 +507,7 @@ const FREE_PLAN_LIMITS: PlanLimits = {
 
 export async function getPlanLimits(businessId: string): Promise<PlanLimits> {
   const { data, error } = await supabase
-    .from('businesses')
+    .from('businesses_public')
     .select(
       'business_type, subscription_plans(name, max_services, max_products, max_employees, max_active_stories, max_photos_per_item, allow_variants, allow_price_tiers)'
     )

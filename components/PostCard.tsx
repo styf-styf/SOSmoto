@@ -111,7 +111,7 @@ export function PostCard({
     e.stopPropagation();
     const prefix = userRole === 'business' ? '/(business)' : '/(client)';
     if (isBusiness && post.author_business) {
-      if (post.author_business.owner_id === profile?.id || post.author_business.id === viewerBusinessId) {
+      if (post.author_business.id === viewerBusinessId) {
         router.push(`${prefix}/(tabs)/perfil`);
       } else {
         router.push(`${prefix}/business/${post.author_business.id}`);

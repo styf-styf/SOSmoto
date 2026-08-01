@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyUser } from './notifications';
 import type { Appointment, Business, HelpRequest, MaintenanceSuggestion, ProductIntent, Review, Vehicle } from '../types/database';
 
@@ -29,14 +30,10 @@ export async function createReview(params: CreateReviewParams): Promise<Review> 
 
   if (error) throw error;
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', params.businessId)
-    .maybeSingle();
-  if (business?.owner_id) {
+  const ownerId = await getBusinessOwnerForNotify(params.businessId);
+  if (ownerId) {
     await notifyUser(
-      business.owner_id,
+      ownerId,
       'Nueva calificación',
       `Un cliente calificó tu negocio con ${params.rating} estrella${params.rating === 1 ? '' : 's'}.`,
       { type: 'new_review', businessId: params.businessId }
@@ -206,7 +203,7 @@ export async function getServiceHistory(clientId: string): Promise<ServiceHistor
 
   const [businessesResult, hrReviewsResult, apptReviewsResult, intentReviewsResult] = await Promise.all([
     businessIds.length
-      ? supabase.from('businesses').select('*').in('id', businessIds)
+      ? supabase.from('businesses_public').select('*').in('id', businessIds)
       : Promise.resolve({ data: [] as Business[], error: null }),
     helpRequestIds.length
       ? supabase.from('reviews').select('*').in('help_request_id', helpRequestIds)

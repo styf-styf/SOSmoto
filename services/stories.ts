@@ -138,7 +138,7 @@ export async function getVisibleBusinessStoriesGlobal(): Promise<BusinessStoryWi
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses(id, name, logo_url, is_verified, business_type)')
+    .select('*, businesses:businesses_public(id, name, logo_url, is_verified, business_type)')
     .not('business_id', 'is', null)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });
@@ -230,7 +230,7 @@ export async function getVisibleBusinessStoriesFollowed(clientId: string): Promi
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses(id, name, logo_url, is_verified)')
+    .select('*, businesses:businesses_public(id, name, logo_url, is_verified)')
     .in('business_id', businessIds)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });

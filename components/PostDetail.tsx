@@ -171,7 +171,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const tag = getPostTag(post, userRole);
   const prefix = userRole === 'business' ? '/(business)' : '/(client)';
   const isOwner =
-    (isBusiness && (post.author_business?.owner_id === profile?.id || post.author_business?.id === viewerBusinessId)) ||
+    (isBusiness && post.author_business?.id === viewerBusinessId) ||
     (!isBusiness && post.author_client?.id === profile?.id);
 
   async function openEditModal() {
@@ -372,7 +372,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   function handleAuthorPress() {
     if (!post) return;
     if (isBusiness && post.author_business) {
-      if (post.author_business.owner_id === profile?.id || post.author_business.id === viewerBusinessId) {
+      if (post.author_business.id === viewerBusinessId) {
         router.push(`${prefix}/(tabs)/perfil`);
       } else {
         router.push(`${prefix}/business/${post.author_business.id}`);

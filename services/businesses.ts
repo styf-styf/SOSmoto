@@ -33,7 +33,7 @@ export async function getNearbyBusinesses(
   coords: { latitude: number; longitude: number } | null,
   limit = 20
 ): Promise<BusinessWithDistance[]> {
-  let query = supabase.from('businesses').select('*');
+  let query = supabase.from('businesses_public').select('*');
 
   if (coords) {
     const latDelta = SEARCH_RADIUS_KM / 111;
@@ -87,7 +87,7 @@ export async function getFollowedBusinesses(clientId: string): Promise<Business[
   const businessIds = (follows ?? []).map((f) => f.business_id);
   if (businessIds.length === 0) return [];
 
-  const { data, error } = await supabase.from('businesses').select('*').in('id', businessIds);
+  const { data, error } = await supabase.from('businesses_public').select('*').in('id', businessIds);
   if (error) throw error;
 
   return (data ?? []) as Business[];
@@ -120,7 +120,7 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
     if (serviceBusinessIds.length === 0) return [];
   }
 
-  let query = supabase.from('businesses').select('*').eq('is_deactivated', false);
+  let query = supabase.from('businesses_public').select('*').eq('is_deactivated', false);
   if (serviceBusinessIds) query = query.in('id', serviceBusinessIds);
   if (params.businessType) query = query.eq('business_type', params.businessType);
   else if (params.businessTypeIn?.length) query = query.in('business_type', params.businessTypeIn);
@@ -150,17 +150,51 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
   return withDistance;
 }
 
+// Perfil PÚBLICO de un negocio (cualquier otra persona viéndolo) -- nunca
+// trae owner_id/phone/is_limited/limitation_reason (ver businesses_public,
+// migración 0157). El propio dueño/staff viendo SU negocio usa
+// getMyWorkBusiness, no esta función.
 export async function getBusinessById(id: string): Promise<Business | null> {
-  const { data, error } = await supabase.from('businesses').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('businesses_public').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   return data as Business | null;
 }
 
 export async function getBusinessesByIds(ids: string[]): Promise<Business[]> {
   if (ids.length === 0) return [];
-  const { data, error } = await supabase.from('businesses').select('*').in('id', ids);
+  const { data, error } = await supabase.from('businesses_public').select('*').in('id', ids);
   if (error) throw error;
   return (data ?? []) as Business[];
+}
+
+// Resuelve el owner_id de un negocio SOLO si ya existe una relación real
+// entre quien llama y ese negocio (reusa can_notify_user, ver migración
+// 0158) -- para notificar al dueño desde el lado que no actuó (citas,
+// auxilio, reseñas, apartados, informes de servicio...).
+export async function getBusinessOwnerForNotify(businessId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_business_owner_for_notify', { target_business_id: businessId });
+  if (error) throw error;
+  return data ?? null;
+}
+
+// Resuelve el owner_id de OTRO negocio, solo para abrir un chat B2B (ver
+// BusinessProfileView.tsx y AdDetail.tsx) -- owner_id ya no viaja en
+// businesses_public, así que esto se pide bajo demanda justo al tocar
+// "Mensaje", no en cada carga del perfil/anuncio (ver migración 0159).
+export async function getBusinessOwnerForChat(businessId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_business_owner_for_chat', { target_business_id: businessId });
+  if (error) throw error;
+  return data ?? null;
+}
+
+// phone (a diferencia de whatsapp) ya no viaja en businesses_public --
+// solo se resuelve para el taller que aceptó el auxilio ACTIVO del cliente
+// (botón "Llamar" en auxilio.tsx), vía la misma relación real que ya
+// protege el resto de notificaciones (ver migración 0159).
+export async function getBusinessPhoneForClient(businessId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_business_phone_for_client', { target_business_id: businessId });
+  if (error) throw error;
+  return data ?? null;
 }
 
 export async function getMyBusiness(ownerId: string): Promise<Business | null> {
@@ -326,7 +360,7 @@ export async function getNewNearbyBusinesses(
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   let query = supabase
-    .from('businesses')
+    .from('businesses_public')
     .select('*')
     .eq('is_deactivated', false)
     .or(`created_at.gte.${thirtyDaysAgo.toISOString()},followers_count.lt.5`)

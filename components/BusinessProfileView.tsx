@@ -8,7 +8,13 @@ import { ReportModal } from './ReportModal';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/auth';
-import { getBusinessById, getFollowedBusinesses, getMyWorkBusiness, updateBusiness } from '../services/businesses';
+import {
+  getBusinessById,
+  getBusinessOwnerForChat,
+  getFollowedBusinesses,
+  getMyWorkBusiness,
+  updateBusiness,
+} from '../services/businesses';
 import { followBusiness, isFollowing as fetchIsFollowing, unfollowBusiness } from '../services/follows';
 import { getUnreadNotificationsCount } from '../services/notifications';
 import { getMyBusinessPosts, type PostWithAuthor } from '../services/posts';
@@ -412,11 +418,18 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             <ProfileActionButton
               icon="chatbubble-outline"
               label="Mensaje"
-              onPress={() =>
-                canBusinessFollowTarget
-                  ? router.push(`/(business)/chat/${business.owner_id}?sellerBusinessId=${business.id}`)
-                  : router.push(`${viewerPrefix}/chat/${business.id}`)
-              }
+              onPress={async () => {
+                if (!canBusinessFollowTarget) {
+                  router.push(`${viewerPrefix}/chat/${business.id}`);
+                  return;
+                }
+                const ownerId = await getBusinessOwnerForChat(business.id).catch((err) => {
+                  console.error('get business owner for chat error', err);
+                  return null;
+                });
+                if (!ownerId) return;
+                router.push(`/(business)/chat/${ownerId}?sellerBusinessId=${business.id}`);
+              }}
             />
           )}
           {showFollowClient && business.business_type === 'workshop' && (

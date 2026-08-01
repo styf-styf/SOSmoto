@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyUser } from './notifications';
 import { subscribeToTable } from './realtime';
 import type { Appointment, AppointmentStatus, VehicleInfo } from '../types/database';
@@ -27,7 +28,7 @@ export interface ClientAppointment extends Appointment {
 export async function getClientAppointments(clientId: string): Promise<ClientAppointment[]> {
   const { data, error } = await supabase
     .from('appointments')
-    .select('*, businesses(name), services(name)')
+    .select('*, businesses:businesses_public(name), services(name)')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -104,25 +105,28 @@ export async function proposeDate(
     .from('appointments')
     .update({ status: 'scheduled', requested_at: requestedAt, proposed_by: proposedBy })
     .eq('id', id)
-    .select('*, businesses(owner_id)')
+    .select()
     .single();
   if (error) throw error;
 
-  const appointment = data as unknown as Appointment & { businesses: { owner_id: string } | null };
-  if (proposedBy === 'business' && appointment.businesses && appointment.client_id) {
+  const appointment = data as Appointment;
+  if (proposedBy === 'business' && appointment.client_id) {
     await notifyUser(
       appointment.client_id,
       'El taller propuso una fecha',
       'Revisa la fecha y hora propuestas y apruébala o sugiere otra.',
       { type: 'appointment_scheduled', appointmentId: appointment.id }
     );
-  } else if (proposedBy === 'client' && appointment.businesses) {
-    await notifyUser(
-      appointment.businesses.owner_id,
-      'El cliente propuso otra fecha',
-      'El cliente sugirió un nuevo horario. Acéptalo o propón otro.',
-      { type: 'appointment_reschedule_requested', appointmentId: appointment.id }
-    );
+  } else if (proposedBy === 'client') {
+    const ownerId = await getBusinessOwnerForNotify(appointment.business_id);
+    if (ownerId) {
+      await notifyUser(
+        ownerId,
+        'El cliente propuso otra fecha',
+        'El cliente sugirió un nuevo horario. Acéptalo o propón otro.',
+        { type: 'appointment_reschedule_requested', appointmentId: appointment.id }
+      );
+    }
   }
 }
 
@@ -142,17 +146,20 @@ export async function approveAppointment(id: string): Promise<void> {
     .from('appointments')
     .update({ status: 'confirmed' })
     .eq('id', id)
-    .select('*, businesses(owner_id)')
+    .select()
     .single();
   if (error) throw error;
 
-  const appointment = data as unknown as Appointment & { businesses: { owner_id: string } | null };
-  if (appointment.proposed_by === 'business' && appointment.businesses) {
+  const appointment = data as Appointment;
+  if (appointment.proposed_by === 'business') {
     // Cliente aprobó → notificar al taller
-    await notifyUser(appointment.businesses.owner_id, 'Cita aprobada', 'El cliente aprobó la fecha de la cita.', {
-      type: 'appointment_approved',
-      appointmentId: appointment.id,
-    });
+    const ownerId = await getBusinessOwnerForNotify(appointment.business_id);
+    if (ownerId) {
+      await notifyUser(ownerId, 'Cita aprobada', 'El cliente aprobó la fecha de la cita.', {
+        type: 'appointment_approved',
+        appointmentId: appointment.id,
+      });
+    }
   } else if (appointment.proposed_by === 'client' && appointment.client_id) {
     // Taller aprobó → notificar al cliente
     await notifyUser(appointment.client_id, 'Cita confirmada', 'El taller aceptó tu fecha propuesta.', {
@@ -210,17 +217,20 @@ export async function cancelAppointment(id: string, cancelledBy: 'client' | 'bus
     .from('appointments')
     .update({ status: 'cancelled' })
     .eq('id', id)
-    .select('*, businesses(owner_id)')
+    .select()
     .single();
   if (error) throw error;
 
-  const appointment = data as unknown as Appointment & { businesses: { owner_id: string } | null };
+  const appointment = data as Appointment;
   await cancelMatchingAppointmentRequest(appointment);
-  if (cancelledBy === 'client' && appointment.businesses) {
-    await notifyUser(appointment.businesses.owner_id, 'Cita cancelada', 'El cliente canceló la cita.', {
-      type: 'appointment_cancelled',
-      appointmentId: appointment.id,
-    });
+  if (cancelledBy === 'client') {
+    const ownerId = await getBusinessOwnerForNotify(appointment.business_id);
+    if (ownerId) {
+      await notifyUser(ownerId, 'Cita cancelada', 'El cliente canceló la cita.', {
+        type: 'appointment_cancelled',
+        appointmentId: appointment.id,
+      });
+    }
   } else if (cancelledBy === 'business' && appointment.client_id) {
     await notifyUser(appointment.client_id, 'Cita cancelada', 'El taller canceló la cita.', {
       type: 'appointment_cancelled',

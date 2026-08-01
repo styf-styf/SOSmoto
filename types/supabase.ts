@@ -1674,6 +1674,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      businesses_public: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          logo_url: string | null;
+          address: string;
+          city: string;
+          latitude: number;
+          longitude: number;
+          whatsapp: string | null;
+          schedule: Record<string, unknown> | null;
+          is_verified: boolean;
+          rating_avg: number;
+          followers_count: number;
+          plan_id: string;
+          aid_radius_km: number | null;
+          business_type: 'workshop' | 'store' | 'brand_advertiser';
+          is_deactivated: boolean;
+          is_available_for_aid: boolean;
+          is_24h: boolean;
+          province: string | null;
+          created_at: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       find_user_id_by_email: {
@@ -1759,6 +1785,22 @@ export interface Database {
       get_business_ads_with_metrics: {
         Args: { target_business_id: string };
         Returns: unknown[];
+      };
+      get_business_owner_for_notify: {
+        Args: { target_business_id: string };
+        Returns: string | null;
+      };
+      resolve_owned_businesses: {
+        Args: { target_ids: string[] };
+        Returns: { id: string; owner_id: string; name: string; logo_url: string | null; is_verified: boolean }[];
+      };
+      get_business_owner_for_chat: {
+        Args: { target_business_id: string };
+        Returns: string | null;
+      };
+      get_business_phone_for_client: {
+        Args: { target_business_id: string };
+        Returns: string | null;
       };
     };
   };

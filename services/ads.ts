@@ -18,20 +18,19 @@ export interface AdWithBusiness extends Ad {
     logo_url: string | null;
     is_verified: boolean;
     business_type?: BusinessType;
-    owner_id?: string;
   } | null;
 }
 
-// Incluye owner_id del negocio para poder abrir un chat directo desde
-// AdDetail cuando el anuncio no está vinculado a ningún producto/servicio
-// real (ver handleChat en AdDetail.tsx). El anuncio ya no tiene comentarios
-// propios (ver ad_comments -- la tabla se deja intacta, solo se dejó de leer/
-// escribir desde la app, era una interacción huérfana que no aportaba a la
-// conversión real del anuncio).
+// owner_id ya no viaja acá (businesses_public no lo tiene, ver migración
+// 0157) -- AdDetail.tsx resuelve el owner_id bajo demanda recién cuando el
+// usuario toca "Mensaje" (get_business_owner_for_chat), no en cada carga
+// del anuncio. El anuncio ya no tiene comentarios propios (ver ad_comments
+// -- la tabla se deja intacta, solo se dejó de leer/escribir desde la app,
+// era una interacción huérfana que no aportaba a la conversión real).
 export async function getAdById(adId: string): Promise<AdWithBusiness | null> {
   const { data, error } = await supabase
     .from('ads')
-    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, owner_id)`)
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses_public(name, logo_url, is_verified)`)
     .eq('id', adId)
     .maybeSingle();
   if (error) throw error;
@@ -204,7 +203,7 @@ async function getEligibleRadiusAds(
   const lngDelta = MAX_RADIUS_AD_BOUNDING_KM / (111 * Math.cos((coords.latitude * Math.PI) / 180));
   let query = supabase
     .from('ads')
-    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, business_type)`)
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses_public(name, logo_url, is_verified, business_type)`)
     .eq('status', 'active')
     .eq('target_scope', 'radius')
     .lte('starts_at', nowIso)
@@ -246,7 +245,7 @@ async function getEligibleAds(
   const nowIso = new Date().toISOString();
   let query = supabase
     .from('ads')
-    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, business_type)`)
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses_public(name, logo_url, is_verified, business_type)`)
     .eq('status', 'active')
     .neq('target_scope', 'radius')
     .lte('starts_at', nowIso)
@@ -360,7 +359,7 @@ export async function searchActiveAds(
   const nowIso = new Date().toISOString();
   let dbQuery = supabase
     .from('ads')
-    .select(`${AD_PUBLIC_COLUMNS}, business:businesses(name, logo_url, is_verified, business_type)`)
+    .select(`${AD_PUBLIC_COLUMNS}, business:businesses_public(name, logo_url, is_verified, business_type)`)
     .eq('status', 'active')
     .neq('target_scope', 'radius')
     .lte('starts_at', nowIso)

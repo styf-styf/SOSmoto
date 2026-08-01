@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyUser } from './notifications';
 import { subscribeToTable } from './realtime';
 import type { Appointment } from '../types/database';
@@ -31,7 +32,7 @@ export interface ClientAppointmentRequest extends AppointmentRequest {
 export async function getClientAppointmentRequests(clientId: string): Promise<ClientAppointmentRequest[]> {
   const { data, error } = await supabase
     .from('appointment_requests')
-    .select('*, businesses(name)')
+    .select('*, businesses:businesses_public(name)')
     .eq('client_id', clientId)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
@@ -148,14 +149,10 @@ export async function createAppointmentRequest(
   });
 
   // Notificación push al taller
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', params.businessId)
-    .maybeSingle();
-  if (biz) {
+  const ownerId = await getBusinessOwnerForNotify(params.businessId);
+  if (ownerId) {
     await notifyUser(
-      biz.owner_id,
+      ownerId,
       'Nueva solicitud de cita',
       params.serviceName
         ? `Un cliente quiere agendar: ${params.serviceName}`
@@ -223,13 +220,9 @@ export async function cancelAppointmentRequest(
   if (error) throw error;
 
   // Push al taller
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', request.business_id)
-    .maybeSingle();
-  if (biz) {
-    await notifyUser(biz.owner_id, 'Solicitud cancelada', 'El cliente canceló su solicitud de cita.', {
+  const ownerId = await getBusinessOwnerForNotify(request.business_id);
+  if (ownerId) {
+    await notifyUser(ownerId, 'Solicitud cancelada', 'El cliente canceló su solicitud de cita.', {
       type: 'appointment_cancelled',
     });
   }

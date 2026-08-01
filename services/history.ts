@@ -68,9 +68,9 @@ interface OwnedBusinessInfo {
 // antes de crear el negocio). Este mapa resuelve owner_id -> negocio.
 async function batchOwnedBusinesses(ownerIds: string[]): Promise<Map<string, OwnedBusinessInfo>> {
   if (ownerIds.length === 0) return new Map();
-  const { data, error } = await supabase.from('businesses').select('owner_id, name, logo_url').in('owner_id', ownerIds);
+  const { data, error } = await supabase.rpc('resolve_owned_businesses', { target_ids: ownerIds });
   if (error) throw error;
-  return new Map((data ?? []).map((b: any) => [b.owner_id as string, { name: b.name, logo_url: b.logo_url ?? null }]));
+  return new Map((data ?? []).map((b) => [b.owner_id, { name: b.name, logo_url: b.logo_url ?? null }]));
 }
 
 export async function getBusinessHistory(
@@ -555,12 +555,13 @@ export async function searchUsers(
 export async function getClientProfileForBusiness(
   clientId: string
 ): Promise<ClientProfileForBusiness | null> {
-  const [{ data: user, error: userErr }, { data: ownedBusiness }] = await Promise.all([
+  const [{ data: user, error: userErr }, { data: ownedBusinesses }] = await Promise.all([
     supabase.from('users').select('id, full_name, phone, email, avatar_url').eq('id', clientId).maybeSingle(),
-    supabase.from('businesses').select('id, name, logo_url').eq('owner_id', clientId).maybeSingle(),
+    supabase.rpc('resolve_owned_businesses', { target_ids: [clientId] }),
   ]);
   if (userErr) throw userErr;
-  const ownedBusinessId = (ownedBusiness as any)?.id ?? null;
+  const ownedBusiness = ownedBusinesses?.[0] ?? null;
+  const ownedBusinessId = ownedBusiness?.id ?? null;
   // Si esta "persona" compra a nombre de su propio negocio (ej. un taller
   // comprándole al por mayor a esta tienda), esa compra la hizo el NEGOCIO,
   // no el dueño a título personal -- nombre y foto son siempre los del

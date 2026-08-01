@@ -104,7 +104,7 @@ export default function ClienteDetailScreen() {
       getActiveClientAppointments(work.business.id, id),
       getActiveAppointmentRequests(id, work.business.id),
       getBusinessClientReports(work.business.id, id).then(async (rpts) => {
-        const { data: biz } = await supabase.from('businesses').select('name').eq('id', work.business.id).maybeSingle();
+        const { data: biz } = await supabase.from('businesses_public').select('name').eq('id', work.business.id).maybeSingle();
         return rpts.map((r) => ({ ...r, business_name: (biz as any)?.name ?? '' }));
       }),
       getVehicles(id),

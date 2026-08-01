@@ -53,11 +53,8 @@ export default function BusinessMensajesScreen() {
     // Para interlocutores B2B, buscamos si tienen un negocio como dueños.
     const otherIds = summaries.map((s) => s.otherId);
     const businessByOwnerId = new Map<string, { name: string; logo_url: string | null; is_verified: boolean }>();
-    const { data: bizRows } = await supabase
-      .from('businesses')
-      .select('owner_id, name, logo_url, is_verified')
-      .in('owner_id', otherIds);
-    (bizRows ?? []).forEach((b: { owner_id: string; name: string; logo_url: string | null; is_verified: boolean }) => {
+    const { data: bizRows } = await supabase.rpc('resolve_owned_businesses', { target_ids: otherIds });
+    (bizRows ?? []).forEach((b) => {
       businessByOwnerId.set(b.owner_id, { name: b.name, logo_url: b.logo_url, is_verified: b.is_verified });
     });
 

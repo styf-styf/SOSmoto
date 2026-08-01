@@ -10,7 +10,7 @@ import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
 import { colors } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
-import { canBuyFromBusinessType, getMyWorkBusiness } from '../../../../services/businesses';
+import { canBuyFromBusinessType, getBusinessOwnerForChat, getMyWorkBusiness } from '../../../../services/businesses';
 import {
   getAllPriceTiers,
   getEffectiveUnitPrice,
@@ -172,7 +172,10 @@ export default function BusinessProductDetailScreen() {
       const msg = encodeURIComponent(
         `Hola, quiero hacer un pedido de: ${qtyPrefix}${itemLabel}${effectivePrice != null ? ` ($${(effectivePrice * quantity).toFixed(2)})` : ''}`
       );
-      router.push(`/(business)/chat/${product.business_owner_id}?initialMessage=${msg}&sellerBusinessId=${product.business_id}`);
+      const ownerId = await getBusinessOwnerForChat(product.business_id);
+      if (ownerId) {
+        router.push(`/(business)/chat/${ownerId}?initialMessage=${msg}&sellerBusinessId=${product.business_id}`);
+      }
     } catch (err) {
       console.error('apartar error', err);
       Alert.alert('Error', 'No se pudo procesar. Intenta de nuevo.');
@@ -412,9 +415,14 @@ export default function BusinessProductDetailScreen() {
             </Pressable>
             <Pressable
               style={styles.actionBtn}
-              onPress={() => {
+              onPress={async () => {
+                const ownerId = await getBusinessOwnerForChat(product.business_id).catch((err) => {
+                  console.error('get business owner for chat error', err);
+                  return null;
+                });
+                if (!ownerId) return;
                 const msg = encodeURIComponent(`Hola, estoy interesado en el producto "${product.name}". ¿Podrían darme más información?`);
-                router.push(`/(business)/chat/${product.business_owner_id}?prefill=${msg}&sellerBusinessId=${product.business_id}`);
+                router.push(`/(business)/chat/${ownerId}?prefill=${msg}&sellerBusinessId=${product.business_id}`);
               }}
             >
               <Ionicons name="chatbubble-outline" size={20} color={colors.text} />

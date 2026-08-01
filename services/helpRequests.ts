@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { distanceKm } from '../utils/distance';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyUser } from './notifications';
 import { subscribeToTable } from './realtime';
 import type {
@@ -21,7 +22,7 @@ async function findNearbyWorkshops(
   longitude: number,
 ): Promise<NearbyWorkshopsResult> {
   const { data, error } = await supabase
-    .from('businesses')
+    .from('businesses_public')
     .select('*')
     .eq('business_type', 'workshop')
     .eq('is_available_for_aid', true)
@@ -127,10 +128,16 @@ export async function createHelpRequest(
       );
     if (notifyError) throw notifyError;
 
+    // owner_id ya no viaja en businesses_public -- se resuelve por negocio
+    // justo acá, apoyado en que help_request_notifications (arriba) ya
+    // quedó insertado ANTES de este punto, así que can_notify_user ya
+    // encuentra la relación recién creada (ver migración 0158).
     await Promise.all(
-      nearbyWorkshops.map((b) =>
-        notifyUser(
-          b.owner_id,
+      nearbyWorkshops.map(async (b) => {
+        const ownerId = await getBusinessOwnerForNotify(b.id);
+        if (!ownerId) return;
+        await notifyUser(
+          ownerId,
           'Nueva solicitud de auxilio',
           'Un motociclista cerca de ti necesita ayuda.',
           {
@@ -138,8 +145,8 @@ export async function createHelpRequest(
             helpRequestId: helpRequest.id,
           },
           'auxilio',
-        ),
-      ),
+        );
+      }),
     );
   }
 
@@ -197,12 +204,7 @@ export async function cancelHelpRequest(id: string): Promise<void> {
   const request = data as HelpRequest | null;
   if (!request?.accepted_business_id) return;
 
-  const { data: businessRow } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', request.accepted_business_id)
-    .maybeSingle();
-  const ownerId = (businessRow as { owner_id: string } | null)?.owner_id;
+  const ownerId = await getBusinessOwnerForNotify(request.accepted_business_id);
   if (!ownerId) return;
 
   await notifyUser(
@@ -442,12 +444,7 @@ export async function completeHelpRequest(
   }
 
   if (!request.accepted_business_id) return;
-  const { data: businessRow } = await supabase
-    .from('businesses')
-    .select('owner_id')
-    .eq('id', request.accepted_business_id)
-    .maybeSingle();
-  const ownerId = (businessRow as { owner_id: string } | null)?.owner_id;
+  const ownerId = await getBusinessOwnerForNotify(request.accepted_business_id);
   if (!ownerId) return;
 
   await notifyUser(

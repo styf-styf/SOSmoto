@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBusinessOwnerForNotify } from './businesses';
 import { notifyUser } from './notifications';
 import type { InspectionGroup, InspectionItem, ServiceCategory, ServiceReport, ServiceReportPart } from '../types/database';
 
@@ -143,7 +144,7 @@ export async function getServiceReport(id: string): Promise<ServiceReportWithBus
   const report = data as ServiceReport;
 
   const [{ data: business }, { data: clientUser }] = await Promise.all([
-    supabase.from('businesses').select('name').eq('id', report.business_id).maybeSingle(),
+    supabase.from('businesses_public').select('name').eq('id', report.business_id).maybeSingle(),
     report.client_id
       ? supabase.from('users').select('full_name').eq('id', report.client_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -208,16 +209,12 @@ export async function confirmServiceReport(id: string): Promise<void> {
     .maybeSingle();
   if (!report?.business_id) return;
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('owner_id, name')
-    .eq('id', report.business_id)
-    .maybeSingle();
-  if (!business?.owner_id) return;
+  const ownerId = await getBusinessOwnerForNotify(report.business_id);
+  if (!ownerId) return;
 
   const label = report.vehicle_plate ? `(${report.vehicle_plate})` : '';
   await notifyUser(
-    business.owner_id,
+    ownerId,
     'Informe confirmado',
     `El cliente confirmó haber recibido el informe de servicio ${label}`.trim(),
     { type: 'service_report', reportId: id }

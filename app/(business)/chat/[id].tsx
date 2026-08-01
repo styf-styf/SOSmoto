@@ -199,7 +199,7 @@ export default function ChatScreen() {
           const [history] = await Promise.all([
             getMessages(thread.clientId, thread.businessId),
             supabase
-              .from('businesses')
+              .from('businesses_public')
               .select('name, logo_url, is_verified')
               .eq('id', thread.businessId)
               .maybeSingle()
@@ -242,21 +242,17 @@ export default function ChatScreen() {
         // el negocio para mostrar su nombre y logo en el header en lugar de los
         // datos personales del usuario.
         supabase
-          .from('businesses')
-          .select('name, logo_url, is_verified')
-          .eq('owner_id', thread.clientId)
-          .maybeSingle()
+          .rpc('resolve_owned_businesses', { target_ids: [thread.clientId] })
           .then(
-            ({
-              data,
-            }: {
-              data: {
-                name: string;
-                logo_url: string | null;
-                is_verified: boolean;
-              } | null;
-            }) => {
-              if (data) setOtherBusiness(data);
+            ({ data }) => {
+              const business = data?.[0];
+              if (business) {
+                setOtherBusiness({
+                  name: business.name,
+                  logo_url: business.logo_url,
+                  is_verified: business.is_verified,
+                });
+              }
             },
             () => {},
           );

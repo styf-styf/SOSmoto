@@ -9,7 +9,7 @@ import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getServiceAppointmentStats } from '../../../../services/appointments';
-import { getMyWorkBusiness } from '../../../../services/businesses';
+import { getBusinessOwnerForChat, getMyWorkBusiness } from '../../../../services/businesses';
 import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
 import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
@@ -208,9 +208,14 @@ export default function BusinessServiceDetailScreen() {
             </Pressable>
             <Pressable
               style={styles.actionBtn}
-              onPress={() => {
+              onPress={async () => {
+                const ownerId = await getBusinessOwnerForChat(service.business_id).catch((err) => {
+                  console.error('get business owner for chat error', err);
+                  return null;
+                });
+                if (!ownerId) return;
                 const msg = encodeURIComponent(`Hola, estoy interesado en el servicio "${service.name}". ¿Podrían darme más información?`);
-                router.push(`/(business)/chat/${service.business_owner_id}?prefill=${msg}`);
+                router.push(`/(business)/chat/${ownerId}?prefill=${msg}`);
               }}
             >
               <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
