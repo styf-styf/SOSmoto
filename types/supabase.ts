@@ -1826,6 +1826,10 @@ export interface Database {
         Args: { target_business_id: string };
         Returns: string | null;
       };
+      increment_post_shares: {
+        Args: { post_id: string };
+        Returns: undefined;
+      };
     };
   };
 }

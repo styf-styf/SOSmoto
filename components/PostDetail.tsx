@@ -24,6 +24,7 @@ import {
   getPostAuthorName,
   getPostById,
   getPostTag,
+  incrementPostShares,
   updatePost,
   MAX_POST_PHOTOS_CLIENT,
   type PostCommentWithAuthor,
@@ -256,7 +257,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
     try {
       const url =
         isBusiness && post.business_id
-          ? await pickAndUploadBusinessImage(post.business_id)
+          ? await pickAndUploadBusinessImage(post.business_id, null)
           : await pickAndUploadClientPostImage(profile?.id ?? '');
       if (url) setEditPhotos((prev) => [...prev, url]);
     } catch (err) {
@@ -386,11 +387,19 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
     }
   }
 
-  function handleShare() {
+  async function handleShare() {
     if (!post) return;
     const url = `https://sosmoto.net/post/${post.id}`;
     const text = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
-    Share.share({ message: `${text}\n${url}`, url }).catch(() => {});
+    try {
+      const result = await Share.share({ message: `${text}\n${url}`, url });
+      if (result.action !== Share.dismissedAction) {
+        incrementPostShares(post.id).catch(() => {});
+      }
+    } catch {
+      // Cerrar el share sheet sin elegir nada también puede rechazar la
+      // promesa en vez de resolver con dismissedAction -- no cuenta.
+    }
   }
 
   function handleTagPress() {
@@ -453,7 +462,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           )}
         </Pressable>
 
-        <PhotoCarousel photos={post.photos} />
+        <PhotoCarousel photos={post.photos} naturalAspect />
 
         {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 
@@ -508,6 +517,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
             value={text}
             onChangeText={setText}
             multiline
+            maxLength={300}
             blurOnSubmit={false}
           />
           <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending}>
@@ -545,6 +555,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
             placeholder="Escribe una descripción…"
             value={editCaption}
             onChangeText={setEditCaption}
+            maxLength={1000}
           />
 
           <Text style={styles.fieldLabel}>Etiqueta</Text>

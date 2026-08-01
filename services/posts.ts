@@ -42,6 +42,14 @@ export async function deletePost(postId: string): Promise<void> {
   if (error) throw error;
 }
 
+// Vía RPC porque `posts` no tiene ninguna policy de UPDATE (ver migración
+// 0165) -- cualquiera que comparta la publicación puede contar la métrica,
+// sin necesitar permiso general de escritura sobre la fila.
+export async function incrementPostShares(postId: string): Promise<void> {
+  const { error } = await supabase.rpc('increment_post_shares', { post_id: postId });
+  if (error) console.error('increment post shares error', error);
+}
+
 export async function updatePost(
   postId: string,
   updates: Partial<{

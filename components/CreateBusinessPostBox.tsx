@@ -39,7 +39,10 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
     if (photos.length >= maxPhotos) return;
     setUploadingImage(true);
     try {
-      const url = await pickAndUploadBusinessImage(businessId);
+      // null: recorte libre, a diferencia del 3:4 por defecto que usa esta
+      // misma función para catálogo/logo -- ver pickAndUploadClientPostImage
+      // en services/storage.ts para el motivo.
+      const url = await pickAndUploadBusinessImage(businessId, null);
       if (url) setPhotos((prev) => [...prev, url]);
     } catch (err) {
       console.error('upload post image error', err);
@@ -140,6 +143,7 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
           value={caption}
           onChangeText={setCaption}
           multiline
+          maxLength={1000}
           blurOnSubmit={false}
         />
         <Pressable style={[styles.sendButton, !canPublish && styles.sendButtonDisabled]} onPress={handlePublish} disabled={!canPublish}>

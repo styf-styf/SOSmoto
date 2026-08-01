@@ -132,6 +132,7 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
           value={caption}
           onChangeText={setCaption}
           multiline
+          maxLength={1000}
           blurOnSubmit={false}
         />
         <Pressable style={[styles.sendButton, !canPublish && styles.sendButtonDisabled]} onPress={handlePublish} disabled={!canPublish}>

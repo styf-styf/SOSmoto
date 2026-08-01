@@ -5,8 +5,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
+import { useImageAspectRatio } from '../hooks/useImageAspectRatio';
 import { GradientShade } from './GradientShade';
-import { getPostAuthorAvatar, getPostAuthorName, getPostTag, type PostWithAuthor } from '../services/posts';
+import { getPostAuthorAvatar, getPostAuthorName, getPostTag, incrementPostShares, type PostWithAuthor } from '../services/posts';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 // Unificado con el espacio izquierdo/derecho del resto del feed (historias,
@@ -41,8 +42,18 @@ export function PostCard({
   const tag = getPostTag(post, userRole);
   const isBusiness = !!post.author_business;
   const hasImage = post.photos.length > 0;
-  const [expanded, setExpanded] = useState(false);
-  const [isTruncated, setIsTruncated] = useState(false);
+  // Proporción natural de la publicación (a diferencia del resto de la app,
+  // que fuerza 3:4 al subir) -- acotada a un MÁXIMO de alto relativo de 3:4
+  // (nunca más angosta/alta que eso), sin tope de ancho. Con varias fotos,
+  // todas comparten el alto de la primera (mismo criterio que Instagram),
+  // ver el mini-carrusel más abajo.
+  const imageRatio = useImageAspectRatio(post.photos[0], { clampMin: 3 / 4 });
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [captionTruncated, setCaptionTruncated] = useState(false);
+  // Primeras 3 líneas reales (medidas, no una cuenta de caracteres) con un
+  // pequeño recorte al final de la 3ra para dejarle espacio a "Ver más" en
+  // la misma línea -- ver handleCaptionMeasure.
+  const [captionPreview, setCaptionPreview] = useState('');
   const [photoIndex, setPhotoIndex] = useState(0);
   // Un swipe corto y rápido para cambiar de foto puede terminar dentro del
   // mismo Pressable sin que el ScrollView llegue a "reclamar" el gesto --
@@ -66,25 +77,32 @@ export function PostCard({
   }
 
   const caption = post.caption ?? '';
-  const collapsed = hasImage && !expanded;
 
-  // Mide el texto completo (nombre + caption + etiqueta) sin límite de líneas,
-  // de forma invisible y superpuesta, para saber si realmente no entra en una
-  // sola línea -- así "más" solo aparece cuando hace falta, sin importar el
-  // largo del nombre o el ancho de pantalla (en vez de un umbral fijo de
-  // caracteres, que no reflejaba el overflow real).
-  function handleMeasure(e: NativeSyntheticEvent<TextLayoutEventData>) {
-    if (e.nativeEvent.lines.length > 1) setIsTruncated(true);
+  // Mide la descripción completa sin límite de líneas, de forma invisible y
+  // superpuesta -- si mide más de 3 líneas, arma el preview con el texto
+  // REAL de esas 3 líneas (cada línea medida trae su propio texto exacto,
+  // no una estimación de caracteres) y recorta un poco el final de la 3ra
+  // para que "Ver más" quede en la misma línea, como pidió el diseño.
+  function handleCaptionMeasure(e: NativeSyntheticEvent<TextLayoutEventData>) {
+    const lines = e.nativeEvent.lines;
+    if (lines.length <= 3) return;
+    setCaptionTruncated(true);
+    const firstThreeLines = lines.slice(0, 3).map((l) => l.text).join('');
+    // Recorte de más (18 caracteres) a propósito -- es una estimación por
+    // cantidad de caracteres, no por ancho real de cada letra, así que
+    // conviene dejar margen de sobra: que falte un poco de texto visible se
+    // nota menos que "Ver más" cortado a la mitad por el clip de 3 líneas.
+    setCaptionPreview(firstThreeLines.trimEnd().slice(0, -18).trimEnd());
   }
 
-  function handleExpand(e: GestureResponderEvent) {
+  function handleExpandCaption(e: GestureResponderEvent) {
     e.stopPropagation();
-    setExpanded(true);
+    setCaptionExpanded(true);
   }
 
-  function handleCollapse(e: GestureResponderEvent) {
+  function handleCollapseCaption(e: GestureResponderEvent) {
     e.stopPropagation();
-    setExpanded(false);
+    setCaptionExpanded(false);
   }
 
   function handleTagPress(e: GestureResponderEvent) {
@@ -101,10 +119,22 @@ export function PostCard({
     router.push(tag.href);
   }
 
-  function handleShare() {
+  async function handleShare() {
     const url = `https://sosmoto.net/post/${post.id}`;
     const text = post.caption ? `${authorName}: ${post.caption}` : `Publicación de ${authorName} en SOSmoto`;
-    Share.share({ message: `${text}\n${url}`, url }).catch(() => {});
+    try {
+      const result = await Share.share({ message: `${text}\n${url}`, url });
+      // En iOS Share.share() distingue "canceló" de "sí compartió"; en
+      // Android el share sheet nativo no avisa si de verdad se completó
+      // (limitación de la API, no de la app), así que ahí se cuenta apenas
+      // se abre el selector -- mismo criterio que usan la mayoría de apps.
+      if (result.action !== Share.dismissedAction) {
+        incrementPostShares(post.id).catch(() => {});
+      }
+    } catch {
+      // Cerrar el share sheet sin elegir nada también puede rechazar la
+      // promesa en vez de resolver con dismissedAction -- no cuenta.
+    }
   }
 
   function handleAuthorPress(e: GestureResponderEvent) {
@@ -125,21 +155,23 @@ export function PostCard({
     }
   }
 
-  // El carrusel de fotos es un ScrollView horizontal -- si todo el card fuera
-  // un solo Pressable envolviéndolo (como antes), la negociación de gestos
-  // entre "tap para abrir el detalle" y "swipe para cambiar de foto" queda
-  // inconsistente (funciona para un lado sí y para el otro no, o requiere
-  // remount para destrabarse), y además hace más fácil que un scroll
-  // vertical leve dentro del feed se interprete como tap. En vez de un
-  // Pressable envolviendo todo, cada zona pulsable (foto, caption, etc.)
-  // tiene su propio Pressable puntual.
+  // Toda la tarjeta lleva al detalle EXCEPTO avatar/nombre (→ perfil) y los
+  // botones de comentar/compartir -- por eso el fondo de cada fila (author
+  // row, bloque de descripción, fila de engagement plana) es su propio
+  // Pressable→detalle, con esas excepciones como Pressables anidados
+  // encima (el más interno gana el toque, no se propaga al de afuera).
+  // A propósito NO es un solo Pressable envolviendo TODA la tarjeta -- el
+  // carrusel de fotos (imageWrap) es un ScrollView horizontal, y si
+  // quedara anidado dentro de un Pressable ancestro, la negociación de
+  // gestos entre "tap para abrir el detalle" y "swipe para cambiar de
+  // foto" queda inconsistente (funciona para un lado sí y para el otro no,
+  // o requiere remount para destrabarse) -- ya se probó antes y por eso
+  // sigue siendo un hermano suelto dentro de `card`, con su propio
+  // tap-vs-swipe resuelto en handlePhotoPress/handlePhotoPressIn.
   return (
     <View style={styles.card}>
-      <Pressable
-        style={[styles.authorRow, hasImage && expanded && styles.authorRowExpanded]}
-        onPress={handleAuthorPress}
-      >
-        <View style={styles.avatarWrap}>
+      <Pressable style={styles.authorRow} onPress={() => router.push(detailHref)}>
+        <Pressable onPress={handleAuthorPress} style={styles.avatarWrap}>
           <View style={styles.avatar}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
@@ -152,37 +184,52 @@ export function PostCard({
               <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
             </View>
           )}
-        </View>
-        <View style={styles.authorTextRow}>
-          {collapsed && (
-            <Text style={[styles.authorLine, styles.measure]} onTextLayout={handleMeasure}>
-              <Text style={styles.authorName}>{authorName}</Text>
-              {hasImage && caption && <Text style={styles.inlineCaption}>  {caption}</Text>}
-            </Text>
-          )}
-          <Text
-            style={styles.authorLine}
-            numberOfLines={collapsed ? 1 : undefined}
-            ellipsizeMode={collapsed && isTruncated ? 'clip' : 'tail'}
-          >
-            <Text style={styles.authorName}>{authorName}</Text>
-            {hasImage && caption && <Text style={styles.inlineCaption}>  {caption}</Text>}
-            {hasImage && expanded && isTruncated && (
-              <Text style={styles.moreLink} onPress={handleCollapse}>
-                {'  menos'}
-              </Text>
-            )}
+        </Pressable>
+        <Pressable onPress={handleAuthorPress} style={styles.authorNameWrap}>
+          <Text style={styles.authorName} numberOfLines={1}>
+            {authorName}
           </Text>
-          {collapsed && isTruncated && (
-            <Pressable onPress={handleExpand}>
-              <Text style={styles.moreLink}>... más</Text>
-            </Pressable>
-          )}
-        </View>
+        </Pressable>
       </Pressable>
 
+      {/* Descripción arriba de la imagen, hasta 3 líneas -- exclusivo de
+          publicaciones CON foto (ver PhotoCarousel/PostDetail para el caso
+          sin imagen, que muestra el texto completo sin límite). */}
+      {hasImage && caption && (
+        <Pressable style={styles.captionBlock} onPress={() => router.push(detailHref)}>
+          {!captionExpanded && (
+            <Text
+              style={[styles.captionCollapsedText, styles.measure]}
+              numberOfLines={4}
+              onTextLayout={handleCaptionMeasure}
+            >
+              {caption}
+            </Text>
+          )}
+          {captionExpanded ? (
+            <Text style={styles.captionCollapsedText}>
+              {caption}
+              <Text style={styles.moreLink} onPress={handleCollapseCaption}>
+                {'  Ver menos'}
+              </Text>
+            </Text>
+          ) : captionTruncated ? (
+            <Text style={styles.captionCollapsedText} numberOfLines={3} ellipsizeMode="clip">
+              {captionPreview}
+              <Text style={styles.moreLink} onPress={handleExpandCaption}>
+                {'... Ver más'}
+              </Text>
+            </Text>
+          ) : (
+            <Text style={styles.captionCollapsedText} numberOfLines={3}>
+              {caption}
+            </Text>
+          )}
+        </Pressable>
+      )}
+
       {hasImage && (
-        <View style={styles.imageWrap}>
+        <View style={[styles.imageWrap, { aspectRatio: imageRatio ?? 3 / 4 }]}>
           {post.photos.length > 1 ? (
             <ScrollView
               style={styles.imageScroll}
@@ -238,6 +285,7 @@ export function PostCard({
             </Pressable>
             <Pressable style={styles.engagementButtonOverlay} onPress={handleShare}>
               <Ionicons name="share-social-outline" size={22} color="#fff" />
+              <Text style={styles.engagementCountOverlay}>{post.shares_count}</Text>
             </Pressable>
           </View>
         </View>
@@ -250,7 +298,7 @@ export function PostCard({
       )}
 
       {!hasImage && (
-        <View style={styles.engagementRow}>
+        <Pressable style={styles.engagementRow} onPress={() => router.push(detailHref)}>
           {tag ? (
             <Pressable style={styles.tagChipFlat} onPress={handleTagPress}>
               <Ionicons name="pricetag" size={12} color={colors.primary} />
@@ -266,9 +314,10 @@ export function PostCard({
             </Pressable>
             <Pressable style={styles.engagementButton} onPress={handleShare}>
               <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.engagementCount}>{post.shares_count}</Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
       )}
     </View>
   );
@@ -288,9 +337,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  authorRowExpanded: {
-    alignItems: 'flex-start',
   },
   avatarWrap: {
     position: 'relative',
@@ -315,14 +361,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
   },
-  authorTextRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  authorLine: {
-    flexShrink: 1,
-  },
   measure: {
     position: 'absolute',
     left: 0,
@@ -330,20 +368,27 @@ const styles = StyleSheet.create({
     top: 0,
     opacity: 0,
   },
+  authorNameWrap: {
+    flex: 1,
+  },
   authorName: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },
-  inlineCaption: {
+  captionBlock: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  captionCollapsedText: {
     fontSize: 14,
     color: colors.text,
+    lineHeight: 19,
   },
   moreLink: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textMuted,
-    marginLeft: 4,
   },
   imageWrap: {
     width: '100%',

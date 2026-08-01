@@ -439,6 +439,7 @@ export interface Post {
   tag_service_id: string | null;
   tag_product_id: string | null;
   comments_count: number;
+  shares_count: number;
   created_at: string;
 }
 

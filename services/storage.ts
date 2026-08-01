@@ -122,8 +122,12 @@ export async function uploadClientPostImage(asset: ImagePicker.ImagePickerAsset,
   return data.publicUrl;
 }
 
+// Recorte libre a propósito (a diferencia de DEFAULT_ASPECT 3:4 del resto de
+// la app) -- una publicación se sube en el formato que el usuario elija
+// (1:1, 3:4, 9:16, o cualquier otro) y se muestra completa en su detalle,
+// con un máximo de 3:4 solo en la tarjeta del feed (ver PostCard.tsx).
 export async function pickAndUploadClientPostImage(clientId: string): Promise<string | null> {
-  const asset = await pickImageFromLibrary();
+  const asset = await pickImageFromLibrary(null);
   if (!asset) return null;
   return uploadClientPostImage(asset, clientId);
 }
