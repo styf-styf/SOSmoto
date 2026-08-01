@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '../../../constants/colors';
 import { AI_ASSISTANT_ENABLED } from '../../../constants/features';
 import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessesByIds } from '../../../services/businesses';
-import { getClientConversations, subscribeToThreadChanges } from '../../../services/messages';
+import { getClientConversations, hideChat, subscribeToThreadChanges } from '../../../services/messages';
 import type { Business } from '../../../types/database';
 import { formatConversationTimestamp } from '../../../utils/chatFormat';
 
@@ -47,6 +47,31 @@ export default function MensajesScreen() {
   async function handleRefresh() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
+  }
+
+  function handleLongPress(row: ConversationRow) {
+    if (!profile) return;
+    Alert.alert(
+      'Eliminar chat',
+      `Vas a eliminar el chat con ${row.business.name}. Solo desaparece de tu lista -- si te vuelve a escribir, aparece de nuevo.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setConversations((prev) => prev.filter((r) => r.business.id !== row.business.id));
+            try {
+              await hideChat(profile.id, row.business.id, 'client');
+            } catch (err) {
+              console.error('hide chat error', err);
+              Alert.alert('Error', 'No se pudo eliminar el chat. Intenta de nuevo.');
+              load().catch(() => {});
+            }
+          },
+        },
+      ]
+    );
   }
 
   useEffect(() => {
@@ -101,6 +126,7 @@ export default function MensajesScreen() {
             key={row.business.id}
             style={styles.row}
             onPress={() => router.push(`/(client)/chat/${row.business.id}`)}
+            onLongPress={() => handleLongPress(row)}
           >
             <View style={styles.avatarWrap}>
               <View style={styles.avatar}>

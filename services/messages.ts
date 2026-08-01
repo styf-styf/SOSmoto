@@ -136,12 +136,36 @@ export interface ConversationSummary {
   lastReadAt: string | null;
 }
 
+// "Eliminar chat" -- mismo comportamiento que WhatsApp: desaparece solo de
+// MI lista, el otro lado conserva su historial intacto, y vuelve a
+// aparecer si llega un mensaje nuevo después de ocultarlo (ver migración
+// 0163). No borra ningún mensaje real.
+export async function hideChat(clientId: string, businessId: string, hiddenBy: 'client' | 'business'): Promise<void> {
+  const { error } = await supabase
+    .from('hidden_chats')
+    .upsert(
+      { client_id: clientId, business_id: businessId, hidden_by: hiddenBy, hidden_at: new Date().toISOString() },
+      { onConflict: 'client_id,business_id,hidden_by' }
+    );
+  if (error) throw error;
+}
+
+async function getHiddenAtMap(hiddenBy: 'client' | 'business'): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from('hidden_chats').select('client_id, business_id, hidden_at').eq('hidden_by', hiddenBy);
+  if (error) throw error;
+  const key = hiddenBy === 'client' ? 'business_id' : 'client_id';
+  return new Map((data ?? []).map((row) => [(row as any)[key] as string, row.hidden_at as string]));
+}
+
 export async function getClientConversations(clientId: string): Promise<ConversationSummary[]> {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('business_id, body, image_url, created_at, sender_id, read_at')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
+  const [{ data, error }, hiddenAtByOtherId] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('business_id, body, image_url, created_at, sender_id, read_at')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false }),
+    getHiddenAtMap('client'),
+  ]);
   if (error) throw error;
 
   return dedupeByOtherId(
@@ -151,16 +175,20 @@ export async function getClientConversations(clientId: string): Promise<Conversa
       created_at: row.created_at,
       sender_id: row.sender_id,
       read_at: row.read_at,
-    }))
+    })),
+    hiddenAtByOtherId
   );
 }
 
 export async function getBusinessConversations(businessId: string): Promise<ConversationSummary[]> {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('client_id, body, image_url, created_at, sender_id, read_at')
-    .eq('business_id', businessId)
-    .order('created_at', { ascending: false });
+  const [{ data, error }, hiddenAtByOtherId] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('client_id, body, image_url, created_at, sender_id, read_at')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false }),
+    getHiddenAtMap('business'),
+  ]);
   if (error) throw error;
 
   return dedupeByOtherId(
@@ -170,18 +198,25 @@ export async function getBusinessConversations(businessId: string): Promise<Conv
       created_at: row.created_at,
       sender_id: row.sender_id,
       read_at: row.read_at,
-    }))
+    })),
+    hiddenAtByOtherId
   );
 }
 
 function dedupeByOtherId(
-  rows: { otherId: string; body: string; created_at: string; sender_id: string; read_at: string | null }[]
+  rows: { otherId: string; body: string; created_at: string; sender_id: string; read_at: string | null }[],
+  hiddenAtByOtherId: Map<string, string>
 ): ConversationSummary[] {
   const seen = new Set<string>();
   const summaries: ConversationSummary[] = [];
   for (const row of rows) {
     if (seen.has(row.otherId)) continue;
     seen.add(row.otherId);
+    // Ordenado desc, así que esta es la fila del último mensaje del hilo --
+    // si se ocultó DESPUÉS de ese último mensaje, se queda oculto; si llegó
+    // un mensaje nuevo luego de ocultarlo, vuelve a aparecer solo.
+    const hiddenAt = hiddenAtByOtherId.get(row.otherId);
+    if (hiddenAt && hiddenAt >= row.created_at) continue;
     summaries.push({
       otherId: row.otherId,
       lastMessage: row.body,
