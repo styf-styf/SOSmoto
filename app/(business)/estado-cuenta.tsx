@@ -93,20 +93,23 @@ export default function EstadoCuentaScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.typeRow}>
-        <Ionicons name={typeIcon} size={18} color={colors.textMuted} />
-        <Text style={styles.typeLabel}>Tipo de cuenta</Text>
-        <Text style={styles.typeValue}>{typeLabel}</Text>
-      </View>
-
-      <View style={[styles.badge, isLimited ? styles.badgeLimited : styles.badgeActive]}>
-        <Ionicons
-          name={isLimited ? 'alert-circle' : 'checkmark-circle'}
-          size={20}
-          color={isLimited ? colors.danger : colors.success}
-        />
-        <Text style={[styles.badgeText, { color: isLimited ? colors.danger : colors.success }]}>
-          {isLimited ? 'Limitado' : 'Activo'}
-        </Text>
+        <View style={styles.typeLeftGroup}>
+          <Ionicons name={typeIcon} size={18} color={colors.textMuted} />
+          <Text style={styles.typeLabel}>Tipo de cuenta</Text>
+        </View>
+        <View style={styles.typeRightGroup}>
+          <Text style={styles.typeValue}>{typeLabel}</Text>
+          <View style={[styles.badge, isLimited ? styles.badgeLimited : styles.badgeActive]}>
+            <Ionicons
+              name={isLimited ? 'alert-circle' : 'checkmark-circle'}
+              size={14}
+              color={isLimited ? colors.danger : colors.success}
+            />
+            <Text style={[styles.badgeText, { color: isLimited ? colors.danger : colors.success }]}>
+              {isLimited ? 'Limitado' : 'Activo'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {isLimited ? (
@@ -197,12 +200,10 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginBottom: 20,
+    gap: 4,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   badgeActive: {
     backgroundColor: '#E6F4EA',
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBE8E8',
   },
   badgeText: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
   },
   reasonLabel: {
@@ -251,14 +252,23 @@ const styles = StyleSheet.create({
   },
   typeRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  typeLeftGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
+  },
+  typeRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   typeLabel: {
     fontSize: 14,
     color: colors.textMuted,
-    flex: 1,
   },
   typeValue: {
     fontSize: 14,
