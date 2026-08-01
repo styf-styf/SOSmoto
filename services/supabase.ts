@@ -1,14 +1,13 @@
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { LargeSecureStore } from './largeSecureStore';
 import type { Database } from '../types/supabase';
-// LargeSecureStore (cifrado de sesión) queda listo en services/largeSecureStore.ts
-// pero SIN USAR todavía a propósito: requiere react-native-get-random-values,
-// un módulo nativo que no está compilado en el binario instalado hoy (`eas
-// update` publica todo el JS del repo sin importar qué build nativo tiene
-// cada usuario -- este archivo se activó por error antes de tiempo y rompió
-// la sesión en producción). Volver a activarlo recién junto con el próximo
-// build nativo (ver memoria "EAS build pending").
+// Reactivado 2026-08-01 junto con el build nativo que por fin compila
+// react-native-get-random-values -- antes de esa fecha este mismo cambio
+// rompió la sesión en producción (el módulo nativo no estaba compilado en
+// el binario instalado, ver services/largeSecureStore.ts). No reactivar
+// esto vía `eas update` (OTA) sin confirmar antes que el binario instalado
+// realmente tiene el módulo nativo compilado -- un OTA no puede agregarlo.
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,7 +20,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: new LargeSecureStore(),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
