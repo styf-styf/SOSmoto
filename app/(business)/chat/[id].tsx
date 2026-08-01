@@ -1163,6 +1163,10 @@ const styles = StyleSheet.create({
   },
   quickRepliesRow: {
     flexDirection: 'row',
+    // Sin esto los chips se estiran al alto del ScrollView (fila completa)
+    // en vez de quedarse en su alto natural (padding + texto) -- mismo
+    // síntoma clásico de un ScrollView horizontal sin alignItems propio.
+    alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
