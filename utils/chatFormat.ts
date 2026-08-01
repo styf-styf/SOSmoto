@@ -1,6 +1,12 @@
 const QUOTE_PREFIX = '__QUOTE__';
 
 export interface QuotePayload {
+  // Ausente en cotizaciones viejas (antes de que tienda tuviera su propio
+  // formulario) -- se trata como 'service' al leerlas, mismo comportamiento
+  // que siempre tuvieron. `service`/`time` se reusan tal cual para
+  // 'product' (guardan nombre de producto / cantidad respectivamente) en
+  // vez de sumar campos nuevos que dupliquen el mismo dato.
+  kind?: 'service' | 'product';
   service: string;
   price: string;
   time: string;

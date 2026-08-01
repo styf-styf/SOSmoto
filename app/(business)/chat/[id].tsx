@@ -38,6 +38,7 @@ import {
 import { useBusinessAppointmentRequestActions } from '../../../hooks/useBusinessAppointmentRequestActions';
 import { getUserById } from '../../../services/users';
 import type {
+  BusinessType,
   ProductIntentWithProduct,
   User,
 } from '../../../types/database';
@@ -49,13 +50,24 @@ import {
   shouldShowDateSeparator,
 } from '../../../utils/chatFormat';
 
-const QUICK_REPLIES = [
+const QUICK_REPLIES_WORKSHOP = [
   'En camino',
   '¿Cuál es tu dirección exacta?',
   '¿Cuál es el problema específico?',
   'Llegamos en 15 minutos',
   'Ya estamos disponibles',
   'El presupuesto es $',
+];
+
+// Tienda no hace auxilio en carretera ni recibe citas -- respuestas propias
+// de venta de producto en vez de las de un taller yendo hacia el cliente.
+const QUICK_REPLIES_STORE = [
+  'Sí, tenemos stock',
+  '¿Qué cantidad necesitas?',
+  'Está disponible para retiro',
+  'Podemos enviarlo a tu dirección',
+  'El precio es $',
+  'Gracias por tu compra',
 ];
 
 export default function ChatScreen() {
@@ -72,6 +84,9 @@ export default function ChatScreen() {
 
   const [clientId, setClientId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+  const isStore = businessType === 'store';
+  const quickReplies = isStore ? QUICK_REPLIES_STORE : QUICK_REPLIES_WORKSHOP;
   const [isLimited, setIsLimited] = useState(false);
   const [canReplyChat, setCanReplyChat] = useState(true);
   const [client, setClient] = useState<User | null>(null);
@@ -154,6 +169,7 @@ export default function ChatScreen() {
       return {
         clientId: profile.id,
         businessId: id,
+        businessType: null as BusinessType | null,
         isLimited: false,
         canReplyChat: true,
       };
@@ -165,6 +181,7 @@ export default function ChatScreen() {
       return {
         clientId: profile.id,
         businessId: sellerBusinessId,
+        businessType: null as BusinessType | null,
         isLimited: false,
         canReplyChat: true,
       };
@@ -177,6 +194,7 @@ export default function ChatScreen() {
     return {
       clientId: id,
       businessId: work.business.id,
+      businessType: work.business.business_type,
       isLimited: work.business.is_limited,
       canReplyChat: work.isOwner || (employeeRecord?.can_reply_chat ?? false),
     };
@@ -189,6 +207,7 @@ export default function ChatScreen() {
         if (!thread) return;
         setClientId(thread.clientId);
         setBusinessId(thread.businessId);
+        setBusinessType(thread.businessType);
         setIsLimited(thread.isLimited);
         setCanReplyChat(thread.canReplyChat);
 
@@ -364,15 +383,16 @@ export default function ChatScreen() {
   function handleSendQuote() {
     if (!quoteService.trim()) {
       Alert.alert(
-        'Falta el servicio',
-        'Ingresa el nombre del servicio o trabajo.',
+        isStore ? 'Falta el producto' : 'Falta el servicio',
+        isStore ? 'Ingresa el nombre del producto.' : 'Ingresa el nombre del servicio o trabajo.',
       );
       return;
     }
     const encoded = encodeQuote({
+      kind: isStore ? 'product' : 'service',
       service: quoteService.trim(),
       price: quotePrice.trim() || 'A convenir',
-      time: quoteTime.trim() || 'A definir',
+      time: quoteTime.trim() || (isStore ? 'A confirmar' : 'A definir'),
     });
     handleSend(encoded);
     setShowQuoteForm(false);
@@ -640,7 +660,9 @@ export default function ChatScreen() {
                           size={14}
                           color={colors.primary}
                         />
-                        <Text style={styles.quoteTitle}>Cotización</Text>
+                        <Text style={styles.quoteTitle}>
+                          {quote.kind === 'product' ? 'Cotización de producto' : 'Cotización'}
+                        </Text>
                       </View>
                       <Text style={styles.quoteService}>{quote.service}</Text>
                       <View style={styles.quoteRow}>
@@ -648,7 +670,9 @@ export default function ChatScreen() {
                         <Text style={styles.quoteValue}>{quote.price}</Text>
                       </View>
                       <View style={styles.quoteRow}>
-                        <Text style={styles.quoteLabel}>Tiempo est.:</Text>
+                        <Text style={styles.quoteLabel}>
+                          {quote.kind === 'product' ? 'Cantidad:' : 'Tiempo est.:'}
+                        </Text>
                         <Text style={styles.quoteValue}>{quote.time}</Text>
                       </View>
                     </View>
@@ -735,7 +759,7 @@ export default function ChatScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.quickRepliesRow}
               >
-                {QUICK_REPLIES.map((reply) => (
+                {quickReplies.map((reply) => (
                   <Pressable
                     key={reply}
                     style={styles.quickReplyChip}
@@ -752,10 +776,12 @@ export default function ChatScreen() {
 
             {showQuoteForm && (
               <View style={styles.quoteForm}>
-                <Text style={styles.quoteFormTitle}>Nueva cotización</Text>
+                <Text style={styles.quoteFormTitle}>
+                  {isStore ? 'Nueva cotización de producto' : 'Nueva cotización'}
+                </Text>
                 <TextInput
                   style={styles.quoteInput}
-                  placeholder="Servicio o trabajo"
+                  placeholder={isStore ? 'Producto' : 'Servicio o trabajo'}
                   placeholderTextColor={colors.textMuted}
                   value={quoteService}
                   onChangeText={setQuoteService}
@@ -769,7 +795,7 @@ export default function ChatScreen() {
                 />
                 <TextInput
                   style={styles.quoteInput}
-                  placeholder="Tiempo estimado (ej. 2 horas)"
+                  placeholder={isStore ? 'Cantidad (ej. 2 unidades)' : 'Tiempo estimado (ej. 2 horas)'}
                   placeholderTextColor={colors.textMuted}
                   value={quoteTime}
                   onChangeText={setQuoteTime}
@@ -951,7 +977,7 @@ export default function ChatScreen() {
                         color={colors.textMuted}
                       />
                     </Pressable>
-                    {clientId && (
+                    {clientId && !isStore && (
                       <Pressable
                         style={styles.iconButton}
                         onPress={() => {

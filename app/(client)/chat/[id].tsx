@@ -389,7 +389,7 @@ export default function ChatScreen() {
                           color={colors.primary}
                         />
                         <Text style={styles.quoteTitle}>
-                          Cotización del taller
+                          {quote.kind === 'product' ? 'Cotización de producto' : 'Cotización del taller'}
                         </Text>
                       </View>
                       <Text style={styles.quoteService}>{quote.service}</Text>
@@ -398,7 +398,9 @@ export default function ChatScreen() {
                         <Text style={styles.quoteValue}>{quote.price}</Text>
                       </View>
                       <View style={styles.quoteRow}>
-                        <Text style={styles.quoteLabel}>Tiempo est.:</Text>
+                        <Text style={styles.quoteLabel}>
+                          {quote.kind === 'product' ? 'Cantidad:' : 'Tiempo est.:'}
+                        </Text>
                         <Text style={styles.quoteValue}>{quote.time}</Text>
                       </View>
                     </View>
