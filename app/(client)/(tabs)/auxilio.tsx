@@ -812,12 +812,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
+  // Cancela el padding horizontal de formContent (16) para que el viewport
+  // ocupe el ancho completo -- la moto que no alcanza a entrar queda
+  // cortada justo en el borde real de la pantalla en vez de uno más adentro,
+  // mismo patrón que el carrusel de Siguiendo en Perfil.
   vehicleSelectorScroll: {
     marginBottom: 20,
+    marginHorizontal: -16,
   },
   vehicleSelector: {
     flexDirection: 'row',
     gap: 8,
+    paddingLeft: 16,
+    // Sin padding a la derecha a propósito -- ver comentario arriba.
   },
   vehicleOption: {
     paddingHorizontal: 14,
