@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,6 +79,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const commentInputRef = useRef<TextInput>(null);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportingCommentId, setReportingCommentId] = useState<string | null>(null);
@@ -395,6 +396,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
       const result = await Share.share({ message: `${text}\n${url}`, url });
       if (result.action !== Share.dismissedAction) {
         incrementPostShares(post.id).catch(() => {});
+        setPost((prev) => (prev ? { ...prev, shares_count: prev.shares_count + 1 } : prev));
       }
     } catch {
       // Cerrar el share sheet sin elegir nada también puede rechazar la
@@ -430,14 +432,9 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
           options={{
             headerRight: () =>
               isOwner ? (
-                <View style={styles.headerActions}>
-                  <Pressable onPress={handleShare} hitSlop={8}>
-                    <Ionicons name="share-social-outline" size={22} color={colors.text} />
-                  </Pressable>
-                  <Pressable onPress={openEditModal} hitSlop={8}>
-                    <Ionicons name="create-outline" size={22} color={colors.text} />
-                  </Pressable>
-                </View>
+                <Pressable onPress={openEditModal} hitSlop={8}>
+                  <Ionicons name="create-outline" size={22} color={colors.text} />
+                </Pressable>
               ) : (
                 <Pressable onPress={() => setShowReportModal(true)} hitSlop={8}>
                   <Ionicons name="flag-outline" size={22} color={colors.text} />
@@ -466,12 +463,26 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
 
         {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 
-        {tag && (
-          <Pressable style={styles.tagChip} onPress={handleTagPress}>
-            <Ionicons name="pricetag" size={12} color={colors.primary} />
-            <Text style={styles.tagText}>{tag.label}</Text>
-          </Pressable>
-        )}
+        <View style={styles.tagEngagementRow}>
+          {tag ? (
+            <Pressable style={styles.tagChip} onPress={handleTagPress}>
+              <Ionicons name="pricetag" size={12} color={colors.primary} />
+              <Text style={styles.tagText}>{tag.label}</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          <View style={styles.engagementButtonsGroup}>
+            <Pressable style={styles.engagementButton} onPress={() => commentInputRef.current?.focus()} hitSlop={8}>
+              <Ionicons name="chatbubble-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.engagementCount}>{post.comments_count}</Text>
+            </Pressable>
+            <Pressable style={styles.engagementButton} onPress={handleShare} hitSlop={8}>
+              <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.engagementCount}>{post.shares_count}</Text>
+            </Pressable>
+          </View>
+        </View>
 
         <Text style={styles.sectionTitle}>Comentarios</Text>
         {comments.length === 0 ? (
@@ -511,6 +522,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
       ) : (
         <View style={[styles.inputRow, { paddingBottom: 6 + bottomInsetSpace }]}>
           <TextInput
+            ref={commentInputRef}
             style={styles.input}
             placeholder="Escribe un comentario…"
             placeholderTextColor={colors.textMuted}
@@ -696,15 +708,6 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    // El header lo renderiza react-native-screens (nativo), no el
-    // HeaderButton de @react-navigation/elements -- ese valor (8) no era el
-    // real y quedó pegado al borde. Subido a mano según feedback visual.
-    marginRight: 20,
-  },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -752,6 +755,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 14,
   },
+  tagEngagementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -761,12 +770,26 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    marginTop: 12,
   },
   tagText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
+  },
+  engagementButtonsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  engagementButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  engagementCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   sectionTitle: {
     fontSize: 16,

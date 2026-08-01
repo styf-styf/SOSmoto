@@ -77,6 +77,7 @@ import {
   wasPreviouslyLimited,
 } from '../../../utils/accountLimit';
 import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
+import { consumeHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const MIN_FOLLOWS_FOR_FEED = 4;
@@ -287,7 +288,12 @@ export default function BusinessHomeScreen() {
       // El FlatList del feed sigue montado y conserva el scroll de la última
       // vez que se vio Inicio -- se fuerza de vuelta arriba al volver desde
       // otra pestaña, sin pedir otro refresh (load() ya lo hace acá abajo).
-      homeFeedRef.current?.scrollToTop();
+      // Excepción: volver de una publicación (ver
+      // utils/homeFeedScrollPreserve.ts) -- ahí se sigue refrescando en
+      // silencio pero sin perder la posición del scroll.
+      if (!consumeHomeFeedPreserveScroll()) {
+        homeFeedRef.current?.scrollToTop();
+      }
       load().catch((err) => console.error('refresh business home error', err));
     }, [load]),
   );

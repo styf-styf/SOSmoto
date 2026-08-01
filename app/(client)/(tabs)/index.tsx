@@ -49,6 +49,7 @@ import {
   wasPreviouslyLimited,
 } from '../../../utils/accountLimit';
 import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
+import { consumeHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const bizTypeLabel: Record<string, string> = {
@@ -221,8 +222,12 @@ export default function ClientHomeScreen() {
       // El FlatList del feed sigue montado (lazy: false) y conserva el
       // scroll de la última vez que se vio Inicio -- se fuerza de vuelta
       // arriba al volver desde otra pestaña, sin pedir otro refresh (load()
-      // ya lo hace acá abajo).
-      homeFeedRef.current?.scrollToTop();
+      // ya lo hace acá abajo). Excepción: volver de una publicación (ver
+      // utils/homeFeedScrollPreserve.ts) -- ahí se quiere seguir refrescando
+      // en silencio pero SIN perder la posición donde el usuario se quedó.
+      if (!consumeHomeFeedPreserveScroll()) {
+        homeFeedRef.current?.scrollToTop();
+      }
       load().catch((err) => console.error('refresh client home error', err));
     }, [load]),
   );

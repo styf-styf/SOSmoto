@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useImageAspectRatio } from '../hooks/useImageAspectRatio';
 import { GradientShade } from './GradientShade';
 import { getPostAuthorAvatar, getPostAuthorName, getPostTag, incrementPostShares, type PostWithAuthor } from '../services/posts';
+import { markHomeFeedPreserveScroll } from '../utils/homeFeedScrollPreserve';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 // Unificado con el espacio izquierdo/derecho del resto del feed (historias,
@@ -70,10 +71,19 @@ export function PostCard({
     photoTouchStartXRef.current = e.nativeEvent.pageX;
   }
 
+  // El detalle de publicación vive fuera de (tabs) (hermano, no hijo), así
+  // que volver con "atrás" re-enfoca todo el navegador de tabs y dispara el
+  // useFocusEffect de Inicio -- se avisa acá para que ese efecto sepa que no
+  // debe forzar scrollToTop esta vez (ver utils/homeFeedScrollPreserve.ts).
+  function goToDetail() {
+    markHomeFeedPreserveScroll();
+    router.push(detailHref);
+  }
+
   function handlePhotoPress(e: GestureResponderEvent) {
     const startX = photoTouchStartXRef.current;
     if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > PHOTO_SWIPE_THRESHOLD) return;
-    router.push(detailHref);
+    goToDetail();
   }
 
   const caption = post.caption ?? '';
@@ -170,7 +180,7 @@ export function PostCard({
   // tap-vs-swipe resuelto en handlePhotoPress/handlePhotoPressIn.
   return (
     <View style={styles.card}>
-      <Pressable style={styles.authorRow} onPress={() => router.push(detailHref)}>
+      <Pressable style={styles.authorRow} onPress={() => goToDetail()}>
         <Pressable onPress={handleAuthorPress} style={styles.avatarWrap}>
           <View style={styles.avatar}>
             {avatarUrl ? (
@@ -196,7 +206,7 @@ export function PostCard({
           publicaciones CON foto (ver PhotoCarousel/PostDetail para el caso
           sin imagen, que muestra el texto completo sin límite). */}
       {hasImage && caption && (
-        <Pressable style={styles.captionBlock} onPress={() => router.push(detailHref)}>
+        <Pressable style={styles.captionBlock} onPress={() => goToDetail()}>
           {!captionExpanded && (
             <Text
               style={[styles.captionCollapsedText, styles.measure]}
@@ -255,7 +265,7 @@ export function PostCard({
               ))}
             </ScrollView>
           ) : (
-            <Pressable onPress={() => router.push(detailHref)}>
+            <Pressable onPress={() => goToDetail()}>
               <Image source={{ uri: post.photos[0] }} style={styles.image} resizeMode="cover" />
             </Pressable>
           )}
@@ -279,7 +289,7 @@ export function PostCard({
             </Pressable>
           )}
           <View style={styles.imageEngagementRow}>
-            <Pressable style={styles.engagementButtonOverlay} onPress={() => router.push(detailHref)}>
+            <Pressable style={styles.engagementButtonOverlay} onPress={() => goToDetail()}>
               <Ionicons name="chatbubble-outline" size={22} color="#fff" />
               <Text style={styles.engagementCountOverlay}>{post.comments_count}</Text>
             </Pressable>
@@ -292,13 +302,13 @@ export function PostCard({
       )}
 
       {!hasImage && caption && (
-        <Pressable onPress={() => router.push(detailHref)}>
+        <Pressable onPress={() => goToDetail()}>
           <Text style={styles.caption}>{caption}</Text>
         </Pressable>
       )}
 
       {!hasImage && (
-        <Pressable style={styles.engagementRow} onPress={() => router.push(detailHref)}>
+        <Pressable style={styles.engagementRow} onPress={() => goToDetail()}>
           {tag ? (
             <Pressable style={styles.tagChipFlat} onPress={handleTagPress}>
               <Ionicons name="pricetag" size={12} color={colors.primary} />
@@ -308,7 +318,7 @@ export function PostCard({
             <View />
           )}
           <View style={styles.engagementButtonsGroup}>
-            <Pressable style={styles.engagementButton} onPress={() => router.push(detailHref)}>
+            <Pressable style={styles.engagementButton} onPress={() => goToDetail()}>
               <Ionicons name="chatbubble-outline" size={20} color={colors.textMuted} />
               <Text style={styles.engagementCount}>{post.comments_count}</Text>
             </Pressable>
