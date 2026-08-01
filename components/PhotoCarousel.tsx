@@ -4,21 +4,7 @@ import { colors } from '../constants/colors';
 import { useImageAspectRatio } from '../hooks/useImageAspectRatio';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-
-// Una foto del carrusel en modo `naturalAspect` -- mide su propia proporción
-// real sin límite (a diferencia del resto de la app, que fuerza 3:4). Cada
-// foto es independiente, así que en un post con varias fotos de proporciones
-// distintas cada una se ve completa, no recortada a la de la primera.
-function NaturalAspectImage({ uri, width }: { uri: string; width: number }) {
-  const ratio = useImageAspectRatio(uri);
-  return (
-    <Image
-      source={{ uri }}
-      style={[styles.image, { width, aspectRatio: ratio ?? 3 / 4 }]}
-      resizeMode="cover"
-    />
-  );
-}
+const DEFAULT_RATIO = 3 / 4;
 
 // Carrusel deslizable de fotos. Por defecto fuerza 3:4 (ver DEFAULT_ASPECT en
 // services/storage.ts) -- usado por la página de detalle de producto/servicio,
@@ -37,27 +23,44 @@ export function PhotoCarousel({
   const [index, setIndex] = useState(0);
   const imageWidth = SCREEN_WIDTH - sidePadding * 2;
 
+  // El marco (bordes redondeados + overflow:hidden) tiene que ser un
+  // contenedor ESTÁTICO por fuera del FlatList -- antes el radio se aplicaba
+  // a cada <Image>, así que al deslizar se veían dos rectángulos redondeados
+  // independientes cruzándose (con el fondo asomando entre sus esquinas) en
+  // vez de un solo marco fijo con la foto moviéndose adentro.
+  // En modo naturalAspect el alto del marco sigue a la foto activa (cada una
+  // puede tener su propia proporción) -- se recalcula recién al terminar el
+  // swipe (onMomentumScrollEnd), no en cada frame del gesto, para no pelear
+  // con la animación nativa de paginado. Mientras dura el gesto la foto
+  // vecina se recorta (cover) al alto todavía vigente y encaja apenas se
+  // suelta -- mismo criterio que ya usa el mini-carrusel de PostCard.
+  const activeRatio = useImageAspectRatio(naturalAspect ? photos[index] : undefined);
+  const ratio = naturalAspect ? activeRatio ?? DEFAULT_RATIO : DEFAULT_RATIO;
+  const frameHeight = imageWidth / ratio;
+
   if (photos.length === 0) return null;
 
   return (
     <View style={styles.wrap}>
-      <FlatList
-        data={photos}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(uri, i) => `${uri}-${i}`}
-        onMomentumScrollEnd={(e) => {
-          setIndex(Math.round(e.nativeEvent.contentOffset.x / imageWidth));
-        }}
-        renderItem={({ item }) =>
-          naturalAspect ? (
-            <NaturalAspectImage uri={item} width={imageWidth} />
-          ) : (
-            <Image source={{ uri: item }} style={[styles.image, { width: imageWidth }]} resizeMode="cover" />
-          )
-        }
-      />
+      <View style={[styles.frame, { width: imageWidth, height: frameHeight }]}>
+        <FlatList
+          data={photos}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(uri, i) => `${uri}-${i}`}
+          onMomentumScrollEnd={(e) => {
+            setIndex(Math.round(e.nativeEvent.contentOffset.x / imageWidth));
+          }}
+          renderItem={({ item }) => (
+            <Image
+              source={{ uri: item }}
+              style={[styles.image, { width: imageWidth, height: frameHeight }]}
+              resizeMode="cover"
+            />
+          )}
+        />
+      </View>
       {photos.length > 1 && (
         <View style={styles.dotsRow}>
           {photos.map((_, i) => (
@@ -73,9 +76,12 @@ const styles = StyleSheet.create({
   wrap: {
     marginBottom: 16,
   },
-  image: {
-    aspectRatio: 3 / 4,
+  frame: {
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  image: {
+    backgroundColor: colors.background,
   },
   dotsRow: {
     flexDirection: 'row',
