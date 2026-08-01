@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 6,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
@@ -462,11 +462,14 @@ const styles = StyleSheet.create({
   // Fila que junta el título de sección "Mi negocio" con el chip de plan y
   // verificado (esquina superior derecha) -- el margen vertical vive acá en
   // vez de en el Text (sectionTitleInRow lo resetea) para no duplicarlo.
+  // Sin marginTop: es el primer elemento del scroll (justo bajo el header),
+  // el espacio de arriba lo da solo el paddingTop del contenedor -- el
+  // marginTop de 20 que usan sectionTitle/otras secciones es para separarse
+  // del bloque anterior, que acá no existe.
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
     marginBottom: 8,
   },
   sectionTitleInRow: {
