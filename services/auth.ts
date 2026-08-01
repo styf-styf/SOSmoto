@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { removeSavedAccount } from './accountSwitcher';
 import type { UserRole } from '../types/database';
 
 export interface SignUpParams {
@@ -43,6 +44,18 @@ export async function signIn(email: string, password: string) {
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+}
+
+// Botón de pánico: revoca esta sesión Y cualquier otra (otro celular, el
+// acceso rápido guardado en cualquier dispositivo) -- scope 'global' tumba
+// el refresh token en el servidor sin importar dónde se esté usando. Se
+// limpia también el acceso rápido guardado de ESTE dispositivo -- en otros
+// dispositivos el token guardado queda ahí pero ya inválido, y se
+// autolimpia solo la próxima vez que intenten usarlo (ver switchToAccount).
+export async function signOutEverywhere(userId: string) {
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
+  if (error) throw error;
+  await removeSavedAccount(userId).catch(() => undefined);
 }
 
 export async function sendPasswordResetEmail(email: string) {
