@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
-import { PostCard } from './PostCard';
+import { CARD_MARGIN, PostCard } from './PostCard';
 import { ReportModal } from './ReportModal';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
@@ -25,6 +25,9 @@ import type { Business, Review } from '../types/database';
 import { getScheduleRows, isBusinessOpenNow } from '../utils/businessSchedule';
 
 const SIDE_PADDING = 20;
+// Mismo margen que usan las tarjetas de publicaciones (CARD_MARGIN de
+// PostCard.tsx) -- ver mismo patrón en app/(client)/(tabs)/perfil.tsx.
+const EDGE_INSET = -(SIDE_PADDING - CARD_MARGIN);
 
 const businessTypeLabel: Record<Business['business_type'], string> = {
   workshop: 'Taller mecánico',
@@ -477,12 +480,22 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       {mode === 'self' && (business.business_type === 'workshop' || business.business_type === 'store') && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Siguiendo</Text>
+          {/* Cancela TODO el padding del contenedor (no solo se acerca al
+              margen de las tarjetas) -- el viewport ocupa el ancho completo
+              de la pantalla para que el avatar que no alcanza a entrar quede
+              cortado justo en el borde derecho real (asoma un poco del
+              siguiente), mismo patrón que app/(client)/(tabs)/perfil.tsx. */}
           {followedStores.length === 0 ? (
             <Text style={styles.placeholderText}>
               Aún no sigues a ningún negocio. Búscalos y síguelos para ver sus novedades aquí.
             </Text>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followingRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.followingScroll}
+              contentContainerStyle={styles.followingRow}
+            >
               {followedStores.map((store) => (
                 <Pressable
                   key={store.id}
@@ -776,6 +789,7 @@ const styles = StyleSheet.create({
   profileActionsRow: {
     flexDirection: 'row',
     marginTop: 20,
+    marginHorizontal: EDGE_INSET,
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: colors.surface,
@@ -809,8 +823,14 @@ const styles = StyleSheet.create({
   postsListWrap: {
     marginHorizontal: -SIDE_PADDING,
   },
+  followingScroll: {
+    marginHorizontal: -SIDE_PADDING,
+  },
   followingRow: {
     gap: 16,
+    paddingLeft: CARD_MARGIN,
+    // Sin padding a la derecha a propósito -- ver comentario junto al
+    // ScrollView.
   },
   followingItem: {
     width: 64,
