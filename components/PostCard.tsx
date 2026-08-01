@@ -13,7 +13,7 @@ import { markHomeFeedPreserveScroll } from '../utils/homeFeedScrollPreserve';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 // Unificado con el espacio izquierdo/derecho del resto del feed (historias,
 // carrusel de catálogo, anuncios) -- ver CLAUDE.md/pedido de diseño del feed.
-const CARD_MARGIN = 6;
+export const CARD_MARGIN = 6;
 // Redondeado a un entero: si el ancho de cada foto (usado en `image` y en el
 // ScrollView) queda con decimales, `pagingEnabled` snapea a un múltiplo del
 // ancho del propio ScrollView (calculado por Yoga con su propio redondeo) que

@@ -11,9 +11,15 @@ import { pickAndUploadUserAvatar } from '../../../services/storage';
 import { updateUserProfile } from '../../../services/users';
 import { getVehicles } from '../../../services/vehicles';
 import type { Business } from '../../../types/database';
-import { PostCard } from '../../../components/PostCard';
+import { CARD_MARGIN, PostCard } from '../../../components/PostCard';
 
 const SIDE_PADDING = 20;
+// Mismo margen que usan las tarjetas de publicaciones (CARD_MARGIN de
+// PostCard.tsx) -- se resta del padding del contenedor para que la caja de
+// Mis citas/Mis compras/Servicios/Invitaciones y el carrusel de Siguiendo
+// terminen tan cerca del borde de la pantalla como las tarjetas de "Mis
+// publicaciones" más abajo (ver postsListWrap).
+const EDGE_INSET = -(SIDE_PADDING - CARD_MARGIN);
 
 export default function ClientPerfilScreen() {
   const { profile } = useAuth();
@@ -126,7 +132,7 @@ export default function ClientPerfilScreen() {
         </View>
       </View>
 
-      <View style={styles.actionsRow}>
+      <View style={[styles.actionsRow, { marginHorizontal: EDGE_INSET }]}>
         <Pressable style={styles.actionBtn} onPress={() => router.push('/(client)/citas')}>
           <Ionicons name="calendar-outline" size={20} color={colors.text} />
           <Text style={styles.actionBtnLabel}>Mis citas</Text>
@@ -153,7 +159,12 @@ export default function ClientPerfilScreen() {
           Aún no sigues a ningún negocio. Explora "Buscar" y sigue talleres para ver sus novedades aquí.
         </Text>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followingRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: EDGE_INSET }}
+          contentContainerStyle={styles.followingRow}
+        >
           {following.map((business) => (
             <Pressable
               key={business.id}
