@@ -24,12 +24,22 @@ export class LargeSecureStore {
   }
 
   // Sesiones viejas (guardadas antes de este cambio) no tienen clave en
-  // SecureStore -- se tratan como "no hay sesión" en vez de intentar
-  // descifrar algo que nunca se cifró, que haría crashear la app.
+  // SecureStore. En vez de tratarlas como "no hay sesión" -- lo que fuerza un
+  // logout real de golpe, disparó "No pudimos conectarnos" para todos porque
+  // sessionAmbiguous no distingue esto de un fallo de red (ver
+  // hooks/AuthContext.tsx) -- se devuelven tal cual si son JSON válido (el
+  // formato plano de antes). La próxima vez que supabase-js llame a
+  // setItem() (ej. al renovar el token), queda migrada a cifrado sin que el
+  // usuario note nada.
   private async decrypt(key: string, value: string): Promise<string | null> {
     const encryptionKeyHex = await SecureStore.getItemAsync(key);
     if (!encryptionKeyHex) {
-      return null;
+      try {
+        JSON.parse(value);
+        return value;
+      } catch {
+        return null;
+      }
     }
 
     const cipher = new aesjs.ModeOfOperation.ctr(aesjs.utils.hex.toBytes(encryptionKeyHex), new aesjs.Counter(1));
