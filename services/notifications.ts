@@ -6,14 +6,15 @@ export async function updatePushToken(userId: string, token: string): Promise<vo
   if (error) throw error;
 }
 
+// push_token ya no se puede leer directo de `users` (columna revocada, ver
+// migración 0154) -- esta función RPC solo devuelve el token si existe una
+// relación real entre quien llama y userId (mismas reglas que
+// can_notify_user), para que un push jamás salga hacia alguien sin
+// ninguna relación con el destinatario.
 export async function getPushToken(userId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('push_token')
-    .eq('id', userId)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('get_push_token_for_notify', { p_target_user_id: userId });
   if (error) throw error;
-  return data?.push_token ?? null;
+  return data ?? null;
 }
 
 export async function getNotificationPrefs(userId: string): Promise<NotificationPrefs> {
@@ -111,14 +112,26 @@ export async function notifyUser(
 
   const { data: userRow, error } = await supabase
     .from('users')
-    .select('push_token, notification_prefs')
+    .select('notification_prefs')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
-  if (!userRow?.push_token) return;
 
-  const prefs = (userRow.notification_prefs as NotificationPrefs) ?? {};
+  const prefs = (userRow?.notification_prefs as NotificationPrefs) ?? {};
   if (category && prefs[category] === false) return;
 
-  await sendPushNotification(userRow.push_token, title, body, data);
+  // push_token ya no se lee directo (columna revocada, ver migración 0154) --
+  // esta RPC devuelve null si no hay relación real con userId, cerrando el
+  // hueco de mandar pushes a cualquiera solo por tener SU push_token en
+  // crudo vía alguna policy de relación en `users`.
+  const { data: pushToken, error: tokenError } = await supabase.rpc('get_push_token_for_notify', {
+    p_target_user_id: userId,
+  });
+  if (tokenError) {
+    console.error('get push token error', tokenError);
+    return;
+  }
+  if (!pushToken) return;
+
+  await sendPushNotification(pushToken, title, body, data);
 }

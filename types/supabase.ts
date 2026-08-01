@@ -16,6 +16,8 @@ export interface Database {
           limitation_reason: string | null;
           notification_prefs: Record<string, boolean>;
           legal_ack_at: string | null;
+          limited_by: string | null;
+          limited_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -30,6 +32,8 @@ export interface Database {
           limitation_reason?: string | null;
           notification_prefs?: Record<string, boolean>;
           legal_ack_at?: string | null;
+          limited_by?: string | null;
+          limited_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -44,6 +48,8 @@ export interface Database {
           limitation_reason?: string | null;
           notification_prefs?: Record<string, boolean>;
           legal_ack_at?: string | null;
+          limited_by?: string | null;
+          limited_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -1745,6 +1751,10 @@ export interface Database {
       get_business_ad_metrics: {
         Args: { target_business_id: string };
         Returns: { total_impressions: number; total_clicks: number }[];
+      };
+      get_push_token_for_notify: {
+        Args: { p_target_user_id: string };
+        Returns: string | null;
       };
     };
   };

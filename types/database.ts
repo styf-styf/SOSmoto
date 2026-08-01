@@ -9,6 +9,10 @@ export type NotificationCategory = 'auxilio' | 'mensajes' | 'mantenimiento' | 'p
 // Ausencia de una clave = activada (objeto vacío por default no apaga nada).
 export type NotificationPrefs = Partial<Record<NotificationCategory, boolean>>;
 
+// push_token NO está acá a propósito -- la columna ya no es seleccionable
+// por authenticated/anon (ver migración 0154_notification_relationship_check),
+// así que ningún fetch normal de perfil la trae. Solo se lee server-side vía
+// la RPC get_push_token_for_notify (services/notifications.ts).
 export interface User {
   id: string;
   email: string;
@@ -16,11 +20,12 @@ export interface User {
   full_name: string;
   role: UserRole;
   avatar_url: string | null;
-  push_token: string | null;
   is_limited: boolean;
   limitation_reason: string | null;
   notification_prefs: NotificationPrefs;
   legal_ack_at: string | null;
+  limited_by: string | null;
+  limited_at: string | null;
   created_at: string;
 }
 

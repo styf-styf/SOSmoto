@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { syncActiveAccountTokens } from '../services/accountSwitcher';
+import { SAFE_USER_COLUMNS } from '../services/users';
 import type { User } from '../types/database';
 
 // Marca liviana, propia de la app -- no es la sesión real (esa vive en el
@@ -144,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase
       .from('users')
-      .select('*')
+      .select(SAFE_USER_COLUMNS)
       .eq('id', session.user.id)
       .single()
       .then(
@@ -190,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!session?.user) return;
     try {
-      const { data, error, status } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+      const { data, error, status } = await supabase.from('users').select(SAFE_USER_COLUMNS).eq('id', session.user.id).single();
       if (error) {
         console.error('refreshProfile error', error, 'status', status);
         // Ver el efecto de arriba -- status:0 es la única marca real de que

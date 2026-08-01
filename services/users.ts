@@ -1,8 +1,15 @@
 import { supabase } from './supabase';
 import type { User } from '../types/database';
 
+// push_token no está en esta lista a propósito -- la columna ya no es
+// seleccionable por authenticated/anon (ver migración 0154), y nada de la
+// app necesita leerlo salvo notifyUser() (que usa la RPC dedicada
+// get_push_token_for_notify en su lugar).
+export const SAFE_USER_COLUMNS =
+  'id, email, phone, full_name, role, avatar_url, created_at, is_limited, limitation_reason, notification_prefs, limited_by, limited_at, legal_ack_at';
+
 export async function getUserById(userId: string): Promise<User | null> {
-  const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+  const { data, error } = await supabase.from('users').select(SAFE_USER_COLUMNS).eq('id', userId).maybeSingle();
   if (error) throw error;
   return data as User | null;
 }
