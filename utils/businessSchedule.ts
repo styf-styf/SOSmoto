@@ -49,6 +49,15 @@ export function getScheduleRows(schedule: BusinessSchedule | null): ScheduleDayR
   return rows;
 }
 
+// Si el negocio no es 24/7 y no dejó ningún día activo (todos en "Cerrado"),
+// no hay nada útil que mostrar en la sección Horario del perfil público --
+// se usa para ocultarla en vez de mostrar 7 filas de "Cerrado".
+export function hasConfiguredSchedule(business: Business): boolean {
+  if (business.is_24h) return true;
+  if (!business.schedule) return false;
+  return WEEK_ORDER.some((key) => !!business.schedule?.[key]);
+}
+
 // No maneja horarios que cruzan medianoche (ej. 22:00-02:00) -- caso no
 // contemplado en el MVP, los talleres registrados usan horarios diurnos.
 export function isBusinessOpenNow(business: Business): boolean {

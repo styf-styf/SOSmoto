@@ -22,7 +22,7 @@ import { createReport } from '../services/reports';
 import { getBusinessReviews } from '../services/reviews';
 import { pickAndUploadBusinessImage } from '../services/storage';
 import type { Business, Review } from '../types/database';
-import { getScheduleRows, isBusinessOpenNow } from '../utils/businessSchedule';
+import { getScheduleRows, hasConfiguredSchedule, isBusinessOpenNow } from '../utils/businessSchedule';
 
 const SIDE_PADDING = 20;
 // Mismo margen que usan las tarjetas de publicaciones (CARD_MARGIN de
@@ -450,7 +450,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
         </View>
       )}
 
-      {mode === 'public' && (
+      {mode === 'public' && hasConfiguredSchedule(business) && (
         <View style={styles.section}>
           <View style={styles.scheduleHeaderRow}>
             <Text style={styles.sectionTitle}>Horario</Text>
