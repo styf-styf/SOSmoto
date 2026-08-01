@@ -6,32 +6,11 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { signOutEverywhere } from '../../services/auth';
 import { getMyWorkBusiness } from '../../services/businesses';
-import { getPaymentHistory, type PaymentHistoryRow } from '../../services/payments';
 import type { Business } from '../../types/database';
-
-const paymentTypeLabel: Record<PaymentHistoryRow['type'], string> = {
-  subscription: 'Suscripción',
-  advertising: 'Publicidad',
-};
-
-const paymentStatusLabel: Record<PaymentHistoryRow['status'], string> = {
-  pending: 'Pendiente',
-  completed: 'Pagado',
-  failed: 'Rechazado',
-  refunded: 'Reembolsado',
-};
-
-const paymentStatusColor: Record<PaymentHistoryRow['status'], string> = {
-  pending: colors.warning,
-  completed: colors.success,
-  failed: colors.danger,
-  refunded: colors.textMuted,
-};
 
 export default function EstadoCuentaScreen() {
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
-  const [payments, setPayments] = useState<PaymentHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const didInitialLoadRef = useRef(false);
@@ -66,7 +45,6 @@ export default function EstadoCuentaScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     setBusiness(work?.business ?? null);
-    setPayments(work?.business ? await getPaymentHistory(work.business.id) : []);
   }, [profile]);
 
   useFocusEffect(
@@ -155,29 +133,29 @@ export default function EstadoCuentaScreen() {
         <Text style={styles.helperText}>Tu negocio está activo, sin restricciones.</Text>
       )}
 
-      <Text style={[styles.sectionTitle, styles.historyTitle]}>Historial de pagos</Text>
-      {payments.length === 0 ? (
-        <Text style={styles.helperText}>Todavía no tienes pagos registrados.</Text>
-      ) : (
-        <View style={styles.list}>
-          {payments.map((payment) => (
-            <View key={payment.id} style={styles.paymentRow}>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>{paymentTypeLabel[payment.type] ?? payment.type}</Text>
-                <Text style={styles.paymentDate}>
-                  {new Date(payment.created_at).toLocaleDateString('es-EC', { dateStyle: 'medium' })}
-                </Text>
-              </View>
-              <Text style={styles.paymentAmount}>
-                {payment.currency} {payment.amount.toFixed(2)}
-              </Text>
-              <Text style={[styles.paymentStatus, { color: paymentStatusColor[payment.status] }]}>
-                {paymentStatusLabel[payment.status] ?? payment.status}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
+      <Pressable
+        style={({ pressed }) => [styles.actionRow, styles.actionRowSpacing, pressed && styles.rowPressed]}
+        onPress={() => router.push('/(business)/historial-pagos')}
+      >
+        <Ionicons name="receipt-outline" size={18} color={colors.text} />
+        <Text style={styles.actionLabel}>Historial de pagos</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [styles.actionRow, pressed && styles.rowPressed]}
+        onPress={handleSignOutEverywhere}
+        disabled={signingOutEverywhere}
+      >
+        {signingOutEverywhere ? (
+          <ActivityIndicator size="small" color={colors.danger} />
+        ) : (
+          <Ionicons name="shield-outline" size={18} color={colors.danger} />
+        )}
+        <Text style={[styles.actionLabel, styles.dangerLabel]}>
+          {signingOutEverywhere ? 'Cerrando sesión en todos lados…' : 'Cerrar sesión en todos los dispositivos'}
+        </Text>
+      </Pressable>
 
       <Text style={styles.legalText}>
         <Text style={styles.legalLink} onPress={() => Linking.openURL('https://sosmoto.net/terminos')}>
@@ -188,23 +166,6 @@ export default function EstadoCuentaScreen() {
           Política de Privacidad
         </Text>
       </Text>
-
-      <View style={styles.divider} />
-
-      <Pressable
-        style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed]}
-        onPress={handleSignOutEverywhere}
-        disabled={signingOutEverywhere}
-      >
-        {signingOutEverywhere ? (
-          <ActivityIndicator size="small" color={colors.danger} />
-        ) : (
-          <Ionicons name="shield-outline" size={18} color={colors.danger} />
-        )}
-        <Text style={styles.dangerLabel}>
-          {signingOutEverywhere ? 'Cerrando sesión en todos lados…' : 'Cerrar sesión en todos los dispositivos'}
-        </Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -304,41 +265,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  historyTitle: {
-    marginTop: 24,
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  paymentInfo: {
-    flex: 1,
-  },
-  paymentType: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  paymentDate: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  paymentAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  paymentStatus: {
-    fontSize: 12,
-    fontWeight: '700',
-    minWidth: 78,
-    textAlign: 'right',
-  },
   legalText: {
     fontSize: 12,
     color: colors.textMuted,
@@ -349,13 +275,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginTop: 24,
-    marginBottom: 20,
-  },
-  dangerRow: {
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -364,12 +284,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
   },
+  actionRowSpacing: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
   rowPressed: {
     opacity: 0.55,
   },
-  dangerLabel: {
+  actionLabel: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '500',
+    color: colors.text,
+  },
+  dangerLabel: {
     color: colors.danger,
   },
 });

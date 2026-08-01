@@ -101,6 +101,10 @@ export default function BusinessLayout() {
         name="estado-cuenta"
         options={{ title: 'Estado de cuenta' }}
       />
+      <Stack.Screen
+        name="historial-pagos"
+        options={{ title: 'Historial de pagos' }}
+      />
       <Stack.Screen name="estadisticas" options={{ title: 'Estadísticas' }} />
       <Stack.Screen
         name="crece-tu-negocio"
