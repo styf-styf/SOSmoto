@@ -17,6 +17,7 @@ import { Button } from '../../components/Button';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
+import { useSavedAccountToggle } from '../../hooks/useSavedAccountToggle';
 import { signOut } from '../../services/auth';
 import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/businesses';
 
@@ -49,6 +50,7 @@ export default function BusinessConfiguracionScreen() {
   const { profile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const quickAccess = useSavedAccountToggle(profile?.id);
 
   const [togglingDeactivated, setTogglingDeactivated] = useState(false);
 
@@ -334,6 +336,14 @@ export default function BusinessConfiguracionScreen() {
           label="Eliminar cuenta"
           onPress={() => router.push('/eliminar-cuenta')}
         />
+        {!quickAccess.checking && (
+          <MenuRow
+            icon={quickAccess.saved ? 'flash' : 'flash-outline'}
+            label={quickAccess.saved ? 'Cuenta guardada para inicio rápido' : 'Guardar cuenta para inicio rápido'}
+            badge={quickAccess.saved ? '✓' : undefined}
+            onPress={quickAccess.working ? undefined : quickAccess.onPress}
+          />
+        )}
         <MenuRow
           icon="information-circle-outline"
           label="Versión de la app"

@@ -332,6 +332,10 @@ export default function DatosNegocioScreen() {
             <IconInfoRow icon="call-outline" label="Teléfono" value={phone} />
             <IconInfoRow icon="logo-whatsapp" label="WhatsApp" value={whatsapp} iconColor="#25D366" last />
           </InfoCard>
+
+          <InfoCard title="Cuenta">
+            <IconInfoRow icon="mail-outline" label="Correo electrónico" value={profile?.email ?? ''} last />
+          </InfoCard>
         </>
       ) : (
         <>

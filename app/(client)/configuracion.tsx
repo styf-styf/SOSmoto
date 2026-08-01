@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { useSavedAccountToggle } from '../../hooks/useSavedAccountToggle';
 import { signOut } from '../../services/auth';
 
 // Identifica qué actualización OTA corre de verdad en el dispositivo -- útil
@@ -21,6 +22,7 @@ const appVersion = Constants.expoConfig?.version ?? '?';
 export default function ConfiguracionScreen() {
   const { profile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const quickAccess = useSavedAccountToggle(profile?.id);
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -83,6 +85,14 @@ export default function ConfiguracionScreen() {
           label="Notificaciones"
           onPress={() => router.push('/(client)/notificaciones-preferencias')}
         />
+        {!quickAccess.checking && (
+          <MenuRow
+            icon={quickAccess.saved ? 'flash' : 'flash-outline'}
+            label={quickAccess.saved ? 'Cuenta guardada para inicio rápido' : 'Guardar cuenta para inicio rápido'}
+            badge={quickAccess.saved ? '✓' : undefined}
+            onPress={quickAccess.working ? undefined : quickAccess.onPress}
+          />
+        )}
         <MenuRow
           icon="information-circle-outline"
           label="Versión de la app"
