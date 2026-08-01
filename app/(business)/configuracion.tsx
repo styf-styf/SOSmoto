@@ -18,7 +18,7 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { useSavedAccountToggle } from '../../hooks/useSavedAccountToggle';
-import { signOut, signOutEverywhere } from '../../services/auth';
+import { signOut } from '../../services/auth';
 import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/businesses';
 
 // Ver app/(client)/configuracion.tsx -- mismo motivo: diagnosticar si el
@@ -49,7 +49,6 @@ interface BusinessConfigData {
 export default function BusinessConfiguracionScreen() {
   const { profile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
-  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const quickAccess = useSavedAccountToggle(profile?.id);
 
@@ -113,32 +112,6 @@ export default function BusinessConfiguracionScreen() {
       console.error('sign out error', err);
       setSigningOut(false);
     }
-  }
-
-  function handleSignOutEverywhere() {
-    if (!profile) return;
-    Alert.alert(
-      'Cerrar sesión en todos los dispositivos',
-      'Vas a cerrar tu sesión aquí Y en cualquier otro dispositivo donde hayas iniciado sesión, incluido el acceso rápido guardado. Vas a necesitar tu contraseña para volver a entrar en cualquiera de ellos.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar en todos lados',
-          style: 'destructive',
-          onPress: async () => {
-            setSigningOutEverywhere(true);
-            try {
-              await signOutEverywhere(profile.id);
-              router.replace('/(auth)/login');
-            } catch (err) {
-              console.error('sign out everywhere error', err);
-              Alert.alert('Error', 'No se pudo cerrar sesión en todos los dispositivos. Intenta de nuevo.');
-              setSigningOutEverywhere(false);
-            }
-          },
-        },
-      ]
-    );
   }
 
   function handleToggleDeactivated() {
@@ -398,25 +371,6 @@ export default function BusinessConfiguracionScreen() {
         style={({ pressed }) => [
           styles.signOutRow,
           pressed && styles.menuRowPressed,
-          styles.signOutRowSpacing,
-        ]}
-        onPress={handleSignOutEverywhere}
-        disabled={signingOutEverywhere}
-      >
-        {signingOutEverywhere ? (
-          <ActivityIndicator size="small" color={colors.danger} />
-        ) : (
-          <Ionicons name="shield-outline" size={18} color={colors.danger} />
-        )}
-        <Text style={styles.signOutLabel}>
-          {signingOutEverywhere ? 'Cerrando sesión en todos lados…' : 'Cerrar sesión en todos los dispositivos'}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.signOutRow,
-          pressed && styles.menuRowPressed,
         ]}
         onPress={handleSignOut}
         disabled={signingOut}
@@ -614,9 +568,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: colors.surface,
     borderRadius: 12,
-  },
-  signOutRowSpacing: {
-    marginBottom: 10,
   },
   signOutLabel: {
     fontSize: 14,

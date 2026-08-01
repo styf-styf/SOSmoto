@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
+import { signOutEverywhere } from '../../services/auth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPaymentHistory, type PaymentHistoryRow } from '../../services/payments';
 import type { Business } from '../../types/database';
@@ -32,7 +33,34 @@ export default function EstadoCuentaScreen() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [payments, setPayments] = useState<PaymentHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const didInitialLoadRef = useRef(false);
+
+  function handleSignOutEverywhere() {
+    if (!profile) return;
+    Alert.alert(
+      'Cerrar sesión en todos los dispositivos',
+      'Vas a cerrar tu sesión aquí Y en cualquier otro dispositivo donde hayas iniciado sesión, incluido el acceso rápido guardado. Vas a necesitar tu contraseña para volver a entrar en cualquiera de ellos.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar en todos lados',
+          style: 'destructive',
+          onPress: async () => {
+            setSigningOutEverywhere(true);
+            try {
+              await signOutEverywhere(profile.id);
+              router.replace('/(auth)/login');
+            } catch (err) {
+              console.error('sign out everywhere error', err);
+              Alert.alert('Error', 'No se pudo cerrar sesión en todos los dispositivos. Intenta de nuevo.');
+              setSigningOutEverywhere(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -85,7 +113,7 @@ export default function EstadoCuentaScreen() {
   const typeIcon = businessTypeIcon[business.business_type] ?? 'business';
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.typeRow}>
         <Ionicons name={typeIcon} size={18} color={colors.textMuted} />
         <Text style={styles.typeLabel}>Tipo de cuenta</Text>
@@ -160,7 +188,24 @@ export default function EstadoCuentaScreen() {
           Política de Privacidad
         </Text>
       </Text>
-    </View>
+
+      <View style={styles.divider} />
+
+      <Pressable
+        style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed]}
+        onPress={handleSignOutEverywhere}
+        disabled={signingOutEverywhere}
+      >
+        {signingOutEverywhere ? (
+          <ActivityIndicator size="small" color={colors.danger} />
+        ) : (
+          <Ionicons name="shield-outline" size={18} color={colors.danger} />
+        )}
+        <Text style={styles.dangerLabel}>
+          {signingOutEverywhere ? 'Cerrando sesión en todos lados…' : 'Cerrar sesión en todos los dispositivos'}
+        </Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -182,7 +227,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 20,
@@ -303,5 +348,28 @@ const styles = StyleSheet.create({
   legalLink: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  dangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+  },
+  rowPressed: {
+    opacity: 0.55,
+  },
+  dangerLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.danger,
   },
 });

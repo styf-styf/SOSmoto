@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -7,7 +7,7 @@ import * as Updates from 'expo-updates';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useSavedAccountToggle } from '../../hooks/useSavedAccountToggle';
-import { signOut, signOutEverywhere } from '../../services/auth';
+import { signOut } from '../../services/auth';
 
 // Identifica qué actualización OTA corre de verdad en el dispositivo -- útil
 // para diagnosticar "publiqué un fix pero el celular sigue mostrando el bug
@@ -22,7 +22,6 @@ const appVersion = Constants.expoConfig?.version ?? '?';
 export default function ConfiguracionScreen() {
   const { profile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
-  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const quickAccess = useSavedAccountToggle(profile?.id);
 
   async function handleSignOut() {
@@ -34,32 +33,6 @@ export default function ConfiguracionScreen() {
       console.error('sign out error', err);
       setSigningOut(false);
     }
-  }
-
-  function handleSignOutEverywhere() {
-    if (!profile) return;
-    Alert.alert(
-      'Cerrar sesión en todos los dispositivos',
-      'Vas a cerrar tu sesión aquí Y en cualquier otro dispositivo donde hayas iniciado sesión, incluido el acceso rápido guardado. Vas a necesitar tu contraseña para volver a entrar en cualquiera de ellos.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar en todos lados',
-          style: 'destructive',
-          onPress: async () => {
-            setSigningOutEverywhere(true);
-            try {
-              await signOutEverywhere(profile.id);
-              router.replace('/(auth)/login');
-            } catch (err) {
-              console.error('sign out everywhere error', err);
-              Alert.alert('Error', 'No se pudo cerrar sesión en todos los dispositivos. Intenta de nuevo.');
-              setSigningOutEverywhere(false);
-            }
-          },
-        },
-      ]
-    );
   }
 
   async function handleOpenSettings() {
@@ -142,21 +115,6 @@ export default function ConfiguracionScreen() {
       </View>
 
       <View style={styles.divider} />
-
-      <Pressable
-        style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed, styles.dangerRowSpacing]}
-        onPress={handleSignOutEverywhere}
-        disabled={signingOutEverywhere}
-      >
-        {signingOutEverywhere ? (
-          <ActivityIndicator size="small" color={colors.danger} />
-        ) : (
-          <Ionicons name="shield-outline" size={18} color={colors.danger} />
-        )}
-        <Text style={styles.dangerLabel}>
-          {signingOutEverywhere ? 'Cerrando sesión en todos lados…' : 'Cerrar sesión en todos los dispositivos'}
-        </Text>
-      </Pressable>
 
       <Pressable
         style={({ pressed }) => [styles.dangerRow, pressed && styles.rowPressed]}
@@ -306,9 +264,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: colors.surface,
     borderRadius: 12,
-  },
-  dangerRowSpacing: {
-    marginBottom: 10,
   },
   dangerLabel: {
     fontSize: 14,
