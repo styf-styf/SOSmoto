@@ -69,7 +69,10 @@ interface NuevaCitaData {
 
 export default function NuevaCitaScreen() {
   const { profile } = useAuth();
-  const { clientId: preselectedClientId } = useLocalSearchParams<{ clientId?: string }>();
+  const { clientId: preselectedClientId, serviceId: preselectedServiceId } = useLocalSearchParams<{
+    clientId?: string;
+    serviceId?: string;
+  }>();
   const [saving, setSaving] = useState(false);
 
   // Buscador unificado
@@ -133,6 +136,19 @@ export default function NuevaCitaScreen() {
       });
     }
   }, [preselectedClientId, crmClients]);
+
+  // Preselección de servicio -- viene del banner "Agendar" de una cotización
+  // de servicio en el chat (ver chat/[id].tsx), separado del preselect de
+  // cliente porque `services` tarda otro tick en cargar (depende de
+  // businessType === 'workshop', resuelto después de crmClients).
+  const didPreselectServiceRef = useRef(false);
+  useEffect(() => {
+    if (didPreselectServiceRef.current || !preselectedServiceId || services.length === 0) return;
+    if (services.some((s) => s.id === preselectedServiceId)) {
+      didPreselectServiceRef.current = true;
+      setSelectedServiceId(preselectedServiceId);
+    }
+  }, [preselectedServiceId, services]);
 
   function handleSearchChange(text: string) {
     setSearch(text);

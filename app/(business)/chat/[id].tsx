@@ -22,15 +22,16 @@ import { QuantityStepper } from '../../../components/QuantityStepper';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useChatMessaging } from '../../../hooks/useChatMessaging';
+import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getActiveProducts, getActiveServices, getProductVariants } from '../../../services/catalog';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { supabase } from '../../../services/supabase';
 import { getMessages, markThreadRead } from '../../../services/messages';
 import {
-  getPendingIntentsForBusinessClient,
+  createProductIntentByBusiness,
+  getActionableIntentsForBusinessClient,
   subscribeToProductIntentCancelled,
-  updateIntentStatus,
 } from '../../../services/productIntents';
 import {
   getActiveAppointmentRequests,
@@ -117,8 +118,20 @@ export default function ChatScreen() {
   const [selectedQuoteVariantId, setSelectedQuoteVariantId] = useState<string | null>(null);
   const [quoteQuantity, setQuoteQuantity] = useState(1);
   const [quoteTime, setQuoteTime] = useState('');
+  // Prompt "¿Ya lo hacemos?" que aparece justo después de mandar una
+  // cotización -- solo del lado del negocio, el cliente nunca lo ve (no es
+  // un mensaje de chat, vive únicamente en este estado local). Se pierde si
+  // se cierra y reabre el chat sin actuarlo -- aceptable, es un atajo, la
+  // cotización sigue en el historial de mensajes para apartar/agendar
+  // manualmente después si hace falta.
+  const [pendingQuoteAction, setPendingQuoteAction] = useState<
+    | { kind: 'product'; label: string; productId: string; variantId: string | null; quantity: number; unitPrice: number | null }
+    | { kind: 'service'; label: string; serviceId: string }
+    | null
+  >(null);
+  const [creatingQuoteIntent, setCreatingQuoteIntent] = useState(false);
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
-  const [processingIntent, setProcessingIntent] = useState<string | null>(null);
+  const { processingId: processingIntent, handleAction: handleIntentAction } = useProductIntentAction(setIntents);
 
   // Avisos de cancelación (apartado o cita cancelados por el cliente en
   // vivo) -- reemplazan el mensaje automático que antes se mandaba al chat;
@@ -267,7 +280,7 @@ export default function ChatScreen() {
         const [history, , , activeRequests] = await Promise.all([
           getMessages(thread.clientId, thread.businessId),
           getUserById(thread.clientId).then(setClient),
-          getPendingIntentsForBusinessClient(
+          getActionableIntentsForBusinessClient(
             thread.businessId,
             thread.clientId,
           ).then(setIntents),
@@ -362,25 +375,6 @@ export default function ChatScreen() {
     );
     return unsubscribe;
   }, [clientId, businessId, isBuyerMode]);
-
-  async function handleIntentAction(
-    intentId: string,
-    status: 'confirmed' | 'unavailable',
-  ) {
-    setProcessingIntent(intentId);
-    try {
-      await updateIntentStatus(intentId, status);
-      setIntents((prev) => prev.filter((i) => i.id !== intentId));
-    } catch (err) {
-      console.error('update intent error', err);
-      Alert.alert(
-        'Error',
-        'No se pudo actualizar el estado. Intenta de nuevo.',
-      );
-    } finally {
-      setProcessingIntent(null);
-    }
-  }
 
   // Tienda no tiene servicios -- nunca ofrece la pestaña "Servicio" del
   // buscador de cotización, siempre busca en productos.
@@ -480,6 +474,14 @@ export default function ChatScreen() {
         time: String(quoteQuantity),
       });
       handleSend(encoded);
+      setPendingQuoteAction({
+        kind: 'product',
+        label,
+        productId: selectedQuoteProduct.id,
+        variantId: selectedQuoteVariant?.id ?? null,
+        quantity: quoteQuantity,
+        unitPrice: quoteUnitPrice,
+      });
       closeQuoteForm();
     } else if (selectedQuoteService) {
       const encoded = encodeQuote({
@@ -489,8 +491,46 @@ export default function ChatScreen() {
         time: quoteTime.trim() || 'A definir',
       });
       handleSend(encoded);
+      setPendingQuoteAction({
+        kind: 'service',
+        label: selectedQuoteService.name,
+        serviceId: selectedQuoteService.id,
+      });
       closeQuoteForm();
     }
+  }
+
+  async function handleApartarFromQuote() {
+    if (!pendingQuoteAction || pendingQuoteAction.kind !== 'product' || !clientId) return;
+    setCreatingQuoteIntent(true);
+    try {
+      const intent = await createProductIntentByBusiness(
+        clientId,
+        pendingQuoteAction.productId,
+        pendingQuoteAction.variantId,
+        pendingQuoteAction.quantity,
+      );
+      setIntents((prev) => [
+        {
+          ...intent,
+          product_name: pendingQuoteAction.label,
+          product_price: pendingQuoteAction.unitPrice,
+        },
+        ...prev,
+      ]);
+      setPendingQuoteAction(null);
+    } catch (err) {
+      console.error('apartar from quote error', err);
+      Alert.alert('Error', 'No se pudo apartar el producto. Intenta de nuevo.');
+    } finally {
+      setCreatingQuoteIntent(false);
+    }
+  }
+
+  function handleAgendarFromQuote() {
+    if (!pendingQuoteAction || pendingQuoteAction.kind !== 'service' || !clientId) return;
+    setPendingQuoteAction(null);
+    router.push(`/(business)/nueva-cita?clientId=${clientId}&serviceId=${pendingQuoteAction.serviceId}`);
   }
 
   if (loading) {
@@ -504,7 +544,8 @@ export default function ChatScreen() {
   const hasBanner =
     intents.some((i) => !dismissedBanners.has(`intent:${i.id}`)) ||
     appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
-    cancelledBanners.length > 0;
+    cancelledBanners.length > 0 ||
+    !!pendingQuoteAction;
   const approveDateTime = (() => {
     const dt = new Date(requestActions.approvePickerDate);
     dt.setHours(
@@ -610,73 +651,160 @@ export default function ChatScreen() {
                 </View>
               ))}
 
-            {/* Intents de producto */}
+            {/* Intents de producto -- 'pending' pide Confirmar/No disponible;
+                'confirmed' (ya apartado) pasa a Vendido/Cancelar venta, lo
+                mismo que ya hacía el tab Pedidos, ahora también acá para no
+                obligar a salir del chat para cerrar la venta. */}
             {intents
               .filter((intent) => !dismissedBanners.has(`intent:${intent.id}`))
-              .map((intent) => (
-                <View key={intent.id} style={styles.intentCard}>
-                  <View style={styles.intentCardTopRow}>
-                    <Pressable
-                      style={styles.dismissBannerBtn}
-                      onPress={() => dismissBanner(`intent:${intent.id}`)}
-                    >
-                      <Ionicons
-                        name="close"
-                        size={16}
-                        color={colors.textMuted}
-                      />
-                    </Pressable>
-                    <View style={styles.intentInfo}>
-                      <Ionicons
-                        name="cube-outline"
-                        size={16}
-                        color={colors.primary}
-                      />
-                      <Text style={styles.intentText} numberOfLines={1}>
-                        Quiere apartar:{' '}
-                        <Text style={styles.intentName}>
-                          {intent.quantity > 1 ? `${intent.quantity} × ` : ''}
-                          {intent.product_name}
+              .map((intent) => {
+                const isPending = intent.status === 'pending';
+                return (
+                  <View key={intent.id} style={styles.intentCard}>
+                    <View style={styles.intentCardTopRow}>
+                      <Pressable
+                        style={styles.dismissBannerBtn}
+                        onPress={() => dismissBanner(`intent:${intent.id}`)}
+                      >
+                        <Ionicons
+                          name="close"
+                          size={16}
+                          color={colors.textMuted}
+                        />
+                      </Pressable>
+                      <View style={styles.intentInfo}>
+                        <Ionicons
+                          name="cube-outline"
+                          size={16}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.intentText} numberOfLines={1}>
+                          {isPending ? 'Quiere apartar:' : 'Apartado:'}{' '}
+                          <Text style={styles.intentName}>
+                            {intent.quantity > 1 ? `${intent.quantity} × ` : ''}
+                            {intent.product_name}
+                          </Text>
+                          {intent.product_price != null
+                            ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}`
+                            : ''}
                         </Text>
-                        {intent.product_price != null
-                          ? ` · $${(intent.product_price * intent.quantity).toFixed(2)}`
-                          : ''}
-                      </Text>
+                      </View>
+                    </View>
+                    <View style={styles.intentActions}>
+                      {isPending ? (
+                        <>
+                          <Pressable
+                            style={[styles.intentBtn, styles.intentBtnConfirm]}
+                            onPress={() => handleIntentAction(intent.id, 'confirmed')}
+                            disabled={processingIntent === intent.id}
+                          >
+                            {processingIntent === intent.id ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <Text style={styles.intentBtnText}>
+                                Confirmar apartado
+                              </Text>
+                            )}
+                          </Pressable>
+                          <Pressable
+                            style={[styles.intentBtn, styles.intentBtnReject]}
+                            onPress={() =>
+                              handleIntentAction(intent.id, 'unavailable')
+                            }
+                            disabled={processingIntent === intent.id}
+                          >
+                            <Text
+                              style={[
+                                styles.intentBtnText,
+                                styles.intentBtnTextReject,
+                              ]}
+                            >
+                              No disponible
+                            </Text>
+                          </Pressable>
+                        </>
+                      ) : (
+                        <>
+                          <Pressable
+                            style={[styles.intentBtn, styles.intentBtnConfirm]}
+                            onPress={() => handleIntentAction(intent.id, 'sold')}
+                            disabled={processingIntent === intent.id}
+                          >
+                            {processingIntent === intent.id ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <Text style={styles.intentBtnText}>Vendido</Text>
+                            )}
+                          </Pressable>
+                          <Pressable
+                            style={[styles.intentBtn, styles.intentBtnReject]}
+                            onPress={() =>
+                              handleIntentAction(intent.id, 'cancelled_no_show')
+                            }
+                            disabled={processingIntent === intent.id}
+                          >
+                            <Text
+                              style={[
+                                styles.intentBtnText,
+                                styles.intentBtnTextReject,
+                              ]}
+                            >
+                              Cancelar venta
+                            </Text>
+                          </Pressable>
+                        </>
+                      )}
                     </View>
                   </View>
-                  <View style={styles.intentActions}>
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnConfirm]}
-                      onPress={() => handleIntentAction(intent.id, 'confirmed')}
-                      disabled={processingIntent === intent.id}
-                    >
-                      {processingIntent === intent.id ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={styles.intentBtnText}>
-                          Confirmar apartado
-                        </Text>
-                      )}
-                    </Pressable>
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnReject]}
-                      onPress={() =>
-                        handleIntentAction(intent.id, 'unavailable')
-                      }
-                      disabled={processingIntent === intent.id}
-                    >
-                      <Text
-                        style={[
-                          styles.intentBtnText,
-                          styles.intentBtnTextReject,
-                        ]}
-                      >
-                        No disponible
-                      </Text>
-                    </Pressable>
+                );
+              })}
+
+            {/* Cotización recién enviada -- solo el negocio ve este banner,
+                el cliente nunca lo recibe (no es un mensaje). "Apartar" crea
+                de una vez un product_intent 'confirmed' (el negocio decide,
+                no hace falta que el cliente conteste primero); "Agendar"
+                abre Nueva Cita precargada con cliente + servicio. */}
+            {pendingQuoteAction && (
+              <View style={styles.intentCard}>
+                <View style={styles.intentCardTopRow}>
+                  <Pressable
+                    style={styles.dismissBannerBtn}
+                    onPress={() => setPendingQuoteAction(null)}
+                  >
+                    <Ionicons name="close" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <View style={styles.intentInfo}>
+                    <Ionicons name="receipt-outline" size={16} color={colors.primary} />
+                    <Text style={styles.intentText} numberOfLines={1}>
+                      Cotización enviada:{' '}
+                      <Text style={styles.intentName}>{pendingQuoteAction.label}</Text>
+                    </Text>
                   </View>
                 </View>
-              ))}
+                <View style={styles.intentActions}>
+                  {pendingQuoteAction.kind === 'product' ? (
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnConfirm]}
+                      onPress={handleApartarFromQuote}
+                      disabled={creatingQuoteIntent}
+                    >
+                      {creatingQuoteIntent ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.intentBtnText}>Apartar</Text>
+                      )}
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnConfirm]}
+                      onPress={handleAgendarFromQuote}
+                    >
+                      <Text style={styles.intentBtnText}>Agendar</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            )}
 
             {/* Apartados/citas que el cliente canceló en vivo */}
             {cancelledBanners.map((banner) => (

@@ -1830,6 +1830,20 @@ export interface Database {
         Args: { post_id: string };
         Returns: undefined;
       };
+      create_product_intent_by_business: {
+        Args: { p_client_id: string; p_product_id: string; p_variant_id: string | null; p_quantity: number };
+        Returns: {
+          id: string;
+          client_id: string;
+          product_id: string;
+          variant_id: string | null;
+          business_id: string;
+          status: string;
+          quantity: number;
+          created_at: string;
+          updated_at: string;
+        };
+      };
     };
   };
 }

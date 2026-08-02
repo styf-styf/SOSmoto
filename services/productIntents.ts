@@ -101,6 +101,50 @@ export async function createProductIntent(
   return data as ProductIntent;
 }
 
+// Contraparte de createProductIntent, pero iniciada por el NEGOCIO (ej. tras
+// cotizar un producto en el chat, decide apartarlo de una vez sin esperar
+// que el cliente lo pida) -- la policy de insert normal exige
+// client_id = auth.uid(), así que pasa por el RPC create_product_intent_by_business
+// (SECURITY DEFINER, valida is_business_staff server-side) en vez de un
+// insert directo. Entra directo en 'confirmed' -- no es una solicitud a
+// resolver, ya lo decidió el propio negocio.
+export async function createProductIntentByBusiness(
+  clientId: string,
+  productId: string,
+  variantId: string | null,
+  quantity: number
+): Promise<ProductIntent> {
+  const { data, error } = await supabase.rpc('create_product_intent_by_business', {
+    p_client_id: clientId,
+    p_product_id: productId,
+    p_variant_id: variantId,
+    p_quantity: quantity,
+  });
+  if (error) throw error;
+  const intent = data as ProductIntent;
+
+  const { data: product } = await supabase.from('products').select('name').eq('id', productId).maybeSingle();
+  let variantLabel: string | null = null;
+  if (variantId) {
+    const { data: variant } = await supabase.from('product_variants').select('label').eq('id', variantId).maybeSingle();
+    variantLabel = variant?.label ?? null;
+  }
+  if (product?.name) {
+    const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
+    const productLabel = `${qtyPrefix}${withVariantLabel(product.name, variantLabel)}`;
+    await notifyAndLogBusinessEvent({
+      clientId,
+      businessId: intent.business_id,
+      title: 'Producto apartado',
+      body: `Te apartaron: ${productLabel}`,
+      data: { type: 'product_intent', productId, businessId: intent.business_id },
+      messageBody: `📦 Apartado: ${productLabel}`,
+    });
+  }
+
+  return intent;
+}
+
 export async function cancelProductIntent(intentId: string): Promise<void> {
   const { data: intent, error: fetchError } = await supabase
     .from('product_intents')
@@ -237,7 +281,11 @@ export async function updateIntentStatus(
   }
 }
 
-export async function getPendingIntentsForBusinessClient(
+// 'pending' Y 'confirmed' a propósito -- el chat del negocio muestra un
+// banner para cada uno (pending: Confirmar apartado/No disponible;
+// confirmed: Vendido/Cancelar venta, antes solo estaba disponible desde el
+// tab Pedidos, obligando a salir del chat para cerrar la venta).
+export async function getActionableIntentsForBusinessClient(
   businessId: string,
   clientId: string
 ): Promise<ProductIntentWithProduct[]> {
@@ -246,7 +294,7 @@ export async function getPendingIntentsForBusinessClient(
     .select('*, products(name, reference_price, min_order_quantity, price_tiers), product_variants(label, reference_price, price_tiers)')
     .eq('business_id', businessId)
     .eq('client_id', clientId)
-    .eq('status', 'pending')
+    .in('status', ['pending', 'confirmed'])
     .order('created_at', { ascending: false });
   if (error) throw error;
 
