@@ -134,10 +134,6 @@ export default function ChatScreen() {
     }
   }
 
-  // Ver comentario equivalente en app/(business)/chat/[id].tsx -- Android no
-  // re-mide solo un ScrollView con maxHeight cuando el contenido se achica.
-  const [bannerContentHeight, setBannerContentHeight] = useState<number | undefined>(undefined);
-
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
     if (profile.role === 'client') {
@@ -300,6 +296,14 @@ export default function ChatScreen() {
     appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     productIntents.some((i) => !dismissedBanners.has(`intent:${i.id}`));
+  // Ver comentario equivalente en app/(business)/chat/[id].tsx -- sin
+  // height/maxHeight mientras hay pocos banners (auto como cualquier View,
+  // nunca queda pegado en Android), tope + scroll recién con más de 3.
+  const visibleBannerCount =
+    appointmentRequests.filter((r) => !dismissedBanners.has(`req:${r.id}`)).length +
+    appointments.filter((a) => !dismissedBanners.has(`appt:${a.id}`)).length +
+    productIntents.filter((i) => !dismissedBanners.has(`intent:${i.id}`)).length;
+  const isBannerScrollable = visibleBannerCount > 3;
 
   return (
     <View style={styles.container}>
@@ -322,9 +326,10 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
         <ScrollView
-          style={[styles.bannerScroll, bannerContentHeight != null && { height: Math.min(bannerContentHeight, 260) }]}
+          key={isBannerScrollable ? 'scroll' : 'auto'}
+          style={[styles.bannerScroll, isBannerScrollable && styles.bannerScrollCapped]}
           contentContainerStyle={styles.bannerScrollContent}
-          onContentSizeChange={(_w, h) => setBannerContentHeight(h)}
+          scrollEnabled={isBannerScrollable}
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
         >
@@ -808,7 +813,9 @@ const styles = StyleSheet.create({
   // Con varios banners a la vez (solicitud, cita, apartado...) esto podía
   // crecer sin límite y dejar la lista de mensajes reducida a una franja
   // mínima -- tope + scroll interno en vez de empujar el resto del chat.
-  bannerScroll: {
+  bannerScroll: {},
+  // Solo se aplica con más de 3 banners visibles -- ver isBannerScrollable.
+  bannerScrollCapped: {
     maxHeight: 260,
   },
   bannerScrollContent: {},

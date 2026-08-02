@@ -223,13 +223,6 @@ export default function ChatScreen() {
     }
   }
 
-  // En Android, un ScrollView con maxHeight en `style` no se re-mide solo
-  // cuando el contenido se achica (se queda pegado en el alto máximo que
-  // llegó a alcanzar, aunque se le fuerce un remount) -- se mide el alto
-  // real del contenido a mano (onContentSizeChange) y se fija como height
-  // explícito, tope 260, en vez de confiar en que el propio ScrollView se
-  // encoja solo.
-  const [bannerContentHeight, setBannerContentHeight] = useState<number | undefined>(undefined);
 
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
@@ -660,6 +653,21 @@ export default function ChatScreen() {
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     cancelledBanners.length > 0 ||
     pendingQuoteActions.some((q) => !dismissedBanners.has(`quote:${q.id}`));
+  // Ni el remount por key ni medir con onContentSizeChange lograban que el
+  // ScrollView se encogiera de vuelta en Android una vez que llegó a
+  // necesitar scroll -- en vez de pelear con eso, mientras entren pocos
+  // banners (sin tope de altura) se deja crecer natural como cualquier
+  // View, sin darle nunca un height/maxHeight que se pueda quedar pegado.
+  // Recién con más de 3 se activa el tope + scroll, con un key propio para
+  // garantizar que arranca de cero (nunca hereda un alto de cuando NO
+  // estaba en modo scroll).
+  const visibleBannerCount =
+    intents.filter((i) => !dismissedBanners.has(`intent:${i.id}`)).length +
+    appointmentRequests.filter((r) => !dismissedBanners.has(`req:${r.id}`)).length +
+    appointments.filter((a) => !dismissedBanners.has(`appt:${a.id}`)).length +
+    cancelledBanners.length +
+    pendingQuoteActions.filter((q) => !dismissedBanners.has(`quote:${q.id}`)).length;
+  const isBannerScrollable = visibleBannerCount > 3;
   const approveDateTime = (() => {
     const dt = new Date(requestActions.approvePickerDate);
     dt.setHours(
@@ -687,9 +695,10 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
           <ScrollView
-            style={[styles.intentsBanner, bannerContentHeight != null && { height: Math.min(bannerContentHeight, 260) }]}
+            key={isBannerScrollable ? 'scroll' : 'auto'}
+            style={[styles.intentsBanner, isBannerScrollable && styles.intentsBannerCapped]}
             contentContainerStyle={styles.intentsBannerContent}
-            onContentSizeChange={(_w, h) => setBannerContentHeight(h)}
+            scrollEnabled={isBannerScrollable}
             nestedScrollEnabled
             keyboardShouldPersistTaps="handled"
           >
@@ -2203,10 +2212,13 @@ const styles = StyleSheet.create({
   // el resto del chat. style (viewport) separado de contentContainerStyle
   // (layout interno) porque es un ScrollView, no un View.
   intentsBanner: {
-    maxHeight: 260,
     backgroundColor: '#EEF4FF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  // Solo se aplica con más de 3 banners visibles -- ver isBannerScrollable.
+  intentsBannerCapped: {
+    maxHeight: 260,
   },
   intentsBannerContent: {
     paddingHorizontal: 12,
