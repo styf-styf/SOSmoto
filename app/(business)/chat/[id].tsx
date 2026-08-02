@@ -1832,14 +1832,26 @@ export default function ChatScreen() {
                         mensajes detrás. pointerEvents="none" para que los
                         toques sigan llegando a los íconos, no a esta capa. */}
                     <View style={styles.attachLabels} pointerEvents="none">
-                      <Text style={styles.attachLabelText}>Respuestas rápidas</Text>
-                      <Text style={styles.attachLabelText}>Cotización</Text>
-                      <Text style={styles.attachLabelText}>Enviar catálogo</Text>
+                      <View style={styles.attachLabelRow}>
+                        <Text style={styles.attachLabelText} numberOfLines={1}>Respuestas rápidas</Text>
+                      </View>
+                      <View style={styles.attachLabelRow}>
+                        <Text style={styles.attachLabelText} numberOfLines={1}>Cotización</Text>
+                      </View>
+                      <View style={styles.attachLabelRow}>
+                        <Text style={styles.attachLabelText} numberOfLines={1}>Enviar catálogo</Text>
+                      </View>
                       {clientId && !isStore && (
-                        <Text style={styles.attachLabelText}>Agendar cita</Text>
+                        <View style={styles.attachLabelRow}>
+                          <Text style={styles.attachLabelText} numberOfLines={1}>Agendar cita</Text>
+                        </View>
                       )}
-                      <Text style={styles.attachLabelText}>Cámara</Text>
-                      <Text style={styles.attachLabelText}>Galería</Text>
+                      <View style={styles.attachLabelRow}>
+                        <Text style={styles.attachLabelText} numberOfLines={1}>Cámara</Text>
+                      </View>
+                      <View style={styles.attachLabelRow}>
+                        <Text style={styles.attachLabelText} numberOfLines={1}>Galería</Text>
+                      </View>
                     </View>
                   </>
                 )}
@@ -2298,13 +2310,15 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     zIndex: 10,
   },
-  attachLabelText: {
+  attachLabelRow: {
     height: 36,
-    lineHeight: 36,
+    justifyContent: 'center',
+  },
+  attachLabelText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.75)',
+    color: colors.textMuted,
+    textShadowColor: 'rgba(255,255,255,0.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
