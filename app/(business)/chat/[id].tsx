@@ -2255,7 +2255,7 @@ const styles = StyleSheet.create({
   },
   requestInfo: {
     flex: 1,
-    gap: 4,
+    gap: 8,
   },
   requestSub: {
     fontSize: 11,
