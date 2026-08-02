@@ -18,10 +18,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
 import { ImageViewerModal } from '../../../components/ImageViewerModal';
+import { QuantityStepper } from '../../../components/QuantityStepper';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useChatMessaging } from '../../../hooks/useChatMessaging';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { getActiveProducts, getActiveServices, getProductVariants } from '../../../services/catalog';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { supabase } from '../../../services/supabase';
 import { getMessages, markThreadRead } from '../../../services/messages';
@@ -39,7 +41,10 @@ import { useBusinessAppointmentRequestActions } from '../../../hooks/useBusiness
 import { getUserById } from '../../../services/users';
 import type {
   BusinessType,
+  Product,
   ProductIntentWithProduct,
+  ProductVariant,
+  Service,
   User,
 } from '../../../types/database';
 import {
@@ -98,8 +103,19 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
-  const [quoteService, setQuoteService] = useState('');
-  const [quotePrice, setQuotePrice] = useState('');
+  // Cotización = el negocio "eligiendo" un producto/servicio como si fuera
+  // el cliente, pero del lado del negocio -- por eso sale del catálogo ya
+  // publicado (getActiveServices/getActiveProducts), nunca texto libre.
+  const [quoteCatalogKind, setQuoteCatalogKind] = useState<'service' | 'product'>('service');
+  const [quoteServices, setQuoteServices] = useState<Service[]>([]);
+  const [quoteProducts, setQuoteProducts] = useState<Product[]>([]);
+  const [quoteCatalogLoaded, setQuoteCatalogLoaded] = useState(false);
+  const [loadingQuoteCatalog, setLoadingQuoteCatalog] = useState(false);
+  const [selectedQuoteService, setSelectedQuoteService] = useState<Service | null>(null);
+  const [selectedQuoteProduct, setSelectedQuoteProduct] = useState<Product | null>(null);
+  const [quoteVariants, setQuoteVariants] = useState<ProductVariant[]>([]);
+  const [selectedQuoteVariantId, setSelectedQuoteVariantId] = useState<string | null>(null);
+  const [quoteQuantity, setQuoteQuantity] = useState(1);
   const [quoteTime, setQuoteTime] = useState('');
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
   const [processingIntent, setProcessingIntent] = useState<string | null>(null);
@@ -132,7 +148,7 @@ export default function ChatScreen() {
     initialText: prefill,
     onImagePicked: () => {
       setShowQuickReplies(false);
-      setShowQuoteForm(false);
+      closeQuoteForm();
       requestActions.cancelApproveForm();
     },
   });
@@ -366,39 +382,115 @@ export default function ChatScreen() {
     }
   }
 
+  // Tienda no tiene servicios -- nunca ofrece la pestaña "Servicio" del
+  // buscador de cotización, siempre busca en productos.
+  const effectiveQuoteKind = isStore ? 'product' : quoteCatalogKind;
+  const selectedQuoteVariant = quoteVariants.find((v) => v.id === selectedQuoteVariantId) ?? null;
+  const quoteUnitPrice = selectedQuoteProduct
+    ? selectedQuoteVariant?.reference_price ?? selectedQuoteProduct.reference_price
+    : selectedQuoteService?.reference_price ?? null;
+  const quoteTotalPrice = quoteUnitPrice != null ? quoteUnitPrice * (selectedQuoteProduct ? quoteQuantity : 1) : null;
+  const quotePriceLabel = quoteTotalPrice != null ? `$${quoteTotalPrice.toFixed(2)}` : 'A convenir';
+  const quoteNeedsVariant = !!selectedQuoteProduct && quoteVariants.length > 0 && !selectedQuoteVariantId;
+
+  function resetQuoteSelection() {
+    setSelectedQuoteService(null);
+    setSelectedQuoteProduct(null);
+    setSelectedQuoteVariantId(null);
+    setQuoteVariants([]);
+    setQuoteQuantity(1);
+    setQuoteTime('');
+  }
+
+  function closeQuoteForm() {
+    setShowQuoteForm(false);
+    resetQuoteSelection();
+  }
+
   // Cierra los paneles que flotan sobre el campo de texto (sugerencias de
   // mensajes, cotización) al tocar fuera de ellos -- no toca el formulario
   // de aprobar cita (approvingRequest), que tiene su propio botón "Volver".
   function dismissFloatingPanels() {
     setShowQuickReplies(false);
-    setShowQuoteForm(false);
+    if (showQuoteForm) closeQuoteForm();
   }
 
   function openApproveForm(request: AppointmentRequest) {
-    setShowQuoteForm(false);
+    closeQuoteForm();
     setShowQuickReplies(false);
     requestActions.openApproveForm(request);
   }
 
-  function handleSendQuote() {
-    if (!quoteService.trim()) {
-      Alert.alert(
-        isStore ? 'Falta el producto' : 'Falta el servicio',
-        isStore ? 'Ingresa el nombre del producto.' : 'Ingresa el nombre del servicio o trabajo.',
-      );
+  async function openQuoteForm() {
+    if (showQuoteForm) {
+      closeQuoteForm();
       return;
     }
-    const encoded = encodeQuote({
-      kind: isStore ? 'product' : 'service',
-      service: quoteService.trim(),
-      price: quotePrice.trim() || 'A convenir',
-      time: quoteTime.trim() || (isStore ? 'A confirmar' : 'A definir'),
-    });
-    handleSend(encoded);
-    setShowQuoteForm(false);
-    setQuoteService('');
-    setQuotePrice('');
-    setQuoteTime('');
+    setShowAttach(false);
+    setShowQuickReplies(false);
+    requestActions.cancelApproveForm();
+    setShowQuoteForm(true);
+    if (quoteCatalogLoaded || !businessId) return;
+    setLoadingQuoteCatalog(true);
+    try {
+      const [services, products] = await Promise.all([
+        isStore ? Promise.resolve([]) : getActiveServices(businessId),
+        getActiveProducts(businessId),
+      ]);
+      setQuoteServices(services);
+      setQuoteProducts(products);
+      setQuoteCatalogLoaded(true);
+    } catch (err) {
+      console.error('load quote catalog error', err);
+    } finally {
+      setLoadingQuoteCatalog(false);
+    }
+  }
+
+  function selectQuoteService(service: Service) {
+    setSelectedQuoteService(service);
+  }
+
+  async function selectQuoteProduct(product: Product) {
+    setSelectedQuoteProduct(product);
+    setSelectedQuoteVariantId(null);
+    setQuoteQuantity(1);
+    try {
+      const variants = await getProductVariants(product.id);
+      setQuoteVariants(variants);
+      if (variants.length > 0) setSelectedQuoteVariantId(variants[0].id);
+    } catch (err) {
+      console.error('load quote product variants error', err);
+    }
+  }
+
+  function handleSendQuote() {
+    if (quoteNeedsVariant) {
+      Alert.alert('Falta la variante', 'Elige una variante del producto.');
+      return;
+    }
+    if (selectedQuoteProduct) {
+      const label = selectedQuoteVariant
+        ? `${selectedQuoteProduct.name} - ${selectedQuoteVariant.label}`
+        : selectedQuoteProduct.name;
+      const encoded = encodeQuote({
+        kind: 'product',
+        service: label,
+        price: quotePriceLabel,
+        time: String(quoteQuantity),
+      });
+      handleSend(encoded);
+      closeQuoteForm();
+    } else if (selectedQuoteService) {
+      const encoded = encodeQuote({
+        kind: 'service',
+        service: selectedQuoteService.name,
+        price: quotePriceLabel,
+        time: quoteTime.trim() || 'A definir',
+      });
+      handleSend(encoded);
+      closeQuoteForm();
+    }
   }
 
   if (loading) {
@@ -776,48 +868,157 @@ export default function ChatScreen() {
 
             {showQuoteForm && (
               <View style={styles.quoteForm}>
-                <Text style={styles.quoteFormTitle}>
-                  {isStore ? 'Nueva cotización de producto' : 'Nueva cotización'}
-                </Text>
-                <TextInput
-                  style={styles.quoteInput}
-                  placeholder={isStore ? 'Producto' : 'Servicio o trabajo'}
-                  placeholderTextColor={colors.textMuted}
-                  value={quoteService}
-                  onChangeText={setQuoteService}
-                />
-                <TextInput
-                  style={styles.quoteInput}
-                  placeholder="Precio (ej. $25 o A convenir)"
-                  placeholderTextColor={colors.textMuted}
-                  value={quotePrice}
-                  onChangeText={setQuotePrice}
-                />
-                <TextInput
-                  style={styles.quoteInput}
-                  placeholder={isStore ? 'Cantidad (ej. 2 unidades)' : 'Tiempo estimado (ej. 2 horas)'}
-                  placeholderTextColor={colors.textMuted}
-                  value={quoteTime}
-                  onChangeText={setQuoteTime}
-                />
-                <View style={styles.quoteFormActions}>
-                  <Pressable
-                    style={styles.quoteFormBtn}
-                    onPress={handleSendQuote}
-                  >
-                    <Text style={styles.quoteFormBtnText}>
-                      Enviar cotización
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.quoteFormBtnSecondary}
-                    onPress={() => setShowQuoteForm(false)}
-                  >
-                    <Text style={styles.quoteFormBtnSecondaryText}>
-                      Cancelar
-                    </Text>
+                <View style={styles.quoteFormHeaderRow}>
+                  <Text style={styles.quoteFormTitle}>
+                    {selectedQuoteProduct || selectedQuoteService ? 'Nueva cotización' : 'Elige qué cotizar'}
+                  </Text>
+                  <Pressable onPress={closeQuoteForm} hitSlop={8}>
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
                   </Pressable>
                 </View>
+
+                {!selectedQuoteProduct && !selectedQuoteService ? (
+                  <>
+                    {!isStore && (
+                      <View style={styles.quoteKindToggleRow}>
+                        <Pressable
+                          style={[styles.quoteKindToggle, effectiveQuoteKind === 'service' && styles.quoteKindToggleSelected]}
+                          onPress={() => setQuoteCatalogKind('service')}
+                        >
+                          <Text
+                            style={[
+                              styles.quoteKindToggleText,
+                              effectiveQuoteKind === 'service' && styles.quoteKindToggleTextSelected,
+                            ]}
+                          >
+                            Servicio
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.quoteKindToggle, effectiveQuoteKind === 'product' && styles.quoteKindToggleSelected]}
+                          onPress={() => setQuoteCatalogKind('product')}
+                        >
+                          <Text
+                            style={[
+                              styles.quoteKindToggleText,
+                              effectiveQuoteKind === 'product' && styles.quoteKindToggleTextSelected,
+                            ]}
+                          >
+                            Producto
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
+                    {loadingQuoteCatalog ? (
+                      <ActivityIndicator color={colors.primary} style={styles.quoteCatalogSpinner} />
+                    ) : (
+                      <ScrollView style={styles.quoteCatalogList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                        {(effectiveQuoteKind === 'product' ? quoteProducts : quoteServices).length === 0 ? (
+                          <Text style={styles.quoteEmptyText}>
+                            No tienes {effectiveQuoteKind === 'product' ? 'productos' : 'servicios'} activos en tu catálogo.
+                          </Text>
+                        ) : effectiveQuoteKind === 'product' ? (
+                          quoteProducts.map((product) => (
+                            <Pressable
+                              key={product.id}
+                              style={styles.quoteCatalogItem}
+                              onPress={() => selectQuoteProduct(product)}
+                            >
+                              <Text style={styles.quoteCatalogItemText} numberOfLines={1}>
+                                {product.name}
+                              </Text>
+                              {product.reference_price != null && (
+                                <Text style={styles.quoteCatalogItemPrice}>${product.reference_price.toFixed(2)}</Text>
+                              )}
+                            </Pressable>
+                          ))
+                        ) : (
+                          quoteServices.map((service) => (
+                            <Pressable
+                              key={service.id}
+                              style={styles.quoteCatalogItem}
+                              onPress={() => selectQuoteService(service)}
+                            >
+                              <Text style={styles.quoteCatalogItemText} numberOfLines={1}>
+                                {service.name}
+                              </Text>
+                              {service.reference_price != null && (
+                                <Text style={styles.quoteCatalogItemPrice}>${service.reference_price.toFixed(2)}</Text>
+                              )}
+                            </Pressable>
+                          ))
+                        )}
+                      </ScrollView>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Pressable style={styles.quoteBackLink} onPress={resetQuoteSelection}>
+                      <Ionicons name="chevron-back" size={14} color={colors.primary} />
+                      <Text style={styles.quoteBackLinkText}>Elegir otro</Text>
+                    </Pressable>
+
+                    <Text style={styles.quoteSelectedName}>
+                      {selectedQuoteProduct?.name ?? selectedQuoteService?.name}
+                    </Text>
+
+                    {selectedQuoteProduct && quoteVariants.length > 0 && (
+                      <View style={styles.variantRow}>
+                        {quoteVariants.map((variant) => {
+                          const selected = variant.id === selectedQuoteVariantId;
+                          return (
+                            <Pressable
+                              key={variant.id}
+                              onPress={() => setSelectedQuoteVariantId(variant.id)}
+                              style={[styles.variantChip, selected && styles.variantChipSelected]}
+                            >
+                              <Text style={[styles.variantChipText, selected && styles.variantChipTextSelected]}>
+                                {variant.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {selectedQuoteProduct ? (
+                      <View style={styles.quoteQuantityRow}>
+                        <Text style={styles.quoteFieldLabel}>Cantidad</Text>
+                        <QuantityStepper value={quoteQuantity} onChange={setQuoteQuantity} />
+                      </View>
+                    ) : (
+                      <TextInput
+                        style={styles.quoteInput}
+                        placeholder="Tiempo estimado (ej. 2 horas)"
+                        placeholderTextColor={colors.textMuted}
+                        value={quoteTime}
+                        onChangeText={setQuoteTime}
+                      />
+                    )}
+
+                    <Text style={styles.quotePricePreview}>Precio: {quotePriceLabel}</Text>
+
+                    <View style={styles.quoteFormActions}>
+                      <Pressable
+                        style={[styles.quoteFormBtn, quoteNeedsVariant && styles.quoteFormBtnDisabled]}
+                        onPress={handleSendQuote}
+                        disabled={quoteNeedsVariant}
+                      >
+                        <Text style={styles.quoteFormBtnText}>
+                          Enviar cotización
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.quoteFormBtnSecondary}
+                        onPress={closeQuoteForm}
+                      >
+                        <Text style={styles.quoteFormBtnSecondaryText}>
+                          Cancelar
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
               </View>
             )}
 
@@ -952,7 +1153,7 @@ export default function ChatScreen() {
                       onPress={() => {
                         setShowAttach(false);
                         setShowQuickReplies((v) => !v);
-                        setShowQuoteForm(false);
+                        closeQuoteForm();
                         requestActions.cancelApproveForm();
                       }}
                     >
@@ -966,9 +1167,9 @@ export default function ChatScreen() {
                       style={styles.iconButton}
                       onPress={() => {
                         setShowAttach(false);
-                        setShowQuoteForm((v) => !v);
                         setShowQuickReplies(false);
                         requestActions.cancelApproveForm();
+                        openQuoteForm();
                       }}
                     >
                       <Ionicons
@@ -1191,11 +1392,127 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: 8,
   },
+  quoteFormHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   quoteFormTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 2,
+  },
+  quoteKindToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quoteKindToggle: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  quoteKindToggleSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF1E6',
+  },
+  quoteKindToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  quoteKindToggleTextSelected: {
+    color: colors.primary,
+  },
+  quoteCatalogSpinner: {
+    marginVertical: 12,
+  },
+  // Limita el alto para que un catálogo largo no empuje el resto del chat
+  // fuera de pantalla -- scrollea internamente, no la pantalla completa.
+  quoteCatalogList: {
+    maxHeight: 180,
+  },
+  quoteEmptyText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    paddingVertical: 8,
+  },
+  quoteCatalogItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  quoteCatalogItemText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  quoteCatalogItemPrice: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  quoteBackLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    alignSelf: 'flex-start',
+  },
+  quoteBackLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  quoteSelectedName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  variantRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  variantChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  variantChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF1E6',
+  },
+  variantChipText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  variantChipTextSelected: {
+    color: colors.primary,
+  },
+  quoteQuantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quoteFieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  quotePricePreview: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
   },
   quoteInput: {
     height: 40,
@@ -1218,6 +1535,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  quoteFormBtnDisabled: {
+    opacity: 0.5,
   },
   quoteFormBtnText: {
     color: '#fff',
