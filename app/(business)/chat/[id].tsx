@@ -802,6 +802,15 @@ export default function ChatScreen() {
                       <Text style={styles.intentBtnText}>Agendar</Text>
                     </Pressable>
                   )}
+                  <Pressable
+                    style={[styles.intentBtn, styles.intentBtnReject]}
+                    onPress={() => setPendingQuoteAction(null)}
+                    disabled={creatingQuoteIntent}
+                  >
+                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>
+                      Cancelar
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             )}
