@@ -9,7 +9,7 @@ import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessConversations, hideChat, subscribeToThreadChanges } from '../../../services/messages';
 import { supabase } from '../../../services/supabase';
 import { getUsersByIds } from '../../../services/users';
-import { formatConversationTimestamp } from '../../../utils/chatFormat';
+import { formatConversationTimestamp, parseQuote } from '../../../utils/chatFormat';
 
 interface ConversationRow {
   clientId: string;
@@ -161,7 +161,9 @@ export default function BusinessMensajesScreen() {
       {conversations.length === 0 ? (
         <Text style={styles.placeholder}>Tus chats con clientes aparecerán aquí.</Text>
       ) : (
-        conversations.map((row) => (
+        conversations.map((row) => {
+          const quote = parseQuote(row.lastMessage);
+          return (
           <Pressable
             key={row.clientId}
             style={styles.row}
@@ -207,6 +209,13 @@ export default function BusinessMensajesScreen() {
                       Imagen
                     </Text>
                   </View>
+                ) : quote ? (
+                  <View style={styles.imagePreview}>
+                    <Ionicons name="receipt-outline" size={14} color={row.unread ? colors.text : colors.textMuted} />
+                    <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]} numberOfLines={1}>
+                      Cotización: {quote.service}
+                    </Text>
+                  </View>
                 ) : (
                   <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]} numberOfLines={1}>
                     {row.lastMessage}
@@ -216,7 +225,8 @@ export default function BusinessMensajesScreen() {
               </View>
             </View>
           </Pressable>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );

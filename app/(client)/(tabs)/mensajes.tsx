@@ -8,7 +8,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { getBusinessesByIds } from '../../../services/businesses';
 import { getClientConversations, hideChat, subscribeToThreadChanges } from '../../../services/messages';
 import type { Business } from '../../../types/database';
-import { formatConversationTimestamp } from '../../../utils/chatFormat';
+import { formatConversationTimestamp, parseQuote } from '../../../utils/chatFormat';
 
 interface ConversationRow {
   business: Business;
@@ -121,7 +121,9 @@ export default function MensajesScreen() {
       {conversations.length === 0 ? (
         <Text style={styles.placeholder}>Tus chats con talleres aparecerán aquí.</Text>
       ) : (
-        conversations.map((row) => (
+        conversations.map((row) => {
+          const quote = parseQuote(row.lastMessage);
+          return (
           <Pressable
             key={row.business.id}
             style={styles.row}
@@ -159,6 +161,13 @@ export default function MensajesScreen() {
                       Imagen
                     </Text>
                   </View>
+                ) : quote ? (
+                  <View style={styles.imagePreview}>
+                    <Ionicons name="receipt-outline" size={14} color={row.unread ? colors.text : colors.textMuted} />
+                    <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]} numberOfLines={1}>
+                      Cotización: {quote.service}
+                    </Text>
+                  </View>
                 ) : (
                   <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]} numberOfLines={1}>
                     {row.lastMessage}
@@ -168,7 +177,8 @@ export default function MensajesScreen() {
               </View>
             </View>
           </Pressable>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
