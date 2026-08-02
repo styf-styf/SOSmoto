@@ -287,6 +287,14 @@ export default function ChatScreen() {
     appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     productIntents.some((i) => !dismissedBanners.has(`intent:${i.id}`));
+  // Android a veces no vuelve a medir el alto de un ScrollView cuando su
+  // contenido se achica -- forzar un remount con este key cuando cambia la
+  // cantidad de banners visibles evita que el área de scroll se quede
+  // grande de más después de cerrar uno con la X.
+  const visibleBannerCount =
+    appointmentRequests.filter((r) => !dismissedBanners.has(`req:${r.id}`)).length +
+    appointments.filter((a) => !dismissedBanners.has(`appt:${a.id}`)).length +
+    productIntents.filter((i) => !dismissedBanners.has(`intent:${i.id}`)).length;
 
   return (
     <View style={styles.container}>
@@ -308,7 +316,13 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
-        <ScrollView style={styles.bannerScroll} contentContainerStyle={styles.bannerScrollContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+        <ScrollView
+          key={visibleBannerCount}
+          style={styles.bannerScroll}
+          contentContainerStyle={styles.bannerScrollContent}
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Banner: solicitudes de cita pendientes (lado cliente) -- puede haber
             más de una a la vez con el mismo negocio. */}
         {appointmentRequests
