@@ -731,7 +731,7 @@ export default function ChatScreen() {
                         color={colors.primary}
                       />
                       <View style={styles.requestInfo}>
-                        <Text style={styles.intentText} numberOfLines={1}>
+                        <Text style={styles.intentText} numberOfLines={2}>
                           Solicitud de cita:{' '}
                           <Text style={styles.intentName}>
                             {request.service_name ??
@@ -808,7 +808,7 @@ export default function ChatScreen() {
                       <View style={styles.intentInfo}>
                         <Ionicons name="calendar-outline" size={16} color={colors.primary} />
                         <View style={styles.requestInfo}>
-                          <Text style={styles.intentText} numberOfLines={1}>
+                          <Text style={styles.intentText} numberOfLines={2}>
                             {appt.status === 'confirmed' ? 'Cita confirmada' : clientProposed ? 'Cliente propone reagendar' : 'Propusiste reagendar'}
                             {appt.service_name ? `: ` : ''}
                             {appt.service_name ? <Text style={styles.intentName}>{appt.service_name}</Text> : null}
@@ -2259,12 +2259,10 @@ const styles = StyleSheet.create({
   },
   requestSub: {
     fontSize: 11,
-    lineHeight: 15,
     color: colors.textMuted,
   },
   intentText: {
     fontSize: 13,
-    lineHeight: 18,
     color: colors.text,
     flex: 1,
   },

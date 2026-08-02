@@ -899,12 +899,10 @@ const styles = StyleSheet.create({
   requestBannerTitle: {
     fontSize: 13,
     fontWeight: '700',
-    lineHeight: 18,
     color: colors.primary,
   },
   requestBannerSub: {
     fontSize: 12,
-    lineHeight: 16,
     color: colors.textMuted,
     marginTop: 3,
   },
