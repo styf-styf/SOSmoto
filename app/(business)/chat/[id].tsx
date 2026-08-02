@@ -40,6 +40,7 @@ import {
   getActionableIntentsForBusinessClient,
   getClientIntentForProduct,
   subscribeToProductIntentCancelled,
+  updateProductIntentQuantity,
 } from '../../../services/productIntents';
 import {
   getActiveAppointmentRequests,
@@ -59,6 +60,7 @@ import { getUserById } from '../../../services/users';
 import type {
   BusinessType,
   Product,
+  ProductIntent,
   ProductIntentWithProduct,
   ProductVariant,
   Service,
@@ -603,7 +605,21 @@ export default function ChatScreen() {
       const existing = await getClientIntentForProduct(clientId, quote.product_id, quote.variant_id ?? null);
       if (existing) {
         setCreatingQuoteIntentId(null);
-        if (existing.status === 'pending') {
+        const newQuantity = quote.quantity ?? 1;
+        const quantityChanged = existing.quantity !== newQuantity;
+        if (quantityChanged) {
+          // Mismo producto/variante, pero la cotización trae otra cantidad --
+          // no tiene sentido crear un segundo apartado ni bloquear sin más:
+          // se ofrece actualizar la cantidad del que ya existe.
+          Alert.alert(
+            'Ya existe un apartado con otra cantidad',
+            `Este cliente ya tiene ${existing.quantity} x este producto ${existing.status === 'pending' ? 'pendiente de confirmar' : 'apartado'}. La cotización dice ${newQuantity}.`,
+            [
+              { text: 'Cerrar', style: 'cancel' },
+              { text: 'Actualizar cantidad', onPress: () => handleUpdateIntentQuantity(existing, quote) },
+            ]
+          );
+        } else if (existing.status === 'pending') {
           Alert.alert(
             'Ya existe un apartado',
             'Este cliente ya tiene un apartado pendiente de confirmar para este producto.',
@@ -640,6 +656,23 @@ export default function ChatScreen() {
     } catch (err) {
       console.error('apartar from quote error', err);
       Alert.alert('Error', 'No se pudo apartar el producto. Intenta de nuevo.');
+    } finally {
+      setCreatingQuoteIntentId(null);
+    }
+  }
+
+  async function handleUpdateIntentQuantity(existing: ProductIntent, quote: ChatQuote) {
+    setCreatingQuoteIntentId(quote.id);
+    try {
+      await updateProductIntentQuantity(existing.id, quote.quantity ?? 1);
+      if (businessId && clientId) {
+        setIntents(await getActionableIntentsForBusinessClient(businessId, clientId));
+      }
+      await resolveChatQuote(quote.id);
+      setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
+    } catch (err) {
+      console.error('update intent quantity error', err);
+      Alert.alert('Error', 'No se pudo actualizar la cantidad del apartado.');
     } finally {
       setCreatingQuoteIntentId(null);
     }

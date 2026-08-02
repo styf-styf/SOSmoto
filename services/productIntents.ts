@@ -145,6 +145,44 @@ export async function createProductIntentByBusiness(
   return intent;
 }
 
+// Contraparte de createProductIntentByBusiness cuando ya existe un apartado
+// activo para ese cliente+producto+variante pero con OTRA cantidad (ej. el
+// negocio cotiza de nuevo el mismo producto con un numero distinto) -- en vez
+// de crear un segundo intent duplicado, actualiza la cantidad del que ya
+// existe. El precio no se guarda en la tabla (se calcula al vuelo según
+// cantidad/escalones, ver intentUnitPrice), así que no hace falta tocarlo acá.
+export async function updateProductIntentQuantity(intentId: string, quantity: number): Promise<void> {
+  const { data: intent, error: fetchError } = await supabase
+    .from('product_intents')
+    .select('client_id, product_id, variant_id, business_id, status')
+    .eq('id', intentId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!intent) return;
+
+  const { error } = await supabase
+    .from('product_intents')
+    .update({ quantity, updated_at: new Date().toISOString() })
+    .eq('id', intentId);
+  if (error) throw error;
+
+  const { data: product } = await supabase.from('products').select('name').eq('id', intent.product_id).maybeSingle();
+  let variantLabel: string | null = null;
+  if (intent.variant_id) {
+    const { data: variant } = await supabase.from('product_variants').select('label').eq('id', intent.variant_id).maybeSingle();
+    variantLabel = variant?.label ?? null;
+  }
+  const productName = withVariantLabel(product?.name ?? 'tu producto', variantLabel);
+  await notifyAndLogBusinessEvent({
+    clientId: intent.client_id,
+    businessId: intent.business_id,
+    title: 'Apartado actualizado',
+    body: `El negocio actualizó la cantidad de tu apartado: ${quantity} x ${productName}`,
+    data: { type: 'product_intent', productId: intent.product_id, businessId: intent.business_id },
+    messageBody: `✏️ Actualizado: ${quantity} x ${productName}`,
+  });
+}
+
 export async function cancelProductIntent(intentId: string): Promise<void> {
   const { data: intent, error: fetchError } = await supabase
     .from('product_intents')
