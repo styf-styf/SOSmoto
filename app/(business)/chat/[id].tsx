@@ -996,7 +996,7 @@ export default function ChatScreen() {
                           size={16}
                           color={colors.primary}
                         />
-                        <Text style={styles.intentText} numberOfLines={1}>
+                        <Text style={[styles.intentText, styles.flex]} numberOfLines={1}>
                           {isPending ? 'Quiere apartar:' : 'Apartado:'}{' '}
                           <Text style={styles.intentName}>
                             {intent.quantity > 1 ? `${intent.quantity} × ` : ''}
@@ -1097,7 +1097,7 @@ export default function ChatScreen() {
                     </Pressable>
                     <View style={styles.intentInfo}>
                       <Ionicons name="receipt-outline" size={16} color={colors.primary} />
-                      <Text style={styles.intentText} numberOfLines={1}>
+                      <Text style={[styles.intentText, styles.flex]} numberOfLines={1}>
                         Cotización enviada:{' '}
                         <Text style={styles.intentName}>{quote.label}</Text>
                       </Text>
@@ -1165,7 +1165,7 @@ export default function ChatScreen() {
                       size={16}
                       color={colors.danger}
                     />
-                    <Text style={styles.intentText} numberOfLines={1}>
+                    <Text style={[styles.intentText, styles.flex]} numberOfLines={1}>
                       Cancelado:{' '}
                       <Text style={styles.intentName}>{banner.label}</Text>
                     </Text>
@@ -2264,7 +2264,6 @@ const styles = StyleSheet.create({
   intentText: {
     fontSize: 13,
     color: colors.text,
-    flex: 1,
   },
   intentName: {
     fontWeight: '700',
