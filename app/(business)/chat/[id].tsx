@@ -38,6 +38,7 @@ import { getMessages, markThreadRead } from '../../../services/messages';
 import {
   createProductIntentByBusiness,
   getActionableIntentsForBusinessClient,
+  getClientIntentForProduct,
   subscribeToProductIntentCancelled,
 } from '../../../services/productIntents';
 import {
@@ -594,6 +595,32 @@ export default function ChatScreen() {
     if (quote.kind !== 'product' || !quote.product_id || !clientId) return;
     setCreatingQuoteIntentId(quote.id);
     try {
+      // Evita crear un apartado duplicado si este cliente ya tiene uno
+      // pendiente/confirmado para el mismo producto+variante (ej. lo apartó
+      // desde la página de producto, o el negocio ya lo apartó antes por
+      // otra cotización) -- mismo criterio que blindea "Solicitar cita" del
+      // lado cliente (getClientIntentForProduct).
+      const existing = await getClientIntentForProduct(clientId, quote.product_id, quote.variant_id ?? null);
+      if (existing) {
+        setCreatingQuoteIntentId(null);
+        if (existing.status === 'pending') {
+          Alert.alert(
+            'Ya existe un apartado',
+            'Este cliente ya tiene un apartado pendiente de confirmar para este producto.',
+            [
+              { text: 'Cerrar', style: 'cancel' },
+              { text: 'Confirmar apartado', onPress: () => handleIntentAction(existing.id, 'confirmed') },
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Ya existe un apartado',
+            'Este cliente ya tiene un apartado confirmado para este producto. Revisa el apartado en el panel de arriba para marcarlo vendido o cancelarlo.'
+          );
+        }
+        return;
+      }
+
       const intent = await createProductIntentByBusiness(
         clientId,
         quote.product_id,
