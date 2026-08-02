@@ -649,7 +649,11 @@ export default function ChatScreen() {
                         <Ionicons name="grid-outline" size={14} color={colors.primary} />
                         <Text style={styles.quoteTitle}>Catálogo del negocio</Text>
                       </View>
-                      <Text style={styles.quoteService}>Toca para ver todos los productos y servicios</Text>
+                      <Text style={styles.quoteService}>
+                        {business?.business_type === 'store'
+                          ? 'Toca para ver todos los productos'
+                          : 'Toca para ver todos los productos y servicios'}
+                      </Text>
                     </Pressable>
                   ) : message.image_url ? (
                     <Pressable

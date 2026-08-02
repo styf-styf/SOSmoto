@@ -1372,7 +1372,9 @@ export default function ChatScreen() {
                         <Ionicons name="grid-outline" size={14} color={colors.primary} />
                         <Text style={styles.quoteTitle}>Catálogo del negocio</Text>
                       </View>
-                      <Text style={styles.quoteService}>Ver todos los productos y servicios</Text>
+                      <Text style={styles.quoteService}>
+                        {isStore ? 'Ver todos los productos' : 'Ver todos los productos y servicios'}
+                      </Text>
                     </View>
                   ) : message.image_url ? (
                     <Pressable
