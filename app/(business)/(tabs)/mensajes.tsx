@@ -9,7 +9,7 @@ import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessConversations, hideChat, subscribeToThreadChanges } from '../../../services/messages';
 import { supabase } from '../../../services/supabase';
 import { getUsersByIds } from '../../../services/users';
-import { formatConversationTimestamp, parseQuote } from '../../../utils/chatFormat';
+import { formatConversationTimestamp, isCatalogShare, parseQuote } from '../../../utils/chatFormat';
 
 interface ConversationRow {
   clientId: string;
@@ -214,6 +214,13 @@ export default function BusinessMensajesScreen() {
                     <Ionicons name="receipt-outline" size={14} color={row.unread ? colors.text : colors.textMuted} />
                     <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]} numberOfLines={1}>
                       Cotización: {quote.service}
+                    </Text>
+                  </View>
+                ) : isCatalogShare(row.lastMessage) ? (
+                  <View style={styles.imagePreview}>
+                    <Ionicons name="grid-outline" size={14} color={row.unread ? colors.text : colors.textMuted} />
+                    <Text style={[styles.rowMessage, row.unread && styles.rowMessageUnread]}>
+                      Catálogo enviado
                     </Text>
                   </View>
                 ) : (

@@ -1,4 +1,16 @@
 const QUOTE_PREFIX = '__QUOTE__';
+const CATALOG_SHARE_BODY = '__CATALOG_SHARE__';
+
+// Mensaje canned que un negocio manda cuando el cliente le pide el catálogo
+// -- sin payload propio, el negocio ya es fijo dentro de un chat puntual
+// (a diferencia de la cotización, no hace falta codificar nada más).
+export function encodeCatalogShare(): string {
+  return CATALOG_SHARE_BODY;
+}
+
+export function isCatalogShare(body: string): boolean {
+  return body === CATALOG_SHARE_BODY;
+}
 
 export interface QuotePayload {
   // Ausente en cotizaciones viejas (antes de que tienda tuviera su propio

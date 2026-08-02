@@ -69,9 +69,11 @@ import type {
   User,
 } from '../../../types/database';
 import {
+  encodeCatalogShare,
   encodeQuote,
   formatMessageDateLabel,
   formatMessageTime,
+  isCatalogShare,
   parseQuote,
   shouldShowDateSeparator,
 } from '../../../utils/chatFormat';
@@ -1340,6 +1342,19 @@ export default function ChatScreen() {
                         <Text style={styles.quoteValue}>{quote.time}</Text>
                       </View>
                     </View>
+                  ) : isCatalogShare(message.body) ? (
+                    <View
+                      style={[
+                        styles.quoteCard,
+                        isMine ? styles.quoteCardMine : styles.quoteCardTheirs,
+                      ]}
+                    >
+                      <View style={styles.quoteHeader}>
+                        <Ionicons name="grid-outline" size={14} color={colors.primary} />
+                        <Text style={styles.quoteTitle}>Catálogo del negocio</Text>
+                      </View>
+                      <Text style={styles.quoteService}>Ver todos los productos y servicios</Text>
+                    </View>
                   ) : message.image_url ? (
                     <Pressable
                       style={[
@@ -1758,6 +1773,19 @@ export default function ChatScreen() {
                     >
                       <Ionicons
                         name="receipt-outline"
+                        size={20}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                    <Pressable
+                      style={styles.iconButton}
+                      onPress={() => {
+                        setShowAttach(false);
+                        handleSend(encodeCatalogShare());
+                      }}
+                    >
+                      <Ionicons
+                        name="grid-outline"
                         size={20}
                         color={colors.textMuted}
                       />

@@ -48,6 +48,7 @@ import type {
 import {
   formatMessageDateLabel,
   formatMessageTime,
+  isCatalogShare,
   parseQuote,
   shouldShowDateSeparator,
 } from '../../../utils/chatFormat';
@@ -636,6 +637,20 @@ export default function ChatScreen() {
                         <Text style={styles.quoteValue}>{quote.time}</Text>
                       </View>
                     </View>
+                  ) : isCatalogShare(message.body) ? (
+                    <Pressable
+                      style={[
+                        styles.quoteCard,
+                        isMine ? styles.quoteCardMine : styles.quoteCardTheirs,
+                      ]}
+                      onPress={() => businessId && router.push(`/(client)/negocio-catalogo/${businessId}`)}
+                    >
+                      <View style={styles.quoteHeader}>
+                        <Ionicons name="grid-outline" size={14} color={colors.primary} />
+                        <Text style={styles.quoteTitle}>Catálogo del negocio</Text>
+                      </View>
+                      <Text style={styles.quoteService}>Toca para ver todos los productos y servicios</Text>
+                    </Pressable>
                   ) : message.image_url ? (
                     <Pressable
                       style={[
