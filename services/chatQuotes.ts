@@ -68,12 +68,3 @@ export async function cancelChatQuote(id: string): Promise<void> {
   const { error } = await supabase.from('chat_quotes').update({ status: 'cancelled' }).eq('id', id);
   if (error) throw error;
 }
-
-// La X del banner -- a diferencia de cancelChatQuote, NO es una decisión
-// sobre el producto/servicio cotizado, solo "deja de mostrar este
-// recordatorio" -- se guarda en un estado propio ('dismissed') para no
-// mezclarlo con una cancelación real.
-export async function dismissChatQuote(id: string): Promise<void> {
-  const { error } = await supabase.from('chat_quotes').update({ status: 'dismissed' }).eq('id', id);
-  if (error) throw error;
-}

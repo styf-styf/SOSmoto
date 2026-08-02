@@ -1733,6 +1733,33 @@ export interface Database {
         };
         Relationships: [];
       };
+      hidden_chat_banners: {
+        Row: {
+          id: string;
+          business_id: string;
+          client_id: string;
+          banner_key: string;
+          hidden_by: 'client' | 'business';
+          hidden_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          client_id: string;
+          banner_key: string;
+          hidden_by: 'client' | 'business';
+          hidden_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          client_id?: string;
+          banner_key?: string;
+          hidden_by?: 'client' | 'business';
+          hidden_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       public_profiles: {

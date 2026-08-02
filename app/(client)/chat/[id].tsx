@@ -35,6 +35,7 @@ import {
   type ActiveClientAppointment,
 } from '../../../services/appointments';
 import { useAppointmentRescheduleActions } from '../../../hooks/useAppointmentRescheduleActions';
+import { getHiddenBannerKeys, hideChatBanner } from '../../../services/chatBanners';
 import {
   cancelProductIntent,
   getClientProductIntents,
@@ -118,13 +119,24 @@ export default function ChatScreen() {
   );
 
   // IDs de banners que el usuario cerró con la (X) -- solo oculta la tarjeta
-  // de la vista, no cancela nada; se resetea si se recarga el chat.
+  // de la vista, no cancela nada. Respaldado por hidden_chat_banners (ver
+  // services/chatBanners.ts): antes era estado local puro y volvía a
+  // mostrar todo al reabrir el chat.
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
     new Set(),
   );
   function dismissBanner(key: string) {
     setDismissedBanners((prev) => new Set(prev).add(key));
+    if (businessId && clientId) {
+      hideChatBanner(businessId, clientId, key, 'client').catch((err) =>
+        console.error('hide chat banner error', err),
+      );
+    }
   }
+
+  // Ver comentario equivalente en app/(business)/chat/[id].tsx -- Android no
+  // re-mide solo un ScrollView con maxHeight cuando el contenido se achica.
+  const [bannerContentHeight, setBannerContentHeight] = useState<number | undefined>(undefined);
 
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
@@ -159,6 +171,7 @@ export default function ChatScreen() {
           ).then(setAppointmentRequests),
           getActiveClientAppointments(thread.businessId, thread.clientId).then(setAppointments),
           loadProductIntents(thread.clientId, thread.businessId),
+          getHiddenBannerKeys(thread.businessId, thread.clientId, 'client').then(setDismissedBanners),
         ]);
         setMessages(history);
         if (profile) {
@@ -287,14 +300,6 @@ export default function ChatScreen() {
     appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     productIntents.some((i) => !dismissedBanners.has(`intent:${i.id}`));
-  // Android a veces no vuelve a medir el alto de un ScrollView cuando su
-  // contenido se achica -- forzar un remount con este key cuando cambia la
-  // cantidad de banners visibles evita que el área de scroll se quede
-  // grande de más después de cerrar uno con la X.
-  const visibleBannerCount =
-    appointmentRequests.filter((r) => !dismissedBanners.has(`req:${r.id}`)).length +
-    appointments.filter((a) => !dismissedBanners.has(`appt:${a.id}`)).length +
-    productIntents.filter((i) => !dismissedBanners.has(`intent:${i.id}`)).length;
 
   return (
     <View style={styles.container}>
@@ -317,9 +322,9 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
         <ScrollView
-          key={visibleBannerCount}
-          style={styles.bannerScroll}
+          style={[styles.bannerScroll, bannerContentHeight != null && { height: Math.min(bannerContentHeight, 260) }]}
           contentContainerStyle={styles.bannerScrollContent}
+          onContentSizeChange={(_w, h) => setBannerContentHeight(h)}
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
         >

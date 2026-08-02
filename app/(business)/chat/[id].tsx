@@ -28,7 +28,6 @@ import { getActiveProducts, getActiveServices, getProductVariants } from '../../
 import {
   cancelChatQuote,
   createChatQuote,
-  dismissChatQuote,
   getPendingChatQuotes,
   resolveChatQuote,
   type ChatQuote,
@@ -54,6 +53,7 @@ import {
 } from '../../../services/appointments';
 import { useBusinessAppointmentRequestActions } from '../../../hooks/useBusinessAppointmentRequestActions';
 import { useAppointmentRescheduleActions } from '../../../hooks/useAppointmentRescheduleActions';
+import { getHiddenBannerKeys, hideChatBanner } from '../../../services/chatBanners';
 import { getUserById } from '../../../services/users';
 import type {
   BusinessType,
@@ -208,13 +208,28 @@ export default function ChatScreen() {
   } = chat;
 
   // IDs de banners que el negocio cerró con la (X) -- solo oculta la tarjeta
-  // de la vista, no confirma ni cancela nada; se resetea si se recarga el chat.
+  // de la vista, no confirma ni cancela nada. Respaldado por
+  // hidden_chat_banners (ver services/chatBanners.ts): antes era estado
+  // local puro y volvía a mostrar todo al reabrir el chat.
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
     new Set(),
   );
   function dismissBanner(key: string) {
     setDismissedBanners((prev) => new Set(prev).add(key));
+    if (businessId && clientId) {
+      hideChatBanner(businessId, clientId, key, 'business').catch((err) =>
+        console.error('hide chat banner error', err),
+      );
+    }
   }
+
+  // En Android, un ScrollView con maxHeight en `style` no se re-mide solo
+  // cuando el contenido se achica (se queda pegado en el alto máximo que
+  // llegó a alcanzar, aunque se le fuerce un remount) -- se mide el alto
+  // real del contenido a mano (onContentSizeChange) y se fija como height
+  // explícito, tope 260, en vez de confiar en que el propio ScrollView se
+  // encoja solo.
+  const [bannerContentHeight, setBannerContentHeight] = useState<number | undefined>(undefined);
 
   const resolveThread = useCallback(async () => {
     if (!profile || !id) return null;
@@ -311,6 +326,7 @@ export default function ChatScreen() {
           getActiveAppointmentRequests(thread.clientId, thread.businessId),
           getActiveClientAppointments(thread.businessId, thread.clientId).then(setAppointments),
           getPendingChatQuotes(thread.businessId, thread.clientId).then(setPendingQuoteActions),
+          getHiddenBannerKeys(thread.businessId, thread.clientId, 'business').then(setDismissedBanners),
         ]);
         // Si el interlocutor es propietario de un negocio (chat B2B), cargamos
         // el negocio para mostrar su nombre y logo en el header en lugar de los
@@ -630,15 +646,6 @@ export default function ChatScreen() {
     }
   }
 
-  // La X del banner -- a diferencia de handleCancelChatQuote, NO es una
-  // decisión sobre el producto/servicio cotizado, solo deja de mostrar el
-  // recordatorio (no vuelve a aparecer al reabrir el chat, pero tampoco
-  // cancela nada).
-  function handleDismissChatQuote(quote: ChatQuote) {
-    setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
-    dismissChatQuote(quote.id).catch((err) => console.error('dismiss chat quote error', err));
-  }
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -653,17 +660,6 @@ export default function ChatScreen() {
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     cancelledBanners.length > 0 ||
     pendingQuoteActions.some((q) => !dismissedBanners.has(`quote:${q.id}`));
-  // Android a veces no vuelve a medir el alto de un ScrollView cuando su
-  // contenido se achica (el maxHeight se queda "pegado" en el máximo que
-  // llegó a alcanzar) -- forzar un remount con este key cuando cambia la
-  // cantidad de banners visibles evita que el área de scroll se quede
-  // grande de más después de cerrar uno con la X.
-  const visibleBannerCount =
-    appointmentRequests.filter((r) => !dismissedBanners.has(`req:${r.id}`)).length +
-    appointments.filter((a) => !dismissedBanners.has(`appt:${a.id}`)).length +
-    intents.filter((i) => !dismissedBanners.has(`intent:${i.id}`)).length +
-    pendingQuoteActions.filter((q) => !dismissedBanners.has(`quote:${q.id}`)).length +
-    cancelledBanners.length;
   const approveDateTime = (() => {
     const dt = new Date(requestActions.approvePickerDate);
     dt.setHours(
@@ -691,9 +687,9 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
           <ScrollView
-            key={visibleBannerCount}
-            style={styles.intentsBanner}
+            style={[styles.intentsBanner, bannerContentHeight != null && { height: Math.min(bannerContentHeight, 260) }]}
             contentContainerStyle={styles.intentsBannerContent}
+            onContentSizeChange={(_w, h) => setBannerContentHeight(h)}
             nestedScrollEnabled
             keyboardShouldPersistTaps="handled"
           >
@@ -1081,7 +1077,7 @@ export default function ChatScreen() {
                   <View style={styles.intentCardTopRow}>
                     <Pressable
                       style={styles.dismissBannerBtn}
-                      onPress={() => handleDismissChatQuote(quote)}
+                      onPress={() => dismissBanner(`quote:${quote.id}`)}
                     >
                       <Ionicons name="close" size={16} color={colors.textMuted} />
                     </Pressable>
@@ -1301,6 +1297,11 @@ export default function ChatScreen() {
             {showQuickReplies && (
               <ScrollView
                 horizontal
+                // Alto fijo en vez de dejar que el ScrollView se mida solo --
+                // mismo síntoma que el área de banners: en Android se queda
+                // más alto de lo que necesita el contenido (una sola fila de
+                // chips, alto conocido de antemano).
+                style={styles.quickRepliesScroll}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.quickRepliesRow}
               >
@@ -1814,6 +1815,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Alto fijo (chip: paddingVertical 7 + texto ~17 + padding de la fila
+  // 4+4 ≈ 39) -- ver comentario junto al ScrollView.
+  quickRepliesScroll: {
+    height: 40,
   },
   quickRepliesRow: {
     flexDirection: 'row',
