@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
@@ -27,6 +29,12 @@ import {
   type AppointmentRequest,
 } from '../../../services/appointmentRequests';
 import { useClientAppointmentRequestCancel } from '../../../hooks/useClientAppointmentRequestCancel';
+import {
+  cancelAppointment,
+  getActiveClientAppointments,
+  type ActiveClientAppointment,
+} from '../../../services/appointments';
+import { useAppointmentRescheduleActions } from '../../../hooks/useAppointmentRescheduleActions';
 import {
   cancelProductIntent,
   getClientProductIntents,
@@ -90,6 +98,17 @@ export default function ChatScreen() {
   >([]);
   const { cancellingRequestId, cancelRequest } = useClientAppointmentRequestCancel<AppointmentRequest>(setAppointmentRequests);
 
+  // Citas ya con fecha (confirmed/scheduled) -- a diferencia de
+  // appointmentRequests (solicitudes sin resolver), esto es la cita real,
+  // creada cuando el negocio acepta o agenda desde una cotización. Antes de
+  // esto desaparecía del chat en cuanto se confirmaba, sin forma de
+  // reagendar sin salir a "Mis citas".
+  const [appointments, setAppointments] = useState<ActiveClientAppointment[]>([]);
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState<string | null>(null);
+  const rescheduleActions = useAppointmentRescheduleActions('client', (id, patch) => {
+    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  });
+
   // Banner de apartados de producto pendientes/confirmados
   const [productIntents, setProductIntents] = useState<
     ProductIntentWithProduct[]
@@ -138,6 +157,7 @@ export default function ChatScreen() {
             thread.clientId,
             thread.businessId,
           ).then(setAppointmentRequests),
+          getActiveClientAppointments(thread.businessId, thread.clientId).then(setAppointments),
           loadProductIntents(thread.clientId, thread.businessId),
         ]);
         setMessages(history);
@@ -201,6 +221,30 @@ export default function ChatScreen() {
         setText(body);
       });
   }, [loading, clientId, businessId, autoSend, profile, prefill]);
+
+  function handleCancelAppointment(appointmentId: string) {
+    if (cancellingAppointmentId) return;
+    Alert.alert('Cancelar cita', '¿Seguro que quieres cancelar esta cita?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          setCancellingAppointmentId(appointmentId);
+          try {
+            await cancelAppointment(appointmentId, 'client');
+            setAppointments((prev) => prev.filter((a) => a.id !== appointmentId));
+            rescheduleActions.cancelRescheduling();
+          } catch (err) {
+            console.error('cancel appointment error', err);
+            Alert.alert('Error', 'No se pudo cancelar la cita.');
+          } finally {
+            setCancellingAppointmentId(null);
+          }
+        },
+      },
+    ]);
+  }
 
   async function handleCancelIntent(intentId: string) {
     if (cancellingIntentId) return;
@@ -303,6 +347,176 @@ export default function ChatScreen() {
               </Pressable>
             </View>
           ))}
+
+        {/* Banner: citas ya con fecha (confirmed/scheduled) -- 'confirmed':
+            dar la posibilidad de reagendar/cancelar sin salir del chat.
+            'scheduled': si propuso el taller, le toca al cliente aprobar/
+            contraproponer/cancelar; si propuso el cliente, solo queda
+            esperar o cancelar. */}
+        {appointments
+          .filter((appt) => !dismissedBanners.has(`appt:${appt.id}`))
+          .map((appt) => {
+            const isRescheduling = rescheduleActions.reschedulingId === appt.id;
+            const businessProposed = appt.status === 'scheduled' && appt.proposed_by === 'business';
+            const clientProposed = appt.status === 'scheduled' && appt.proposed_by === 'client';
+            return (
+              <View key={appt.id} style={styles.apptCard}>
+                <View style={styles.apptCardTopRow}>
+                  <Pressable
+                    style={styles.dismissBannerBtn}
+                    onPress={() => dismissBanner(`appt:${appt.id}`)}
+                  >
+                    <Ionicons name="close" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <View style={styles.requestBannerInfo}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                    <View style={styles.requestBannerText}>
+                      <Text style={styles.requestBannerTitle}>
+                        {appt.status === 'confirmed' ? 'Cita confirmada' : businessProposed ? 'El taller propone reagendar' : 'Propusiste reagendar'}
+                      </Text>
+                      <Text style={styles.requestBannerSub} numberOfLines={1}>
+                        {appt.service_name ? `${appt.service_name} · ` : ''}
+                        {appt.requested_at
+                          ? new Date(appt.requested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })
+                          : ''}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {!isRescheduling && (
+                  <View style={styles.apptActions}>
+                    {appt.status === 'confirmed' && (
+                      <>
+                        <Pressable
+                          style={[styles.apptBtn, styles.apptBtnDanger]}
+                          onPress={() => handleCancelAppointment(appt.id)}
+                          disabled={cancellingAppointmentId === appt.id}
+                        >
+                          <Text style={[styles.apptBtnText, styles.apptBtnTextDanger]}>Cancelar</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.apptBtn, styles.apptBtnNeutral]}
+                          onPress={() => rescheduleActions.startRescheduling(appt.id)}
+                        >
+                          <Text style={[styles.apptBtnText, styles.apptBtnTextNeutral]}>Proponer otro horario</Text>
+                        </Pressable>
+                      </>
+                    )}
+                    {businessProposed && (
+                      <>
+                        <Pressable
+                          style={[styles.apptBtn, styles.apptBtnDanger]}
+                          onPress={() => handleCancelAppointment(appt.id)}
+                          disabled={cancellingAppointmentId === appt.id}
+                        >
+                          <Text style={[styles.apptBtnText, styles.apptBtnTextDanger]}>Cancelar</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.apptBtn, styles.apptBtnNeutral]}
+                          onPress={() => rescheduleActions.startRescheduling(appt.id)}
+                        >
+                          <Text style={[styles.apptBtnText, styles.apptBtnTextNeutral]}>Proponer otra</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.apptBtn, styles.apptBtnPrimary]}
+                          onPress={() => rescheduleActions.approve(appt.id)}
+                          disabled={rescheduleActions.approvingId === appt.id}
+                        >
+                          {rescheduleActions.approvingId === appt.id ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Text style={styles.apptBtnText}>Aprobar</Text>
+                          )}
+                        </Pressable>
+                      </>
+                    )}
+                    {clientProposed && (
+                      <Pressable
+                        style={[styles.apptBtn, styles.apptBtnDanger]}
+                        onPress={() => handleCancelAppointment(appt.id)}
+                        disabled={cancellingAppointmentId === appt.id}
+                      >
+                        <Text style={[styles.apptBtnText, styles.apptBtnTextDanger]}>Cancelar cita</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+
+                {isRescheduling && (
+                  <View style={styles.apptRescheduleForm}>
+                    <Text style={styles.apptFieldLabel}>Fecha</Text>
+                    <Pressable
+                      style={styles.apptPickerBtn}
+                      onPress={() => {
+                        rescheduleActions.setShowDatePicker((v) => !v);
+                        rescheduleActions.setShowTimePicker(false);
+                      }}
+                    >
+                      <Text style={styles.apptPickerBtnText}>
+                        {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                    </Pressable>
+                    {rescheduleActions.showDatePicker && (
+                      <DateTimePicker
+                        value={rescheduleActions.pickerDate}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                        minimumDate={new Date()}
+                        onChange={rescheduleActions.handleDateChange}
+                      />
+                    )}
+
+                    <Text style={styles.apptFieldLabel}>Hora</Text>
+                    <Pressable
+                      style={styles.apptPickerBtn}
+                      onPress={() => {
+                        rescheduleActions.setShowTimePicker((v) => !v);
+                        rescheduleActions.setShowDatePicker(false);
+                      }}
+                    >
+                      <Text style={styles.apptPickerBtnText}>
+                        {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </Pressable>
+                    {rescheduleActions.showTimePicker && (
+                      <DateTimePicker
+                        value={rescheduleActions.pickerTime}
+                        mode="time"
+                        display="spinner"
+                        onChange={rescheduleActions.handleTimeChange}
+                      />
+                    )}
+
+                    <View style={styles.apptActions}>
+                      <Pressable
+                        style={[styles.apptBtn, styles.apptBtnNeutral]}
+                        onPress={rescheduleActions.cancelRescheduling}
+                        disabled={rescheduleActions.saving}
+                      >
+                        <Text style={[styles.apptBtnText, styles.apptBtnTextNeutral]}>Volver</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.apptBtn, styles.apptBtnPrimary]}
+                        onPress={() => rescheduleActions.confirmReschedule(appt.id)}
+                        disabled={rescheduleActions.saving}
+                      >
+                        {rescheduleActions.saving ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.apptBtnText}>Enviar propuesta</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
 
         {/* Banner: apartados de producto pendientes/confirmados (lado cliente) */}
         {productIntents
@@ -576,6 +790,80 @@ const styles = StyleSheet.create({
   },
   dismissBannerBtn: {
     padding: 2,
+  },
+  // Citas confirmed/scheduled necesitan hasta 3 botones (Cancelar/Proponer
+  // otra/Aprobar) + un formulario de fecha -- no entran en la fila de una
+  // sola línea que usa requestBanner, por eso usan un layout de tarjeta
+  // (info arriba, acciones debajo) en vez del banner angosto.
+  apptCard: {
+    backgroundColor: '#EEF4FF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  apptCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  apptActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  apptBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  apptBtnPrimary: {
+    backgroundColor: colors.primary,
+  },
+  apptBtnNeutral: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  apptBtnDanger: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  apptBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  apptBtnTextNeutral: {
+    color: colors.text,
+  },
+  apptBtnTextDanger: {
+    color: colors.danger,
+  },
+  apptRescheduleForm: {
+    gap: 4,
+  },
+  apptFieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  apptPickerBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  apptPickerBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
   requestBannerInfo: {
     flexDirection: 'row',
