@@ -271,35 +271,29 @@ export default function InventarioScreen() {
       }}
     />
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
-      {/* Resumen */}
+      {/* Resumen -- doblan como filtros: presionar un cuadro filtra la lista */}
       <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
+        <Pressable
+          style={[styles.summaryCard, filter === 'all' && styles.summaryCardActive]}
+          onPress={() => setFilter('all')}
+        >
           <Text style={styles.summaryNum}>{products.length}</Text>
           <Text style={styles.summaryLabel}>Productos</Text>
-        </View>
-        <View style={[styles.summaryCard, totalLow > 0 && styles.summaryCardWarn]}>
+        </Pressable>
+        <Pressable
+          style={[styles.summaryCard, totalLow > 0 && styles.summaryCardWarn, filter === 'low' && styles.summaryCardActive]}
+          onPress={() => setFilter('low')}
+        >
           <Text style={[styles.summaryNum, totalLow > 0 && { color: '#F57C00' }]}>{totalLow}</Text>
           <Text style={styles.summaryLabel}>Bajo stock</Text>
-        </View>
-        <View style={[styles.summaryCard, totalOut > 0 && styles.summaryCardDanger]}>
+        </Pressable>
+        <Pressable
+          style={[styles.summaryCard, totalOut > 0 && styles.summaryCardDanger, filter === 'out' && styles.summaryCardActive]}
+          onPress={() => setFilter('out')}
+        >
           <Text style={[styles.summaryNum, totalOut > 0 && { color: colors.danger }]}>{totalOut}</Text>
           <Text style={styles.summaryLabel}>Sin stock</Text>
-        </View>
-      </View>
-
-      {/* Filtros */}
-      <View style={styles.filterRow}>
-        {(['all', 'low', 'out'] as FilterTab[]).map((tab) => (
-          <Pressable
-            key={tab}
-            style={[styles.filterTab, filter === tab && styles.filterTabActive]}
-            onPress={() => setFilter(tab)}
-          >
-            <Text style={[styles.filterTabText, filter === tab && styles.filterTabTextActive]}>
-              {tab === 'all' ? 'Todos' : tab === 'low' ? 'Bajo stock' : 'Sin stock'}
-            </Text>
-          </Pressable>
-        ))}
+        </Pressable>
       </View>
 
       {filtered.length === 0 && (
@@ -514,16 +508,9 @@ const styles = StyleSheet.create({
   },
   summaryCardWarn: { backgroundColor: '#FFF3E0' },
   summaryCardDanger: { backgroundColor: '#FFEBEE' },
+  summaryCardActive: { borderWidth: 2, borderColor: colors.primary },
   summaryNum: { fontSize: 22, fontWeight: '800', color: colors.text },
   summaryLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  filterTab: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
-  },
-  filterTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterTabText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  filterTabTextActive: { color: '#fff' },
   empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 16 },
   card: {
     backgroundColor: colors.surface, borderRadius: 12,
