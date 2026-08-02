@@ -735,22 +735,28 @@ export default function ChatScreen() {
         <View style={[styles.inputRow, { paddingBottom: 8 + insets.bottom }]}>
           <View style={{ position: 'relative' }}>
             {showAttach && (
-              <View style={styles.attachBar}>
-                <Pressable style={styles.iconButton} onPress={handleCamera}>
-                  <Ionicons
-                    name="camera-outline"
-                    size={20}
-                    color={colors.textMuted}
-                  />
-                </Pressable>
-                <Pressable style={styles.iconButton} onPress={handleGallery}>
-                  <Ionicons
-                    name="images-outline"
-                    size={20}
-                    color={colors.textMuted}
-                  />
-                </Pressable>
-              </View>
+              <>
+                <View style={styles.attachBar}>
+                  <Pressable style={styles.iconButton} onPress={handleCamera}>
+                    <Ionicons
+                      name="camera-outline"
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                  <Pressable style={styles.iconButton} onPress={handleGallery}>
+                    <Ionicons
+                      name="images-outline"
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                </View>
+                <View style={styles.attachLabels} pointerEvents="none">
+                  <Text style={styles.attachLabelText}>Cámara</Text>
+                  <Text style={styles.attachLabelText}>Galería</Text>
+                </View>
+              </>
             )}
             <Pressable
               style={styles.iconButton}
@@ -1035,6 +1041,23 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
     zIndex: 10,
+  },
+  attachLabels: {
+    position: 'absolute',
+    bottom: 38,
+    left: 44,
+    paddingVertical: 2,
+    zIndex: 10,
+  },
+  attachLabelText: {
+    height: 36,
+    lineHeight: 36,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   pendingImageRow: {
     flexDirection: 'row',
