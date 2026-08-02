@@ -1767,7 +1767,7 @@ export default function ChatScreen() {
             >
               <View style={{ position: 'relative' }}>
                 {showAttach && (
-                  <>
+                  <View style={styles.attachWrap}>
                     <View style={styles.attachBar}>
                       <Pressable
                         style={styles.iconButton}
@@ -1874,7 +1874,7 @@ export default function ChatScreen() {
                         <Text style={styles.attachLabelText} numberOfLines={1}>Galería</Text>
                       </View>
                     </View>
-                  </>
+                  </View>
                 )}
                 <Pressable
                   style={styles.iconButton}
@@ -2308,10 +2308,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  attachBar: {
+  attachWrap: {
     position: 'absolute',
     bottom: 38,
     left: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    zIndex: 10,
+  },
+  attachBar: {
     backgroundColor: colors.surface,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
@@ -2322,15 +2327,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 4,
-    zIndex: 10,
   },
   attachLabels: {
-    position: 'absolute',
-    bottom: 38,
-    left: 44,
     paddingVertical: 2,
-    zIndex: 10,
-    alignItems: 'flex-start',
+    marginLeft: 8,
   },
   attachLabelRow: {
     height: 36,
