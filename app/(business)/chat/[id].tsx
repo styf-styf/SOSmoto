@@ -669,7 +669,7 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
-          <View style={styles.intentsBanner}>
+          <ScrollView style={styles.intentsBanner} contentContainerStyle={styles.intentsBannerContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">
             {/* Banners de solicitudes de cita (lado taller) -- puede haber
                 más de una a la vez del mismo cliente. */}
             {appointmentRequests
@@ -1136,7 +1136,7 @@ export default function ChatScreen() {
                 </View>
               </View>
             ))}
-          </View>
+          </ScrollView>
         )}
 
         <Pressable style={styles.flex} onPress={dismissFloatingPanels}>
@@ -2163,10 +2163,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  // Con varios banners a la vez (cita, apartado, cotización...) esto podía
+  // crecer sin límite y dejar la lista de mensajes reducida a una franja
+  // mínima -- ahora tiene un tope y scrollea internamente en vez de empujar
+  // el resto del chat. style (viewport) separado de contentContainerStyle
+  // (layout interno) porque es un ScrollView, no un View.
   intentsBanner: {
+    maxHeight: 260,
     backgroundColor: '#EEF4FF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  intentsBannerContent: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,

@@ -283,6 +283,11 @@ export default function ChatScreen() {
     );
   }
 
+  const hasBanner =
+    appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
+    appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
+    productIntents.some((i) => !dismissedBanners.has(`intent:${i.id}`));
+
   return (
     <View style={styles.container}>
       <ImageViewerModal
@@ -302,6 +307,8 @@ export default function ChatScreen() {
       />
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        {hasBanner && (
+        <ScrollView style={styles.bannerScroll} contentContainerStyle={styles.bannerScrollContent} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {/* Banner: solicitudes de cita pendientes (lado cliente) -- puede haber
             más de una a la vez con el mismo negocio. */}
         {appointmentRequests
@@ -563,6 +570,8 @@ export default function ChatScreen() {
               </Pressable>
             </View>
           ))}
+        </ScrollView>
+        )}
 
         <ScrollView
           ref={scrollRef}
@@ -777,6 +786,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  // Con varios banners a la vez (solicitud, cita, apartado...) esto podía
+  // crecer sin límite y dejar la lista de mensajes reducida a una franja
+  // mínima -- tope + scroll interno en vez de empujar el resto del chat.
+  bannerScroll: {
+    maxHeight: 260,
+  },
+  bannerScrollContent: {},
   requestBanner: {
     flexDirection: 'row',
     alignItems: 'center',
