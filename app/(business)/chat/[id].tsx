@@ -1341,6 +1341,25 @@ export default function ChatScreen() {
                         </Text>
                         <Text style={styles.quoteValue}>{quote.time}</Text>
                       </View>
+                      {/* Enlace directo a Pedidos/Agenda -- si el negocio ya
+                          cerró el banner de esta cotización con la X, esta es
+                          la única forma de encontrar dónde quedó sin buscar
+                          manualmente en esas pantallas. */}
+                      <Pressable
+                        style={styles.quoteLinkBtn}
+                        onPress={() =>
+                          router.push(
+                            quote.kind === 'product'
+                              ? '/(business)/(tabs)/pedidos'
+                              : '/(business)/agenda-negocio'
+                          )
+                        }
+                      >
+                        <Ionicons name="open-outline" size={13} color={colors.primary} />
+                        <Text style={styles.quoteLinkBtnText}>
+                          {quote.kind === 'product' ? 'Ver en pedidos' : 'Ver en agenda'}
+                        </Text>
+                      </Pressable>
                     </View>
                   ) : isCatalogShare(message.body) ? (
                     <View
@@ -2399,6 +2418,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     minWidth: 80,
+  },
+  quoteLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  quoteLinkBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
   },
   quoteValue: {
     fontSize: 13,
