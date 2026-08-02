@@ -2328,7 +2328,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 38,
     left: 44,
-    right: 16,
     paddingVertical: 2,
     zIndex: 10,
     alignItems: 'flex-start',
