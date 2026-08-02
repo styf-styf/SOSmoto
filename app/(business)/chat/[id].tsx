@@ -28,6 +28,7 @@ import { getActiveProducts, getActiveServices, getProductVariants } from '../../
 import {
   cancelChatQuote,
   createChatQuote,
+  dismissChatQuote,
   getPendingChatQuotes,
   resolveChatQuote,
   type ChatQuote,
@@ -629,6 +630,15 @@ export default function ChatScreen() {
     }
   }
 
+  // La X del banner -- a diferencia de handleCancelChatQuote, NO es una
+  // decisión sobre el producto/servicio cotizado, solo deja de mostrar el
+  // recordatorio (no vuelve a aparecer al reabrir el chat, pero tampoco
+  // cancela nada).
+  function handleDismissChatQuote(quote: ChatQuote) {
+    setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
+    dismissChatQuote(quote.id).catch((err) => console.error('dismiss chat quote error', err));
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -1054,8 +1064,7 @@ export default function ChatScreen() {
                   <View style={styles.intentCardTopRow}>
                     <Pressable
                       style={styles.dismissBannerBtn}
-                      onPress={() => handleCancelChatQuote(quote)}
-                      disabled={cancellingQuoteId === quote.id || creatingQuoteIntentId === quote.id}
+                      onPress={() => handleDismissChatQuote(quote)}
                     >
                       <Ionicons name="close" size={16} color={colors.textMuted} />
                     </Pressable>

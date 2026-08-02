@@ -11,7 +11,7 @@ export interface ChatQuote {
   quantity: number | null;
   service_id: string | null;
   unit_price: number | null;
-  status: 'pending' | 'resolved' | 'cancelled';
+  status: 'pending' | 'resolved' | 'cancelled' | 'dismissed';
   created_at: string;
 }
 
@@ -66,5 +66,14 @@ export async function resolveChatQuote(id: string): Promise<void> {
 
 export async function cancelChatQuote(id: string): Promise<void> {
   const { error } = await supabase.from('chat_quotes').update({ status: 'cancelled' }).eq('id', id);
+  if (error) throw error;
+}
+
+// La X del banner -- a diferencia de cancelChatQuote, NO es una decisión
+// sobre el producto/servicio cotizado, solo "deja de mostrar este
+// recordatorio" -- se guarda en un estado propio ('dismissed') para no
+// mezclarlo con una cancelación real.
+export async function dismissChatQuote(id: string): Promise<void> {
+  const { error } = await supabase.from('chat_quotes').update({ status: 'dismissed' }).eq('id', id);
   if (error) throw error;
 }

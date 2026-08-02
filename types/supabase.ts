@@ -1700,7 +1700,7 @@ export interface Database {
           quantity: number | null;
           service_id: string | null;
           unit_price: number | null;
-          status: 'pending' | 'resolved' | 'cancelled';
+          status: 'pending' | 'resolved' | 'cancelled' | 'dismissed';
           created_at: string;
         };
         Insert: {
@@ -1714,7 +1714,7 @@ export interface Database {
           quantity?: number | null;
           service_id?: string | null;
           unit_price?: number | null;
-          status?: 'pending' | 'resolved' | 'cancelled';
+          status?: 'pending' | 'resolved' | 'cancelled' | 'dismissed';
           created_at?: string;
         };
         Update: {
@@ -1728,7 +1728,7 @@ export interface Database {
           quantity?: number | null;
           service_id?: string | null;
           unit_price?: number | null;
-          status?: 'pending' | 'resolved' | 'cancelled';
+          status?: 'pending' | 'resolved' | 'cancelled' | 'dismissed';
           created_at?: string;
         };
         Relationships: [];
