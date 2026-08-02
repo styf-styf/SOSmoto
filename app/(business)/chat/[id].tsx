@@ -1796,7 +1796,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   quickReplyChip: {
     backgroundColor: colors.surface,
