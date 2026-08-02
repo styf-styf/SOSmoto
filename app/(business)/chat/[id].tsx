@@ -44,12 +44,14 @@ import {
 } from '../../../services/productIntents';
 import {
   getActiveAppointmentRequests,
+  getAppointmentRequestForService,
   subscribeToAppointmentRequest,
   type AppointmentRequest,
 } from '../../../services/appointmentRequests';
 import {
   cancelAppointment,
   completeAppointment,
+  getActiveAppointmentForService,
   getActiveClientAppointments,
   type ActiveClientAppointment,
 } from '../../../services/appointments';
@@ -136,6 +138,7 @@ export default function ChatScreen() {
   const [selectedQuoteVariantId, setSelectedQuoteVariantId] = useState<string | null>(null);
   const [quoteQuantity, setQuoteQuantity] = useState(1);
   const [quoteTime, setQuoteTime] = useState('');
+  const [sendingQuote, setSendingQuote] = useState(false);
   // Prompt "¿Ya lo hacemos?" que aparece justo después de mandar una
   // cotización -- solo del lado del negocio, el cliente nunca lo ve (no es
   // un mensaje de chat, respaldado por una fila en chat_quotes, no estado
@@ -540,56 +543,119 @@ export default function ChatScreen() {
       return;
     }
     if (!businessId || !clientId) return;
-    if (selectedQuoteProduct) {
-      const label = selectedQuoteVariant
-        ? `${selectedQuoteProduct.name} - ${selectedQuoteVariant.label}`
-        : selectedQuoteProduct.name;
-      const encoded = encodeQuote({
-        kind: 'product',
-        service: label,
-        price: quotePriceLabel,
-        time: String(quoteQuantity),
-      });
-      handleSend(encoded);
-      closeQuoteForm();
-      try {
-        const quote = await createChatQuote({
-          businessId,
-          clientId,
+
+    setSendingQuote(true);
+    try {
+      if (selectedQuoteProduct) {
+        // Chequea ANTES de mandar nada -- si ya hay un apartado activo para
+        // este producto+variante, no tiene sentido spamear al cliente con
+        // una cotización que de todas formas va a chocar al presionar
+        // "Apartar" en el banner (mismo criterio que ese chequeo, ver
+        // handleApartarFromQuote).
+        const existing = await getClientIntentForProduct(clientId, selectedQuoteProduct.id, selectedQuoteVariantId);
+        if (existing) {
+          const quantityChanged = existing.quantity !== quoteQuantity;
+          if (quantityChanged) {
+            Alert.alert(
+              'Ya existe un apartado con otra cantidad',
+              `Este cliente ya tiene ${existing.quantity} x este producto ${existing.status === 'pending' ? 'pendiente de confirmar' : 'apartado'}. Esta cotización dice ${quoteQuantity}.`,
+              [
+                { text: 'Cerrar', style: 'cancel' },
+                { text: 'Actualizar cantidad', onPress: () => handleUpdateIntentQuantity(existing, quoteQuantity) },
+              ]
+            );
+          } else if (existing.status === 'pending') {
+            Alert.alert(
+              'Ya existe un apartado',
+              'Este cliente ya tiene un apartado pendiente de confirmar para este producto.',
+              [
+                { text: 'Cerrar', style: 'cancel' },
+                { text: 'Confirmar apartado', onPress: () => handleIntentAction(existing.id, 'confirmed') },
+              ]
+            );
+          } else {
+            Alert.alert(
+              'Ya existe un apartado',
+              'Este cliente ya tiene un apartado confirmado para este producto. Revisa el apartado en el panel de arriba para marcarlo vendido o cancelarlo.'
+            );
+          }
+          return;
+        }
+
+        const label = selectedQuoteVariant
+          ? `${selectedQuoteProduct.name} - ${selectedQuoteVariant.label}`
+          : selectedQuoteProduct.name;
+        const encoded = encodeQuote({
           kind: 'product',
-          label,
-          productId: selectedQuoteProduct.id,
-          variantId: selectedQuoteVariant?.id ?? null,
-          quantity: quoteQuantity,
-          unitPrice: quoteUnitPrice,
+          service: label,
+          price: quotePriceLabel,
+          time: String(quoteQuantity),
         });
-        setPendingQuoteActions((prev) => [quote, ...prev]);
-      } catch (err) {
-        console.error('create chat quote error', err);
-      }
-    } else if (selectedQuoteService) {
-      const label = selectedQuoteService.name;
-      const encoded = encodeQuote({
-        kind: 'service',
-        service: label,
-        price: quotePriceLabel,
-        time: quoteTime.trim() || 'A definir',
-      });
-      handleSend(encoded);
-      closeQuoteForm();
-      try {
-        const quote = await createChatQuote({
-          businessId,
-          clientId,
+        handleSend(encoded);
+        closeQuoteForm();
+        try {
+          const quote = await createChatQuote({
+            businessId,
+            clientId,
+            kind: 'product',
+            label,
+            productId: selectedQuoteProduct.id,
+            variantId: selectedQuoteVariant?.id ?? null,
+            quantity: quoteQuantity,
+            unitPrice: quoteUnitPrice,
+          });
+          setPendingQuoteActions((prev) => [quote, ...prev]);
+        } catch (err) {
+          console.error('create chat quote error', err);
+        }
+      } else if (selectedQuoteService) {
+        // Mismo chequeo previo, pero para citas -- si ya hay una solicitud
+        // sin resolver o una cita activa para este servicio con este
+        // cliente, se avisa y no se manda la cotización; para resolverlo
+        // está el banner de arriba (Aceptar/Reagendar).
+        const [pendingRequest, activeAppointment] = await Promise.all([
+          getAppointmentRequestForService(clientId, businessId, selectedQuoteService.id),
+          getActiveAppointmentForService(clientId, businessId, selectedQuoteService.id),
+        ]);
+        if ((pendingRequest && pendingRequest.status === 'pending') || activeAppointment) {
+          Alert.alert(
+            'Ya existe una cita para este servicio',
+            pendingRequest && pendingRequest.status === 'pending'
+              ? 'Este cliente ya tiene una solicitud de cita pendiente de aceptar para este servicio.'
+              : 'Este cliente ya tiene una cita activa para este servicio. Revisa el banner de arriba para aceptarla o reagendarla.',
+            [{ text: 'Cancelar envío', style: 'cancel' }]
+          );
+          return;
+        }
+
+        const label = selectedQuoteService.name;
+        const encoded = encodeQuote({
           kind: 'service',
-          label,
-          serviceId: selectedQuoteService.id,
-          unitPrice: quoteUnitPrice,
+          service: label,
+          price: quotePriceLabel,
+          time: quoteTime.trim() || 'A definir',
         });
-        setPendingQuoteActions((prev) => [quote, ...prev]);
-      } catch (err) {
-        console.error('create chat quote error', err);
+        handleSend(encoded);
+        closeQuoteForm();
+        try {
+          const quote = await createChatQuote({
+            businessId,
+            clientId,
+            kind: 'service',
+            label,
+            serviceId: selectedQuoteService.id,
+            unitPrice: quoteUnitPrice,
+          });
+          setPendingQuoteActions((prev) => [quote, ...prev]);
+        } catch (err) {
+          console.error('create chat quote error', err);
+        }
       }
+    } catch (err) {
+      console.error('send quote pre-check error', err);
+      Alert.alert('Error', 'No se pudo enviar la cotización. Intenta de nuevo.');
+    } finally {
+      setSendingQuote(false);
     }
   }
 
@@ -616,7 +682,7 @@ export default function ChatScreen() {
             `Este cliente ya tiene ${existing.quantity} x este producto ${existing.status === 'pending' ? 'pendiente de confirmar' : 'apartado'}. La cotización dice ${newQuantity}.`,
             [
               { text: 'Cerrar', style: 'cancel' },
-              { text: 'Actualizar cantidad', onPress: () => handleUpdateIntentQuantity(existing, quote) },
+              { text: 'Actualizar cantidad', onPress: () => handleUpdateIntentQuantity(existing, newQuantity, quote) },
             ]
           );
         } else if (existing.status === 'pending') {
@@ -661,15 +727,19 @@ export default function ChatScreen() {
     }
   }
 
-  async function handleUpdateIntentQuantity(existing: ProductIntent, quote: ChatQuote) {
-    setCreatingQuoteIntentId(quote.id);
+  // quote es opcional -- ausente cuando se llama desde el chequeo previo a
+  // enviar una cotización nueva (todavía no existe ChatQuote que resolver).
+  async function handleUpdateIntentQuantity(existing: ProductIntent, quantity: number, quote?: ChatQuote) {
+    setCreatingQuoteIntentId(quote?.id ?? existing.id);
     try {
-      await updateProductIntentQuantity(existing.id, quote.quantity ?? 1);
+      await updateProductIntentQuantity(existing.id, quantity);
       if (businessId && clientId) {
         setIntents(await getActionableIntentsForBusinessClient(businessId, clientId));
       }
-      await resolveChatQuote(quote.id);
-      setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
+      if (quote) {
+        await resolveChatQuote(quote.id);
+        setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
+      }
     } catch (err) {
       console.error('update intent quantity error', err);
       Alert.alert('Error', 'No se pudo actualizar la cantidad del apartado.');
@@ -1510,13 +1580,17 @@ export default function ChatScreen() {
 
                     <View style={styles.quoteFormActions}>
                       <Pressable
-                        style={[styles.quoteFormBtn, quoteNeedsVariant && styles.quoteFormBtnDisabled]}
+                        style={[styles.quoteFormBtn, (quoteNeedsVariant || sendingQuote) && styles.quoteFormBtnDisabled]}
                         onPress={handleSendQuote}
-                        disabled={quoteNeedsVariant}
+                        disabled={quoteNeedsVariant || sendingQuote}
                       >
-                        <Text style={styles.quoteFormBtnText}>
-                          Enviar cotización
-                        </Text>
+                        {sendingQuote ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.quoteFormBtnText}>
+                            Enviar cotización
+                          </Text>
+                        )}
                       </Pressable>
                       <Pressable
                         style={styles.quoteFormBtnSecondary}
