@@ -1688,6 +1688,51 @@ export interface Database {
         };
         Relationships: [];
       };
+      chat_quotes: {
+        Row: {
+          id: string;
+          business_id: string;
+          client_id: string;
+          kind: 'product' | 'service';
+          label: string;
+          product_id: string | null;
+          variant_id: string | null;
+          quantity: number | null;
+          service_id: string | null;
+          unit_price: number | null;
+          status: 'pending' | 'resolved' | 'cancelled';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          client_id: string;
+          kind: 'product' | 'service';
+          label: string;
+          product_id?: string | null;
+          variant_id?: string | null;
+          quantity?: number | null;
+          service_id?: string | null;
+          unit_price?: number | null;
+          status?: 'pending' | 'resolved' | 'cancelled';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          client_id?: string;
+          kind?: 'product' | 'service';
+          label?: string;
+          product_id?: string | null;
+          variant_id?: string | null;
+          quantity?: number | null;
+          service_id?: string | null;
+          unit_price?: number | null;
+          status?: 'pending' | 'resolved' | 'cancelled';
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       public_profiles: {

@@ -25,6 +25,13 @@ import { useChatMessaging } from '../../../hooks/useChatMessaging';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getActiveProducts, getActiveServices, getProductVariants } from '../../../services/catalog';
+import {
+  cancelChatQuote,
+  createChatQuote,
+  getPendingChatQuotes,
+  resolveChatQuote,
+  type ChatQuote,
+} from '../../../services/chatQuotes';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { supabase } from '../../../services/supabase';
 import { getMessages, markThreadRead } from '../../../services/messages';
@@ -127,16 +134,12 @@ export default function ChatScreen() {
   const [quoteTime, setQuoteTime] = useState('');
   // Prompt "¿Ya lo hacemos?" que aparece justo después de mandar una
   // cotización -- solo del lado del negocio, el cliente nunca lo ve (no es
-  // un mensaje de chat, vive únicamente en este estado local). Se pierde si
-  // se cierra y reabre el chat sin actuarlo -- aceptable, es un atajo, la
-  // cotización sigue en el historial de mensajes para apartar/agendar
-  // manualmente después si hace falta.
-  const [pendingQuoteAction, setPendingQuoteAction] = useState<
-    | { kind: 'product'; label: string; productId: string; variantId: string | null; quantity: number; unitPrice: number | null }
-    | { kind: 'service'; label: string; serviceId: string }
-    | null
-  >(null);
-  const [creatingQuoteIntent, setCreatingQuoteIntent] = useState(false);
+  // un mensaje de chat, respaldado por una fila en chat_quotes, no estado
+  // efímero -- sigue apareciendo si se cierra y reabre el chat sin actuarlo,
+  // igual que los banners de apartados/citas).
+  const [pendingQuoteActions, setPendingQuoteActions] = useState<ChatQuote[]>([]);
+  const [creatingQuoteIntentId, setCreatingQuoteIntentId] = useState<string | null>(null);
+  const [cancellingQuoteId, setCancellingQuoteId] = useState<string | null>(null);
   const [intents, setIntents] = useState<ProductIntentWithProduct[]>([]);
   const { processingId: processingIntent, handleAction: handleIntentAction } = useProductIntentAction(setIntents);
 
@@ -306,6 +309,7 @@ export default function ChatScreen() {
           ).then(setIntents),
           getActiveAppointmentRequests(thread.clientId, thread.businessId),
           getActiveClientAppointments(thread.businessId, thread.clientId).then(setAppointments),
+          getPendingChatQuotes(thread.businessId, thread.clientId).then(setPendingQuoteActions),
         ]);
         // Si el interlocutor es propietario de un negocio (chat B2B), cargamos
         // el negocio para mostrar su nombre y logo en el header en lugar de los
@@ -517,11 +521,12 @@ export default function ChatScreen() {
     }
   }
 
-  function handleSendQuote() {
+  async function handleSendQuote() {
     if (quoteNeedsVariant) {
       Alert.alert('Falta la variante', 'Elige una variante del producto.');
       return;
     }
+    if (!businessId || !clientId) return;
     if (selectedQuoteProduct) {
       const label = selectedQuoteVariant
         ? `${selectedQuoteProduct.name} - ${selectedQuoteVariant.label}`
@@ -533,63 +538,95 @@ export default function ChatScreen() {
         time: String(quoteQuantity),
       });
       handleSend(encoded);
-      setPendingQuoteAction({
-        kind: 'product',
-        label,
-        productId: selectedQuoteProduct.id,
-        variantId: selectedQuoteVariant?.id ?? null,
-        quantity: quoteQuantity,
-        unitPrice: quoteUnitPrice,
-      });
       closeQuoteForm();
+      try {
+        const quote = await createChatQuote({
+          businessId,
+          clientId,
+          kind: 'product',
+          label,
+          productId: selectedQuoteProduct.id,
+          variantId: selectedQuoteVariant?.id ?? null,
+          quantity: quoteQuantity,
+          unitPrice: quoteUnitPrice,
+        });
+        setPendingQuoteActions((prev) => [quote, ...prev]);
+      } catch (err) {
+        console.error('create chat quote error', err);
+      }
     } else if (selectedQuoteService) {
+      const label = selectedQuoteService.name;
       const encoded = encodeQuote({
         kind: 'service',
-        service: selectedQuoteService.name,
+        service: label,
         price: quotePriceLabel,
         time: quoteTime.trim() || 'A definir',
       });
       handleSend(encoded);
-      setPendingQuoteAction({
-        kind: 'service',
-        label: selectedQuoteService.name,
-        serviceId: selectedQuoteService.id,
-      });
       closeQuoteForm();
+      try {
+        const quote = await createChatQuote({
+          businessId,
+          clientId,
+          kind: 'service',
+          label,
+          serviceId: selectedQuoteService.id,
+          unitPrice: quoteUnitPrice,
+        });
+        setPendingQuoteActions((prev) => [quote, ...prev]);
+      } catch (err) {
+        console.error('create chat quote error', err);
+      }
     }
   }
 
-  async function handleApartarFromQuote() {
-    if (!pendingQuoteAction || pendingQuoteAction.kind !== 'product' || !clientId) return;
-    setCreatingQuoteIntent(true);
+  async function handleApartarFromQuote(quote: ChatQuote) {
+    if (quote.kind !== 'product' || !quote.product_id || !clientId) return;
+    setCreatingQuoteIntentId(quote.id);
     try {
       const intent = await createProductIntentByBusiness(
         clientId,
-        pendingQuoteAction.productId,
-        pendingQuoteAction.variantId,
-        pendingQuoteAction.quantity,
+        quote.product_id,
+        quote.variant_id,
+        quote.quantity ?? 1,
       );
       setIntents((prev) => [
         {
           ...intent,
-          product_name: pendingQuoteAction.label,
-          product_price: pendingQuoteAction.unitPrice,
+          product_name: quote.label,
+          product_price: quote.unit_price,
         },
         ...prev,
       ]);
-      setPendingQuoteAction(null);
+      await resolveChatQuote(quote.id);
+      setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
     } catch (err) {
       console.error('apartar from quote error', err);
       Alert.alert('Error', 'No se pudo apartar el producto. Intenta de nuevo.');
     } finally {
-      setCreatingQuoteIntent(false);
+      setCreatingQuoteIntentId(null);
     }
   }
 
-  function handleAgendarFromQuote() {
-    if (!pendingQuoteAction || pendingQuoteAction.kind !== 'service' || !clientId) return;
-    setPendingQuoteAction(null);
-    router.push(`/(business)/nueva-cita?clientId=${clientId}&serviceId=${pendingQuoteAction.serviceId}`);
+  async function handleAgendarFromQuote(quote: ChatQuote) {
+    if (quote.kind !== 'service' || !quote.service_id || !clientId) return;
+    setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
+    resolveChatQuote(quote.id).catch((err) => console.error('resolve chat quote error', err));
+    router.push(`/(business)/nueva-cita?clientId=${clientId}&serviceId=${quote.service_id}`);
+  }
+
+  async function handleCancelChatQuote(quote: ChatQuote) {
+    if (cancellingQuoteId) return;
+    setCancellingQuoteId(quote.id);
+    try {
+      await cancelChatQuote(quote.id);
+      setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
+    } catch (err) {
+      console.error('cancel chat quote error', err);
+      Alert.alert('Error', 'No se pudo cancelar. Intenta de nuevo.');
+    } finally {
+      setCancellingQuoteId(null);
+    }
   }
 
   if (loading) {
@@ -605,7 +642,7 @@ export default function ChatScreen() {
     appointmentRequests.some((r) => !dismissedBanners.has(`req:${r.id}`)) ||
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     cancelledBanners.length > 0 ||
-    !!pendingQuoteAction;
+    pendingQuoteActions.some((q) => !dismissedBanners.has(`quote:${q.id}`));
   const approveDateTime = (() => {
     const dt = new Date(requestActions.approvePickerDate);
     dt.setHours(
@@ -1003,61 +1040,69 @@ export default function ChatScreen() {
                 );
               })}
 
-            {/* Cotización recién enviada -- solo el negocio ve este banner,
-                el cliente nunca lo recibe (no es un mensaje). "Apartar" crea
-                de una vez un product_intent 'confirmed' (el negocio decide,
-                no hace falta que el cliente conteste primero); "Agendar"
-                abre Nueva Cita precargada con cliente + servicio. */}
-            {pendingQuoteAction && (
-              <View style={styles.intentCard}>
-                <View style={styles.intentCardTopRow}>
-                  <Pressable
-                    style={styles.dismissBannerBtn}
-                    onPress={() => setPendingQuoteAction(null)}
-                  >
-                    <Ionicons name="close" size={16} color={colors.textMuted} />
-                  </Pressable>
-                  <View style={styles.intentInfo}>
-                    <Ionicons name="receipt-outline" size={16} color={colors.primary} />
-                    <Text style={styles.intentText} numberOfLines={1}>
-                      Cotización enviada:{' '}
-                      <Text style={styles.intentName}>{pendingQuoteAction.label}</Text>
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.intentActions}>
-                  {pendingQuoteAction.kind === 'product' ? (
+            {/* Cotizaciones enviadas sin actuar todavía -- solo el negocio ve
+                este banner, el cliente nunca lo recibe (no es un mensaje).
+                Respaldado por chat_quotes: sigue apareciendo si se cierra y
+                reabre el chat. "Apartar" crea de una vez un product_intent
+                'confirmed' (el negocio decide, no hace falta que el cliente
+                conteste primero); "Agendar" abre Nueva Cita precargada con
+                cliente + servicio. */}
+            {pendingQuoteActions
+              .filter((quote) => !dismissedBanners.has(`quote:${quote.id}`))
+              .map((quote) => (
+                <View key={quote.id} style={styles.intentCard}>
+                  <View style={styles.intentCardTopRow}>
                     <Pressable
-                      style={[styles.intentBtn, styles.intentBtnConfirm]}
-                      onPress={handleApartarFromQuote}
-                      disabled={creatingQuoteIntent}
+                      style={styles.dismissBannerBtn}
+                      onPress={() => dismissBanner(`quote:${quote.id}`)}
                     >
-                      {creatingQuoteIntent ? (
-                        <ActivityIndicator size="small" color="#fff" />
+                      <Ionicons name="close" size={16} color={colors.textMuted} />
+                    </Pressable>
+                    <View style={styles.intentInfo}>
+                      <Ionicons name="receipt-outline" size={16} color={colors.primary} />
+                      <Text style={styles.intentText} numberOfLines={1}>
+                        Cotización enviada:{' '}
+                        <Text style={styles.intentName}>{quote.label}</Text>
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.intentActions}>
+                    {quote.kind === 'product' ? (
+                      <Pressable
+                        style={[styles.intentBtn, styles.intentBtnConfirm]}
+                        onPress={() => handleApartarFromQuote(quote)}
+                        disabled={creatingQuoteIntentId === quote.id}
+                      >
+                        {creatingQuoteIntentId === quote.id ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.intentBtnText}>Apartar</Text>
+                        )}
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        style={[styles.intentBtn, styles.intentBtnConfirm]}
+                        onPress={() => handleAgendarFromQuote(quote)}
+                      >
+                        <Text style={styles.intentBtnText}>Agendar</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      style={[styles.intentBtn, styles.intentBtnReject]}
+                      onPress={() => handleCancelChatQuote(quote)}
+                      disabled={cancellingQuoteId === quote.id || creatingQuoteIntentId === quote.id}
+                    >
+                      {cancellingQuoteId === quote.id ? (
+                        <ActivityIndicator size="small" color={colors.danger} />
                       ) : (
-                        <Text style={styles.intentBtnText}>Apartar</Text>
+                        <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>
+                          Cancelar
+                        </Text>
                       )}
                     </Pressable>
-                  ) : (
-                    <Pressable
-                      style={[styles.intentBtn, styles.intentBtnConfirm]}
-                      onPress={handleAgendarFromQuote}
-                    >
-                      <Text style={styles.intentBtnText}>Agendar</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    style={[styles.intentBtn, styles.intentBtnReject]}
-                    onPress={() => setPendingQuoteAction(null)}
-                    disabled={creatingQuoteIntent}
-                  >
-                    <Text style={[styles.intentBtnText, styles.intentBtnTextReject]}>
-                      Cancelar
-                    </Text>
-                  </Pressable>
+                  </View>
                 </View>
-              </View>
-            )}
+              ))}
 
             {/* Apartados/citas que el cliente canceló en vivo */}
             {cancelledBanners.map((banner) => (
