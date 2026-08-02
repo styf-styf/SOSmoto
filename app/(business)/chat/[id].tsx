@@ -563,6 +563,7 @@ export default function ChatScreen() {
               `Este cliente ya tiene ${existing.quantity} x este producto ${existing.status === 'pending' ? 'pendiente de confirmar' : 'apartado'}. Esta cotización dice ${quoteQuantity}.`,
               [
                 { text: 'Cerrar', style: 'cancel' },
+                { text: 'Ver en pedidos', onPress: () => router.push('/(business)/(tabs)/pedidos') },
                 { text: 'Actualizar cantidad', onPress: () => handleUpdateIntentQuantity(existing, quoteQuantity) },
               ]
             );
@@ -572,13 +573,18 @@ export default function ChatScreen() {
               'Este cliente ya tiene un apartado pendiente de confirmar para este producto.',
               [
                 { text: 'Cerrar', style: 'cancel' },
+                { text: 'Ver en pedidos', onPress: () => router.push('/(business)/(tabs)/pedidos') },
                 { text: 'Confirmar apartado', onPress: () => handleIntentAction(existing.id, 'confirmed') },
               ]
             );
           } else {
             Alert.alert(
               'Ya existe un apartado',
-              'Este cliente ya tiene un apartado confirmado para este producto. Revisa el apartado en el panel de arriba para marcarlo vendido o cancelarlo.'
+              'Este cliente ya tiene un apartado confirmado para este producto. Revisa el apartado en el panel de arriba para marcarlo vendido o cancelarlo.',
+              [
+                { text: 'Cerrar', style: 'cancel' },
+                { text: 'Ver en pedidos', onPress: () => router.push('/(business)/(tabs)/pedidos') },
+              ]
             );
           }
           return;
@@ -625,7 +631,10 @@ export default function ChatScreen() {
             pendingRequest && pendingRequest.status === 'pending'
               ? 'Este cliente ya tiene una solicitud de cita pendiente de aceptar para este servicio.'
               : 'Este cliente ya tiene una cita activa para este servicio. Revisa el banner de arriba para aceptarla o reagendarla.',
-            [{ text: 'Cancelar envío', style: 'cancel' }]
+            [
+              { text: 'Cancelar envío', style: 'cancel' },
+              { text: 'Ver en agenda', onPress: () => router.push('/(business)/agenda-negocio') },
+            ]
           );
           return;
         }
@@ -684,6 +693,7 @@ export default function ChatScreen() {
             `Este cliente ya tiene ${existing.quantity} x este producto ${existing.status === 'pending' ? 'pendiente de confirmar' : 'apartado'}. La cotización dice ${newQuantity}.`,
             [
               { text: 'Cerrar', style: 'cancel' },
+              { text: 'Ver en pedidos', onPress: () => router.push('/(business)/(tabs)/pedidos') },
               { text: 'Actualizar cantidad', onPress: () => handleUpdateIntentQuantity(existing, newQuantity, quote) },
             ]
           );
@@ -693,13 +703,18 @@ export default function ChatScreen() {
             'Este cliente ya tiene un apartado pendiente de confirmar para este producto.',
             [
               { text: 'Cerrar', style: 'cancel' },
+              { text: 'Ver en pedidos', onPress: () => router.push('/(business)/(tabs)/pedidos') },
               { text: 'Confirmar apartado', onPress: () => handleIntentAction(existing.id, 'confirmed') },
             ]
           );
         } else {
           Alert.alert(
             'Ya existe un apartado',
-            'Este cliente ya tiene un apartado confirmado para este producto. Revisa el apartado en el panel de arriba para marcarlo vendido o cancelarlo.'
+            'Este cliente ya tiene un apartado confirmado para este producto. Revisa el apartado en el panel de arriba para marcarlo vendido o cancelarlo.',
+            [
+              { text: 'Cerrar', style: 'cancel' },
+              { text: 'Ver en pedidos', onPress: () => router.push('/(business)/(tabs)/pedidos') },
+            ]
           );
         }
         return;
