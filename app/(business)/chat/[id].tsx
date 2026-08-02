@@ -1054,7 +1054,8 @@ export default function ChatScreen() {
                   <View style={styles.intentCardTopRow}>
                     <Pressable
                       style={styles.dismissBannerBtn}
-                      onPress={() => dismissBanner(`quote:${quote.id}`)}
+                      onPress={() => handleCancelChatQuote(quote)}
+                      disabled={cancellingQuoteId === quote.id || creatingQuoteIntentId === quote.id}
                     >
                       <Ionicons name="close" size={16} color={colors.textMuted} />
                     </Pressable>
