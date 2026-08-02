@@ -1149,7 +1149,6 @@ export default function ChatScreen() {
           </View>
         )}
 
-        <Pressable style={styles.flex} onPress={dismissFloatingPanels}>
         <ScrollView
           ref={scrollRef}
           style={styles.flex}
@@ -1157,6 +1156,13 @@ export default function ChatScreen() {
           onContentSizeChange={() =>
             scrollRef.current?.scrollToEnd({ animated: false })
           }
+          // Antes envuelto en un Pressable para cerrar sugerencias/cotización
+          // al tocar los mensajes -- en Android eso interfería con el propio
+          // gesto de scroll (se cortaba a los pocos píxeles). onScrollBeginDrag
+          // logra lo mismo (cualquier intento de scrollear cierra los
+          // paneles) sin competir por el gesto -- un simple tap sin arrastre
+          // ya no los cierra, pero eso es preferible a romper el scroll.
+          onScrollBeginDrag={dismissFloatingPanels}
         >
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>
@@ -1269,7 +1275,6 @@ export default function ChatScreen() {
             })
           )}
         </ScrollView>
-        </Pressable>
 
         {isLimited || !canReplyChat ? (
           <View style={styles.limitedNotice}>
