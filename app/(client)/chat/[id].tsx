@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
   requestBannerSub: {
     fontSize: 12,
     color: colors.textMuted,
-    marginTop: 8,
+    marginTop: 3,
   },
   cancelRequestBtn: {
     paddingHorizontal: 12,
