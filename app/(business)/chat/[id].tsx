@@ -653,21 +653,6 @@ export default function ChatScreen() {
     appointments.some((a) => !dismissedBanners.has(`appt:${a.id}`)) ||
     cancelledBanners.length > 0 ||
     pendingQuoteActions.some((q) => !dismissedBanners.has(`quote:${q.id}`));
-  // Ni el remount por key ni medir con onContentSizeChange lograban que el
-  // ScrollView se encogiera de vuelta en Android una vez que llegó a
-  // necesitar scroll -- en vez de pelear con eso, mientras entren pocos
-  // banners (sin tope de altura) se deja crecer natural como cualquier
-  // View, sin darle nunca un height/maxHeight que se pueda quedar pegado.
-  // Recién con más de 3 se activa el tope + scroll, con un key propio para
-  // garantizar que arranca de cero (nunca hereda un alto de cuando NO
-  // estaba en modo scroll).
-  const visibleBannerCount =
-    intents.filter((i) => !dismissedBanners.has(`intent:${i.id}`)).length +
-    appointmentRequests.filter((r) => !dismissedBanners.has(`req:${r.id}`)).length +
-    appointments.filter((a) => !dismissedBanners.has(`appt:${a.id}`)).length +
-    cancelledBanners.length +
-    pendingQuoteActions.filter((q) => !dismissedBanners.has(`quote:${q.id}`)).length;
-  const isBannerScrollable = visibleBannerCount > 3;
   const approveDateTime = (() => {
     const dt = new Date(requestActions.approvePickerDate);
     dt.setHours(
@@ -694,14 +679,7 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {hasBanner && (
-          <ScrollView
-            key={isBannerScrollable ? 'scroll' : 'auto'}
-            style={[styles.intentsBanner, isBannerScrollable && styles.intentsBannerCapped]}
-            contentContainerStyle={styles.intentsBannerContent}
-            scrollEnabled={isBannerScrollable}
-            nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
-          >
+          <View style={[styles.intentsBanner, styles.intentsBannerContent]}>
             {/* Banners de solicitudes de cita (lado taller) -- puede haber
                 más de una a la vez del mismo cliente. */}
             {appointmentRequests
@@ -1168,7 +1146,7 @@ export default function ChatScreen() {
                 </View>
               </View>
             ))}
-          </ScrollView>
+          </View>
         )}
 
         <Pressable style={styles.flex} onPress={dismissFloatingPanels}>
@@ -2206,19 +2184,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  // Con varios banners a la vez (cita, apartado, cotización...) esto podía
-  // crecer sin límite y dejar la lista de mensajes reducida a una franja
-  // mínima -- ahora tiene un tope y scrollea internamente en vez de empujar
-  // el resto del chat. style (viewport) separado de contentContainerStyle
-  // (layout interno) porque es un ScrollView, no un View.
+  // Sin tope de alto a propósito -- si hay varios banners a la vez (cita,
+  // apartado, cotización...) crece natural y puede tapar el resto del chat,
+  // el usuario los cierra con la X.
   intentsBanner: {
     backgroundColor: '#EEF4FF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-  },
-  // Solo se aplica con más de 3 banners visibles -- ver isBannerScrollable.
-  intentsBannerCapped: {
-    maxHeight: 260,
   },
   intentsBannerContent: {
     paddingHorizontal: 12,
