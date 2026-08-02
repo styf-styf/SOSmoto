@@ -12,13 +12,16 @@ import { TextField } from '../../components/TextField';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
+import { useBusinessAppointmentRequestActions } from '../../hooks/useBusinessAppointmentRequestActions';
+import { useAppointmentRescheduleActions } from '../../hooks/useAppointmentRescheduleActions';
 import { getActiveServices } from '../../services/catalog';
-import { createAppointmentByBusiness } from '../../services/appointments';
+import { createAppointmentByBusiness, getActiveAppointmentForService } from '../../services/appointments';
+import { getAppointmentRequestForService } from '../../services/appointmentRequests';
 import { scheduleAppointmentReminder } from '../../services/appointmentReminders';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getCRMClients, searchUsers, type CRMClient, type UserSearchResult } from '../../services/history';
 import { toWhatsappLink } from '../../utils/whatsapp';
-import type { BusinessType, Service } from '../../types/database';
+import type { Appointment, AppointmentRequest, BusinessType, Service } from '../../types/database';
 
 interface SelectedClient {
   id: string | null;
@@ -98,6 +101,32 @@ export default function NuevaCitaScreen() {
   // Notas
   const [notes, setNotes] = useState('');
 
+  // Evita duplicar una cita: si el cliente ya tiene una solicitud sin
+  // resolver o una cita activa para el mismo servicio (o sin servicio
+  // específico, ver comentario junto a los imports de appointments) con
+  // este negocio, se muestra eso en vez del formulario de crear -- con
+  // Aceptar/Reagendar en vez de dejar crear un duplicado. Se revisa acá
+  // (no solo en la página de servicio) porque este formulario es el mismo
+  // para Agenda, el "+" del chat, y el "Agendar" de una cotización.
+  const [conflictRequest, setConflictRequest] = useState<AppointmentRequest | null>(null);
+  const [conflictAppointment, setConflictAppointment] = useState<Appointment | null>(null);
+  const [checkingConflict, setCheckingConflict] = useState(false);
+  // Sube cuando se acepta la solicitud en conflicto -- recién ahí existe una
+  // cita real detrás, que el chequeo de conflictAppointment no vio porque no
+  // dependía de este cambio.
+  const [conflictRefreshKey, setConflictRefreshKey] = useState(0);
+
+  const requestActions = useBusinessAppointmentRequestActions<AppointmentRequest>((updater) => {
+    setConflictRequest((prev) => {
+      const resolved = updater(prev ? [prev] : [])[0] ?? null;
+      if (prev && !resolved) setConflictRefreshKey((k) => k + 1);
+      return resolved;
+    });
+  });
+  const rescheduleActions = useAppointmentRescheduleActions('business', (id, patch) => {
+    setConflictAppointment((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
+  });
+
   const cacheKey = profile ? `nueva-cita-${profile.id}` : null;
   const { data, loading } = useCachedLoad<NuevaCitaData>(cacheKey, async () => {
     const empty: NuevaCitaData = { businessId: null, businessName: '', businessType: null, crmClients: [], services: [] };
@@ -153,6 +182,36 @@ export default function NuevaCitaScreen() {
       setSelectedServiceId(preselectedServiceId);
     }
   }, [preselectedServiceId, services]);
+
+  useEffect(() => {
+    // Clientes externos no tienen este flujo (siempre 'confirmed' directo,
+    // sin solicitud/negociación de por medio) -- nada que revisar.
+    if (!businessId || !selectedClient || selectedClient.isExternal || !selectedClient.id) {
+      setConflictRequest(null);
+      setConflictAppointment(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingConflict(true);
+    Promise.all([
+      getAppointmentRequestForService(selectedClient.id, businessId, selectedServiceId),
+      getActiveAppointmentForService(selectedClient.id, businessId, selectedServiceId),
+    ])
+      .then(([req, appt]) => {
+        if (cancelled) return;
+        // 'accepted' ya tiene una cita real detrás -- eso lo cubre
+        // conflictAppointment, no hace falta duplicarlo acá.
+        setConflictRequest(req && req.status === 'pending' ? req : null);
+        setConflictAppointment(appt);
+      })
+      .catch((err) => console.error('check appointment conflict error', err))
+      .finally(() => {
+        if (!cancelled) setCheckingConflict(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, selectedClient, selectedServiceId, conflictRefreshKey]);
 
   function handleSearchChange(text: string) {
     setSearch(text);
@@ -429,65 +488,233 @@ export default function NuevaCitaScreen() {
         ))}
       </View>
 
-      {/* Fecha */}
-      <Text style={styles.fieldLabel}>Fecha *</Text>
-      <Pressable
-        style={styles.pickerBtn}
-        onPress={() => { setShowDatePicker((v) => !v); setShowTimePicker(false); }}
-      >
-        <Text style={styles.pickerBtnText}>
-          {pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
-        </Text>
-      </Pressable>
-      {showDatePicker && (
-        <DateTimePicker
-          value={pickerDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
-          minimumDate={new Date()}
-          onChange={(_, date) => {
-            if (Platform.OS === 'android') setShowDatePicker(false);
-            if (date) setPickerDate(date);
-          }}
-        />
+      {checkingConflict && (
+        <ActivityIndicator color={colors.primary} style={styles.conflictSpinner} />
       )}
 
-      {/* Hora */}
-      <Text style={styles.fieldLabel}>Hora *</Text>
-      <Pressable
-        style={styles.pickerBtn}
-        onPress={() => { setShowTimePicker((v) => !v); setShowDatePicker(false); }}
-      >
-        <Text style={styles.pickerBtnText}>
-          {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      </Pressable>
-      {showTimePicker && (
-        <DateTimePicker
-          value={pickerTime}
-          mode="time"
-          display="spinner"
-          onChange={(_, time) => {
-            if (Platform.OS === 'android') setShowTimePicker(false);
-            if (time) setPickerTime(time);
-          }}
-        />
+      {/* Ya hay una solicitud sin resolver para este cliente+servicio (o sin
+          servicio específico) -- Aceptar en vez de dejar crear un duplicado. */}
+      {conflictRequest && (
+        <View style={styles.conflictBox}>
+          <Text style={styles.conflictTitle}>
+            Ya existe una solicitud de cita pendiente de aceptar
+            {selectedServiceId ? '' : ' (sin servicio específico)'}
+          </Text>
+          {conflictRequest.suggested_at && (
+            <Text style={styles.conflictSub}>
+              Fecha sugerida:{' '}
+              {new Date(conflictRequest.suggested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+            </Text>
+          )}
+          {requestActions.approvingRequestId === conflictRequest.id ? (
+            <View style={styles.conflictForm}>
+              <Text style={styles.fieldLabel}>Fecha</Text>
+              <Pressable
+                style={styles.pickerBtn}
+                onPress={() => {
+                  requestActions.setShowApproveDatePicker((v) => !v);
+                  requestActions.setShowApproveTimePicker(false);
+                }}
+              >
+                <Text style={styles.pickerBtnText}>
+                  {requestActions.approvePickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </Text>
+              </Pressable>
+              {requestActions.showApproveDatePicker && (
+                <DateTimePicker
+                  value={requestActions.approvePickerDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                  minimumDate={new Date()}
+                  onChange={requestActions.handleApproveDateChange}
+                />
+              )}
+              <Text style={styles.fieldLabel}>Hora</Text>
+              <Pressable
+                style={styles.pickerBtn}
+                onPress={() => {
+                  requestActions.setShowApproveTimePicker((v) => !v);
+                  requestActions.setShowApproveDatePicker(false);
+                }}
+              >
+                <Text style={styles.pickerBtnText}>
+                  {requestActions.approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </Pressable>
+              {requestActions.showApproveTimePicker && (
+                <DateTimePicker
+                  value={requestActions.approvePickerTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={requestActions.handleApproveTimeChange}
+                />
+              )}
+              <Button
+                title="Confirmar cita"
+                onPress={() => selectedClient && requestActions.handleAcceptRequest(conflictRequest, selectedClient.full_name)}
+                loading={requestActions.processingRequestId === conflictRequest.id}
+                style={styles.conflictFormBtn}
+              />
+              <Button
+                title="Volver"
+                variant="secondary"
+                onPress={requestActions.cancelApproveForm}
+                style={styles.conflictFormBtnSecondary}
+              />
+            </View>
+          ) : (
+            <Button
+              title="Aceptar solicitud"
+              onPress={() => requestActions.openApproveForm(conflictRequest)}
+              style={styles.conflictBtn}
+            />
+          )}
+        </View>
       )}
 
-      <Text style={styles.dateHint}>
-        Cita para: {new Date(scheduledAt).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
-      </Text>
+      {/* Ya hay una cita activa para este cliente+servicio (o sin servicio
+          específico) -- Reagendar en vez de dejar crear un duplicado. */}
+      {conflictAppointment && (
+        <View style={styles.conflictBox}>
+          <Text style={styles.conflictTitle}>
+            Ya existe una cita {conflictAppointment.status === 'confirmed' ? 'confirmada' : 'agendada'}
+            {selectedServiceId ? '' : ' (sin servicio específico)'}
+          </Text>
+          {conflictAppointment.requested_at && (
+            <Text style={styles.conflictSub}>
+              {new Date(conflictAppointment.requested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+            </Text>
+          )}
+          {rescheduleActions.reschedulingId === conflictAppointment.id ? (
+            <View style={styles.conflictForm}>
+              <Text style={styles.fieldLabel}>Fecha</Text>
+              <Pressable
+                style={styles.pickerBtn}
+                onPress={() => {
+                  rescheduleActions.setShowDatePicker((v) => !v);
+                  rescheduleActions.setShowTimePicker(false);
+                }}
+              >
+                <Text style={styles.pickerBtnText}>
+                  {rescheduleActions.pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </Text>
+              </Pressable>
+              {rescheduleActions.showDatePicker && (
+                <DateTimePicker
+                  value={rescheduleActions.pickerDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                  minimumDate={new Date()}
+                  onChange={rescheduleActions.handleDateChange}
+                />
+              )}
+              <Text style={styles.fieldLabel}>Hora</Text>
+              <Pressable
+                style={styles.pickerBtn}
+                onPress={() => {
+                  rescheduleActions.setShowTimePicker((v) => !v);
+                  rescheduleActions.setShowDatePicker(false);
+                }}
+              >
+                <Text style={styles.pickerBtnText}>
+                  {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </Pressable>
+              {rescheduleActions.showTimePicker && (
+                <DateTimePicker
+                  value={rescheduleActions.pickerTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={rescheduleActions.handleTimeChange}
+                />
+              )}
+              <Button
+                title="Proponer nueva fecha"
+                onPress={() => rescheduleActions.confirmReschedule(conflictAppointment.id)}
+                loading={rescheduleActions.saving}
+                style={styles.conflictFormBtn}
+              />
+              <Button
+                title="Volver"
+                variant="secondary"
+                onPress={rescheduleActions.cancelRescheduling}
+                style={styles.conflictFormBtnSecondary}
+              />
+            </View>
+          ) : (
+            <Button
+              title="Reagendar"
+              variant="secondary"
+              onPress={() => rescheduleActions.startRescheduling(conflictAppointment.id)}
+              style={styles.conflictBtn}
+            />
+          )}
+        </View>
+      )}
 
-      {/* Notas */}
-      <TextField
-        label="Notas (opcional)"
-        placeholder="Servicio a realizar, observaciones…"
-        value={notes}
-        onChangeText={setNotes}
-        style={styles.notesInput}
-      />
+      {!conflictRequest && !conflictAppointment && (
+        <>
+          {/* Fecha */}
+          <Text style={styles.fieldLabel}>Fecha *</Text>
+          <Pressable
+            style={styles.pickerBtn}
+            onPress={() => { setShowDatePicker((v) => !v); setShowTimePicker(false); }}
+          >
+            <Text style={styles.pickerBtnText}>
+              {pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </Text>
+          </Pressable>
+          {showDatePicker && (
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+              minimumDate={new Date()}
+              onChange={(_, date) => {
+                if (Platform.OS === 'android') setShowDatePicker(false);
+                if (date) setPickerDate(date);
+              }}
+            />
+          )}
 
-      <Button title="Crear cita" onPress={handleSubmit} loading={saving} style={styles.submitBtn} />
+          {/* Hora */}
+          <Text style={styles.fieldLabel}>Hora *</Text>
+          <Pressable
+            style={styles.pickerBtn}
+            onPress={() => { setShowTimePicker((v) => !v); setShowDatePicker(false); }}
+          >
+            <Text style={styles.pickerBtnText}>
+              {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </Pressable>
+          {showTimePicker && (
+            <DateTimePicker
+              value={pickerTime}
+              mode="time"
+              display="spinner"
+              onChange={(_, time) => {
+                if (Platform.OS === 'android') setShowTimePicker(false);
+                if (time) setPickerTime(time);
+              }}
+            />
+          )}
+
+          <Text style={styles.dateHint}>
+            Cita para: {new Date(scheduledAt).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+          </Text>
+
+          {/* Notas */}
+          <TextField
+            label="Notas (opcional)"
+            placeholder="Servicio a realizar, observaciones…"
+            value={notes}
+            onChangeText={setNotes}
+            style={styles.notesInput}
+          />
+
+          <Button title="Crear cita" onPress={handleSubmit} loading={saving} style={styles.submitBtn} />
+        </>
+      )}
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -580,4 +807,16 @@ const styles = StyleSheet.create({
   },
   notesInput: { marginBottom: 8 },
   submitBtn: { marginTop: 8 },
+  conflictSpinner: { marginBottom: 16 },
+  conflictBox: {
+    borderRadius: 12, borderWidth: 1, borderColor: colors.warning,
+    backgroundColor: colors.warningLight,
+    padding: 14, marginBottom: 16,
+  },
+  conflictTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  conflictSub: { fontSize: 12, color: colors.textMuted, marginBottom: 10 },
+  conflictForm: { marginTop: 6 },
+  conflictBtn: { marginTop: 2 },
+  conflictFormBtn: { marginTop: 4 },
+  conflictFormBtnSecondary: { marginTop: 8 },
 });

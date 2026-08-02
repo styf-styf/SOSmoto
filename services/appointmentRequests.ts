@@ -191,18 +191,23 @@ export async function getActiveAppointmentRequests(
 // (solo 'pending', usada por el banner del chat), acá también incluimos
 // 'accepted' para poder mostrar el estado "Cita confirmada" igual que
 // product_intents muestra "Apartado confirmado".
+// serviceId acepta null -- también lo usa nueva-cita.tsx para el caso "cita
+// sin servicio específico" (revisión genérica), donde hay que comparar
+// contra otras citas TAMBIÉN sin servicio (service_id IS NULL en SQL, `.eq`
+// con null no sirve para eso).
 export async function getAppointmentRequestForService(
   clientId: string,
   businessId: string,
-  serviceId: string
+  serviceId: string | null
 ): Promise<AppointmentRequest | null> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('appointment_requests')
     .select('*')
     .eq('client_id', clientId)
     .eq('business_id', businessId)
-    .eq('service_id', serviceId)
-    .in('status', ['pending', 'accepted'])
+    .in('status', ['pending', 'accepted']);
+  query = serviceId ? query.eq('service_id', serviceId) : query.is('service_id', null);
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

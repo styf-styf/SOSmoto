@@ -173,18 +173,20 @@ export async function approveAppointment(id: string): Promise<void> {
 // creada por acceptAppointmentRequest) que corresponde a una solicitud ya
 // aceptada de este servicio, para poder cancelarla directo desde ahí sin
 // tener que ir a "Mis citas".
+// serviceId acepta null -- ver mismo comentario en getAppointmentRequestForService.
 export async function getActiveAppointmentForService(
   clientId: string,
   businessId: string,
-  serviceId: string
+  serviceId: string | null
 ): Promise<Appointment | null> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('appointments')
     .select('*')
     .eq('client_id', clientId)
     .eq('business_id', businessId)
-    .eq('service_id', serviceId)
-    .in('status', ['pending', 'scheduled', 'confirmed'])
+    .in('status', ['pending', 'scheduled', 'confirmed']);
+  query = serviceId ? query.eq('service_id', serviceId) : query.is('service_id', null);
+  const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
