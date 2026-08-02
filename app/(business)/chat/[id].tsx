@@ -622,7 +622,7 @@ export default function ChatScreen() {
     if (quote.kind !== 'service' || !quote.service_id || !clientId) return;
     setPendingQuoteActions((prev) => prev.filter((q) => q.id !== quote.id));
     resolveChatQuote(quote.id).catch((err) => console.error('resolve chat quote error', err));
-    router.push(`/(business)/nueva-cita?clientId=${clientId}&serviceId=${quote.service_id}`);
+    router.push(`/(business)/nueva-cita?clientId=${clientId}&serviceId=${quote.service_id}&autoConfirm=1`);
   }
 
   async function handleCancelChatQuote(quote: ChatQuote) {

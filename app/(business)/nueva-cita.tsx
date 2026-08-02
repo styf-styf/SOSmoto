@@ -69,9 +69,13 @@ interface NuevaCitaData {
 
 export default function NuevaCitaScreen() {
   const { profile } = useAuth();
-  const { clientId: preselectedClientId, serviceId: preselectedServiceId } = useLocalSearchParams<{
+  const { clientId: preselectedClientId, serviceId: preselectedServiceId, autoConfirm } = useLocalSearchParams<{
     clientId?: string;
     serviceId?: string;
+    // Viene del banner "Agendar" de una cotización de servicio en el chat --
+    // la fecha ya se conversó con el cliente, así que la cita entra directo
+    // en 'confirmed' en vez de quedar pendiente de que el cliente la apruebe.
+    autoConfirm?: string;
   }>();
   const [saving, setSaving] = useState(false);
 
@@ -239,6 +243,7 @@ export default function NuevaCitaScreen() {
         notes: notes.trim() || undefined,
         externalClientName: selectedClient.isExternal ? selectedClient.full_name : undefined,
         externalClientPhone: selectedClient.isExternal ? selectedClient.phone ?? undefined : undefined,
+        autoConfirm: autoConfirm === '1',
       });
 
       await scheduleAppointmentReminder({
@@ -268,7 +273,9 @@ export default function NuevaCitaScreen() {
       } else {
         const msg = selectedClient.isExternal
           ? 'La cita fue registrada. Recibirás un recordatorio 30 min antes.'
-          : 'El cliente recibirá una notificación para aceptar o reagendar.';
+          : autoConfirm === '1'
+            ? 'El cliente recibirá una notificación de que su cita quedó confirmada.'
+            : 'El cliente recibirá una notificación para aceptar o reagendar.';
 
         Alert.alert('Cita creada', msg, [
           { text: 'OK', onPress: () => router.back() },

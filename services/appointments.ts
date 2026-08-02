@@ -277,12 +277,19 @@ export interface CreateAppointmentByBusinessParams {
   // Cliente externo (sin cuenta)
   externalClientName?: string;
   externalClientPhone?: string;
+  // La cita nace de una cotización que ya se conversó en el chat -- la
+  // fecha/hora que pone el negocio ya fue acordada con el cliente, así que
+  // no tiene sentido pedirle que "apruebe" una propuesta (igual que un
+  // cliente externo: entra directo en 'confirmed', el cliente ve la cita ya
+  // lista con opción de cancelar/reagendar en vez de aprobar/contraproponer).
+  autoConfirm?: boolean;
 }
 
 export async function createAppointmentByBusiness(
   params: CreateAppointmentByBusinessParams
 ): Promise<Appointment> {
   const isExternal = !params.clientId;
+  const skipsNegotiation = isExternal || !!params.autoConfirm;
 
   const { data, error } = await supabase
     .from('appointments')
@@ -293,8 +300,8 @@ export async function createAppointmentByBusiness(
       vehicle_id: params.vehicleId ?? null,
       notes: params.notes ?? null,
       requested_at: params.scheduledAt,
-      proposed_by: isExternal ? null : 'business',
-      status: isExternal ? 'confirmed' : 'scheduled',
+      proposed_by: skipsNegotiation ? null : 'business',
+      status: skipsNegotiation ? 'confirmed' : 'scheduled',
       external_client_name: params.externalClientName ?? null,
       external_client_phone: params.externalClientPhone ?? null,
     })
@@ -311,12 +318,21 @@ export async function createAppointmentByBusiness(
       dateStyle: 'medium',
       timeStyle: 'short',
     });
-    await notifyUser(
-      params.clientId,
-      'El taller quiere agendar una cita',
-      `Propuesta para el ${dtStr} ${svcLabel}. Revísala en "Mis citas".`,
-      { type: 'appointment_scheduled', appointmentId: appointment.id }
-    );
+    if (params.autoConfirm) {
+      await notifyUser(
+        params.clientId,
+        'Cita confirmada',
+        `Tu cita quedó agendada para el ${dtStr} ${svcLabel}. Revísala en "Mis citas".`,
+        { type: 'appointment_approved', appointmentId: appointment.id }
+      );
+    } else {
+      await notifyUser(
+        params.clientId,
+        'El taller quiere agendar una cita',
+        `Propuesta para el ${dtStr} ${svcLabel}. Revísala en "Mis citas".`,
+        { type: 'appointment_scheduled', appointmentId: appointment.id }
+      );
+    }
   }
 
   return appointment;
