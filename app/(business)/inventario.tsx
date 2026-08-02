@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router, Stack } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,23 +22,17 @@ import {
   addVariantStockMovement,
   getInventory,
   getStockMovements,
+  REASON_LABEL,
   type ProductWithMovements,
   type StockMovementReason,
+  type StockMovementWithClient,
 } from '../../services/inventory';
-import type { ProductVariant, StockMovement } from '../../types/database';
+import type { ProductVariant } from '../../types/database';
 
 type VariantWithLevel = ProductVariant & { stockLevel: 'out' | 'low' | 'ok' };
 
 type FilterTab = 'all' | 'low' | 'out';
 type MovementType = 'entry' | 'exit' | 'adjustment';
-
-const REASON_LABEL: Record<StockMovementReason, string> = {
-  entry: 'Entrada',
-  sale: 'Venta',
-  adjustment: 'Ajuste',
-  damage: 'Daño / pérdida',
-  other: 'Otro',
-};
 
 const STOCK_COLORS = {
   out: colors.danger,
@@ -73,7 +68,7 @@ export default function InventarioScreen() {
   // selectedVariant, si existe, acota el movimiento a esa variante puntual.
   const [selected, setSelected] = useState<ProductWithMovements | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<VariantWithLevel | null>(null);
-  const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [movements, setMovements] = useState<StockMovementWithClient[]>([]);
   const [loadingMov, setLoadingMov] = useState(false);
   const [movType, setMovType] = useState<MovementType>('entry');
   const [quantity, setQuantity] = useState('');
@@ -266,6 +261,15 @@ export default function InventarioScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
+    <Stack.Screen
+      options={{
+        headerRight: () => (
+          <Pressable onPress={() => router.push('/(business)/historial-movimientos')} hitSlop={8}>
+            <Ionicons name="time-outline" size={22} color={colors.primary} />
+          </Pressable>
+        ),
+      }}
+    />
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       {/* Resumen */}
       <View style={styles.summaryRow}>
@@ -483,6 +487,11 @@ export default function InventarioScreen() {
                 <Text style={styles.movLabel}>
                   {m.delta >= 0 ? `+${m.delta}` : m.delta} uds — {REASON_LABEL[m.reason]}
                 </Text>
+                {m.reason === 'sale' && (
+                  <Text style={styles.movSource}>
+                    {m.client_name ? `Cliente: ${m.client_name}` : 'Salida manual (sin apartado)'}
+                  </Text>
+                )}
                 {m.notes && <Text style={styles.movNotes}>{m.notes}</Text>}
                 <Text style={styles.movDate}>{fmtDate(m.created_at)}</Text>
               </View>
@@ -596,6 +605,7 @@ const styles = StyleSheet.create({
   },
   movDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
   movLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
+  movSource: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
   movNotes: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   movDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 });

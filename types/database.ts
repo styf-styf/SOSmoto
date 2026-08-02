@@ -273,6 +273,7 @@ export interface StockMovement {
   delta: number;
   reason: StockMovementReason;
   notes: string | null;
+  client_id: string | null;
   created_at: string;
 }
 

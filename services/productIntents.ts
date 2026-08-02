@@ -252,6 +252,7 @@ export async function updateIntentStatus(
         variantId: intent.variant_id,
         delta: -intent.quantity,
         reason: 'sale',
+        clientId: intent.client_id,
       });
     } else {
       await addStockMovement({
@@ -259,6 +260,7 @@ export async function updateIntentStatus(
         productId: intent.product_id,
         delta: -intent.quantity,
         reason: 'sale',
+        clientId: intent.client_id,
       });
     }
   }

@@ -4,6 +4,14 @@ import type { Product, ProductVariant, StockMovement, StockMovementReason } from
 
 export type { StockMovementReason };
 
+export const REASON_LABEL: Record<StockMovementReason, string> = {
+  entry: 'Entrada',
+  sale: 'Venta',
+  adjustment: 'Ajuste',
+  damage: 'Daño / pérdida',
+  other: 'Otro',
+};
+
 export interface ProductWithMovements extends Product {
   stockLevel: 'out' | 'low' | 'ok';
   category_name: string;
@@ -53,17 +61,64 @@ export async function getInventory(businessId: string): Promise<ProductWithMovem
   }) as ProductWithMovements[];
 }
 
+export interface StockMovementWithClient extends StockMovement {
+  client_name: string | null;
+}
+
 // Últimos movimientos de un producto (o de una variante puntual, si se pasa variantId).
 export async function getStockMovements(
   productId: string,
   variantId: string | null = null,
   limit = 20
-): Promise<StockMovement[]> {
-  let query = supabase.from('stock_movements').select('*').eq('product_id', productId);
+): Promise<StockMovementWithClient[]> {
+  let query = supabase
+    .from('stock_movements')
+    .select('*, users(full_name)')
+    .eq('product_id', productId);
   query = variantId ? query.eq('variant_id', variantId) : query.is('variant_id', null);
   const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
-  return (data ?? []) as StockMovement[];
+  return ((data ?? []) as unknown as (StockMovement & { users: { full_name: string } | null })[]).map((row) => {
+    const { users, ...movement } = row;
+    return { ...movement, client_name: users?.full_name ?? null };
+  });
+}
+
+export interface BusinessStockMovement extends StockMovementWithClient {
+  product_name: string;
+  variant_label: string | null;
+}
+
+// Historial global (todos los productos del negocio juntos, no uno a la
+// vez) -- misma data que getStockMovements pero sin acotar a un producto,
+// para la pantalla "Historial de movimientos" del menú de Inventario.
+export async function getBusinessStockMovements(
+  businessId: string,
+  limit = 50,
+  before?: string
+): Promise<BusinessStockMovement[]> {
+  let query = supabase
+    .from('stock_movements')
+    .select('*, products(name), product_variants(label), users(full_name)')
+    .eq('business_id', businessId);
+  if (before) query = query.lt('created_at', before);
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return (
+    (data ?? []) as unknown as (StockMovement & {
+      products: { name: string } | null;
+      product_variants: { label: string } | null;
+      users: { full_name: string } | null;
+    })[]
+  ).map((row) => {
+    const { products, product_variants, users, ...movement } = row;
+    return {
+      ...movement,
+      client_name: users?.full_name ?? null,
+      product_name: products?.name ?? 'Producto',
+      variant_label: product_variants?.label ?? null,
+    };
+  });
 }
 
 export interface AddMovementParams {
@@ -73,6 +128,7 @@ export interface AddMovementParams {
   reason: StockMovementReason;
   notes?: string;
   currentStock?: number; // si se omite, se consulta de la BD
+  clientId?: string | null; // presente solo cuando el movimiento viene de una venta por apartado
 }
 
 // Registra un movimiento y actualiza products.stock en una sola operación lógica.
@@ -93,6 +149,7 @@ export async function addStockMovement(params: AddMovementParams): Promise<Produ
     delta: params.delta,
     reason: params.reason,
     notes: params.notes ?? null,
+    client_id: params.clientId ?? null,
   });
   if (movErr) throw movErr;
 
@@ -114,6 +171,7 @@ export interface AddVariantMovementParams {
   reason: StockMovementReason;
   notes?: string;
   currentStock?: number; // si se omite, se consulta de la BD
+  clientId?: string | null; // presente solo cuando el movimiento viene de una venta por apartado
 }
 
 // Igual que addStockMovement pero para una variante puntual -- además
@@ -134,6 +192,7 @@ export async function addVariantStockMovement(params: AddVariantMovementParams):
     delta: params.delta,
     reason: params.reason,
     notes: params.notes ?? null,
+    client_id: params.clientId ?? null,
   });
   if (movErr) throw movErr;
 

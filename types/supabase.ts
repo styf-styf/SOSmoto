@@ -1268,6 +1268,7 @@ export interface Database {
           delta: number;
           reason: 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
           notes: string | null;
+          client_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -1278,6 +1279,7 @@ export interface Database {
           delta: number;
           reason: 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
           notes?: string | null;
+          client_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -1288,6 +1290,7 @@ export interface Database {
           delta?: number;
           reason?: 'entry' | 'sale' | 'adjustment' | 'damage' | 'other';
           notes?: string | null;
+          client_id?: string | null;
           created_at?: string;
         };
         Relationships: [];
