@@ -2255,14 +2255,16 @@ const styles = StyleSheet.create({
   },
   requestInfo: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   requestSub: {
     fontSize: 11,
+    lineHeight: 15,
     color: colors.textMuted,
   },
   intentText: {
     fontSize: 13,
+    lineHeight: 18,
     color: colors.text,
     flex: 1,
   },
