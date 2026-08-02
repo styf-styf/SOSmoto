@@ -1282,29 +1282,33 @@ export default function ChatScreen() {
         ) : (
           <>
             {showQuickReplies && (
-              <ScrollView
-                horizontal
-                // Alto fijo en vez de dejar que el ScrollView se mida solo --
-                // mismo síntoma que el área de banners: en Android se queda
-                // más alto de lo que necesita el contenido (una sola fila de
-                // chips, alto conocido de antemano).
-                style={styles.quickRepliesScroll}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.quickRepliesRow}
-              >
-                {quickReplies.map((reply) => (
-                  <Pressable
-                    key={reply}
-                    style={styles.quickReplyChip}
-                    onPress={() => {
-                      setText(reply);
-                      setShowQuickReplies(false);
-                    }}
-                  >
-                    <Text style={styles.quickReplyText}>{reply}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              // El alto lo fija el View de afuera, NO el propio ScrollView --
+              // mismo bug de Android que el área de banners: un ScrollView no
+              // siempre respeta un height/maxHeight puesto en su propio
+              // style. Un View normal si lo respeta siempre, así que el
+              // ScrollView de adentro solo hace flex:1 dentro de ese alto ya
+              // fijo, sin depender de que se mida solo.
+              <View style={styles.quickRepliesWrap}>
+                <ScrollView
+                  horizontal
+                  style={styles.flex}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.quickRepliesRow}
+                >
+                  {quickReplies.map((reply) => (
+                    <Pressable
+                      key={reply}
+                      style={styles.quickReplyChip}
+                      onPress={() => {
+                        setText(reply);
+                        setShowQuickReplies(false);
+                      }}
+                    >
+                      <Text style={styles.quickReplyText}>{reply}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
             )}
 
             {showQuoteForm && (
@@ -1805,7 +1809,10 @@ const styles = StyleSheet.create({
   },
   // Alto fijo (chip: paddingVertical 7 + texto ~17 + padding de la fila
   // 4+4 ≈ 39) -- ver comentario junto al ScrollView.
-  quickRepliesScroll: {
+  // Alto fijo, conocido de antemano (chip: paddingVertical 7 + texto ~17 +
+  // padding de la fila 4+4 ≈ 39) -- puesto en este View de afuera, no en el
+  // ScrollView de adentro, ver comentario junto al ScrollView.
+  quickRepliesWrap: {
     height: 40,
   },
   quickRepliesRow: {
