@@ -221,6 +221,13 @@ export interface Database {
           can_reply_chat: boolean;
           can_upload_stories: boolean;
           can_create_posts: boolean;
+          can_view_aid_settings: boolean;
+          can_view_schedule: boolean;
+          can_view_agenda: boolean;
+          can_view_maintenance_reminders: boolean;
+          can_view_purchases: boolean;
+          can_view_stats: boolean;
+          can_view_growth: boolean;
           created_at: string;
         };
         Insert: {
@@ -234,6 +241,13 @@ export interface Database {
           can_reply_chat?: boolean;
           can_upload_stories?: boolean;
           can_create_posts?: boolean;
+          can_view_aid_settings?: boolean;
+          can_view_schedule?: boolean;
+          can_view_agenda?: boolean;
+          can_view_maintenance_reminders?: boolean;
+          can_view_purchases?: boolean;
+          can_view_stats?: boolean;
+          can_view_growth?: boolean;
           created_at?: string;
         };
         Update: {
@@ -247,6 +261,13 @@ export interface Database {
           can_reply_chat?: boolean;
           can_upload_stories?: boolean;
           can_create_posts?: boolean;
+          can_view_aid_settings?: boolean;
+          can_view_schedule?: boolean;
+          can_view_agenda?: boolean;
+          can_view_maintenance_reminders?: boolean;
+          can_view_purchases?: boolean;
+          can_view_stats?: boolean;
+          can_view_growth?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -283,6 +304,13 @@ export interface Database {
           can_reply_chat: boolean;
           can_upload_stories: boolean;
           can_create_posts: boolean;
+          can_view_aid_settings: boolean;
+          can_view_schedule: boolean;
+          can_view_agenda: boolean;
+          can_view_maintenance_reminders: boolean;
+          can_view_purchases: boolean;
+          can_view_stats: boolean;
+          can_view_growth: boolean;
           status: 'pending' | 'accepted' | 'rejected';
           expires_at: string;
           created_at: string;
@@ -298,6 +326,13 @@ export interface Database {
           can_reply_chat?: boolean;
           can_upload_stories?: boolean;
           can_create_posts?: boolean;
+          can_view_aid_settings?: boolean;
+          can_view_schedule?: boolean;
+          can_view_agenda?: boolean;
+          can_view_maintenance_reminders?: boolean;
+          can_view_purchases?: boolean;
+          can_view_stats?: boolean;
+          can_view_growth?: boolean;
           status?: 'pending' | 'accepted' | 'rejected';
           expires_at?: string;
           created_at?: string;
@@ -313,6 +348,13 @@ export interface Database {
           can_reply_chat?: boolean;
           can_upload_stories?: boolean;
           can_create_posts?: boolean;
+          can_view_aid_settings?: boolean;
+          can_view_schedule?: boolean;
+          can_view_agenda?: boolean;
+          can_view_maintenance_reminders?: boolean;
+          can_view_purchases?: boolean;
+          can_view_stats?: boolean;
+          can_view_growth?: boolean;
           status?: 'pending' | 'accepted' | 'rejected';
           expires_at?: string;
           created_at?: string;
@@ -1821,6 +1863,13 @@ export interface Database {
           can_reply_chat: boolean;
           can_upload_stories: boolean;
           can_create_posts: boolean;
+          can_view_aid_settings: boolean;
+          can_view_schedule: boolean;
+          can_view_agenda: boolean;
+          can_view_maintenance_reminders: boolean;
+          can_view_purchases: boolean;
+          can_view_stats: boolean;
+          can_view_growth: boolean;
           created_at: string;
           full_name: string;
           email: string;

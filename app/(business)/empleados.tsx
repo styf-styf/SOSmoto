@@ -32,14 +32,29 @@ const ALL_PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof Employ
   { key: 'canReplyChat', field: 'can_reply_chat', label: 'Puede responder chats' },
   { key: 'canUploadStories', field: 'can_upload_stories', label: 'Puede subir historias' },
   { key: 'canCreatePosts', field: 'can_create_posts', label: 'Puede crear publicaciones' },
+  { key: 'canViewAidSettings', field: 'can_view_aid_settings', label: 'Ve "Auxilio en carretera" en Configuración' },
+  { key: 'canViewSchedule', field: 'can_view_schedule', label: 'Ve "Horario" en Configuración' },
+  { key: 'canViewAgenda', field: 'can_view_agenda', label: 'Ve "Agenda" en Configuración' },
+  { key: 'canViewMaintenanceReminders', field: 'can_view_maintenance_reminders', label: 'Ve "Recordatorios de mantenimiento" en Configuración' },
+  { key: 'canViewPurchases', field: 'can_view_purchases', label: 'Ve "Mis compras" en Configuración' },
+  { key: 'canViewStats', field: 'can_view_stats', label: 'Ve "Estadísticas" en Configuración' },
+  { key: 'canViewGrowth', field: 'can_view_growth', label: 'Ve "Crece tu negocio" en Configuración' },
 ];
 
-// El auxilio en carretera es exclusivo de taller -- tienda nunca recibe
-// solicitudes de auxilio, así que ese permiso no aplica ni debe mostrarse
-// (mostrarlo confunde: el switch no haría nada).
+// El auxilio en carretera, la agenda de citas y los recordatorios de
+// mantenimiento son exclusivos de taller -- tienda nunca los usa, así que
+// esos permisos no aplican ni deben mostrarse (mostrarlos confunde: el
+// switch no haría nada).
+const WORKSHOP_ONLY_KEYS: (keyof EmployeePermissions)[] = [
+  'canAcceptAidRequests',
+  'canViewAidSettings',
+  'canViewAgenda',
+  'canViewMaintenanceReminders',
+];
+
 function getPermissionRows(businessType: BusinessType | null) {
   if (businessType === 'workshop') return ALL_PERMISSION_ROWS;
-  return ALL_PERMISSION_ROWS.filter((row) => row.key !== 'canAcceptAidRequests');
+  return ALL_PERMISSION_ROWS.filter((row) => !WORKSHOP_ONLY_KEYS.includes(row.key));
 }
 
 function getJobTitlePlaceholder(businessType: BusinessType | null): string {
@@ -483,6 +498,13 @@ function AddEmployeeForm({
     canReplyChat: true,
     canUploadStories: false,
     canCreatePosts: false,
+    canViewAidSettings: businessType === 'workshop',
+    canViewSchedule: true,
+    canViewAgenda: businessType === 'workshop',
+    canViewMaintenanceReminders: businessType === 'workshop',
+    canViewPurchases: true,
+    canViewStats: true,
+    canViewGrowth: true,
   });
   const [saving, setSaving] = useState(false);
 

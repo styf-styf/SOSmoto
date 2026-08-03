@@ -37,6 +37,13 @@ export async function sendEmployeeInvitation(
       can_reply_chat: permissions.canReplyChat,
       can_upload_stories: permissions.canUploadStories,
       can_create_posts: permissions.canCreatePosts,
+      can_view_aid_settings: permissions.canViewAidSettings,
+      can_view_schedule: permissions.canViewSchedule,
+      can_view_agenda: permissions.canViewAgenda,
+      can_view_maintenance_reminders: permissions.canViewMaintenanceReminders,
+      can_view_purchases: permissions.canViewPurchases,
+      can_view_stats: permissions.canViewStats,
+      can_view_growth: permissions.canViewGrowth,
     })
     .select()
     .single();
@@ -150,6 +157,13 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
       can_reply_chat: inv.can_reply_chat,
       can_upload_stories: inv.can_upload_stories,
       can_create_posts: inv.can_create_posts,
+      can_view_aid_settings: inv.can_view_aid_settings,
+      can_view_schedule: inv.can_view_schedule,
+      can_view_agenda: inv.can_view_agenda,
+      can_view_maintenance_reminders: inv.can_view_maintenance_reminders,
+      can_view_purchases: inv.can_view_purchases,
+      can_view_stats: inv.can_view_stats,
+      can_view_growth: inv.can_view_growth,
     });
     if (empError) throw empError;
   }

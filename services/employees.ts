@@ -13,6 +13,13 @@ export interface EmployeePermissions {
   canReplyChat: boolean;
   canUploadStories: boolean;
   canCreatePosts: boolean;
+  canViewAidSettings: boolean;
+  canViewSchedule: boolean;
+  canViewAgenda: boolean;
+  canViewMaintenanceReminders: boolean;
+  canViewPurchases: boolean;
+  canViewStats: boolean;
+  canViewGrowth: boolean;
 }
 
 export async function getEmployees(businessId: string): Promise<EmployeeWithUser[]> {
@@ -33,6 +40,13 @@ export async function getEmployees(businessId: string): Promise<EmployeeWithUser
       can_reply_chat: row.can_reply_chat,
       can_upload_stories: row.can_upload_stories,
       can_create_posts: row.can_create_posts,
+      can_view_aid_settings: row.can_view_aid_settings,
+      can_view_schedule: row.can_view_schedule,
+      can_view_agenda: row.can_view_agenda,
+      can_view_maintenance_reminders: row.can_view_maintenance_reminders,
+      can_view_purchases: row.can_view_purchases,
+      can_view_stats: row.can_view_stats,
+      can_view_growth: row.can_view_growth,
       created_at: row.created_at,
       user: { full_name: row.full_name, email: row.email, phone: row.phone },
     }))
@@ -119,12 +133,26 @@ export async function updateEmployeePermissions(
     can_reply_chat?: boolean;
     can_upload_stories?: boolean;
     can_create_posts?: boolean;
+    can_view_aid_settings?: boolean;
+    can_view_schedule?: boolean;
+    can_view_agenda?: boolean;
+    can_view_maintenance_reminders?: boolean;
+    can_view_purchases?: boolean;
+    can_view_stats?: boolean;
+    can_view_growth?: boolean;
   } = {};
   if (permissions.canAcceptAidRequests !== undefined) update.can_accept_aid_requests = permissions.canAcceptAidRequests;
   if (permissions.canManageCatalog !== undefined) update.can_manage_catalog = permissions.canManageCatalog;
   if (permissions.canReplyChat !== undefined) update.can_reply_chat = permissions.canReplyChat;
   if (permissions.canUploadStories !== undefined) update.can_upload_stories = permissions.canUploadStories;
   if (permissions.canCreatePosts !== undefined) update.can_create_posts = permissions.canCreatePosts;
+  if (permissions.canViewAidSettings !== undefined) update.can_view_aid_settings = permissions.canViewAidSettings;
+  if (permissions.canViewSchedule !== undefined) update.can_view_schedule = permissions.canViewSchedule;
+  if (permissions.canViewAgenda !== undefined) update.can_view_agenda = permissions.canViewAgenda;
+  if (permissions.canViewMaintenanceReminders !== undefined) update.can_view_maintenance_reminders = permissions.canViewMaintenanceReminders;
+  if (permissions.canViewPurchases !== undefined) update.can_view_purchases = permissions.canViewPurchases;
+  if (permissions.canViewStats !== undefined) update.can_view_stats = permissions.canViewStats;
+  if (permissions.canViewGrowth !== undefined) update.can_view_growth = permissions.canViewGrowth;
 
   const { error } = await supabase.from('business_employees').update(update).eq('id', employeeId);
   if (error) throw error;

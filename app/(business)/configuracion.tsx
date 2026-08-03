@@ -29,7 +29,7 @@ const buildInfo = Updates.isEmbeddedLaunch
 const appVersion = Constants.expoConfig?.version ?? '?';
 import { ADS_ENABLED } from '../../constants/features';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';
-import { getEmployees } from '../../services/employees';
+import { getEmployees, type EmployeeWithUser } from '../../services/employees';
 import type { Business } from '../../types/database';
 
 const planLabel: Record<string, string> = {
@@ -43,6 +43,10 @@ interface BusinessConfigData {
   plan: PlanLimits | null;
   employeeCount: number;
   isOwner: boolean;
+  // Fila propia dentro de business_employees -- null si es el dueño (nunca
+  // tiene fila ahí, su acceso es total) o si por algún motivo no aparece en
+  // la lista todavía.
+  myPermissions: EmployeeWithUser | null;
 }
 
 export default function BusinessConfiguracionScreen() {
@@ -63,6 +67,7 @@ export default function BusinessConfiguracionScreen() {
           plan: null,
           employeeCount: 0,
           isOwner: false,
+          myPermissions: null,
         };
       const work = await getMyWorkBusiness(profile.id);
       const myBusiness = work?.business ?? null;
@@ -72,6 +77,7 @@ export default function BusinessConfiguracionScreen() {
           plan: null,
           employeeCount: 0,
           isOwner: false,
+          myPermissions: null,
         };
       const [planLimits, employees] = await Promise.all([
         getPlanLimits(myBusiness.id),
@@ -82,6 +88,7 @@ export default function BusinessConfiguracionScreen() {
         plan: planLimits,
         employeeCount: employees.length,
         isOwner: work?.isOwner ?? false,
+        myPermissions: employees.find((e) => e.user_id === profile.id) ?? null,
       };
     },
   );
@@ -89,6 +96,12 @@ export default function BusinessConfiguracionScreen() {
   const plan = data?.plan ?? null;
   const employeeCount = data?.employeeCount ?? 0;
   const isOwner = data?.isOwner ?? false;
+  const myPermissions = data?.myPermissions ?? null;
+  // El dueño siempre ve todo -- para el staff, cada entrada del menú se
+  // muestra solo si tiene el permiso correspondiente (o si por algún motivo
+  // no se encontró su fila de permisos todavía, se oculta por seguridad en
+  // vez de mostrar de más mientras carga).
+  const canView = (flag: keyof EmployeeWithUser) => isOwner || myPermissions?.[flag] === true;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -192,18 +205,20 @@ export default function BusinessConfiguracionScreen() {
           label="Datos del negocio"
           onPress={() => router.push('/(business)/datos-negocio')}
         />
-        {business.business_type === 'workshop' && (
+        {business.business_type === 'workshop' && canView('can_view_aid_settings') && (
           <MenuRow
             icon="car-outline"
             label="Auxilio en carretera"
             onPress={() => router.push('/(business)/auxilio-carretera')}
           />
         )}
-        <MenuRow
-          icon="time-outline"
-          label="Horario"
-          onPress={() => router.push('/(business)/horario')}
-        />
+        {canView('can_view_schedule') && (
+          <MenuRow
+            icon="time-outline"
+            label="Horario"
+            onPress={() => router.push('/(business)/horario')}
+          />
+        )}
         <MenuRow
           icon="people-circle-outline"
           label="Equipo"
@@ -214,12 +229,14 @@ export default function BusinessConfiguracionScreen() {
           }
           onPress={() => router.push('/(business)/empleados')}
         />
-        <MenuRow
-          icon="grid-outline"
-          label="Catálogo"
-          onPress={() => router.push('/(business)/catalogo')}
-        />
-        {business.business_type === 'workshop' && (
+        {canView('can_manage_catalog') && (
+          <MenuRow
+            icon="grid-outline"
+            label="Catálogo"
+            onPress={() => router.push('/(business)/catalogo')}
+          />
+        )}
+        {business.business_type === 'workshop' && canView('can_view_agenda') && (
           <MenuRow
             icon="calendar-outline"
             label="Agenda"
@@ -231,7 +248,7 @@ export default function BusinessConfiguracionScreen() {
           label="Clientes"
           onPress={() => router.push('/(business)/clientes')}
         />
-        {business.business_type === 'workshop' && (
+        {business.business_type === 'workshop' && canView('can_view_maintenance_reminders') && (
           <MenuRow
             icon="build-outline"
             label="Recordatorios de mantenimiento"
@@ -239,7 +256,8 @@ export default function BusinessConfiguracionScreen() {
           />
         )}
         {(business.business_type === 'workshop' ||
-          business.business_type === 'store') && (
+          business.business_type === 'store') &&
+          canView('can_view_purchases') && (
           <MenuRow
             icon="bag-handle-outline"
             label="Mis compras"
@@ -251,11 +269,13 @@ export default function BusinessConfiguracionScreen() {
 
       <Text style={styles.sectionTitle}>Crecimiento</Text>
       <View style={styles.menuGroup}>
-        <MenuRow
-          icon="stats-chart-outline"
-          label="Estadísticas"
-          onPress={() => router.push('/(business)/estadisticas')}
-        />
+        {canView('can_view_stats') && (
+          <MenuRow
+            icon="stats-chart-outline"
+            label="Estadísticas"
+            onPress={() => router.push('/(business)/estadisticas')}
+          />
+        )}
         {ADS_ENABLED && (
           <MenuRow
             icon="megaphone-outline"
@@ -263,12 +283,14 @@ export default function BusinessConfiguracionScreen() {
             onPress={() => router.push('/(business)/publicidad')}
           />
         )}
-        <MenuRow
-          icon="trending-up-outline"
-          label="Crece tu negocio"
-          onPress={() => router.push('/(business)/crece-tu-negocio')}
-          last
-        />
+        {canView('can_view_growth') && (
+          <MenuRow
+            icon="trending-up-outline"
+            label="Crece tu negocio"
+            onPress={() => router.push('/(business)/crece-tu-negocio')}
+            last
+          />
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>Plan y cuenta</Text>
