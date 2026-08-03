@@ -277,6 +277,7 @@ export default function SuscripcionScreen() {
                 available: plan.max_employees !== 0,
               },
               { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
+              { label: 'Destacado en resultados de búsqueda', available: plan.has_featured_listing },
               { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
               { label: 'Insignia de verificado', available: plan.name !== 'free' },
             ]
@@ -289,6 +290,7 @@ export default function SuscripcionScreen() {
                 available: plan.max_employees !== 0,
               },
               { label: `Historias activas: ${limitLabel(plan.max_active_stories)}`, available: true },
+              { label: 'Destacado en resultados de búsqueda', available: plan.has_featured_listing },
               { label: `Dashboard/métricas: ${dashboardTierLabel[plan.name] ?? plan.name}`, available: true },
               { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
             ];

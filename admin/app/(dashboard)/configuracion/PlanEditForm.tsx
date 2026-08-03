@@ -49,6 +49,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
   const [maxPhotosPerItem, setMaxPhotosPerItem] = useState(plan.max_photos_per_item);
   const [maxEmployees, setMaxEmployees] = useState<number | null>(plan.max_employees);
   const [maxActiveStories, setMaxActiveStories] = useState<number | null>(plan.max_active_stories);
+  const [hasFeaturedListing, setHasFeaturedListing] = useState(plan.has_featured_listing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -60,6 +61,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
     setMaxPhotosPerItem(plan.max_photos_per_item);
     setMaxEmployees(plan.max_employees);
     setMaxActiveStories(plan.max_active_stories);
+    setHasFeaturedListing(plan.has_featured_listing);
     setError(null);
     setEditing(false);
   }
@@ -82,6 +84,7 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
         max_photos_per_item: maxPhotosPerItem,
         max_employees: maxEmployees,
         max_active_stories: maxActiveStories,
+        has_featured_listing: hasFeaturedListing,
       }),
     });
     setSaving(false);
@@ -169,6 +172,19 @@ export function PlanEditForm({ plan }: { plan: AdminSubscriptionPlanRow }) {
             <NullableNumberInput value={maxActiveStories} onChange={setMaxActiveStories} />
           ) : (
             <span className="font-medium">{displayVal(maxActiveStories)}</span>
+          )}
+        </FieldRow>
+
+        <FieldRow label="Destacado en búsquedas">
+          {editing ? (
+            <input
+              type="checkbox"
+              checked={hasFeaturedListing}
+              onChange={(e) => setHasFeaturedListing(e.target.checked)}
+              className="h-4 w-4"
+            />
+          ) : (
+            <span className="font-medium">{hasFeaturedListing ? 'Sí' : 'No'}</span>
           )}
         </FieldRow>
       </div>

@@ -231,6 +231,7 @@ module.exports = async (req, res) => {
             { label: 'Cantidad mínima de pedido', available: true },
             { label: plan.max_employees === 0 ? 'Personas en el equipo' : 'Personas en el equipo: ' + limitLabel(plan.max_employees), available: plan.max_employees !== 0 },
             { label: 'Historias activas: ' + limitLabel(plan.max_active_stories), available: true },
+            { label: 'Destacado en resultados de búsqueda', available: plan.has_featured_listing },
             { label: 'Dashboard/métricas: ' + (dashboardTierLabel[plan.name] || plan.name), available: true },
             { label: 'Insignia de verificado', available: plan.name !== 'free' },
           ]
@@ -240,6 +241,7 @@ module.exports = async (req, res) => {
             { label: 'Fotos por producto/servicio/publicación: ' + plan.max_photos_per_item, available: true },
             { label: plan.max_employees === 0 ? 'Personas en el equipo' : 'Personas en el equipo: ' + limitLabel(plan.max_employees), available: plan.max_employees !== 0 },
             { label: 'Historias activas: ' + limitLabel(plan.max_active_stories), available: true },
+            { label: 'Destacado en resultados de búsqueda', available: plan.has_featured_listing },
             { label: 'Dashboard/métricas: ' + (dashboardTierLabel[plan.name] || plan.name), available: true },
             { label: 'Insignia de verificado (KYC)', available: plan.name !== 'free' },
           ];

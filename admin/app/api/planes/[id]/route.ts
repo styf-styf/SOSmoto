@@ -7,7 +7,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const body = await req.json();
-  const updates: Record<string, number | null> = {};
+  const updates: Record<string, number | null | boolean> = {};
   for (const key of ['price_monthly', 'max_products', 'max_services', 'max_photos_per_item', 'max_employees', 'max_active_stories']) {
     if (!(key in body)) continue;
     if (body[key] === null) {
@@ -20,8 +20,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
     updates[key] = value;
   }
-  if ('max_photos_per_item' in updates && (updates.max_photos_per_item === null || updates.max_photos_per_item < 1)) {
-    return NextResponse.json({ error: 'Máx. fotos debe ser al menos 1.' }, { status: 400 });
+  if ('max_photos_per_item' in updates) {
+    const maxPhotos = updates.max_photos_per_item;
+    if (maxPhotos === null || (typeof maxPhotos === 'number' && maxPhotos < 1)) {
+      return NextResponse.json({ error: 'Máx. fotos debe ser al menos 1.' }, { status: 400 });
+    }
+  }
+  if ('has_featured_listing' in body) {
+    updates.has_featured_listing = Boolean(body.has_featured_listing);
   }
 
   const supabase = createAdminClient();

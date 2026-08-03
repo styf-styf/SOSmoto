@@ -46,6 +46,12 @@ export function BusinessDiscoverCard({
           </View>
         )}
         <GradientShade height={Math.round(width * 0.6)} />
+        {business.is_featured && (
+          <View style={styles.featuredBadge}>
+            <Ionicons name="star" size={11} color="#fff" />
+            <Text style={styles.featuredBadgeText}>Destacado</Text>
+          </View>
+        )}
         {business.is_verified && (
           <View style={styles.verifiedDot}>
             <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
@@ -109,6 +115,23 @@ const styles = StyleSheet.create({
     right: 6,
     backgroundColor: '#fff',
     borderRadius: 8,
+  },
+  featuredBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  featuredBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
   },
   name: {
     position: 'absolute',

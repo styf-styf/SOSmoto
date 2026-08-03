@@ -4,6 +4,9 @@ import type { Business, BusinessSchedule, BusinessType, SubscriptionPlan } from 
 
 export interface BusinessWithDistance extends Business {
   distance_km: number | null;
+  // Plan Pro (has_featured_listing) -- se ordena antes que el resto,
+  // independiente de la distancia. Ver searchBusinesses.
+  is_featured: boolean;
 }
 
 const SEARCH_RADIUS_KM = 60;
@@ -50,11 +53,14 @@ export async function getNearbyBusinesses(
 
   const businesses = (data ?? []) as Business[];
 
+  // Solo se usa internamente (ver getNearestCity) -- nunca se muestra como
+  // listado, así que el destacado por plan no aplica acá.
   const withDistance: BusinessWithDistance[] = businesses.map((business) => ({
     ...business,
     distance_km: coords
       ? distanceKm(coords.latitude, coords.longitude, business.latitude, business.longitude)
       : null,
+    is_featured: false,
   }));
 
   withDistance.sort((a, b) => {
@@ -120,7 +126,10 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
     if (serviceBusinessIds.length === 0) return [];
   }
 
-  let query = supabase.from('businesses_public').select('*').eq('is_deactivated', false);
+  let query = supabase
+    .from('businesses_public')
+    .select('*, subscription_plans(has_featured_listing)')
+    .eq('is_deactivated', false);
   if (serviceBusinessIds) query = query.in('id', serviceBusinessIds);
   if (params.businessType) query = query.eq('business_type', params.businessType);
   else if (params.businessTypeIn?.length) query = query.in('business_type', params.businessTypeIn);
@@ -134,15 +143,25 @@ export async function searchBusinesses(params: SearchBusinessesParams): Promise<
   const { data, error } = await query.limit(50);
   if (error) throw error;
 
-  const businesses = (data ?? []) as Business[];
-  const withDistance: BusinessWithDistance[] = businesses.map((business) => ({
-    ...business,
-    distance_km: params.coords
-      ? distanceKm(params.coords.latitude, params.coords.longitude, business.latitude, business.longitude)
-      : null,
-  }));
+  const businesses = (data ?? []) as unknown as (Business & {
+    subscription_plans: { has_featured_listing: boolean } | null;
+  })[];
+  const withDistance: BusinessWithDistance[] = businesses.map((business) => {
+    const { subscription_plans, ...rest } = business;
+    return {
+      ...rest,
+      distance_km: params.coords
+        ? distanceKm(params.coords.latitude, params.coords.longitude, business.latitude, business.longitude)
+        : null,
+      is_featured: subscription_plans?.has_featured_listing ?? false,
+    };
+  });
 
+  // Destacado (plan Pro) primero, sin importar la distancia -- es el
+  // beneficio que se paga; dentro de cada grupo (destacados / normales) se
+  // ordena por cercanía igual que antes.
   withDistance.sort((a, b) => {
+    if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
     if (a.distance_km === null || b.distance_km === null) return 0;
     return a.distance_km - b.distance_km;
   });
@@ -374,11 +393,15 @@ export async function getNewNearbyBusinesses(
   if (error) throw error;
 
   const businesses = (data ?? []) as Business[];
+  // "Descubre"/"Nuevos cerca de ti" es a propósito neutral al plan (existe
+  // justo para contrarrestar la ventaja de los negocios ya establecidos) --
+  // el destacado de Pro no debe alterar este orden ni mostrarse acá.
   const withDistance: BusinessWithDistance[] = businesses.map((b) => ({
     ...b,
     distance_km: coords
       ? distanceKm(coords.latitude, coords.longitude, b.latitude, b.longitude)
       : null,
+    is_featured: false,
   }));
 
   withDistance.sort((a, b) => {
