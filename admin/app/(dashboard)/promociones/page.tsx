@@ -19,6 +19,15 @@ function liveRemainingDays(promo: AdminPlanPromotionRow | undefined): number {
   return Math.max(0, Math.round(promo.remaining_days - elapsedDays));
 }
 
+// Mismo cálculo que arriba pero para la VENTANA (cuándo se autoapaga la
+// promoción) -- null si no se configuró autoapagado (manual-only).
+function liveRemainingWindowDays(promo: AdminPlanPromotionRow | undefined): number | null {
+  if (!promo || promo.remaining_window_days == null) return null;
+  if (!promo.is_active || !promo.activated_at) return Math.max(0, Math.round(promo.remaining_window_days));
+  const elapsedDays = (Date.now() - new Date(promo.activated_at).getTime()) / MS_PER_DAY;
+  return Math.max(0, Math.round(promo.remaining_window_days - elapsedDays));
+}
+
 export default async function PromocionesPage() {
   const supabase = createAdminClient();
 
@@ -26,7 +35,9 @@ export default async function PromocionesPage() {
     supabase.from('subscription_plans').select('id, name, business_type').in('name', ['standard', 'pro']),
     supabase
       .from('plan_promotions')
-      .select('id, plan_id, duration_days, remaining_days, is_active, activated_at, created_at, subscription_plans(name, business_type)'),
+      .select(
+        'id, plan_id, duration_days, remaining_days, window_days, remaining_window_days, is_active, activated_at, created_at, subscription_plans(name, business_type)'
+      ),
     supabase
       .from('business_subscriptions')
       .select('id, business_id, plan_id, started_at, expires_at, businesses(name), subscription_plans(name)')
@@ -71,7 +82,10 @@ export default async function PromocionesPage() {
         Regala un plan pago por tiempo limitado a los negocios que se registren mientras la oferta esté activa.
         Taller y Tienda son independientes -- pueden tener niveles distintos activos a la vez (ej. taller Estándar
         + tienda Pro), pero dentro de un mismo tipo de negocio no pueden coexistir Estándar y Pro simultáneamente.
-        Cada negocio puede reclamar una única vez en toda su historia.
+        Cada negocio puede reclamar una única vez en toda su historia. "Días de garantía por negocio" es cuánto
+        tiempo gratis recibe cada negocio que reclama (fijo, no cambia mientras la promoción sigue abierta). "Días
+        para autoapagar la promoción" es opcional -- si lo dejas vacío, tienes que apagar el toggle tú mismo cuando
+        quieras cerrar la oferta.
       </p>
 
       <PromotionScopeToggle appliesToAll={appliesToAll} />
@@ -94,6 +108,8 @@ export default async function PromocionesPage() {
               }
               durationDays={promo?.duration_days ?? null}
               remainingDays={promo ? liveRemainingDays(promo) : null}
+              windowDays={promo?.window_days ?? null}
+              remainingWindowDays={liveRemainingWindowDays(promo)}
             />
           );
         })}

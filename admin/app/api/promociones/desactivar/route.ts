@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const supabase = createAdminClient();
   const { data: active } = await supabase
     .from('plan_promotions')
-    .select('id, remaining_days, activated_at')
+    .select('id, remaining_days, remaining_window_days, activated_at')
     .eq('plan_id', planId)
     .eq('is_active', true)
     .maybeSingle();
@@ -33,10 +33,12 @@ export async function POST(req: Request) {
   const now = new Date();
   const elapsedDays = (now.getTime() - new Date(active.activated_at).getTime()) / MS_PER_DAY;
   const remaining = Math.max(0, Number(active.remaining_days) - elapsedDays);
+  const remainingWindow =
+    active.remaining_window_days == null ? null : Math.max(0, Number(active.remaining_window_days) - elapsedDays);
 
   const { error } = await supabase
     .from('plan_promotions')
-    .update({ is_active: false, remaining_days: remaining, updated_at: now.toISOString() })
+    .update({ is_active: false, remaining_days: remaining, remaining_window_days: remainingWindow, updated_at: now.toISOString() })
     .eq('id', active.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

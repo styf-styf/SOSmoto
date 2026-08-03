@@ -13,6 +13,8 @@ export function PromotionToggleCard({
   otherPlanIsActive,
   durationDays,
   remainingDays,
+  windowDays,
+  remainingWindowDays,
 }: {
   planId: string;
   planName: string;
@@ -21,18 +23,25 @@ export function PromotionToggleCard({
   otherPlanIsActive: boolean;
   durationDays: number | null;
   remainingDays: number | null;
+  windowDays: number | null;
+  remainingWindowDays: number | null;
 }) {
   const router = useRouter();
   const planLabel = `${PLAN_LABELS[planName] ?? planName} (${businessTypeLabel})`;
   const hasDaysSet = remainingDays !== null && remainingDays > 0;
+  const hasWindowSet = windowDays !== null && windowDays > 0;
   const [days, setDays] = useState(remainingDays ?? durationDays ?? 90);
-  const [loading, setLoading] = useState<'toggle' | 'days' | null>(null);
+  const [windowDaysInput, setWindowDaysInput] = useState(windowDays ?? 0);
+  const [loading, setLoading] = useState<'toggle' | 'days' | 'window' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleToggle() {
+    const autoOffNote = hasWindowSet
+      ? ` Se autoapagará sola en ${remainingWindowDays} días.`
+      : ' No tiene autoapagado configurado -- tendrás que desactivarla manualmente cuando quieras cerrarla.';
     const message = isActive
       ? `¿Pausar la promoción del plan ${planLabel}? Los negocios nuevos dejarán de ver el botón de reclamo gratis. Quienes ya la reclamaron no se ven afectados.`
-      : `¿Activar la promoción del plan ${planLabel}? Todo negocio nuevo que se registre a partir de ahora podrá reclamar este plan gratis por ${remainingDays} días.`;
+      : `¿Activar la promoción del plan ${planLabel}? Todo negocio nuevo que se registre a partir de ahora podrá reclamar este plan gratis por ${remainingDays} días.${autoOffNote}`;
     if (!window.confirm(message)) return;
 
     setLoading('toggle');
@@ -74,6 +83,23 @@ export function PromotionToggleCard({
     router.refresh();
   }
 
+  async function handleSaveWindowDays() {
+    setLoading('window');
+    setError(null);
+    const res = await fetch('/api/promociones/dias-ventana', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId, days: windowDaysInput || null }),
+    });
+    setLoading(null);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Ocurrió un error.');
+      return;
+    }
+    router.refresh();
+  }
+
   const toggleDisabled = loading !== null || (otherPlanIsActive && !isActive) || (!isActive && !hasDaysSet);
 
   return (
@@ -97,13 +123,22 @@ export function PromotionToggleCard({
 
       {isActive && (
         <>
-          <p className="text-2xl font-bold text-primary">{remainingDays} días</p>
-          <p className="mb-2 text-xs text-gray-500">restantes de la campaña (regalo de {durationDays} días por negocio)</p>
+          {hasWindowSet ? (
+            <>
+              <p className="text-2xl font-bold text-primary">{remainingWindowDays} días</p>
+              <p className="mb-2 text-xs text-gray-500">restantes antes de que se autoapague la promoción</p>
+            </>
+          ) : (
+            <p className="mb-2 text-xs text-gray-500">
+              Sin autoapagado configurado -- desactívala manualmente cuando quieras cerrarla.
+            </p>
+          )}
+          <p className="mb-3 text-xs text-gray-500">Regalo por negocio: {durationDays} días de plan gratis.</p>
         </>
       )}
 
       <label className="mb-1 block text-xs text-gray-500">
-        {hasDaysSet ? (isActive ? 'Días (pausa para editar)' : 'Días restantes de la campaña') : 'Días de duración de la oferta'}
+        {hasDaysSet ? (isActive ? 'Días de garantía por negocio (pausa para editar)' : 'Días de garantía por negocio') : 'Días de garantía por negocio'}
       </label>
       <div className="flex gap-2">
         <input
@@ -123,13 +158,35 @@ export function PromotionToggleCard({
         </button>
       </div>
 
+      <label className="mb-1 mt-3 block text-xs text-gray-500">
+        Días para autoapagar la promoción (opcional, vacío = manual)
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min={0}
+          placeholder="Sin autoapagado"
+          value={windowDaysInput || ''}
+          onChange={(e) => setWindowDaysInput(Number(e.target.value))}
+          disabled={isActive}
+          className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
+        />
+        <button
+          onClick={handleSaveWindowDays}
+          disabled={isActive || loading !== null}
+          className="whitespace-nowrap rounded-lg bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 disabled:opacity-60"
+        >
+          {loading === 'window' ? '...' : 'Guardar días'}
+        </button>
+      </div>
+
       {otherPlanIsActive && !isActive && (
         <p className="mt-2 text-xs text-gray-500">
           Hay una promoción de otro nivel activa para este mismo tipo de negocio. Desactívala para poder activar esta.
         </p>
       )}
       {!isActive && !hasDaysSet && (
-        <p className="mt-2 text-xs text-gray-500">Guarda los días de duración antes de poder activar la promoción.</p>
+        <p className="mt-2 text-xs text-gray-500">Guarda los días de garantía antes de poder activar la promoción.</p>
       )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>

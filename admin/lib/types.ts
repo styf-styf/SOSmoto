@@ -147,6 +147,8 @@ export interface AdminPlanPromotionRow {
   plan_id: string;
   duration_days: number;
   remaining_days: number;
+  window_days: number | null;
+  remaining_window_days: number | null;
   is_active: boolean;
   activated_at: string | null;
   created_at: string;
