@@ -54,16 +54,24 @@ module.exports = async (req, res) => {
 
   const sectionTitle = isHome ? 'Negocios recientes' : q ? `Resultados para "${escapeHtml(q)}"` : 'Negocios recientes';
 
-  // "Próximamente" en vez de un botón de descarga real -- el build nativo
-  // todavía no se publicó en Google Play ni App Store (ver memoria del
-  // proyecto "EAS build pending"). Repartir un APK de prueba al público
-  // general desde la home pública no es lo que se quiere todavía; esto
-  // se reemplaza por los botones reales de tienda apenas existan.
+  // Plan piloto: todavía no se publicó en Google Play ni App Store, así que
+  // se reparte el APK directo desde acá -- esto se reemplaza por los botones
+  // reales de tienda apenas exista la publicación.
+  //
+  // El archivo NO va commiteado al repo (GitHub rechaza binarios >100MB) ni
+  // en Supabase Storage (el límite global de subida del plan actual lo
+  // bloquea) -- vive en Vercel Blob (store "sosmoto-downloads", proyecto
+  // so-smoto, plan "public"). Para reemplazarlo por un build nuevo:
+  //   cd web && npx vercel blob put <ruta-al-apk> --pathname SOSmoto.apk \
+  //     --access public --rw-token <BLOB_READ_WRITE_TOKEN de web/.env.local>
+  // y actualizar la URL de acá abajo con la que devuelva el comando.
+  const APK_DOWNLOAD_URL = 'https://zs7jfd4nqamxevzt.public.blob.vercel-storage.com/SOSmoto-CIKTwTpy9t3blYe6rlrIt354JWIEEu.apk';
   const downloadSectionHtml = isHome
     ? `<div class="download-section">
   <img src="/favicon.png" alt="SOSmoto" class="download-icon" />
-  <p class="download-title">Muy pronto en tu celular</p>
-  <p class="download-subtitle">Estamos en el proceso final antes de publicar en Google Play y App Store.</p>
+  <p class="download-title">Prueba SOSmoto (versión piloto)</p>
+  <p class="download-subtitle">Todavía no estamos en Google Play ni App Store -- por ahora, descargá el APK directo para Android. Tu celular puede pedirte permitir "instalar apps de fuentes desconocidas" al abrirlo.</p>
+  <a class="download-btn" href="${APK_DOWNLOAD_URL}" download="SOSmoto.apk">Descargar APK (Android)</a>
 </div>`
     : '';
 
@@ -120,6 +128,17 @@ ${isHome ? '<a class="button" href="sosmoto://">Abrir en SOSmoto</a>' : ''}
   color: #6B6B7B;
   margin: 0;
   max-width: 320px;
+}
+.download-btn {
+  display: inline-block;
+  margin-top: 14px;
+  background: #FF6B00;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 12px 22px;
+  border-radius: 20px;
 }
 .search-form {
   display: flex;
