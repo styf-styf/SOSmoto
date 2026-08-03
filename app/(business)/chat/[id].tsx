@@ -34,7 +34,7 @@ import {
 } from '../../../services/chatQuotes';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { supabase } from '../../../services/supabase';
-import { getMessages, markThreadRead } from '../../../services/messages';
+import { getMessages, markThreadRead, MESSAGES_PAGE_SIZE } from '../../../services/messages';
 import {
   createProductIntentByBusiness,
   getActionableIntentsForBusinessClient,
@@ -210,6 +210,11 @@ export default function ChatScreen() {
     setViewingImage,
     showAttach,
     setShowAttach,
+    loadingOlder,
+    hasMoreOlder,
+    setHasMoreOlder,
+    loadOlderMessages,
+    suppressNextAutoScrollRef,
     handleCamera,
     handleGallery,
     handleSend,
@@ -307,6 +312,7 @@ export default function ChatScreen() {
               ),
           ]);
           setMessages(history);
+          setHasMoreOlder(history.length === MESSAGES_PAGE_SIZE);
           if (profile) {
             await markThreadRead(
               thread.clientId,
@@ -348,6 +354,7 @@ export default function ChatScreen() {
             () => {},
           );
         setMessages(history);
+        setHasMoreOlder(history.length === MESSAGES_PAGE_SIZE);
         setAppointmentRequests(activeRequests);
         if (profile) {
           await markThreadRead(thread.clientId, thread.businessId, profile.id);
@@ -1300,9 +1307,11 @@ export default function ChatScreen() {
           ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={styles.messages}
-          onContentSizeChange={() =>
-            scrollRef.current?.scrollToEnd({ animated: false })
-          }
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onContentSizeChange={() => {
+            if (suppressNextAutoScrollRef.current) return;
+            scrollRef.current?.scrollToEnd({ animated: false });
+          }}
           // Antes envuelto en un Pressable para cerrar sugerencias/cotización
           // al tocar los mensajes -- en Android eso interfería con el propio
           // gesto de scroll (se cortaba a los pocos píxeles). onScrollBeginDrag
@@ -1311,6 +1320,19 @@ export default function ChatScreen() {
           // ya no los cierra, pero eso es preferible a romper el scroll.
           onScrollBeginDrag={dismissFloatingPanels}
         >
+          {hasMoreOlder && (
+            <Pressable
+              style={styles.loadOlderBtn}
+              onPress={loadOlderMessages}
+              disabled={loadingOlder}
+            >
+              {loadingOlder ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.loadOlderBtnText}>Cargar mensajes anteriores</Text>
+              )}
+            </Pressable>
+          )}
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>
               Aún no hay mensajes. Escribe el primero.
@@ -1945,6 +1967,21 @@ const styles = StyleSheet.create({
   messages: {
     padding: 16,
     gap: 8,
+  },
+  loadOlderBtn: {
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: 8,
+  },
+  loadOlderBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   placeholder: {
     color: colors.textMuted,

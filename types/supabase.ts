@@ -1850,6 +1850,28 @@ export interface Database {
         Args: { target_email: string };
         Returns: { id: string; role: 'client' | 'business' | 'admin' }[];
       };
+      get_client_conversations: {
+        Args: { target_client_id: string };
+        Returns: {
+          business_id: string;
+          body: string | null;
+          image_url: string | null;
+          created_at: string;
+          sender_id: string;
+          read_at: string | null;
+        }[];
+      };
+      get_business_conversations: {
+        Args: { target_business_id: string };
+        Returns: {
+          client_id: string;
+          body: string | null;
+          image_url: string | null;
+          created_at: string;
+          sender_id: string;
+          read_at: string | null;
+        }[];
+      };
       get_business_employees: {
         Args: { target_business_id: string };
         Returns: {

@@ -63,12 +63,33 @@ export interface AppNotification {
   created_at: string;
 }
 
-export async function getMyNotifications(userId: string): Promise<AppNotification[]> {
-  const { data, error } = await supabase
+export const NOTIFICATIONS_PAGE_SIZE = 30;
+
+export interface GetNotificationsParams {
+  limit?: number;
+  before?: { createdAt: string; id: string };
+}
+
+// Antes traía TODO el historial de notificaciones sin límite -- crece una
+// fila por cada evento (mensaje, cita, auxilio, reseña...), es de las
+// tablas que más rápido acumula filas por usuario.
+export async function getMyNotifications(
+  userId: string,
+  params: GetNotificationsParams = {}
+): Promise<AppNotification[]> {
+  let query = supabase
     .from('notifications')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+
+  if (params.before) {
+    const { createdAt, id } = params.before;
+    query = query.or(`created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`);
+  }
+
+  const { data, error } = await query.limit(params.limit ?? NOTIFICATIONS_PAGE_SIZE);
   if (error) throw error;
   return (data ?? []) as AppNotification[];
 }

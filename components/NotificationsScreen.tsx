@@ -4,7 +4,12 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
-import { getMyNotifications, markAllNotificationsRead, type AppNotification } from '../services/notifications';
+import {
+  getMyNotifications,
+  markAllNotificationsRead,
+  NOTIFICATIONS_PAGE_SIZE,
+  type AppNotification,
+} from '../services/notifications';
 import { formatConversationTimestamp } from '../utils/chatFormat';
 
 // Traduce el `data.type` guardado por notifyUser() (services/notifications.ts)
@@ -77,16 +82,37 @@ export function NotificationsScreen({ role }: { role: 'client' | 'business' }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const didInitialLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
-    setNotifications(await getMyNotifications(profile.id));
+    const page = await getMyNotifications(profile.id);
+    setNotifications(page);
+    setHasMore(page.length === NOTIFICATIONS_PAGE_SIZE);
     // Se marcan como leídas apenas se abre la bandeja -- el indicador en la
     // campanita del perfil desaparece la próxima vez que esa pantalla revise
     // el conteo (al recuperar el foco).
     markAllNotificationsRead(profile.id).catch((err) => console.error('mark notifications read error', err));
   }, [profile]);
+
+  async function handleLoadMore() {
+    if (!profile || loadingMore || !hasMore || notifications.length === 0) return;
+    const last = notifications[notifications.length - 1];
+    setLoadingMore(true);
+    try {
+      const more = await getMyNotifications(profile.id, {
+        before: { createdAt: last.created_at, id: last.id },
+      });
+      setNotifications((prev) => [...prev, ...more]);
+      setHasMore(more.length === NOTIFICATIONS_PAGE_SIZE);
+    } catch (err) {
+      console.error('load more notifications error', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -159,6 +185,16 @@ export function NotificationsScreen({ role }: { role: 'client' | 'business' }) {
           );
         })
       )}
+
+      {hasMore && notifications.length > 0 && (
+        <Pressable style={styles.loadMoreBtn} onPress={handleLoadMore} disabled={loadingMore}>
+          {loadingMore ? (
+            <ActivityIndicator color={colors.primary} size="small" />
+          ) : (
+            <Text style={styles.loadMoreText}>Cargar más</Text>
+          )}
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -217,5 +253,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 4,
+  },
+  loadMoreBtn: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  loadMoreText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

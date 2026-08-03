@@ -4,16 +4,41 @@ import { notifyUser } from './notifications';
 import { subscribeToTable } from './realtime';
 import type { Message } from '../types/database';
 
-export async function getMessages(clientId: string, businessId: string): Promise<Message[]> {
-  const { data, error } = await supabase
+export const MESSAGES_PAGE_SIZE = 50;
+
+export interface GetMessagesParams {
+  limit?: number;
+  before?: { createdAt: string; id: string };
+}
+
+// Antes traía TODO el historial del hilo sin límite -- la conversación más
+// usada de la app, cargando miles de filas cada vez que se abre un chat con
+// mucho tiempo de trato. Ahora trae los últimos `limit` (default 50), o los
+// anteriores a un cursor (para "Cargar mensajes anteriores") -- la consulta
+// pide desc (más nuevo primero) para que el limit tome los últimos, y se
+// invierte antes de devolver porque la pantalla siempre pinta ascendente
+// (más viejo arriba).
+export async function getMessages(
+  clientId: string,
+  businessId: string,
+  params: GetMessagesParams = {}
+): Promise<Message[]> {
+  let query = supabase
     .from('messages')
     .select('*')
     .eq('client_id', clientId)
     .eq('business_id', businessId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
 
+  if (params.before) {
+    const { createdAt, id } = params.before;
+    query = query.or(`created_at.lt.${createdAt},and(created_at.eq.${createdAt},id.lt.${id})`);
+  }
+
+  const { data, error } = await query.limit(params.limit ?? MESSAGES_PAGE_SIZE);
   if (error) throw error;
-  return (data ?? []) as Message[];
+  return ((data ?? []) as Message[]).reverse();
 }
 
 export interface SendMessageParams {
@@ -174,13 +199,14 @@ async function getHiddenAtMap(hiddenBy: 'client' | 'business'): Promise<Map<stri
   return new Map((data ?? []).map((row) => [(row as any)[key] as string, row.hidden_at as string]));
 }
 
+// Antes traía TODOS los mensajes históricos del usuario y hacía el dedupe
+// "última fila por contraparte" en JS -- el costo escalaba con el volumen
+// total de mensajes de toda la vida, no con el número de conversaciones
+// visibles. get_client_conversations (RPC, migración 0177) hace ese dedupe
+// en la base con DISTINCT ON, mucho más barato.
 export async function getClientConversations(clientId: string): Promise<ConversationSummary[]> {
   const [{ data, error }, hiddenAtByOtherId] = await Promise.all([
-    supabase
-      .from('messages')
-      .select('business_id, body, image_url, created_at, sender_id, read_at')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false }),
+    supabase.rpc('get_client_conversations', { target_client_id: clientId }),
     getHiddenAtMap('client'),
   ]);
   if (error) throw error;
@@ -199,11 +225,7 @@ export async function getClientConversations(clientId: string): Promise<Conversa
 
 export async function getBusinessConversations(businessId: string): Promise<ConversationSummary[]> {
   const [{ data, error }, hiddenAtByOtherId] = await Promise.all([
-    supabase
-      .from('messages')
-      .select('client_id, body, image_url, created_at, sender_id, read_at')
-      .eq('business_id', businessId)
-      .order('created_at', { ascending: false }),
+    supabase.rpc('get_business_conversations', { target_business_id: businessId }),
     getHiddenAtMap('business'),
   ]);
   if (error) throw error;

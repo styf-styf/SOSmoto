@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, ScrollView } from 'react-native';
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { markThreadRead, sendMessage, subscribeToMessages } from '../services/messages';
+import { getMessages, markThreadRead, MESSAGES_PAGE_SIZE, sendMessage, subscribeToMessages } from '../services/messages';
 import { pickImageFromCamera, pickImageFromLibrary, uploadChatImage } from '../services/storage';
 import type { Message } from '../types/database';
 
@@ -33,6 +33,17 @@ export function useChatMessaging(params: {
   const [pendingImage, setPendingImage] = useState<ImagePickerAsset | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showAttach, setShowAttach] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(false);
+  // getMessages ahora solo trae los últimos MESSAGES_PAGE_SIZE por defecto
+  // (antes traía TODO el historial sin límite) -- este flag evita que el
+  // auto-scroll-al-fondo salte cuando lo que cambió fue un "cargar mensajes
+  // anteriores" (que agrega arriba, no abajo). Se consulta en dos lugares
+  // (el efecto de acá y el onContentSizeChange de cada pantalla) que pueden
+  // dispararse en cualquier orden entre sí, así que se resetea solo, después
+  // de darles tiempo a ambos de verlo en true -- ninguno de los dos lo
+  // consume/apaga por su cuenta.
+  const suppressNextAutoScrollRef = useRef(false);
 
   useEffect(() => {
     if (!businessId || !clientId) return;
@@ -66,10 +77,37 @@ export function useChatMessaging(params: {
   }, [businessId, clientId, profileId, role]);
 
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !suppressNextAutoScrollRef.current) {
       scrollRef.current?.scrollToEnd({ animated: true });
     }
   }, [messages.length]);
+
+  // Trae mensajes más viejos que el primero que ya está cargado (cursor por
+  // created_at+id) y los agrega arriba -- ver el comentario de
+  // suppressNextAutoScrollRef sobre por qué no se auto-scrollea al fondo acá.
+  async function loadOlderMessages() {
+    if (loadingOlder || !hasMoreOlder || messages.length === 0 || !clientId || !businessId) return;
+    const oldest = messages[0];
+    setLoadingOlder(true);
+    suppressNextAutoScrollRef.current = true;
+    try {
+      const older = await getMessages(clientId, businessId, {
+        limit: MESSAGES_PAGE_SIZE,
+        before: { createdAt: oldest.created_at, id: oldest.id },
+      });
+      if (older.length > 0) {
+        setMessages((prev) => [...older, ...prev]);
+      }
+      setHasMoreOlder(older.length === MESSAGES_PAGE_SIZE);
+    } catch (err) {
+      console.error('load older messages error', err);
+    } finally {
+      setLoadingOlder(false);
+      setTimeout(() => {
+        suppressNextAutoScrollRef.current = false;
+      }, 300);
+    }
+  }
 
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidShow', () => {
@@ -167,6 +205,11 @@ export function useChatMessaging(params: {
     setViewingImage,
     showAttach,
     setShowAttach,
+    loadingOlder,
+    hasMoreOlder,
+    setHasMoreOlder,
+    loadOlderMessages,
+    suppressNextAutoScrollRef,
     handleCamera,
     handleGallery,
     handleSend,

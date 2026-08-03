@@ -22,7 +22,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useChatMessaging } from '../../../hooks/useChatMessaging';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
-import { getMessages, markThreadRead, sendMessage } from '../../../services/messages';
+import { getMessages, markThreadRead, MESSAGES_PAGE_SIZE, sendMessage } from '../../../services/messages';
 import {
   getActiveAppointmentRequests,
   subscribeToAppointmentRequest,
@@ -87,6 +87,11 @@ export default function ChatScreen() {
     setViewingImage,
     showAttach,
     setShowAttach,
+    loadingOlder,
+    hasMoreOlder,
+    setHasMoreOlder,
+    loadOlderMessages,
+    suppressNextAutoScrollRef,
     handleCamera,
     handleGallery,
     handleSend,
@@ -171,6 +176,7 @@ export default function ChatScreen() {
           getHiddenBannerKeys(thread.businessId, thread.clientId, 'client').then(setDismissedBanners),
         ]);
         setMessages(history);
+        setHasMoreOlder(history.length === MESSAGES_PAGE_SIZE);
         if (profile) {
           await markThreadRead(thread.clientId, thread.businessId, profile.id);
         }
@@ -587,10 +593,25 @@ export default function ChatScreen() {
           ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={styles.messages}
-          onContentSizeChange={() =>
-            scrollRef.current?.scrollToEnd({ animated: false })
-          }
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onContentSizeChange={() => {
+            if (suppressNextAutoScrollRef.current) return;
+            scrollRef.current?.scrollToEnd({ animated: false });
+          }}
         >
+          {hasMoreOlder && (
+            <Pressable
+              style={styles.loadOlderBtn}
+              onPress={loadOlderMessages}
+              disabled={loadingOlder}
+            >
+              {loadingOlder ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.loadOlderBtnText}>Cargar mensajes anteriores</Text>
+              )}
+            </Pressable>
+          )}
           {messages.length === 0 ? (
             <Text style={styles.placeholder}>
               Aún no hay mensajes. Escribe el primero.
@@ -817,6 +838,21 @@ const styles = StyleSheet.create({
   messages: {
     padding: 16,
     gap: 8,
+  },
+  loadOlderBtn: {
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: 8,
+  },
+  loadOlderBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   placeholder: {
     color: colors.textMuted,
