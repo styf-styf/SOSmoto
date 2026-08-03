@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -299,7 +299,16 @@ export default function AgendaNegocioScreen() {
           {requests.map((request) => (
             <View key={request.id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{request.client_name}</Text>
+                <View style={styles.cardTitleRow}>
+                  <View style={styles.avatar}>
+                    {request.client_avatar_url ? (
+                      <Image source={{ uri: request.client_avatar_url }} style={styles.avatarImage} />
+                    ) : (
+                      <Ionicons name="person" size={16} color={colors.textMuted} />
+                    )}
+                  </View>
+                  <Text style={styles.cardTitle}>{request.client_name}</Text>
+                </View>
                 <StatusBadge label="Sin responder" tone="pending" />
               </View>
               {request.service_name && <Text style={styles.cardMeta}>{request.service_name}</Text>}
@@ -404,6 +413,13 @@ export default function AgendaNegocioScreen() {
             >
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleRow}>
+                  <View style={styles.avatar}>
+                    {appointment.client?.avatar_url ? (
+                      <Image source={{ uri: appointment.client.avatar_url }} style={styles.avatarImage} />
+                    ) : (
+                      <Ionicons name="person" size={16} color={colors.textMuted} />
+                    )}
+                  </View>
                   <Text style={styles.cardTitle}>{appointment.display_name}</Text>
                   {!appointment.client_id && (
                     <Text style={styles.externalBadge}>Externo</Text>
@@ -792,6 +808,19 @@ const styles = StyleSheet.create({
   newCitaBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   cardTitleRow: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 32,
+    height: 32,
   },
   externalBadge: {
     fontSize: 10, fontWeight: '700', color: colors.textMuted,

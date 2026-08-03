@@ -42,7 +42,7 @@ export async function getClientAppointments(clientId: string): Promise<ClientApp
 
 export interface BusinessAppointment extends Appointment {
   service_name: string | null;
-  client: { full_name: string; phone: string | null } | null;
+  client: { full_name: string; phone: string | null; avatar_url: string | null } | null;
   vehicle: VehicleInfo | null;
   // Nombre de display calculado: usa client.full_name si existe, si no external_client_name
   display_name: string;
@@ -67,7 +67,7 @@ export async function getBusinessAppointments(businessId: string): Promise<Busin
   const [{ data: clients, error: clientsError }, { data: vehicles, error: vehiclesError }] =
     await Promise.all([
       clientIds.length
-        ? supabase.from('users').select('id, full_name, phone').in('id', clientIds)
+        ? supabase.from('users').select('id, full_name, phone, avatar_url').in('id', clientIds)
         : Promise.resolve({ data: [], error: null }),
       vehicleIds.length
         ? supabase.from('vehicles').select('id, brand, model, year, plate').in('id', vehicleIds)

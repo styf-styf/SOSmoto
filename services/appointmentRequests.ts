@@ -55,6 +55,7 @@ export function subscribeToClientAppointmentRequests(clientId: string, onChange:
 
 export interface BusinessAppointmentRequest extends AppointmentRequest {
   client_name: string;
+  client_avatar_url: string | null;
 }
 
 // Simétrico a getClientAppointmentRequests -- para la agenda del taller
@@ -75,15 +76,19 @@ export async function getBusinessAppointmentRequests(businessId: string): Promis
   const rows = data ?? [];
   const clientIds = Array.from(new Set(rows.map((r: any) => r.client_id as string)));
   const { data: clients, error: clientsError } = clientIds.length
-    ? await supabase.from('users').select('id, full_name').in('id', clientIds)
+    ? await supabase.from('users').select('id, full_name, avatar_url').in('id', clientIds)
     : { data: [], error: null };
   if (clientsError) throw clientsError;
-  const nameById = new Map((clients ?? []).map((c: any) => [c.id as string, c.full_name as string]));
+  const clientById = new Map((clients ?? []).map((c: any) => [c.id as string, c]));
 
-  return rows.map((row: any) => ({
-    ...row,
-    client_name: nameById.get(row.client_id) ?? 'Cliente',
-  })) as BusinessAppointmentRequest[];
+  return rows.map((row: any) => {
+    const client = clientById.get(row.client_id);
+    return {
+      ...row,
+      client_name: client?.full_name ?? 'Cliente',
+      client_avatar_url: client?.avatar_url ?? null,
+    };
+  }) as BusinessAppointmentRequest[];
 }
 
 export function subscribeToBusinessAppointmentRequests(businessId: string, onChange: () => void) {
