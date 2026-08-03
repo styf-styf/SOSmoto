@@ -131,6 +131,13 @@ export default function ChatScreen() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
     new Set(),
   );
+  // Hora de envio oculta por defecto -- se muestra solo del mensaje
+  // presionado, y se oculta de nuevo al presionar otro (o al scrollear/
+  // enfocar el input).
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  function dismissSelectedTime() {
+    setSelectedMessageId(null);
+  }
   function dismissBanner(key: string) {
     setDismissedBanners((prev) => new Set(prev).add(key));
     if (businessId && clientId) {
@@ -598,6 +605,7 @@ export default function ChatScreen() {
             if (suppressNextAutoScrollRef.current) return;
             scrollRef.current?.scrollToEnd({ animated: false });
           }}
+          onScrollBeginDrag={dismissSelectedTime}
         >
           {hasMoreOlder && (
             <Pressable
@@ -629,6 +637,13 @@ export default function ChatScreen() {
                       </Text>
                     </View>
                   )}
+                  <Pressable
+                    onPress={() =>
+                      setSelectedMessageId((prev) =>
+                        prev === message.id ? null : message.id
+                      )
+                    }
+                  >
                   {quote ? (
                     <View
                       style={[
@@ -664,7 +679,12 @@ export default function ChatScreen() {
                         styles.quoteCard,
                         isMine ? styles.quoteCardMine : styles.quoteCardTheirs,
                       ]}
-                      onPress={() => businessId && router.push(`/(client)/negocio-catalogo/${businessId}`)}
+                      onPress={() => {
+                        if (businessId) router.push(`/(client)/negocio-catalogo/${businessId}`);
+                        setSelectedMessageId((prev) =>
+                          prev === message.id ? null : message.id
+                        );
+                      }}
                     >
                       <View style={styles.quoteHeader}>
                         <Ionicons name="grid-outline" size={14} color={colors.primary} />
@@ -682,7 +702,12 @@ export default function ChatScreen() {
                         styles.imageBubble,
                         isMine ? styles.bubbleMine : styles.bubbleTheirs,
                       ]}
-                      onPress={() => setViewingImage(message.image_url!)}
+                      onPress={() => {
+                        setViewingImage(message.image_url!);
+                        setSelectedMessageId((prev) =>
+                          prev === message.id ? null : message.id
+                        );
+                      }}
                     >
                       <Image
                         source={{ uri: message.image_url }}
@@ -716,6 +741,9 @@ export default function ChatScreen() {
                       </Text>
                     </View>
                   )}
+                  </Pressable>
+                  {(message.id.startsWith('temp_') ||
+                    selectedMessageId === message.id) && (
                   <View
                     style={[
                       styles.messageTimeRow,
@@ -736,6 +764,7 @@ export default function ChatScreen() {
                       </Text>
                     )}
                   </View>
+                  )}
                 </View>
               );
             })
@@ -804,6 +833,7 @@ export default function ChatScreen() {
             placeholderTextColor={colors.textMuted}
             value={text}
             onChangeText={setText}
+            onFocus={dismissSelectedTime}
             multiline
             blurOnSubmit={false}
             maxLength={4000}

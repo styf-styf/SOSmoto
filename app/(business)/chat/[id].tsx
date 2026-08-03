@@ -227,6 +227,10 @@ export default function ChatScreen() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
     new Set(),
   );
+  // Hora de envio oculta por defecto -- se muestra solo del mensaje
+  // presionado, y se oculta de nuevo al presionar otro (o al scrollear/
+  // enfocar el input, via dismissFloatingPanels).
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   function dismissBanner(key: string) {
     setDismissedBanners((prev) => new Set(prev).add(key));
     if (businessId && clientId) {
@@ -457,6 +461,7 @@ export default function ChatScreen() {
   function dismissFloatingPanels() {
     setShowQuickReplies(false);
     if (showQuoteForm) closeQuoteForm();
+    setSelectedMessageId(null);
   }
 
   function openApproveForm(request: AppointmentRequest) {
@@ -1350,6 +1355,13 @@ export default function ChatScreen() {
                       </Text>
                     </View>
                   )}
+                  <Pressable
+                    onPress={() =>
+                      setSelectedMessageId((prev) =>
+                        prev === message.id ? null : message.id
+                      )
+                    }
+                  >
                   {quote ? (
                     <View
                       style={[
@@ -1419,7 +1431,12 @@ export default function ChatScreen() {
                         styles.imageBubble,
                         isMine ? styles.bubbleMine : styles.bubbleTheirs,
                       ]}
-                      onPress={() => setViewingImage(message.image_url!)}
+                      onPress={() => {
+                        setViewingImage(message.image_url!);
+                        setSelectedMessageId((prev) =>
+                          prev === message.id ? null : message.id
+                        );
+                      }}
                     >
                       <Image
                         source={{ uri: message.image_url }}
@@ -1453,6 +1470,9 @@ export default function ChatScreen() {
                       </Text>
                     </View>
                   )}
+                  </Pressable>
+                  {(message.id.startsWith('temp_') ||
+                    selectedMessageId === message.id) && (
                   <View
                     style={[
                       styles.messageTimeRow,
@@ -1473,6 +1493,7 @@ export default function ChatScreen() {
                       </Text>
                     )}
                   </View>
+                  )}
                 </View>
               );
             })
