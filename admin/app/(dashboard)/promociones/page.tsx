@@ -36,7 +36,18 @@ export default async function PromocionesPage() {
     supabase.from('promotion_settings').select('applies_to_all_businesses').eq('id', true).maybeSingle(),
   ]);
 
-  const plans = (plansResult.data ?? []) as { id: string; name: PlanName; business_type: BusinessType }[];
+  // Orden fijo para que la grilla (2 columnas) quede como en la app: columna
+  // izquierda = Taller (Estándar arriba, Pro abajo), columna derecha =
+  // Tienda (Estándar arriba, Pro abajo). El grid de abajo es de 1 fila por
+  // nivel (Estándar, luego Pro), con taller y tienda lado a lado en esa
+  // fila -- así el orden de lectura por fila coincide con las columnas
+  // visuales. Antes dependía del orden de inserción en la base, que no
+  // coincidía con esto y se prestaba a confusión.
+  const BUSINESS_TYPE_ORDER: Record<BusinessType, number> = { workshop: 0, store: 1, brand_advertiser: 2 };
+  const PLAN_ORDER: Record<PlanName, number> = { free: 0, standard: 1, pro: 2 };
+  const plans = ((plansResult.data ?? []) as { id: string; name: PlanName; business_type: BusinessType }[]).sort(
+    (a, b) => PLAN_ORDER[a.name] - PLAN_ORDER[b.name] || BUSINESS_TYPE_ORDER[a.business_type] - BUSINESS_TYPE_ORDER[b.business_type]
+  );
   const promotions = (promotionsResult.data ?? []) as unknown as AdminPlanPromotionRow[];
   const beneficiaries = (beneficiariesResult.data ?? []) as unknown as AdminPromotionBeneficiaryRow[];
   const appliesToAll = !!(settingsResult.data as { applies_to_all_businesses: boolean } | null)?.applies_to_all_businesses;
