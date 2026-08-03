@@ -56,6 +56,7 @@ export default function BusinessConfiguracionScreen() {
   const quickAccess = useSavedAccountToggle(profile?.id);
 
   const [togglingDeactivated, setTogglingDeactivated] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   const cacheKey = profile ? `business-config-${profile.id}` : null;
   const { data, loading, reload, setData } = useCachedLoad<BusinessConfigData>(
@@ -111,6 +112,40 @@ export default function BusinessConfiguracionScreen() {
       console.error('refresh business config error', err);
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  // Manual, para cuando el chequeo automático de expo-updates se queda
+  // atascado en el dispositivo (visto en producción: forzar detención varias
+  // veces no lo destrababa, solo desinstalar/reinstalar) -- da una forma de
+  // reintentar sin llegar a ese extremo.
+  async function handleCheckForUpdate() {
+    if (checkingUpdate) return;
+    if (!Updates.isEnabled) {
+      Alert.alert('No disponible', 'Las actualizaciones OTA no están activas en este build.');
+      return;
+    }
+    setCheckingUpdate(true);
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        Alert.alert('Ya estás al día', 'No hay ninguna actualización nueva disponible.');
+        return;
+      }
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        'Actualización descargada',
+        'Se descargó una versión nueva. ¿Reiniciar la app ahora para aplicarla?',
+        [
+          { text: 'Más tarde', style: 'cancel' },
+          { text: 'Reiniciar ahora', onPress: () => Updates.reloadAsync() },
+        ],
+      );
+    } catch (err) {
+      console.error('check for update error', err);
+      Alert.alert('Error', 'No se pudo buscar actualizaciones. Intenta de nuevo más tarde.');
+    } finally {
+      setCheckingUpdate(false);
     }
   }
 
@@ -367,8 +402,9 @@ export default function BusinessConfiguracionScreen() {
         <MenuRow
           icon="information-circle-outline"
           label="Versión de la app"
-          hint={buildInfo}
+          hint={checkingUpdate ? 'Buscando actualizaciones…' : `${buildInfo} · Toca para buscar actualizaciones`}
           badge={appVersion}
+          onPress={handleCheckForUpdate}
           last
         />
       </View>
