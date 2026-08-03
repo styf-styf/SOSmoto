@@ -303,7 +303,7 @@ export default function SuscripcionScreen() {
                   <Text style={styles.currentBadgeText}>Tu plan actual</Text>
                 </View>
               )}
-              {!isCurrent && isPromoPlan && (
+              {showPromoButton && (
                 <View style={styles.promoBadge}>
                   <Text style={styles.promoBadgeText}>🎁 Promoción</Text>
                 </View>
@@ -341,7 +341,7 @@ export default function SuscripcionScreen() {
             {showPromoButton && (
               <>
                 <Text style={styles.promoNotice}>
-                  Promoción de lanzamiento: {promotion?.duration_days} días gratis, sin pagar. Solo una vez por negocio.
+                  {promotion?.label_text || 'Promoción de lanzamiento:'} {promotion?.duration_days} días gratis, sin pagar. Solo una vez por negocio.
                 </Text>
                 <Button
                   title={`Obtener plan ${planLabel[plan.name] ?? plan.name} gratis`}

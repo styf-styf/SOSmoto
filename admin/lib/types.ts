@@ -149,6 +149,7 @@ export interface AdminPlanPromotionRow {
   remaining_days: number;
   window_days: number | null;
   remaining_window_days: number | null;
+  label_text: string | null;
   is_active: boolean;
   activated_at: string | null;
   created_at: string;

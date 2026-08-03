@@ -15,6 +15,7 @@ export async function getActivePlanPromotion(businessType?: string | null): Prom
     duration_days: row.duration_days,
     activated_at: row.activated_at,
     applies_to_all_businesses: row.applies_to_all_businesses,
+    label_text: row.label_text ?? null,
   };
 }
 

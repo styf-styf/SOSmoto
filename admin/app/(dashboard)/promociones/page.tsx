@@ -36,7 +36,7 @@ export default async function PromocionesPage() {
     supabase
       .from('plan_promotions')
       .select(
-        'id, plan_id, duration_days, remaining_days, window_days, remaining_window_days, is_active, activated_at, created_at, subscription_plans(name, business_type)'
+        'id, plan_id, duration_days, remaining_days, window_days, remaining_window_days, label_text, is_active, activated_at, created_at, subscription_plans(name, business_type)'
       ),
     supabase
       .from('business_subscriptions')
@@ -110,6 +110,7 @@ export default async function PromocionesPage() {
               remainingDays={promo ? liveRemainingDays(promo) : null}
               windowDays={promo?.window_days ?? null}
               remainingWindowDays={liveRemainingWindowDays(promo)}
+              labelText={promo?.label_text ?? null}
             />
           );
         })}

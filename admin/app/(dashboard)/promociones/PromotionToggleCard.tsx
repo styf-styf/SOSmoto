@@ -15,6 +15,7 @@ export function PromotionToggleCard({
   remainingDays,
   windowDays,
   remainingWindowDays,
+  labelText,
 }: {
   planId: string;
   planName: string;
@@ -25,6 +26,7 @@ export function PromotionToggleCard({
   remainingDays: number | null;
   windowDays: number | null;
   remainingWindowDays: number | null;
+  labelText: string | null;
 }) {
   const router = useRouter();
   const planLabel = `${PLAN_LABELS[planName] ?? planName} (${businessTypeLabel})`;
@@ -32,7 +34,8 @@ export function PromotionToggleCard({
   const hasWindowSet = windowDays !== null && windowDays > 0;
   const [days, setDays] = useState(remainingDays ?? durationDays ?? 90);
   const [windowDaysInput, setWindowDaysInput] = useState(windowDays ?? 0);
-  const [loading, setLoading] = useState<'toggle' | 'days' | 'window' | null>(null);
+  const [labelTextInput, setLabelTextInput] = useState(labelText ?? '');
+  const [loading, setLoading] = useState<'toggle' | 'days' | 'window' | 'label' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleToggle() {
@@ -90,6 +93,23 @@ export function PromotionToggleCard({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ planId, days: windowDaysInput || null }),
+    });
+    setLoading(null);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Ocurrió un error.');
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handleSaveLabel() {
+    setLoading('label');
+    setError(null);
+    const res = await fetch('/api/promociones/etiqueta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId, text: labelTextInput }),
     });
     setLoading(null);
     if (!res.ok) {
@@ -177,6 +197,26 @@ export function PromotionToggleCard({
           className="whitespace-nowrap rounded-lg bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 disabled:opacity-60"
         >
           {loading === 'window' ? '...' : 'Guardar días'}
+        </button>
+      </div>
+
+      <label className="mb-1 mt-3 block text-xs text-gray-500">
+        Texto de la etiqueta (reemplaza &quot;Promoción de lanzamiento:&quot;, vacío = por defecto)
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Promoción de lanzamiento:"
+          value={labelTextInput}
+          onChange={(e) => setLabelTextInput(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900"
+        />
+        <button
+          onClick={handleSaveLabel}
+          disabled={loading !== null}
+          className="whitespace-nowrap rounded-lg bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 disabled:opacity-60"
+        >
+          {loading === 'label' ? '...' : 'Guardar'}
         </button>
       </div>
 

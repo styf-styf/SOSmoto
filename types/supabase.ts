@@ -454,6 +454,7 @@ export interface Database {
           remaining_days: number;
           window_days: number | null;
           remaining_window_days: number | null;
+          label_text: string | null;
           is_active: boolean;
           activated_at: string | null;
           created_at: string;
@@ -466,6 +467,7 @@ export interface Database {
           remaining_days?: number;
           window_days?: number | null;
           remaining_window_days?: number | null;
+          label_text?: string | null;
           is_active?: boolean;
           activated_at?: string | null;
           created_at?: string;
@@ -478,6 +480,7 @@ export interface Database {
           remaining_days?: number;
           window_days?: number | null;
           remaining_window_days?: number | null;
+          label_text?: string | null;
           is_active?: boolean;
           activated_at?: string | null;
           created_at?: string;
@@ -1927,6 +1930,7 @@ export interface Database {
           duration_days: number;
           activated_at: string;
           applies_to_all_businesses: boolean;
+          label_text: string | null;
         }[];
       };
       increment_ad_metric: {

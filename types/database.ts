@@ -210,6 +210,7 @@ export interface ActivePlanPromotion {
   duration_days: number;
   activated_at: string;
   applies_to_all_businesses: boolean;
+  label_text: string | null;
 }
 
 export interface Service {
