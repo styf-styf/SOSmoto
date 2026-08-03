@@ -1,6 +1,7 @@
 import { createAdminClient } from '../../../lib/supabase/admin';
 import type { AdminBusinessRow, BusinessType } from '../../../lib/types';
 import { Paginator } from '../../../components/Paginator';
+import { UsersSectionNav } from '../../../components/UsersSectionNav';
 import { BusinessActions } from './BusinessActions';
 
 const PAGE_SIZE = 25;
@@ -43,12 +44,7 @@ export default async function NegociosPage({
     <div>
       <h1 className="mb-4 text-xl font-bold">Usuarios</h1>
 
-      <div className="mb-4 flex gap-4 border-b border-gray-200">
-        <a href="/usuarios" className="px-1 pb-2 text-sm font-medium text-gray-500">
-          Clientes
-        </a>
-        <span className="border-b-2 border-primary px-1 pb-2 text-sm font-semibold text-primary">Negocios</span>
-      </div>
+      <UsersSectionNav active="/negocios" />
 
       <form method="get" className="mb-4 flex gap-3">
         <input

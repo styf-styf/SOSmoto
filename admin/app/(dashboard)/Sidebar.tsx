@@ -9,13 +9,18 @@ export function Sidebar({ navItems }: { navItems: { href: string; label: string 
   return (
     <nav className="flex flex-1 flex-col gap-1">
       {navItems.map((item) => {
-        // /negocios vive fuera de /usuarios (rutas hermanas), pero son la
-        // misma sección para el usuario (pestañas Usuarios/Negocios de la
-        // misma pantalla) -- se resalta igual el link de "Usuarios".
+        // /clientes y /negocios viven fuera de /usuarios (rutas hermanas),
+        // pero son la misma sección para el usuario (pestañas Usuarios/
+        // Clientes/Negocios de la misma pantalla) -- se resalta igual el
+        // link de "Usuarios".
         const active =
           pathname === item.href ||
           pathname.startsWith(`${item.href}/`) ||
-          (item.href === '/usuarios' && (pathname === '/negocios' || pathname.startsWith('/negocios/')));
+          (item.href === '/usuarios' &&
+            (pathname === '/clientes' ||
+              pathname.startsWith('/clientes/') ||
+              pathname === '/negocios' ||
+              pathname.startsWith('/negocios/')));
         return (
           <Link
             key={item.href}
