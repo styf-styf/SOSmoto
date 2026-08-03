@@ -94,27 +94,44 @@ export function subscribeToThreadChanges(
   );
 }
 
+// Cruza contra hidden_chats -- un chat que el usuario ocultó de su lista
+// (ver hideChat) no tiene forma de "abrir y marcar leído" desde la UI, así
+// que si no se excluye acá, un mensaje sin leer que quedó atrapado en un
+// chat oculto deja el punto rojo pegado para siempre.
 export async function hasUnreadMessagesForClient(clientId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('id')
-    .eq('client_id', clientId)
-    .is('read_at', null)
-    .neq('sender_id', clientId)
-    .limit(1);
+  const [{ data, error }, hiddenAtByOtherId] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('business_id, created_at')
+      .eq('client_id', clientId)
+      .is('read_at', null)
+      .neq('sender_id', clientId)
+      .limit(50),
+    getHiddenAtMap('client'),
+  ]);
   if (error) throw error;
-  return (data ?? []).length > 0;
+  return (data ?? []).some((row) => {
+    const hiddenAt = hiddenAtByOtherId.get(row.business_id);
+    return !hiddenAt || hiddenAt < row.created_at;
+  });
 }
 
 export async function hasUnreadMessagesForBusiness(businessId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('sender_id, client_id')
-    .eq('business_id', businessId)
-    .is('read_at', null)
-    .limit(50);
+  const [{ data, error }, hiddenAtByOtherId] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('sender_id, client_id, created_at')
+      .eq('business_id', businessId)
+      .is('read_at', null)
+      .limit(50),
+    getHiddenAtMap('business'),
+  ]);
   if (error) throw error;
-  return (data ?? []).some((row) => row.sender_id === row.client_id);
+  return (data ?? []).some((row) => {
+    if (row.sender_id !== row.client_id) return false;
+    const hiddenAt = hiddenAtByOtherId.get(row.client_id);
+    return !hiddenAt || hiddenAt < row.created_at;
+  });
 }
 
 export async function markThreadRead(clientId: string, businessId: string, readerId: string): Promise<void> {
