@@ -1345,18 +1345,21 @@ export interface Database {
           id: string;
           client_id: string;
           business_id: string;
+          follower_business_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           client_id: string;
           business_id: string;
+          follower_business_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           client_id?: string;
           business_id?: string;
+          follower_business_id?: string | null;
           created_at?: string;
         };
         Relationships: [];

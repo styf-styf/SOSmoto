@@ -75,12 +75,12 @@ export async function getNearestCity(
   return nearby[0]?.city ?? null;
 }
 
-export async function getFollowedBusinesses(clientId: string): Promise<Business[]> {
-  const { data: follows, error: followsError } = await supabase
-    .from('follows')
-    .select('business_id')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
+export async function getFollowedBusinesses(clientId: string, followerBusinessId?: string | null): Promise<Business[]> {
+  let query = supabase.from('follows').select('business_id').order('created_at', { ascending: false });
+  query = followerBusinessId
+    ? query.eq('follower_business_id', followerBusinessId)
+    : query.eq('client_id', clientId).is('follower_business_id', null);
+  const { data: follows, error: followsError } = await query;
 
   if (followsError) throw followsError;
 

@@ -131,7 +131,7 @@ export const HomeFeed = forwardRef<
   const loadInitial = useCallback(async () => {
     const [postsPage, homeAds] = await Promise.all([
       feedMode === 'following' && clientId
-        ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE })
+        ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE }, role === 'business' ? viewerBusinessId : null)
         : getPublicFeedPage({ limit: PAGE_SIZE }),
       getHomeAds(city, coords),
     ]);
@@ -152,7 +152,7 @@ export const HomeFeed = forwardRef<
     setCatalogPoolNoPhoto(orderedCatalog.filter((item) => !item.photoUrl));
     setAdPool(applyFreshnessOrder(homeAds.bannerAds, (item) => item.created_at, lastSeenAdAt));
     setHasMore(postsPage.length === PAGE_SIZE);
-  }, [city, coords, feedMode, clientId]);
+  }, [city, coords, feedMode, clientId, role, viewerBusinessId]);
 
   // loadInitial depende de city/clientId, que llegan como prop desde la
   // pantalla padre y arrancan en null/undefined hasta que se resuelven
@@ -210,10 +210,11 @@ export const HomeFeed = forwardRef<
       const last = posts[posts.length - 1];
       const nextPage =
         feedMode === 'following' && clientId
-          ? await getFollowingFeedPage(clientId, {
-              limit: PAGE_SIZE,
-              before: { createdAt: last.created_at, id: last.id },
-            })
+          ? await getFollowingFeedPage(
+              clientId,
+              { limit: PAGE_SIZE, before: { createdAt: last.created_at, id: last.id } },
+              role === 'business' ? viewerBusinessId : null
+            )
           : await getPublicFeedPage({
               limit: PAGE_SIZE,
               before: { createdAt: last.created_at, id: last.id },

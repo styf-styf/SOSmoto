@@ -603,6 +603,7 @@ export interface Follow {
   id: string;
   client_id: string;
   business_id: string;
+  follower_business_id: string | null;
   created_at: string;
 }
 

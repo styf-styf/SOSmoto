@@ -205,7 +205,7 @@ export default function BusinessHomeScreen() {
         getVisibleClientStories(),
         getActiveGrowthSuggestion(result.id),
         result.business_type === 'workshop'
-          ? getVisibleBusinessStoriesFollowed(profile.id)
+          ? getVisibleBusinessStoriesFollowed(profile.id, result.id)
           : Promise.resolve([]),
         result.business_type === 'workshop'
           ? getNewNearbyBusinesses(coords, 6, {
@@ -214,7 +214,7 @@ export default function BusinessHomeScreen() {
             })
           : Promise.resolve([]),
         result.business_type === 'workshop'
-          ? getFollowsCount(profile.id)
+          ? getFollowsCount(profile.id, result.id)
           : Promise.resolve(0),
       ]);
       setGrowthSuggestion(suggestion);

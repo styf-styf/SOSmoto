@@ -148,12 +148,14 @@ export interface PublicFeedPageParams {
 
 export async function getFollowingFeedPage(
   clientId: string,
-  params: PublicFeedPageParams = {}
+  params: PublicFeedPageParams = {},
+  followerBusinessId?: string | null
 ): Promise<PostWithAuthor[]> {
-  const { data: follows, error: followsError } = await supabase
-    .from('follows')
-    .select('business_id')
-    .eq('client_id', clientId);
+  let followsQuery = supabase.from('follows').select('business_id');
+  followsQuery = followerBusinessId
+    ? followsQuery.eq('follower_business_id', followerBusinessId)
+    : followsQuery.eq('client_id', clientId).is('follower_business_id', null);
+  const { data: follows, error: followsError } = await followsQuery;
   if (followsError) throw followsError;
 
   const followedIds = ((follows ?? []) as { business_id: string }[]).map((f) => f.business_id);

@@ -219,11 +219,15 @@ export function groupStoriesByAuthor(params: {
 
 // Historias activas de los negocios que sigue un cliente específico.
 // Equivale a getVisibleBusinessStoriesGlobal pero filtrado por follows.
-export async function getVisibleBusinessStoriesFollowed(clientId: string): Promise<BusinessStoryWithAuthor[]> {
-  const { data: followsData, error: followsError } = await supabase
-    .from('follows')
-    .select('business_id')
-    .eq('client_id', clientId);
+export async function getVisibleBusinessStoriesFollowed(
+  clientId: string,
+  followerBusinessId?: string | null
+): Promise<BusinessStoryWithAuthor[]> {
+  let followsQuery = supabase.from('follows').select('business_id');
+  followsQuery = followerBusinessId
+    ? followsQuery.eq('follower_business_id', followerBusinessId)
+    : followsQuery.eq('client_id', clientId).is('follower_business_id', null);
+  const { data: followsData, error: followsError } = await followsQuery;
   if (followsError) throw followsError;
   const businessIds = (followsData ?? []).map((f) => f.business_id as string);
   if (businessIds.length === 0) return [];

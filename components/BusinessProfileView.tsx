@@ -56,6 +56,10 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
   const [followedStores, setFollowedStores] = useState<Business[]>([]);
   const [following, setFollowing] = useState(false);
   const [viewerBusinessType, setViewerBusinessType] = useState<Business['business_type'] | null>(null);
+  // Id del negocio de quien mira (dueño o empleado) -- cuando existe,
+  // "Seguir" es un follow del NEGOCIO (compartido por todo su equipo), no
+  // de la persona (ver services/follows.ts).
+  const [viewerBusinessId, setViewerBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoOverride, setLogoOverride] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -96,7 +100,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       (resolvedBusiness.business_type === 'workshop' || resolvedBusiness.business_type === 'store') &&
       profile
     ) {
-      getFollowedBusinesses(profile.id)
+      getFollowedBusinesses(profile.id, resolvedBusiness.id)
         .then(setFollowedStores)
         .catch((err) => console.error('load followed stores error', err));
     }
@@ -109,8 +113,9 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       } else if (profile?.role === 'business') {
         const work = await getMyWorkBusiness(profile.id);
         setViewerBusinessType(work?.business?.business_type ?? null);
+        setViewerBusinessId(work?.business?.id ?? null);
         if (work?.business && work.business.id !== resolvedBusiness.id) {
-          setFollowing(await fetchIsFollowing(profile.id, resolvedBusiness.id));
+          setFollowing(await fetchIsFollowing(profile.id, resolvedBusiness.id, work.business.id));
         }
       }
     }
@@ -169,11 +174,11 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
     setFollowLoading(true);
     try {
       if (following) {
-        await unfollowBusiness(profile.id, business.id);
+        await unfollowBusiness(profile.id, business.id, viewerBusinessId);
         setFollowing(false);
         setBusiness((b) => (b ? { ...b, followers_count: b.followers_count - 1 } : b));
       } else {
-        await followBusiness(profile.id, business.id);
+        await followBusiness(profile.id, business.id, viewerBusinessId);
         setFollowing(true);
         setBusiness((b) => (b ? { ...b, followers_count: b.followers_count + 1 } : b));
       }
