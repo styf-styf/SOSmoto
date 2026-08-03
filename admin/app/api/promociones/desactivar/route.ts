@@ -8,14 +8,24 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 // remaining_days y guarda ese saldo -- al reactivar (ver /activar) se
 // retoma desde ahí, no se reinicia. No afecta a los negocios que ya
 // reclamaron el beneficio -- su expires_at ya quedó fijo.
-export async function POST() {
+//
+// Requiere planId -- taller y tienda pueden tener promociones activas al
+// mismo tiempo (0179), así que ya no alcanza con "la fila activa" (podía
+// haber más de una y .maybeSingle() truena con "multiple rows returned").
+export async function POST(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const { planId } = await req.json().catch(() => ({}));
+  if (!planId) {
+    return NextResponse.json({ error: 'Falta planId' }, { status: 400 });
+  }
 
   const supabase = createAdminClient();
   const { data: active } = await supabase
     .from('plan_promotions')
     .select('id, remaining_days, activated_at')
+    .eq('plan_id', planId)
     .eq('is_active', true)
     .maybeSingle();
   if (!active) return NextResponse.json({ success: true });

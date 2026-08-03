@@ -68,7 +68,7 @@ export default function SuscripcionScreen() {
       getAllProducts(work.business.id),
       getEmployees(work.business.id),
       getActiveSubscription(work.business.id),
-      getActivePlanPromotion(),
+      getActivePlanPromotion(work.business.business_type),
     ]);
     return {
       business: work.business,

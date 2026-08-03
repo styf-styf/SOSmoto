@@ -150,7 +150,7 @@ export interface AdminPlanPromotionRow {
   is_active: boolean;
   activated_at: string | null;
   created_at: string;
-  subscription_plans: { name: PlanName } | null;
+  subscription_plans: { name: PlanName; business_type: BusinessType } | null;
 }
 
 export interface AdminPromotionBeneficiaryRow {

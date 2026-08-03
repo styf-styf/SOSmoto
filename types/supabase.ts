@@ -1910,7 +1910,7 @@ export interface Database {
         };
       };
       get_active_plan_promotion: {
-        Args: Record<PropertyKey, never>;
+        Args: { target_business_type?: string | null };
         Returns: {
           id: string;
           plan_id: string;

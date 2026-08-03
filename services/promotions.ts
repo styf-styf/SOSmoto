@@ -1,8 +1,10 @@
 import { supabase } from './supabase';
 import type { ActivePlanPromotion, Business, BusinessSubscription } from '../types/database';
 
-export async function getActivePlanPromotion(): Promise<ActivePlanPromotion | null> {
-  const { data, error } = await supabase.rpc('get_active_plan_promotion');
+export async function getActivePlanPromotion(businessType?: string | null): Promise<ActivePlanPromotion | null> {
+  const { data, error } = await supabase.rpc('get_active_plan_promotion', {
+    target_business_type: businessType ?? null,
+  });
   if (error) throw error;
   const row = (data ?? [])[0];
   if (!row) return null;

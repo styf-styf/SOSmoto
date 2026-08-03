@@ -26,7 +26,7 @@ export default async function PromocionesPage() {
     supabase.from('subscription_plans').select('id, name, business_type').in('name', ['standard', 'pro']),
     supabase
       .from('plan_promotions')
-      .select('id, plan_id, duration_days, remaining_days, is_active, activated_at, created_at, subscription_plans(name)'),
+      .select('id, plan_id, duration_days, remaining_days, is_active, activated_at, created_at, subscription_plans(name, business_type)'),
     supabase
       .from('business_subscriptions')
       .select('id, business_id, plan_id, started_at, expires_at, businesses(name), subscription_plans(name)')
@@ -41,20 +41,26 @@ export default async function PromocionesPage() {
   const beneficiaries = (beneficiariesResult.data ?? []) as unknown as AdminPromotionBeneficiaryRow[];
   const appliesToAll = !!(settingsResult.data as { applies_to_all_businesses: boolean } | null)?.applies_to_all_businesses;
 
-  // Pro-Taller y Pro-Tienda pueden estar activas a la vez (mismo nivel de
-  // plan) -- lo que nunca puede coexistir es Estándar y Pro activos al
-  // mismo tiempo. Con la restricción de un solo nivel activo, todas las
-  // filas activas comparten el mismo nombre, así que basta con el nombre
-  // de la primera para saber "qué nivel está corriendo ahora mismo".
-  const activePlanName = promotions.find((p) => p.is_active)?.subscription_plans?.name ?? null;
+  // Taller y Tienda son independientes entre si -- taller Estándar y tienda
+  // Pro (por ejemplo) pueden estar activos al mismo tiempo. Lo que nunca
+  // puede coexistir es Estándar y Pro activos DEL MISMO business_type, así
+  // que el nivel "corriendo ahora mismo" se calcula por separado para cada
+  // tipo de negocio.
+  const activePlanNameByType = (Object.fromEntries(
+    (['workshop', 'store'] as BusinessType[]).map((type) => [
+      type,
+      promotions.find((p) => p.is_active && p.subscription_plans?.business_type === type)?.subscription_plans?.name ?? null,
+    ])
+  ) as Record<BusinessType, PlanName | null>);
 
   return (
     <div>
       <h1 className="mb-1 text-xl font-bold">Promociones</h1>
       <p className="mb-6 text-sm text-gray-500">
         Regala un plan pago por tiempo limitado a los negocios que se registren mientras la oferta esté activa.
-        Taller y Tienda del mismo nivel (ej. Pro) pueden estar activos a la vez, pero no Estándar y Pro
-        simultáneamente. Cada negocio puede reclamar una única vez en toda su historia.
+        Taller y Tienda son independientes -- pueden tener niveles distintos activos a la vez (ej. taller Estándar
+        + tienda Pro), pero dentro de un mismo tipo de negocio no pueden coexistir Estándar y Pro simultáneamente.
+        Cada negocio puede reclamar una única vez en toda su historia.
       </p>
 
       <PromotionScopeToggle appliesToAll={appliesToAll} />
@@ -70,7 +76,11 @@ export default async function PromocionesPage() {
               planName={plan.name}
               businessTypeLabel={BUSINESS_TYPE_LABELS[plan.business_type] ?? plan.business_type}
               isActive={isActive}
-              otherPlanIsActive={!!activePlanName && activePlanName !== plan.name && !isActive}
+              otherPlanIsActive={
+                !!activePlanNameByType[plan.business_type] &&
+                activePlanNameByType[plan.business_type] !== plan.name &&
+                !isActive
+              }
               durationDays={promo?.duration_days ?? null}
               remainingDays={promo ? liveRemainingDays(promo) : null}
             />

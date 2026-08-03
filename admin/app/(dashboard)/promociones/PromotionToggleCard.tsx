@@ -38,7 +38,11 @@ export function PromotionToggleCard({
     setLoading('toggle');
     setError(null);
     const res = isActive
-      ? await fetch('/api/promociones/desactivar', { method: 'POST' })
+      ? await fetch('/api/promociones/desactivar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId }),
+        })
       : await fetch('/api/promociones/activar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -121,7 +125,7 @@ export function PromotionToggleCard({
 
       {otherPlanIsActive && !isActive && (
         <p className="mt-2 text-xs text-gray-500">
-          Hay una promoción de otro nivel (Estándar/Pro) activa. Desactívala para poder activar esta.
+          Hay una promoción de otro nivel activa para este mismo tipo de negocio. Desactívala para poder activar esta.
         </p>
       )}
       {!isActive && !hasDaysSet && (
