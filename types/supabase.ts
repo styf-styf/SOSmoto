@@ -1931,6 +1931,7 @@ export interface Database {
           activated_at: string;
           applies_to_all_businesses: boolean;
           label_text: string | null;
+          remaining_window_days: number | null;
         }[];
       };
       increment_ad_metric: {

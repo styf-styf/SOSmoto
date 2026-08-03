@@ -16,7 +16,19 @@ export async function getActivePlanPromotion(businessType?: string | null): Prom
     activated_at: row.activated_at,
     applies_to_all_businesses: row.applies_to_all_businesses,
     label_text: row.label_text ?? null,
+    remaining_window_days: row.remaining_window_days ?? null,
   };
+}
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+// Cuenta regresiva en vivo de días para reclamar antes del autoapagado --
+// null si la promoción no tiene ventana configurada (manual-only, sin
+// fecha de corte fija que mostrar). Mismo cálculo que usa el admin.
+export function getPromotionWindowDaysLeft(promotion: ActivePlanPromotion): number | null {
+  if (promotion.remaining_window_days == null) return null;
+  const elapsedDays = (Date.now() - new Date(promotion.activated_at).getTime()) / MS_PER_DAY;
+  return Math.max(0, Math.round(promotion.remaining_window_days - elapsedDays));
 }
 
 // Un negocio es elegible si: nunca reclamó una promoción antes, y (a menos

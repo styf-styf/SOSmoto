@@ -211,6 +211,7 @@ export interface ActivePlanPromotion {
   activated_at: string;
   applies_to_all_businesses: boolean;
   label_text: string | null;
+  remaining_window_days: number | null;
 }
 
 export interface Service {

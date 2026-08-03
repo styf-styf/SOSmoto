@@ -9,7 +9,12 @@ import { getMyWorkBusiness, getSubscriptionPlans, updateBusinessPlan } from '../
 import { getAllProducts, getAllServices } from '../../services/catalog';
 import { getEmployees } from '../../services/employees';
 import { getActiveSubscription, getWebLoginCode } from '../../services/payments';
-import { claimPlanPromotion, getActivePlanPromotion, isEligibleForPromotion } from '../../services/promotions';
+import {
+  claimPlanPromotion,
+  getActivePlanPromotion,
+  getPromotionWindowDaysLeft,
+  isEligibleForPromotion,
+} from '../../services/promotions';
 import type { ActivePlanPromotion, Business, SubscriptionPlan } from '../../types/database';
 
 const SUBSCRIPTION_PORTAL_URL = 'https://sosmoto.net/api/suscripcion';
@@ -264,6 +269,7 @@ export default function SuscripcionScreen() {
           isCurrent && plan.price_monthly > 0 && daysLeft !== null && daysLeft <= REMINDER_DAYS_BEFORE;
         const isPromoPlan = promotion?.plan_id === plan.id;
         const showPromoButton = isOwner && !isCurrent && isPromoPlan && canClaimPromotion;
+        const promoDaysLeft = showPromoButton && promotion ? getPromotionWindowDaysLeft(promotion) : null;
         const isStorePlan = plan.business_type === 'store';
         const features = isStorePlan
           ? [
@@ -340,6 +346,11 @@ export default function SuscripcionScreen() {
 
             {showPromoButton && (
               <>
+                {promoDaysLeft !== null && (
+                  <Text style={styles.promoCountdown}>
+                    ⏳ Te quedan {promoDaysLeft} {promoDaysLeft === 1 ? 'día' : 'días'} para aceptarla
+                  </Text>
+                )}
                 <Text style={styles.promoNotice}>
                   {promotion?.label_text || 'Promoción de lanzamiento:'} {promotion?.duration_days} días gratis, sin pagar. Solo una vez por negocio.
                 </Text>
@@ -470,6 +481,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.warning,
     fontWeight: '600',
+    marginTop: 16,
+  },
+  promoCountdown: {
+    fontSize: 13,
+    color: colors.danger,
+    fontWeight: '700',
     marginTop: 16,
   },
   priceRow: {
