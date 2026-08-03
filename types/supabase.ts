@@ -373,7 +373,6 @@ export interface Database {
           max_employees: number | null;
           has_priority_matching: boolean;
           has_featured_listing: boolean;
-          has_stories: boolean;
           max_active_stories: number | null;
           allow_variants: boolean;
           allow_price_tiers: boolean;
@@ -389,7 +388,6 @@ export interface Database {
           max_employees?: number | null;
           has_priority_matching?: boolean;
           has_featured_listing?: boolean;
-          has_stories?: boolean;
           max_active_stories?: number | null;
           allow_variants?: boolean;
           allow_price_tiers?: boolean;
@@ -405,7 +403,6 @@ export interface Database {
           max_employees?: number | null;
           has_priority_matching?: boolean;
           has_featured_listing?: boolean;
-          has_stories?: boolean;
           max_active_stories?: number | null;
           allow_variants?: boolean;
           allow_price_tiers?: boolean;

@@ -172,7 +172,6 @@ export interface SubscriptionPlan {
   max_employees: number | null;
   has_priority_matching: boolean;
   has_featured_listing: boolean;
-  has_stories: boolean;
   max_active_stories: number | null;
   // Solo tienen efecto real para tienda -- taller nunca se revisa contra esto.
   allow_variants: boolean;
