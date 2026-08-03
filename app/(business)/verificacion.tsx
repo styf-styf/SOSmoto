@@ -33,6 +33,7 @@ export default function VerificacionScreen() {
   const { profile } = useAuth();
 
   const [business, setBusiness] = useState<Business | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [latestRequest, setLatestRequest] = useState<BusinessVerificationRequest | null>(null);
   const [planName, setPlanName] = useState('free');
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ export default function VerificacionScreen() {
     if (!profile) return;
     const work = await getMyWorkBusiness(profile.id);
     setBusiness(work?.business ?? null);
+    setIsOwner(work?.isOwner ?? false);
     if (work?.business) {
       const [request, limits] = await Promise.all([
         getLatestVerificationRequest(work.business.id),
@@ -170,6 +172,18 @@ export default function VerificacionScreen() {
         <Text style={styles.statusTitle}>Tu solicitud está en revisión</Text>
         <Text style={styles.placeholder}>
           Enviada el {new Date(latestRequest.created_at).toLocaleDateString('es-EC')}. Te avisaremos cuando se apruebe.
+        </Text>
+      </View>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="lock-closed-outline" size={48} color={colors.textMuted} />
+        <Text style={styles.statusTitle}>Solo el dueño puede verificar el negocio</Text>
+        <Text style={styles.placeholder}>
+          Enviar los documentos de verificación es una acción exclusiva del dueño del negocio.
         </Text>
       </View>
     );

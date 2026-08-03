@@ -42,6 +42,7 @@ interface BusinessConfigData {
   business: Business | null;
   plan: PlanLimits | null;
   employeeCount: number;
+  isOwner: boolean;
 }
 
 export default function BusinessConfiguracionScreen() {
@@ -61,6 +62,7 @@ export default function BusinessConfiguracionScreen() {
           business: null,
           plan: null,
           employeeCount: 0,
+          isOwner: false,
         };
       const work = await getMyWorkBusiness(profile.id);
       const myBusiness = work?.business ?? null;
@@ -69,6 +71,7 @@ export default function BusinessConfiguracionScreen() {
           business: null,
           plan: null,
           employeeCount: 0,
+          isOwner: false,
         };
       const [planLimits, employees] = await Promise.all([
         getPlanLimits(myBusiness.id),
@@ -78,12 +81,14 @@ export default function BusinessConfiguracionScreen() {
         business: myBusiness,
         plan: planLimits,
         employeeCount: employees.length,
+        isOwner: work?.isOwner ?? false,
       };
     },
   );
   const business = data?.business ?? null;
   const plan = data?.plan ?? null;
   const employeeCount = data?.employeeCount ?? 0;
+  const isOwner = data?.isOwner ?? false;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -274,12 +279,14 @@ export default function BusinessConfiguracionScreen() {
           badge={plan ? (planLabel[plan.planName] ?? plan.planName) : undefined}
           onPress={() => router.push('/(business)/suscripcion')}
         />
-        <MenuRow
-          icon="shield-checkmark-outline"
-          label="Verificación"
-          badge={business.is_verified ? 'Verificado ✓' : undefined}
-          onPress={() => router.push('/(business)/verificacion')}
-        />
+        {isOwner && (
+          <MenuRow
+            icon="shield-checkmark-outline"
+            label="Verificación"
+            badge={business.is_verified ? 'Verificado ✓' : undefined}
+            onPress={() => router.push('/(business)/verificacion')}
+          />
+        )}
         <MenuRow
           icon="alert-circle-outline"
           label="Estado de cuenta"
@@ -297,13 +304,15 @@ export default function BusinessConfiguracionScreen() {
 
       <Text style={styles.sectionTitle}>General</Text>
       <View style={styles.menuGroup}>
-        <MenuRow
-          icon={business.is_deactivated ? 'eye-outline' : 'eye-off-outline'}
-          label={business.is_deactivated ? 'Reactivar negocio' : 'Desactivar negocio temporalmente'}
-          badge={business.is_deactivated ? 'Desactivado' : undefined}
-          badgeDanger={business.is_deactivated}
-          onPress={togglingDeactivated ? () => {} : handleToggleDeactivated}
-        />
+        {isOwner && (
+          <MenuRow
+            icon={business.is_deactivated ? 'eye-outline' : 'eye-off-outline'}
+            label={business.is_deactivated ? 'Reactivar negocio' : 'Desactivar negocio temporalmente'}
+            badge={business.is_deactivated ? 'Desactivado' : undefined}
+            badgeDanger={business.is_deactivated}
+            onPress={togglingDeactivated ? () => {} : handleToggleDeactivated}
+          />
+        )}
         <MenuRow
           icon="trash-outline"
           label="Eliminar cuenta"
