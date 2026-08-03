@@ -219,16 +219,18 @@ export default function BusinessConfiguracionScreen() {
             onPress={() => router.push('/(business)/horario')}
           />
         )}
-        <MenuRow
-          icon="people-circle-outline"
-          label="Equipo"
-          badge={
-            employeeCount > 0
-              ? `${employeeCount} persona${employeeCount === 1 ? '' : 's'}`
-              : undefined
-          }
-          onPress={() => router.push('/(business)/empleados')}
-        />
+        {isOwner && (
+          <MenuRow
+            icon="people-circle-outline"
+            label="Equipo"
+            badge={
+              employeeCount > 0
+                ? `${employeeCount} persona${employeeCount === 1 ? '' : 's'}`
+                : undefined
+            }
+            onPress={() => router.push('/(business)/empleados')}
+          />
+        )}
         {canView('can_manage_catalog') && (
           <MenuRow
             icon="grid-outline"
@@ -335,11 +337,13 @@ export default function BusinessConfiguracionScreen() {
             onPress={togglingDeactivated ? () => {} : handleToggleDeactivated}
           />
         )}
-        <MenuRow
-          icon="trash-outline"
-          label="Eliminar cuenta"
-          onPress={() => router.push('/eliminar-cuenta')}
-        />
+        {isOwner && (
+          <MenuRow
+            icon="trash-outline"
+            label="Eliminar cuenta"
+            onPress={() => router.push('/eliminar-cuenta')}
+          />
+        )}
         {!quickAccess.checking && (
           <MenuRow
             icon={quickAccess.saved ? 'flash' : 'flash-outline'}
