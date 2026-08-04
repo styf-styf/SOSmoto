@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from '../hooks/AuthContext';
+import { PilotWelcomeModal } from '../components/PilotWelcomeModal';
 
 // Cualquier ScrollView de la app permite que un tap sobre un botón/tarjeta
 // dispare la acción Y cierre el teclado en un solo gesto, sin requerir
@@ -50,6 +51,7 @@ export default function RootLayout() {
             <Stack.Screen name="auth-callback" />
             <Stack.Screen name="negocio" />
           </Stack>
+          <PilotWelcomeModal />
         </KeyboardProvider>
       </AuthProvider>
     </SafeAreaProvider>
