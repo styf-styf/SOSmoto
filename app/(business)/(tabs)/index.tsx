@@ -77,7 +77,7 @@ import {
   wasPreviouslyLimited,
 } from '../../../utils/accountLimit';
 import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
-import { consumeHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
+import { consumeHomeFeedPreserveScroll, markHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const MIN_FOLLOWS_FOR_FEED = 4;
@@ -340,6 +340,7 @@ export default function BusinessHomeScreen() {
   function handleDescubrePress(e: GestureResponderEvent, businessId: string) {
     const startX = descubreTouchStartXRef.current;
     if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > DESCUBRE_SWIPE_THRESHOLD) return;
+    markHomeFeedPreserveScroll();
     router.push(`/(business)/business/${businessId}`);
   }
 
@@ -383,12 +384,21 @@ export default function BusinessHomeScreen() {
     avatarUrl: business.logo_url,
     previewImageUrl: ownPreviewImageUrl,
     onAddPress: () => setShowCreateStory(true),
-    onViewPress: () => router.push(`/(business)/historia/${business.id}`),
+    onViewPress: () => {
+      markHomeFeedPreserveScroll();
+      router.push(`/(business)/historia/${business.id}`);
+    },
   };
 
   const growthCard = growthSuggestion && (
     <View style={styles.growthWrap}>
-      <Pressable style={styles.growthCard} onPress={() => router.push('/(business)/crece-tu-negocio')}>
+      <Pressable
+        style={styles.growthCard}
+        onPress={() => {
+          markHomeFeedPreserveScroll();
+          router.push('/(business)/crece-tu-negocio');
+        }}
+      >
         <Ionicons name="trending-up" size={20} color={colors.primary} />
         <View style={styles.growthCardText}>
           <Text style={styles.growthCardTitle}>{growthSuggestion.title}</Text>
@@ -448,12 +458,14 @@ export default function BusinessHomeScreen() {
                   own={storiesRowOwn}
                   items={feedItems.map((item) => ({
                     ...item,
-                    onPress: () =>
+                    onPress: () => {
+                      markHomeFeedPreserveScroll();
                       router.push(
                         item.kind === 'business'
                           ? `/(business)/historia/${item.id}`
                           : `/(business)/historia-cliente/${item.id}`,
-                      ),
+                      );
+                    },
                   }))}
                 />
               </View>
@@ -510,12 +522,14 @@ export default function BusinessHomeScreen() {
           own={storiesRowOwn}
           items={feedItems.map((item) => ({
             ...item,
-            onPress: () =>
+            onPress: () => {
+              markHomeFeedPreserveScroll();
               router.push(
                 item.kind === 'business'
                   ? `/(business)/historia/${item.id}`
                   : `/(business)/historia-cliente/${item.id}`,
-              ),
+              );
+            },
           }))}
         />
       </View>
@@ -609,7 +623,10 @@ export default function BusinessHomeScreen() {
           own={storiesRowOwn}
           items={feedItemsFollowing.map((item) => ({
             ...item,
-            onPress: () => router.push(`/(business)/historia/${item.id}`),
+            onPress: () => {
+              markHomeFeedPreserveScroll();
+              router.push(`/(business)/historia/${item.id}`);
+            },
           }))}
         />
       </View>

@@ -49,7 +49,7 @@ import {
   wasPreviouslyLimited,
 } from '../../../utils/accountLimit';
 import { markProductoServicioStacksForReset } from '../../../utils/productoServicioStackReset';
-import { consumeHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
+import { consumeHomeFeedPreserveScroll, markHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const bizTypeLabel: Record<string, string> = {
@@ -298,6 +298,7 @@ export default function ClientHomeScreen() {
   function handleDescubrePress(e: GestureResponderEvent, businessId: string) {
     const startX = descubreTouchStartXRef.current;
     if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > DESCUBRE_SWIPE_THRESHOLD) return;
+    markHomeFeedPreserveScroll();
     router.push(`/(client)/business/${businessId}`);
   }
 
@@ -342,17 +343,22 @@ export default function ClientHomeScreen() {
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
           onAddPress: () => setShowCreateStory(true),
-          onViewPress: () =>
-            profile && router.push(`/(client)/historia-cliente/${profile.id}`),
+          onViewPress: () => {
+            if (!profile) return;
+            markHomeFeedPreserveScroll();
+            router.push(`/(client)/historia-cliente/${profile.id}`);
+          },
         }}
         items={feedItems.map((item) => ({
           ...item,
-          onPress: () =>
+          onPress: () => {
+            markHomeFeedPreserveScroll();
             router.push(
               item.kind === 'business'
                 ? `/(client)/historia/${item.id}`
                 : `/(client)/historia-cliente/${item.id}`,
-            ),
+            );
+          },
         }))}
       />
     </View>
@@ -382,12 +388,18 @@ export default function ClientHomeScreen() {
           avatarUrl: profile?.avatar_url ?? null,
           previewImageUrl: ownPreviewImageUrl,
           onAddPress: () => setShowCreateStory(true),
-          onViewPress: () =>
-            profile && router.push(`/(client)/historia-cliente/${profile.id}`),
+          onViewPress: () => {
+            if (!profile) return;
+            markHomeFeedPreserveScroll();
+            router.push(`/(client)/historia-cliente/${profile.id}`);
+          },
         }}
         items={feedItemsFollowing.map((item) => ({
           ...item,
-          onPress: () => router.push(`/(client)/historia/${item.id}`),
+          onPress: () => {
+            markHomeFeedPreserveScroll();
+            router.push(`/(client)/historia/${item.id}`);
+          },
         }))}
       />
     </View>

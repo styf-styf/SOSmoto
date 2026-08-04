@@ -112,6 +112,11 @@ export default function BusinessTabsLayout() {
       />
       <Tabs
         {...({ sceneContainerStyle: { backgroundColor: colors.background, paddingTop: insets.top } } as object)}
+        // Ver comentario en (client)/(tabs)/_layout.tsx: default
+        // (backBehavior='firstRoute') hacia que "atrás" desde producto/
+        // servicio saltara a Inicio en vez de subir al Stack exterior
+        // (catálogo, perfil de negocio, etc.).
+        backBehavior="none"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,

@@ -7,6 +7,7 @@ import { colors } from '../constants/colors';
 import { GradientShade } from './GradientShade';
 import { registerAdImpression } from '../services/ads';
 import type { AdWithBusiness } from '../services/ads';
+import { markHomeFeedPreserveScroll } from '../utils/homeFeedScrollPreserve';
 
 export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -41,8 +42,13 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
   const businessName = ad.business?.name ?? 'Anuncio';
   const title = ad.title ?? '';
 
+  function goToDetail() {
+    markHomeFeedPreserveScroll();
+    router.push(detailHref);
+  }
+
   return (
-    <Pressable style={styles.card} onPress={() => router.push(detailHref)}>
+    <Pressable style={styles.card} onPress={goToDetail}>
       <View style={[styles.authorRow, expanded && styles.authorRowExpanded]}>
         <View style={styles.avatarWrap}>
           <View style={styles.avatar}>
@@ -94,7 +100,7 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
           <Text style={styles.adChipText}>Anuncio</Text>
         </View>
         <View style={styles.imageEngagementRow}>
-          <Pressable style={styles.engagementButtonOverlay} onPress={() => router.push(detailHref)}>
+          <Pressable style={styles.engagementButtonOverlay} onPress={goToDetail}>
             <Ionicons name="chatbubble-outline" size={22} color="#fff" />
             <Text style={styles.engagementCountOverlay}>{ad.comments_count}</Text>
           </Pressable>

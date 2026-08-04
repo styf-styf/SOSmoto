@@ -44,6 +44,16 @@ export default function ClientTabsLayout() {
       />
       <Tabs
         {...({ sceneContainerStyle: { backgroundColor: colors.background, paddingTop: insets.top } } as object)}
+        // backBehavior="none": por default (backBehavior='firstRoute') el
+        // navegador de tabs absorbe el gesto/botón de "atrás" y salta a
+        // Inicio ANTES de que llegue al Stack exterior -- esto rompía
+        // volver desde producto/servicio (que viven acá adentro con
+        // href:null) a catálogo/perfil de negocio (que viven afuera, en
+        // (client)/_layout.tsx): el "atrás" nunca llegaba a esa pila
+        // porque las tabs ya lo habían resuelto saltando a Inicio. Con
+        // 'none' las tabs dejan de manejarlo y sube al Stack exterior,
+        // que sí tiene el historial real.
+        backBehavior="none"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,

@@ -7,6 +7,7 @@ import { colors } from '../constants/colors';
 import { GradientShade } from './GradientShade';
 import { registerAdClick, registerAdImpression } from '../services/ads';
 import type { FeedCatalogItem } from '../services/catalog';
+import { markHomeFeedPreserveScroll } from '../utils/homeFeedScrollPreserve';
 
 // No es un feed propio (sin comentarios/compartir) -- es un banner de
 // descubrimiento de catálogo. Mismo lenguaje visual que StoriesRow (tarjeta
@@ -95,6 +96,7 @@ function CatalogCard({ item, role = 'client' }: { item: FeedCatalogItem; role?: 
     const startX = touchStartXRef.current;
     if (startX !== null && Math.abs(e.nativeEvent.pageX - startX) > CARD_SWIPE_THRESHOLD) return;
     if (item.isAd && item.adId) registerAdClick(item.adId);
+    markHomeFeedPreserveScroll();
     router.push(href);
   }
 
@@ -127,7 +129,13 @@ function CatalogListRow({ item, role = 'client' }: { item: FeedCatalogItem; role
   const prefix = role === 'business' ? '/(business)' : '/(client)';
   const href = item.kind === 'service' ? `${prefix}/servicio/${item.id}` : `${prefix}/producto/${item.id}`;
   return (
-    <Pressable style={styles.listRow} onPress={() => router.push(href)}>
+    <Pressable
+      style={styles.listRow}
+      onPress={() => {
+        markHomeFeedPreserveScroll();
+        router.push(href);
+      }}
+    >
       <View style={styles.listIcon}>
         <Ionicons name={item.kind === 'service' ? 'construct-outline' : 'cube-outline'} size={18} color={colors.primary} />
       </View>
