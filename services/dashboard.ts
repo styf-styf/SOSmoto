@@ -270,14 +270,23 @@ export async function getBusinessPeriodStats(
   let helpRequestsQuery = supabase.from('help_requests').select('created_at, status, accepted_at').eq('accepted_business_id', businessId);
   let appointmentsQuery = supabase.from('appointments').select('created_at, status').eq('business_id', businessId);
   let reviewsQuery = supabase.from('reviews').select('rating, created_at').eq('reviewed_business_id', businessId).eq('is_public', true);
-  let eventsQuery = supabase.from('business_metric_events').select('metric, created_at').eq('business_id', businessId);
-  let followsQuery = supabase.from('follows').select('created_at').eq('business_id', businessId);
+  // Sin rango (periodo "Todo"), followersGained/followersTrend nunca se
+  // muestran (ver abajo) -- pedir follows completo ahí era puro
+  // desperdicio, más notorio mientras más crece la tabla. product_view/
+  // service_view sí se usan siempre (vistas totales de catálogo), pero
+  // ad_impression/ad_click/story_click solo alimentan comparaciones que
+  // en "Todo" son null -- se acotan los metric para no traer filas que
+  // nunca se usan.
+  let eventsQuery = range
+    ? supabase.from('business_metric_events').select('metric, created_at').eq('business_id', businessId)
+    : supabase.from('business_metric_events').select('metric').eq('business_id', businessId).in('metric', ['product_view', 'service_view']);
+  let followsQuery = range ? supabase.from('follows').select('created_at').eq('business_id', businessId) : null;
   if (range) {
     helpRequestsQuery = helpRequestsQuery.gte('created_at', range.since.toISOString()).lt('created_at', range.until.toISOString());
     appointmentsQuery = appointmentsQuery.gte('created_at', range.since.toISOString()).lt('created_at', range.until.toISOString());
     reviewsQuery = reviewsQuery.gte('created_at', range.since.toISOString()).lt('created_at', range.until.toISOString());
     eventsQuery = eventsQuery.gte('created_at', range.since.toISOString()).lt('created_at', range.until.toISOString());
-    followsQuery = followsQuery.gte('created_at', range.since.toISOString()).lt('created_at', range.until.toISOString());
+    followsQuery = followsQuery!.gte('created_at', range.since.toISOString()).lt('created_at', range.until.toISOString());
   }
 
   const [
@@ -296,7 +305,7 @@ export async function getBusinessPeriodStats(
     appointmentsQuery,
     reviewsQuery,
     eventsQuery,
-    followsQuery,
+    followsQuery ?? Promise.resolve({ data: null, error: null }),
     range
       ? supabase
           .from('help_requests')

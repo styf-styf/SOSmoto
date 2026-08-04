@@ -45,6 +45,12 @@ export default function EstadisticasScreen() {
   const [periodStats, setPeriodStats] = useState<PeriodStats | null>(null);
   const [canHaveServices, setCanHaveServices] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Distinto de `loading` (carga inicial, pantalla completa) -- cambiar de
+  // período NO debe ocultar todo el dashboard y volver a montarlo desde
+  // cero (eso se sentía lento aunque la consulta fuera rápida, por el
+  // costo de re-renderizar tarjetas/gráficas). Con esto el contenido
+  // anterior se queda visible mientras carga el nuevo período.
+  const [periodLoading, setPeriodLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
@@ -97,24 +103,24 @@ export default function EstadisticasScreen() {
   async function handlePeriodChange(next: DashboardPeriod) {
     setPeriod(next);
     if (next === 'custom') return; // espera a que el usuario elija fechas y toque "Aplicar"
-    setLoading(true);
+    setPeriodLoading(true);
     try {
       await loadPeriod(next);
     } catch (err) {
       console.error('load estadisticas period error', err);
     } finally {
-      setLoading(false);
+      setPeriodLoading(false);
     }
   }
 
   async function handleApplyCustomRange() {
-    setLoading(true);
+    setPeriodLoading(true);
     try {
       await loadPeriod('custom', currentCustomRange);
     } catch (err) {
       console.error('load estadisticas custom range error', err);
     } finally {
-      setLoading(false);
+      setPeriodLoading(false);
     }
   }
 
@@ -167,14 +173,15 @@ export default function EstadisticasScreen() {
             Dashboard {planLabel[planName] ?? planLabel.free}
           </Text>
         </View>
+        {periodLoading && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
 
       <View style={styles.periodSelector}>
         {(showAvanzado ? (['week', 'month', 'all', 'custom'] as DashboardPeriod[]) : (['week', 'month', 'all'] as DashboardPeriod[])).map((p) => (
           <Text
             key={p}
-            onPress={() => handlePeriodChange(p)}
-            style={[styles.periodOption, period === p && styles.periodOptionActive]}
+            onPress={() => !periodLoading && handlePeriodChange(p)}
+            style={[styles.periodOption, period === p && styles.periodOptionActive, periodLoading && styles.periodOptionDisabled]}
           >
             {periodLabel[p]}
           </Text>
@@ -189,7 +196,7 @@ export default function EstadisticasScreen() {
           <Pressable style={styles.dateBtn} onPress={() => setShowToPicker(true)}>
             <Text style={styles.dateBtnText}>Hasta: {customTo.toLocaleDateString('es-EC')}</Text>
           </Pressable>
-          <Pressable style={styles.applyBtn} onPress={handleApplyCustomRange}>
+          <Pressable style={[styles.applyBtn, periodLoading && styles.periodOptionDisabled]} onPress={handleApplyCustomRange} disabled={periodLoading}>
             <Text style={styles.applyBtnText}>Aplicar</Text>
           </Pressable>
           {showFromPicker && (
@@ -538,6 +545,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
   },
   planBadge: {
@@ -572,6 +582,9 @@ const styles = StyleSheet.create({
   periodOptionActive: {
     backgroundColor: colors.background,
     color: colors.primary,
+  },
+  periodOptionDisabled: {
+    opacity: 0.5,
   },
   customRangeRow: {
     marginBottom: 16,
