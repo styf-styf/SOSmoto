@@ -45,6 +45,7 @@ import {
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import { pickAndUploadBusinessImage } from '../../../services/storage';
+import { showPlanAwareError } from '../../../utils/planLimitAlert';
 import type { Business, Product, ProductPriceTier, ProductVariant, Service } from '../../../types/database';
 
 const SIDE_PADDING = 20;
@@ -287,7 +288,8 @@ export default function CatalogoScreen() {
     if (atServiceLimit) {
       Alert.alert(
         'Límite de plan alcanzado',
-        `Tu plan ${limits?.planName} permite hasta ${limits?.maxServices} servicios activos. Sube de plan para agregar más.`
+        `Tu plan ${limits?.planName} permite hasta ${limits?.maxServices} servicios activos. Sube de plan para agregar más.`,
+        [{ text: 'Cancelar', style: 'cancel' }, { text: 'Ver planes', onPress: () => router.push('/(business)/suscripcion') }]
       );
       return;
     }
@@ -298,7 +300,8 @@ export default function CatalogoScreen() {
     if (atProductLimit) {
       Alert.alert(
         'Límite de plan alcanzado',
-        `Tu plan ${limits?.planName} permite hasta ${limits?.maxProducts} productos activos. Sube de plan para agregar más.`
+        `Tu plan ${limits?.planName} permite hasta ${limits?.maxProducts} productos activos. Sube de plan para agregar más.`,
+        [{ text: 'Cancelar', style: 'cancel' }, { text: 'Ver planes', onPress: () => router.push('/(business)/suscripcion') }]
       );
       return;
     }
@@ -782,7 +785,7 @@ function ServiceForm({
       onSaved(result);
     } catch (err) {
       console.error('save service error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo guardar el servicio.');
+      showPlanAwareError('Error', err, 'No se pudo guardar el servicio.');
     } finally {
       setSaving(false);
     }
@@ -828,7 +831,7 @@ function ServiceForm({
         addLabel="Agregar"
       />
       {atPhotoLimit && (
-        <Text style={styles.photoLimitHint}>
+        <Text style={styles.photoLimitHint} onPress={() => router.push('/(business)/suscripcion')}>
           Tu plan {limits?.planName ?? 'free'} permite hasta {maxPhotos} foto{maxPhotos === 1 ? '' : 's'}. Sube de plan para agregar más.
         </Text>
       )}
@@ -1111,7 +1114,7 @@ function ProductForm({
       onSaved(finalProduct);
     } catch (err) {
       console.error('save product error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo guardar el producto.');
+      showPlanAwareError('Error', err, 'No se pudo guardar el producto.');
     } finally {
       setSaving(false);
     }
@@ -1335,7 +1338,7 @@ function ProductForm({
         addLabel="Agregar"
       />
       {atPhotoLimit && (
-        <Text style={styles.photoLimitHint}>
+        <Text style={styles.photoLimitHint} onPress={() => router.push('/(business)/suscripcion')}>
           Tu plan {limits?.planName ?? 'free'} permite hasta {maxPhotos} foto{maxPhotos === 1 ? '' : 's'}. Sube de plan para agregar más.
         </Text>
       )}
@@ -1657,7 +1660,9 @@ const styles = StyleSheet.create({
   },
   photoLimitHint: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
     marginBottom: 10,
   },
   toggleRow: {

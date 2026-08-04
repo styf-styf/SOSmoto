@@ -29,7 +29,25 @@ export interface PeakTime {
   hourLabel: string;
 }
 
-export interface BusinessDashboardStats {
+// Todo lo que NO depende del selector de período -- ranking de más
+// vistos (con su reserva/venta acumulada), totales de anuncios/historias
+// de siempre, y la conversión histórica de catálogo. Se pide una sola vez
+// por visita a la pantalla (no en cada cambio de Semana/Mes/Todo/Rango),
+// que antes eran ~16 consultas + hasta 10 más encadenadas repitiéndose
+// sin necesidad en cada cambio de período -- eso era la demora real.
+export interface CatalogSnapshot {
+  topProducts: CatalogItemStat[];
+  topServices: CatalogItemStat[];
+  adImpressions: number;
+  adClicks: number;
+  storyViews: number;
+  storyClicks: number;
+  catalogConversionRate: number | null;
+}
+
+// Todo lo que SÍ depende del período elegido -- esto es lo único que se
+// vuelve a pedir al cambiar de Semana/Mes/Todo/Rango.
+export interface PeriodStats {
   period: DashboardPeriod;
   rangeFrom: string | null;
   rangeTo: string | null;
@@ -50,27 +68,22 @@ export interface BusinessDashboardStats {
   peakHelpRequestTime: PeakTime | null;
   peakAppointmentTime: PeakTime | null;
 
-  topProducts: CatalogItemStat[];
-  topServices: CatalogItemStat[];
   productViewsTotal: number;
   productViewsPrevTotal: number | null;
   serviceViewsTotal: number;
   serviceViewsPrevTotal: number | null;
   catalogTrend: ChartPoint[];
-  catalogConversionRate: number | null;
 
-  adImpressions: number;
   adImpressionsPrevTotal: number | null;
-  adClicks: number;
   adClicksPrevTotal: number | null;
-  storyViews: number;
-  storyClicks: number;
   storyClicksPrevTotal: number | null;
 
   followersGained: number;
   followersGainedPrevTotal: number | null;
   followersTrend: ChartPoint[];
 }
+
+export type BusinessDashboardStats = CatalogSnapshot & PeriodStats;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const WEEKDAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -188,11 +201,70 @@ function computePeakTime(dates: string[]): PeakTime | null {
   };
 }
 
-export async function getBusinessDashboardStats(
+export async function getBusinessCatalogSnapshot(businessId: string): Promise<CatalogSnapshot> {
+  const [productsResult, allProductViewsResult, productIntentsResult, servicesResult, adsResult, storiesResult] =
+    await Promise.all([
+      supabase.from('products').select('id, name, views').eq('business_id', businessId).order('views', { ascending: false }).limit(5),
+      supabase.from('products').select('views').eq('business_id', businessId),
+      supabase.from('product_intents').select('id', { count: 'exact', head: true }).eq('business_id', businessId),
+      supabase.from('services').select('id, name, views').eq('business_id', businessId).order('views', { ascending: false }).limit(5),
+      // impressions/clicks ya no son legibles por select directo (columnas
+      // revocadas para authenticated/anon, ver migración 0142 -- cualquier
+      // negocio podía leer las métricas de campañas ajenas) -- se agregan
+      // server-side vía una función security definer que sí valida dueño/admin.
+      supabase.rpc('get_business_ad_metrics', { target_business_id: businessId }),
+      supabase.from('stories').select('views, clicks').eq('business_id', businessId),
+    ]);
+
+  if (productsResult.error) throw productsResult.error;
+  if (allProductViewsResult.error) throw allProductViewsResult.error;
+  if (productIntentsResult.error) throw productIntentsResult.error;
+  if (servicesResult.error) throw servicesResult.error;
+  if (adsResult.error) throw adsResult.error;
+  if (storiesResult.error) throw storiesResult.error;
+
+  // Reservas/vendidos y citas/completadas por item -- solo para el top 5 que
+  // ya se muestra (no vale la pena traerlo para todo el catálogo), una
+  // consulta chica por item en paralelo.
+  const [topProducts, topServices] = await Promise.all([
+    Promise.all(
+      (productsResult.data ?? []).map(async (p) => {
+        const s = await getProductIntentStats(p.id);
+        return { id: p.id, name: p.name, views: p.views, reservations: s.reservations, completed: s.sold };
+      })
+    ),
+    Promise.all(
+      (servicesResult.data ?? []).map(async (s) => {
+        const stat = await getServiceAppointmentStats(s.id);
+        return { id: s.id, name: s.name, views: s.views, reservations: stat.reservations, completed: stat.completed };
+      })
+    ),
+  ]);
+
+  const adMetrics = adsResult.data?.[0] ?? { total_impressions: 0, total_clicks: 0 };
+  const totalProductViews = (allProductViewsResult.data ?? []).reduce((sum, p) => sum + (p.views ?? 0), 0);
+  const totalIntents = productIntentsResult.count ?? 0;
+
+  return {
+    topProducts,
+    topServices,
+    adImpressions: adMetrics.total_impressions,
+    adClicks: adMetrics.total_clicks,
+    // Vistas de historias solo alcanza el total de siempre -- las historias
+    // se borran a las 24h (si no están fijadas) y arrastran sus vistas en
+    // cascada, así que un total "de la semana/mes" quedaría incompleto y
+    // engañoso.
+    storyViews: (storiesResult.data ?? []).reduce((sum, s) => sum + s.views, 0),
+    storyClicks: (storiesResult.data ?? []).reduce((sum, s) => sum + s.clicks, 0),
+    catalogConversionRate: totalProductViews > 0 ? totalIntents / totalProductViews : null,
+  };
+}
+
+export async function getBusinessPeriodStats(
   businessId: string,
   period: DashboardPeriod = 'week',
   customRange?: CustomRange
-): Promise<BusinessDashboardStats> {
+): Promise<PeriodStats> {
   const range = getPeriodRange(period, customRange);
 
   let helpRequestsQuery = supabase.from('help_requests').select('created_at, status, accepted_at').eq('accepted_business_id', businessId);
@@ -219,12 +291,6 @@ export async function getBusinessDashboardStats(
     prevReviewsResult,
     prevEventsResult,
     prevFollowsResult,
-    productsResult,
-    allProductViewsResult,
-    productIntentsResult,
-    servicesResult,
-    adsResult,
-    storiesResult,
   ] = await Promise.all([
     helpRequestsQuery,
     appointmentsQuery,
@@ -272,16 +338,6 @@ export async function getBusinessDashboardStats(
           .gte('created_at', range.prevSince.toISOString())
           .lt('created_at', range.prevUntil.toISOString())
       : Promise.resolve({ count: null, error: null }),
-    supabase.from('products').select('id, name, views').eq('business_id', businessId).order('views', { ascending: false }).limit(5),
-    supabase.from('products').select('views').eq('business_id', businessId),
-    supabase.from('product_intents').select('id', { count: 'exact', head: true }).eq('business_id', businessId),
-    supabase.from('services').select('id, name, views').eq('business_id', businessId).order('views', { ascending: false }).limit(5),
-    // impressions/clicks ya no son legibles por select directo (columnas
-    // revocadas para authenticated/anon, ver migración 0142 -- cualquier
-    // negocio podía leer las métricas de campañas ajenas) -- se agregan
-    // server-side vía una función security definer que sí valida dueño/admin.
-    supabase.rpc('get_business_ad_metrics', { target_business_id: businessId }),
-    supabase.from('stories').select('views, clicks').eq('business_id', businessId),
   ]);
 
   if (helpRequestsResult.error) throw helpRequestsResult.error;
@@ -294,30 +350,6 @@ export async function getBusinessDashboardStats(
   if (prevReviewsResult.error) throw prevReviewsResult.error;
   if (prevEventsResult.error) throw prevEventsResult.error;
   if (prevFollowsResult.error) throw prevFollowsResult.error;
-  if (productsResult.error) throw productsResult.error;
-  if (allProductViewsResult.error) throw allProductViewsResult.error;
-  if (productIntentsResult.error) throw productIntentsResult.error;
-  if (servicesResult.error) throw servicesResult.error;
-  if (adsResult.error) throw adsResult.error;
-  if (storiesResult.error) throw storiesResult.error;
-
-  // Reservas/vendidos y citas/completadas por item -- solo para el top 5 que
-  // ya se muestra (no vale la pena traerlo para todo el catálogo), una
-  // consulta chica por item en paralelo.
-  const [topProducts, topServices] = await Promise.all([
-    Promise.all(
-      (productsResult.data ?? []).map(async (p) => {
-        const s = await getProductIntentStats(p.id);
-        return { id: p.id, name: p.name, views: p.views, reservations: s.reservations, completed: s.sold };
-      })
-    ),
-    Promise.all(
-      (servicesResult.data ?? []).map(async (s) => {
-        const stat = await getServiceAppointmentStats(s.id);
-        return { id: s.id, name: s.name, views: s.views, reservations: stat.reservations, completed: stat.completed };
-      })
-    ),
-  ]);
 
   const helpRequests = helpRequestsResult.data ?? [];
   const appointments = appointmentsResult.data ?? [];
@@ -341,10 +373,6 @@ export async function getBusinessDashboardStats(
             (new Date(h.accepted_at as string).getTime() - new Date(h.created_at).getTime()) / 60000
         )
     : [];
-
-  const adMetrics = adsResult.data?.[0] ?? { total_impressions: 0, total_clicks: 0 };
-  const totalProductViews = (allProductViewsResult.data ?? []).reduce((sum, p) => sum + (p.views ?? 0), 0);
-  const totalIntents = productIntentsResult.count ?? 0;
 
   const byMetric = (metric: string) => events.filter((e) => e.metric === metric);
   const prevByMetricCount = (metric: string) => prevEvents.filter((e) => e.metric === metric).length;
@@ -393,26 +421,14 @@ export async function getBusinessDashboardStats(
     peakHelpRequestTime,
     peakAppointmentTime,
 
-    topProducts,
-    topServices,
     productViewsTotal: byMetric('product_view').length,
     productViewsPrevTotal: range ? prevByMetricCount('product_view') : null,
     serviceViewsTotal: byMetric('service_view').length,
     serviceViewsPrevTotal: range ? prevByMetricCount('service_view') : null,
     catalogTrend,
-    catalogConversionRate: totalProductViews > 0 ? totalIntents / totalProductViews : null,
 
-    adImpressions: adMetrics.total_impressions,
     adImpressionsPrevTotal: range ? prevByMetricCount('ad_impression') : null,
-    adClicks: adMetrics.total_clicks,
     adClicksPrevTotal: range ? prevByMetricCount('ad_click') : null,
-    // Vistas de historias solo alcanza el total de siempre -- las historias
-    // se borran a las 24h (si no están fijadas) y arrastran sus vistas en
-    // cascada, así que un total "de la semana/mes" quedaría incompleto y
-    // engañoso. Los clics sí quedan en business_metric_events (no dependen
-    // del ciclo de vida de la historia), por eso esos sí comparan período.
-    storyViews: (storiesResult.data ?? []).reduce((sum, s) => sum + s.views, 0),
-    storyClicks: (storiesResult.data ?? []).reduce((sum, s) => sum + s.clicks, 0),
     storyClicksPrevTotal: range ? prevByMetricCount('story_click') : null,
 
     followersGained: range ? (followsResult.data ?? []).length : 0,

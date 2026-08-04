@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
@@ -24,6 +25,7 @@ import {
   getPendingInvitationsForBusiness,
   type EmployeeInvitationWithInvitee,
 } from '../../services/employeeInvitations';
+import { showPlanAwareError } from '../../utils/planLimitAlert';
 import type { BusinessType } from '../../types/database';
 
 const ALL_PERMISSION_ROWS: { key: keyof EmployeePermissions; field: keyof EmployeeWithUser; label: string }[] = [
@@ -155,7 +157,8 @@ export default function EmpleadosScreen() {
     if (atLimit) {
       Alert.alert(
         'Límite de plan alcanzado',
-        `Tu plan ${limits?.planName} permite hasta ${limits?.maxEmployees} personas adicionales en el equipo (sin contar al dueño), y las invitaciones pendientes también cuentan contra ese tope. Sube de plan o espera a que se resuelvan.`
+        `Tu plan ${limits?.planName} permite hasta ${limits?.maxEmployees} personas adicionales en el equipo (sin contar al dueño), y las invitaciones pendientes también cuentan contra ese tope. Sube de plan o espera a que se resuelvan.`,
+        [{ text: 'Cancelar', style: 'cancel' }, { text: 'Ver planes', onPress: () => router.push('/(business)/suscripcion') }]
       );
       return;
     }
@@ -524,7 +527,7 @@ function AddEmployeeForm({
       onInvited();
     } catch (err) {
       console.error('add employee error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo enviar la invitación.');
+      showPlanAwareError('Error', err, 'No se pudo enviar la invitación.');
     } finally {
       setSaving(false);
     }

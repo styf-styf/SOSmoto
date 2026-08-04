@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from './Button';
@@ -8,6 +9,7 @@ import { colors } from '../constants/colors';
 import { getActiveProducts, getActiveServices, getPlanLimits } from '../services/catalog';
 import { createStory, getBusinessStories, isStoryVisible } from '../services/stories';
 import { pickAndUploadBusinessStoryImage } from '../services/storage';
+import { showPlanAwareError } from '../utils/planLimitAlert';
 import type { Product, Service, Story, StoryActionType } from '../types/database';
 
 const templates = ['Promo del día', 'Antes/Después', 'Nuevo producto', 'Cupo disponible hoy'];
@@ -58,7 +60,8 @@ export function CreateBusinessStoryModal({
         if (plan.maxActiveStories !== null && count >= plan.maxActiveStories) {
           Alert.alert(
             'Límite de plan alcanzado',
-            `Tu plan ${plan.planName} permite hasta ${plan.maxActiveStories} historia(s) activa(s). Sube de plan para subir más.`
+            `Tu plan ${plan.planName} permite hasta ${plan.maxActiveStories} historia(s) activa(s). Sube de plan para subir más.`,
+            [{ text: 'Cerrar', style: 'cancel' }, { text: 'Ver planes', onPress: () => router.push('/(business)/suscripcion') }]
           );
           onClose();
         }
@@ -119,7 +122,7 @@ export function CreateBusinessStoryModal({
       handleClose();
     } catch (err) {
       console.error('create story error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo crear la historia.');
+      showPlanAwareError('Error', err, 'No se pudo crear la historia.');
     } finally {
       setSaving(false);
     }

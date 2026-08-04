@@ -8,6 +8,7 @@ import { getPlanLimits } from '../services/catalog';
 import { createPost } from '../services/posts';
 import { pickAndUploadBusinessImage } from '../services/storage';
 import { searchClients } from '../services/users';
+import { showPlanAwareError } from '../utils/planLimitAlert';
 
 type TagResult =
   | { kind: 'business'; id: string; name: string }
@@ -112,7 +113,7 @@ export function CreateBusinessPostBox({ businessId, onCreated }: { businessId: s
       onCreated?.();
     } catch (err) {
       console.error('create post error', err);
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo publicar.');
+      showPlanAwareError('Error', err, 'No se pudo publicar.');
     } finally {
       setPosting(false);
     }

@@ -1,13 +1,20 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits } from '../../services/catalog';
-import { getBusinessDashboardStats, type BusinessDashboardStats, type ChartPoint, type DashboardPeriod } from '../../services/dashboard';
+import {
+  getBusinessCatalogSnapshot,
+  getBusinessPeriodStats,
+  type BusinessDashboardStats,
+  type CatalogSnapshot,
+  type DashboardPeriod,
+  type PeriodStats,
+} from '../../services/dashboard';
 import { shareDashboardAsCsv, shareDashboardAsPdf } from '../../utils/dashboardExport';
 import { TrendBarChart } from '../../components/TrendBarChart';
 
@@ -31,37 +38,57 @@ export default function EstadisticasScreen() {
   const [customTo, setCustomTo] = useState(new Date());
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState('');
   const [planName, setPlanName] = useState('free');
-  const [stats, setStats] = useState<BusinessDashboardStats | null>(null);
+  const [catalogSnapshot, setCatalogSnapshot] = useState<CatalogSnapshot | null>(null);
+  const [periodStats, setPeriodStats] = useState<PeriodStats | null>(null);
   const [canHaveServices, setCanHaveServices] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
-  const load = useCallback(
+  // catalogSnapshot (más vistos, anuncios/historias de siempre, conversión
+  // histórica) NO depende del período -- se pide una sola vez acá. Antes se
+  // volvía a pedir completo (con sus consultas encadenadas) en cada cambio
+  // de Semana/Mes/Todo/Rango, que era la demora real; ahora ese cambio solo
+  // dispara loadPeriod, mucho más liviano.
+  const loadInitial = useCallback(
     async (forPeriod: DashboardPeriod, range?: { from: Date; to: Date }) => {
       if (!profile) return;
       const work = await getMyWorkBusiness(profile.id);
       if (!work) return;
       setCanHaveServices(work.business.business_type === 'workshop');
       setBusinessName(work.business.name);
-      const [limits, dashboardStats] = await Promise.all([
+      setBusinessId(work.business.id);
+      const [limits, snapshot, period] = await Promise.all([
         getPlanLimits(work.business.id),
-        getBusinessDashboardStats(work.business.id, forPeriod, range),
+        getBusinessCatalogSnapshot(work.business.id),
+        getBusinessPeriodStats(work.business.id, forPeriod, range),
       ]);
       setPlanName(limits.planName);
-      setStats(dashboardStats);
+      setCatalogSnapshot(snapshot);
+      setPeriodStats(period);
     },
     [profile]
   );
 
+  const loadPeriod = useCallback(
+    async (forPeriod: DashboardPeriod, range?: { from: Date; to: Date }) => {
+      if (!businessId) return;
+      const period = await getBusinessPeriodStats(businessId, forPeriod, range);
+      setPeriodStats(period);
+    },
+    [businessId]
+  );
+
   const currentCustomRange = { from: customFrom, to: customTo };
+  const stats: BusinessDashboardStats | null = catalogSnapshot && periodStats ? { ...catalogSnapshot, ...periodStats } : null;
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      await load(period, period === 'custom' ? currentCustomRange : undefined);
+      await loadInitial(period, period === 'custom' ? currentCustomRange : undefined);
     } finally {
       setRefreshing(false);
     }
@@ -72,7 +99,7 @@ export default function EstadisticasScreen() {
     if (next === 'custom') return; // espera a que el usuario elija fechas y toque "Aplicar"
     setLoading(true);
     try {
-      await load(next);
+      await loadPeriod(next);
     } catch (err) {
       console.error('load estadisticas period error', err);
     } finally {
@@ -83,7 +110,7 @@ export default function EstadisticasScreen() {
   async function handleApplyCustomRange() {
     setLoading(true);
     try {
-      await load('custom', currentCustomRange);
+      await loadPeriod('custom', currentCustomRange);
     } catch (err) {
       console.error('load estadisticas custom range error', err);
     } finally {
@@ -104,13 +131,13 @@ export default function EstadisticasScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load(period, period === 'custom' ? currentCustomRange : undefined)
+      loadInitial(period, period === 'custom' ? currentCustomRange : undefined)
         .catch((err) => console.error('load estadisticas error', err))
         .finally(() => setLoading(false));
       // Solo al ganar foco -- cambiar de periodo/rango ya dispara su propia
       // carga en handlePeriodChange/handleApplyCustomRange.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load])
+    }, [loadInitial])
   );
 
   if (loading) {
@@ -277,7 +304,7 @@ export default function EstadisticasScreen() {
       )}
 
       {!showIntermedio && (
-        <Text style={styles.upsell}>
+        <Text style={styles.upsell} onPress={() => router.push('/(business)/suscripcion')}>
           Sube a plan Estándar para ver tus productos/servicios más vistos y las métricas de publicidad e historias.
         </Text>
       )}
@@ -392,7 +419,7 @@ export default function EstadisticasScreen() {
           </View>
         </>
       ) : (
-        <Text style={styles.upsell}>Sube a plan Pro para ver horas/días pico, seguidores, rango de fechas personalizado y exportar a CSV/PDF.</Text>
+        <Text style={styles.upsell} onPress={() => router.push('/(business)/suscripcion')}>Sube a plan Pro para ver horas/días pico, seguidores, rango de fechas personalizado y exportar a CSV/PDF.</Text>
       )}
     </ScrollView>
   );

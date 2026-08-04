@@ -197,10 +197,10 @@ export default function BusinessServiceDetailScreen() {
             </View>
           </View>
         ) : (
-          <View style={styles.noticeBox}>
+          <Pressable style={styles.noticeBox} onPress={() => router.push('/(business)/suscripcion')}>
             <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
             <Text style={styles.noticeText}>Sube a plan Estándar para ver vistas, citas y servicios completados de este servicio.</Text>
-          </View>
+          </Pressable>
         )
       ) : (
         <View style={styles.buttonGroup}>
