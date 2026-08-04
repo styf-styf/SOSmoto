@@ -99,6 +99,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      business_metric_events: {
+        Row: {
+          id: string;
+          business_id: string;
+          metric: 'product_view' | 'service_view' | 'ad_impression' | 'ad_click' | 'story_click';
+          entity_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          metric: 'product_view' | 'service_view' | 'ad_impression' | 'ad_click' | 'story_click';
+          entity_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          metric?: 'product_view' | 'service_view' | 'ad_impression' | 'ad_click' | 'story_click';
+          entity_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       businesses: {
         Row: {
           id: string;

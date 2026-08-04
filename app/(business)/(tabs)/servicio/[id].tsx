@@ -10,7 +10,7 @@ import { ReportModal } from '../../../../components/ReportModal';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getServiceAppointmentStats } from '../../../../services/appointments';
 import { getBusinessOwnerForChat, getMyWorkBusiness } from '../../../../services/businesses';
-import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
+import { getPlanLimits, getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
 import { createReport } from '../../../../services/reports';
 import { consumeProductoServicioResetFlag } from '../../../../utils/productoServicioStackReset';
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
@@ -24,6 +24,10 @@ export default function BusinessServiceDetailScreen() {
   const [relatedItems, setRelatedItems] = useState<FeedCatalogItem[]>([]);
   const [isOwnService, setIsOwnService] = useState(false);
   const [stats, setStats] = useState<{ reservations: number; completed: number } | null>(null);
+  // Mismo gate que "Servicios más vistos" en el dashboard (estadisticas.tsx)
+  // -- citas/completadas por servicio es un beneficio de Estándar+, no
+  // debía verse en Free.
+  const [showStats, setShowStats] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const didInitialLoadRef = useRef(false);
 
@@ -43,10 +47,13 @@ export default function BusinessServiceDetailScreen() {
 
     const owns = !!(work && result && work.business.id === result.business_id);
     setIsOwnService(owns);
-    if (owns && result) {
+    if (owns && result && work) {
       getServiceAppointmentStats(result.id)
         .then(setStats)
         .catch((err) => console.error('load service stats error', err));
+      getPlanLimits(work.business.id)
+        .then((limits) => setShowStats(limits.planName === 'standard' || limits.planName === 'pro'))
+        .catch((err) => console.error('load plan limits error', err));
     }
   }, [id, profile]);
 
@@ -174,20 +181,27 @@ export default function BusinessServiceDetailScreen() {
       )}
 
       {isOwnService ? (
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{service.views}</Text>
-            <Text style={styles.statLabel}>Vistas</Text>
+        showStats ? (
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{service.views}</Text>
+              <Text style={styles.statLabel}>Vistas</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats?.reservations ?? 0}</Text>
+              <Text style={styles.statLabel}>Citas</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{stats?.completed ?? 0}</Text>
+              <Text style={styles.statLabel}>Completadas</Text>
+            </View>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats?.reservations ?? 0}</Text>
-            <Text style={styles.statLabel}>Citas</Text>
+        ) : (
+          <View style={styles.noticeBox}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.noticeText}>Sube a plan Estándar para ver vistas, citas y servicios completados de este servicio.</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats?.completed ?? 0}</Text>
-            <Text style={styles.statLabel}>Completadas</Text>
-          </View>
-        </View>
+        )
       ) : (
         <View style={styles.buttonGroup}>
           <View style={styles.noticeBox}>
