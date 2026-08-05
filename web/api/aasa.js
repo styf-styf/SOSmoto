@@ -32,7 +32,10 @@ module.exports = async (req, res) => {
       details: [
         {
           appID: `${process.env.APPLE_TEAM_ID}.com.sosmoto.app`,
-          paths: ['/post/*', '/ad/*'],
+          // Mismas 5 rutas que los intentFilters de Android en app.config.js
+          // -- antes solo tenía post/ad, product/service se habían quedado
+          // afuera aunque ya tenían resolver y soporte en Android.
+          paths: ['/post/*', '/ad/*', '/product/*', '/service/*', '/negocio/*'],
         },
       ],
     },

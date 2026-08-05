@@ -47,6 +47,7 @@ module.exports = {
             { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/ad' },
             { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/product' },
             { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/service' },
+            { scheme: 'https', host: 'sosmoto.net', pathPrefix: '/negocio' },
           ],
           category: ['BROWSABLE', 'DEFAULT'],
         },

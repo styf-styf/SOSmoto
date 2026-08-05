@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
@@ -167,6 +167,12 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
       console.error('sign out error', err);
       setSigningOut(false);
     }
+  }
+
+  function handleShare() {
+    if (!business) return;
+    const url = `https://sosmoto.net/negocio/${business.id}`;
+    Share.share({ message: `${business.name}\n${url}`, url }).catch(() => {});
   }
 
   async function toggleFollow() {
@@ -368,6 +374,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             label="Catálogo"
             onPress={() => router.push('/(business)/catalogo')}
           />
+          <ProfileActionButton icon="share-social-outline" label="Compartir" onPress={handleShare} />
           {(business.business_type === 'workshop' || business.business_type === 'store') && (
             <ProfileActionButton
               icon="search-outline"
@@ -452,6 +459,7 @@ export function BusinessProfileView({ mode, businessId }: BusinessProfileViewPro
             label="Catálogo"
             onPress={() => router.push(`${viewerPrefix}/negocio-catalogo/${business.id}`)}
           />
+          <ProfileActionButton icon="share-social-outline" label="Compartir" onPress={handleShare} />
         </View>
       )}
 

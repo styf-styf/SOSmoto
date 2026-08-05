@@ -13,6 +13,7 @@ const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
   ad: 'anuncio',
   product: '(tabs)/producto',
   service: '(tabs)/servicio',
+  negocio: 'business',
 };
 
 function RetryScreen({ onRetry, stillFailing }: { onRetry: () => Promise<void>; stillFailing: boolean }) {
