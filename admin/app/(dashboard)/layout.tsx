@@ -16,6 +16,7 @@ const navItems = [
   { href: '/moderacion', label: 'Moderación' },
   { href: '/auxilio', label: 'Auxilio en carretera' },
   { href: '/metricas', label: 'Métricas' },
+  { href: '/piloto', label: 'Piloto' },
   { href: '/configuracion', label: 'Configuración' },
 ];
 
