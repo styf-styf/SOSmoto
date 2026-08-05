@@ -29,6 +29,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useLiveLocationSharing } from '../../../hooks/useLiveLocationSharing';
 import { useLocation } from '../../../hooks/useLocation';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { logMapLoad } from '../../../services/mapLoads';
 import { getMyEmployeeRecord } from '../../../services/employees';
 import {
   acceptHelpRequest,
@@ -55,6 +56,10 @@ export default function SolicitudesScreen() {
   const insets = useSafeAreaInsets();
   const { coords: myCoords } = useLocation();
   const mapRef = useRef<MapView>(null);
+  useEffect(() => {
+    if (myCoords) logMapLoad('business_solicitudes').catch((err) => console.error('log map load error', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!myCoords]);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
   const [canAccept, setCanAccept] = useState(true);

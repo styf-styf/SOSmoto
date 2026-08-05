@@ -99,6 +99,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      map_loads: {
+        Row: {
+          id: string;
+          screen: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          screen: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          screen?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       business_metric_events: {
         Row: {
           id: string;
@@ -1957,6 +1975,10 @@ export interface Database {
           label_text: string | null;
           remaining_window_days: number | null;
         }[];
+      };
+      log_map_load: {
+        Args: { p_screen: string };
+        Returns: undefined;
       };
       increment_ad_metric: {
         Args: { ad_id: string; metric: string };

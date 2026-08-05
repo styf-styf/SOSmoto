@@ -36,7 +36,7 @@ function fmtDate(iso: string) {
 export default async function PilotoPage() {
   const supabase = createAdminClient();
 
-  const [clientsResult, businessesResult, apkDownloadsResult] = await Promise.all([
+  const [clientsResult, businessesResult, apkDownloadsResult, mapLoadsResult] = await Promise.all([
     supabase
       .from('users')
       .select('id, full_name, email, created_at')
@@ -49,7 +49,17 @@ export default async function PilotoPage() {
       .gte('created_at', PILOT_START)
       .order('created_at', { ascending: true }),
     supabase.from('apk_downloads').select('id', { count: 'exact', head: true }),
+    // Todo el historial (no solo desde el piloto) -- lo que importa acá es
+    // el consumo mensual real contra el cupo gratis de Google Maps (10,000
+    // llamadas/mes por API), no la ventana del piloto.
+    supabase.from('map_loads').select('screen, created_at'),
   ]);
+
+  const mapLoadsByScreen = new Map<string, number>();
+  for (const row of mapLoadsResult.data ?? []) mapLoadsByScreen.set(row.screen, (mapLoadsByScreen.get(row.screen) ?? 0) + 1);
+  const mapLoadsRows = Array.from(mapLoadsByScreen.entries()).sort((a, b) => b[1] - a[1]);
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const mapLoadsLast30d = (mapLoadsResult.data ?? []).filter((r) => new Date(r.created_at).getTime() >= thirtyDaysAgo).length;
 
   const clients = clientsResult.data ?? [];
   const businesses = businessesResult.data ?? [];
@@ -179,7 +189,7 @@ export default async function PilotoPage() {
         <p className="mb-4 text-sm text-red-600">Error cargando algunos datos: {errors.map((e) => e?.message).join(' · ')}</p>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-6">
         <Kpi label="Clientes registrados" value={clients.length} />
         <Kpi label="Negocios registrados" value={businesses.length} />
         <Kpi label="Negocios verificados" value={verifiedCount} />
@@ -189,6 +199,7 @@ export default async function PilotoPage() {
           accent
         />
         <Kpi label="Descargas del APK" value={apkDownloadsResult.count ?? 0} accent />
+        <Kpi label="Mapas renderizados (30 días)" value={mapLoadsLast30d} accent />
       </div>
 
       <Section title="Negocios sin catálogo todavía" subtitle="Registrados en el piloto pero sin ningún producto ni servicio -- candidatos a llamar/ayudar a cargar catálogo. Ordenados por más antiguos primero.">
@@ -228,6 +239,14 @@ export default async function PilotoPage() {
               </div>
             ))}
           </div>
+        )}
+      </Section>
+
+      <Section title="Mapas renderizados por pantalla" subtitle="Historial completo (no solo el piloto) -- cada fila es una vez que se cargó el SDK de Google Maps. Sirve para ver qué pantalla consume más contra el cupo gratis de 10,000 llamadas/mes por API.">
+        {mapLoadsRows.length === 0 ? (
+          <p className="text-sm text-gray-400">Todavía no hay mapas registrados.</p>
+        ) : (
+          <Table headers={['Pantalla', 'Veces renderizado']} rows={mapLoadsRows.map(([screen, n]) => [screen, String(n)])} />
         )}
       </Section>
 

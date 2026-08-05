@@ -23,6 +23,7 @@ import { colors } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
+import { logMapLoad } from '../../services/mapLoads';
 import type { Business } from '../../types/database';
 
 const ECUADOR_PROVINCES_DN = [
@@ -142,6 +143,13 @@ export default function DatosNegocioScreen() {
   const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const pendingRegionRef = useRef<Region | null>(null);
+  useEffect(() => {
+    if (!editing && selectedCoords) logMapLoad('business_datos_negocio_preview').catch((err) => console.error('log map load error', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, !!selectedCoords]);
+  useEffect(() => {
+    if (showMapPicker) logMapLoad('business_datos_negocio_picker').catch((err) => console.error('log map load error', err));
+  }, [showMapPicker]);
 
   const didPopulateRef = useRef(!!data?.business);
 

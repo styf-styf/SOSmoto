@@ -45,6 +45,7 @@ import {
   getMyEmployeeRecord,
   getMyRemovalNotice,
 } from '../../../services/employees';
+import { logMapLoad } from '../../../services/mapLoads';
 import { changeRoleToClient } from '../../../services/users';
 import { getFollowsCount } from '../../../services/follows';
 import type { EmployeeRemovalNotice } from '../../../types/database';
@@ -951,6 +952,9 @@ function BusinessOnboarding({
   const [mapInitialRegion, setMapInitialRegion] = useState<Region | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const pendingRegionRef = useRef<Region | null>(null);
+  useEffect(() => {
+    if (showMapPicker) logMapLoad('business_onboarding_picker').catch((err) => console.error('log map load error', err));
+  }, [showMapPicker]);
 
   function openMapPicker() {
     const center = selectedCoords ?? coords ?? QUITO_DEFAULT;

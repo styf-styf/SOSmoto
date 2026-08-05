@@ -30,6 +30,7 @@ import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestCon
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import { getBusinessById, getBusinessPhoneForClient } from '../../../services/businesses';
+import { logMapLoad } from '../../../services/mapLoads';
 import {
   cancelHelpRequest,
   completeHelpRequest,
@@ -85,6 +86,10 @@ export default function AuxilioScreen() {
   const isMounted = useRef(false);
   const didInitialLoadRef = useRef(false);
   const prevAcceptedBusinessIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeRequest || coords) logMapLoad('client_auxilio').catch((err) => console.error('log map load error', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!activeRequest, !!coords]);
   useEffect(() => {
     if (!activeRequest) {
       prevAcceptedBusinessIdRef.current = null;
