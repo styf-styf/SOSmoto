@@ -20,6 +20,37 @@ export async function getServiceAppointmentStats(serviceId: string): Promise<{ r
   };
 }
 
+export interface ServiceDeleteBlockers {
+  appointments: number;
+  requests: number;
+}
+
+// Antes de borrar un servicio hay que revisar si tiene algo pendiente que
+// dependa de él -- appointments.service_id no tiene "on delete cascade/set
+// null" (a diferencia de las otras tablas que referencian services), así
+// que Postgres bloquea el borrado con un error críptico si hay alguna cita
+// activa. appointment_requests sí tiene "on delete set null" (no bloquea
+// a nivel de base), pero igual conviene avisar: borrar el servicio dejaría
+// a un cliente esperando respuesta a una solicitud de un servicio que ya
+// no existe.
+export async function getServiceDeleteBlockers(serviceId: string): Promise<ServiceDeleteBlockers> {
+  const [apptResult, reqResult] = await Promise.all([
+    supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('service_id', serviceId)
+      .in('status', ['pending', 'scheduled', 'confirmed']),
+    supabase
+      .from('appointment_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('service_id', serviceId)
+      .eq('status', 'pending'),
+  ]);
+  if (apptResult.error) throw apptResult.error;
+  if (reqResult.error) throw reqResult.error;
+  return { appointments: apptResult.count ?? 0, requests: reqResult.count ?? 0 };
+}
+
 export interface ClientAppointment extends Appointment {
   business_name: string;
   service_name: string | null;

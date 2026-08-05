@@ -533,6 +533,22 @@ export async function getProductIntentStats(productId: string): Promise<{ reserv
   };
 }
 
+// product_intents.product_id sí tiene "on delete cascade" (a diferencia de
+// appointments.service_id, ver getServiceDeleteBlockers en
+// services/appointments.ts), así que borrar el producto NO falla en la
+// base -- pero borraría en silencio el apartado de un cliente que sigue
+// esperando respuesta. Se revisa antes para avisar en vez de dejarlo
+// desaparecer sin que nadie se entere.
+export async function getProductDeleteBlockers(productId: string): Promise<{ intents: number }> {
+  const { count, error } = await supabase
+    .from('product_intents')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId)
+    .in('status', ['pending', 'confirmed']);
+  if (error) throw error;
+  return { intents: count ?? 0 };
+}
+
 
 export interface MyProductPurchase {
   id: string;

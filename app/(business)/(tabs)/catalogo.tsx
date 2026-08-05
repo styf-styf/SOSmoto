@@ -44,7 +44,9 @@ import {
   type PlanLimits,
 } from '../../../services/catalog';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { getServiceDeleteBlockers } from '../../../services/appointments';
 import { getMyEmployeeRecord } from '../../../services/employees';
+import { getProductDeleteBlockers } from '../../../services/productIntents';
 import { pickAndUploadBusinessImage } from '../../../services/storage';
 import { showPlanAwareError } from '../../../utils/planLimitAlert';
 import type { Business, Product, ProductPriceTier, ProductVariant, Service } from '../../../types/database';
@@ -342,7 +344,40 @@ export default function CatalogoScreen() {
     closeForm();
   }
 
-  function confirmDeleteService(service: Service) {
+  async function confirmDeleteService(service: Service) {
+    try {
+      const blockers = await getServiceDeleteBlockers(service.id);
+      if (blockers.appointments > 0 || blockers.requests > 0) {
+        const parts: string[] = [];
+        if (blockers.appointments > 0) {
+          parts.push(`${blockers.appointments} cita${blockers.appointments === 1 ? '' : 's'} pendiente${blockers.appointments === 1 ? '' : 's'}`);
+        }
+        if (blockers.requests > 0) {
+          parts.push(`${blockers.requests} solicitud${blockers.requests === 1 ? '' : 'es'} de cita pendiente${blockers.requests === 1 ? '' : 's'}`);
+        }
+        Alert.alert(
+          'No puedes eliminar este servicio',
+          `Tiene ${parts.join(' y ')} sin cancelar o completar. Resuélvelas primero, o desactívalo (interruptor "Visible") para ocultarlo sin perder el historial.`,
+          [
+            { text: 'Cerrar', style: 'cancel' },
+            {
+              text: 'Ver citas',
+              onPress: () => {
+                setForm(null);
+                router.push('/(business)/agenda-negocio');
+              },
+            },
+          ]
+        );
+        return;
+      }
+    } catch (err) {
+      console.error('check service delete blockers error', err);
+      // Si el chequeo falla (ej. sin red), no bloquear al usuario -- sigue
+      // al flujo normal y, si de verdad hay algo pendiente, el propio
+      // deleteService fallará más abajo con el mismo aviso.
+    }
+
     Alert.alert('Eliminar servicio', `¿Eliminar "${service.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -355,6 +390,13 @@ export default function CatalogoScreen() {
             setForm(null);
           } catch (err) {
             console.error('delete service error', err);
+            if ((err as { code?: string })?.code === '23503') {
+              Alert.alert('No puedes eliminar este servicio', 'Tiene citas asociadas. Resuélvelas primero, o desactívalo en su lugar.', [
+                { text: 'Cerrar', style: 'cancel' },
+                { text: 'Ver citas', onPress: () => router.push('/(business)/agenda-negocio') },
+              ]);
+              return;
+            }
             Alert.alert('Error', 'No se pudo eliminar el servicio. Intenta de nuevo.');
           }
         },
@@ -362,7 +404,30 @@ export default function CatalogoScreen() {
     ]);
   }
 
-  function confirmDeleteProduct(product: Product) {
+  async function confirmDeleteProduct(product: Product) {
+    try {
+      const blockers = await getProductDeleteBlockers(product.id);
+      if (blockers.intents > 0) {
+        Alert.alert(
+          'No puedes eliminar este producto',
+          `Tiene ${blockers.intents} apartado${blockers.intents === 1 ? '' : 's'} sin resolver. Complétalos o cancélalos primero, o desactívalo (interruptor "Visible") para ocultarlo sin perder el historial.`,
+          [
+            { text: 'Cerrar', style: 'cancel' },
+            {
+              text: 'Ver pedidos',
+              onPress: () => {
+                setForm(null);
+                router.push('/(business)/pedidos');
+              },
+            },
+          ]
+        );
+        return;
+      }
+    } catch (err) {
+      console.error('check product delete blockers error', err);
+    }
+
     Alert.alert('Eliminar producto', `¿Eliminar "${product.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
