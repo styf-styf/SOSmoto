@@ -37,7 +37,7 @@ export function BarChart({
 
   return (
     <div>
-      <svg viewBox={`0 0 ${width} ${HEIGHT}`} preserveAspectRatio="none" style={{ width: '100%', height: HEIGHT }}>
+      <svg viewBox={`0 0 ${width} ${HEIGHT}`} style={{ width: '100%', maxWidth: width, height: HEIGHT }}>
         <line x1={0} y1={HEIGHT - AXIS_PAD_BOTTOM} x2={width} y2={HEIGHT - AXIS_PAD_BOTTOM} stroke="#E5E5EA" strokeWidth={1} />
         {data.map((d, i) => {
           const slotX = i * BUCKET_WIDTH;
