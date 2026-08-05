@@ -15,10 +15,34 @@ function supabaseAdmin() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+// URL directa al APK en Vercel Blob. El archivo NO va commiteado al repo
+// (GitHub rechaza binarios >100MB) ni en Supabase Storage (el límite
+// global de subida del plan actual lo bloquea) -- vive en Vercel Blob
+// (store "sosmoto-downloads", proyecto so-smoto, plan "public"). Para
+// reemplazarlo por un build nuevo:
+//   cd web && npx vercel blob put <ruta-al-apk> --pathname SOSmoto.apk \
+//     --access public --rw-token <BLOB_READ_WRITE_TOKEN de web/.env.local>
+// y actualizar la URL de acá abajo con la que devuelva el comando.
+const APK_DOWNLOAD_URL = 'https://zs7jfd4nqamxevzt.public.blob.vercel-storage.com/SOSmoto-CIKTwTpy9t3blYe6rlrIt354JWIEEu.apk';
+
 module.exports = async (req, res) => {
+  const supabase = supabaseAdmin();
+
+  // /descargar-apk (?descargar=1) -- registra el clic y redirige al archivo
+  // real. Vive acá (no en un archivo /api propio) porque el plan Hobby de
+  // Vercel tope 12 funciones serverless y ya estamos justo en el límite
+  // (ver comentario de más abajo sobre por qué home/negocios ya están
+  // fusionados en este mismo archivo por la misma razón).
+  if (req.query.descargar === '1') {
+    const { error: insertError } = await supabase.from('apk_downloads').insert({});
+    if (insertError) console.error('apk_downloads insert error', insertError);
+    res.writeHead(307, { Location: APK_DOWNLOAD_URL });
+    res.end();
+    return;
+  }
+
   const isHome = req.query.home === '1';
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  const supabase = supabaseAdmin();
 
   let query = supabase
     .from('businesses')
@@ -56,22 +80,17 @@ module.exports = async (req, res) => {
 
   // Plan piloto: todavía no se publicó en Google Play ni App Store, así que
   // se reparte el APK directo desde acá -- esto se reemplaza por los botones
-  // reales de tienda apenas exista la publicación.
-  //
-  // El archivo NO va commiteado al repo (GitHub rechaza binarios >100MB) ni
-  // en Supabase Storage (el límite global de subida del plan actual lo
-  // bloquea) -- vive en Vercel Blob (store "sosmoto-downloads", proyecto
-  // so-smoto, plan "public"). Para reemplazarlo por un build nuevo:
-  //   cd web && npx vercel blob put <ruta-al-apk> --pathname SOSmoto.apk \
-  //     --access public --rw-token <BLOB_READ_WRITE_TOKEN de web/.env.local>
-  // y actualizar la URL de acá abajo con la que devuelva el comando.
-  const APK_DOWNLOAD_URL = 'https://zs7jfd4nqamxevzt.public.blob.vercel-storage.com/SOSmoto-CIKTwTpy9t3blYe6rlrIt354JWIEEu.apk';
+  // reales de tienda apenas exista la publicación. El botón pasa por
+  // /descargar-apk (registra el clic en apk_downloads) en vez de linkear
+  // directo a Vercel Blob -- ver el bloque `if (req.query.descargar...)`
+  // más arriba y APK_DOWNLOAD_URL al inicio del archivo para el
+  // procedimiento de reemplazo del APK.
   const downloadSectionHtml = isHome
     ? `<div class="download-section">
   <img src="/favicon.png" alt="SOSmoto" class="download-icon" />
   <p class="download-title">Prueba SOSmoto (versión piloto)</p>
   <p class="download-subtitle">Todavía no estamos en Google Play ni App Store -- por ahora, descargá el APK directo para Android. Tu celular puede pedirte permitir "instalar apps de fuentes desconocidas" al abrirlo.</p>
-  <a class="download-btn" href="${APK_DOWNLOAD_URL}" download="SOSmoto.apk">Descargar APK (Android)</a>
+  <a class="download-btn" href="/descargar-apk" download="SOSmoto.apk">Descargar APK (Android)</a>
 </div>`
     : '';
 

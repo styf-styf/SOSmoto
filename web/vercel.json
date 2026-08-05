@@ -8,6 +8,7 @@
     { "source": "/service/:id", "destination": "/api/content?type=service&id=:id" },
     { "source": "/", "destination": "/api/negocios?home=1" },
     { "source": "/negocios", "destination": "/api/negocios" },
+    { "source": "/descargar-apk", "destination": "/api/negocios?descargar=1" },
     { "source": "/negocio/:id", "destination": "/api/negocio/:id" },
     { "source": "/terminos", "destination": "/api/legal?doc=terminos" },
     { "source": "/privacidad", "destination": "/api/legal?doc=privacidad" },

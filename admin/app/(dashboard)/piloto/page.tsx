@@ -36,7 +36,7 @@ function fmtDate(iso: string) {
 export default async function PilotoPage() {
   const supabase = createAdminClient();
 
-  const [clientsResult, businessesResult] = await Promise.all([
+  const [clientsResult, businessesResult, apkDownloadsResult] = await Promise.all([
     supabase
       .from('users')
       .select('id, full_name, email, created_at')
@@ -48,6 +48,7 @@ export default async function PilotoPage() {
       .select('id, name, business_type, city, is_verified, created_at')
       .gte('created_at', PILOT_START)
       .order('created_at', { ascending: true }),
+    supabase.from('apk_downloads').select('id', { count: 'exact', head: true }),
   ]);
 
   const clients = clientsResult.data ?? [];
@@ -178,7 +179,7 @@ export default async function PilotoPage() {
         <p className="mb-4 text-sm text-red-600">Error cargando algunos datos: {errors.map((e) => e?.message).join(' · ')}</p>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
         <Kpi label="Clientes registrados" value={clients.length} />
         <Kpi label="Negocios registrados" value={businesses.length} />
         <Kpi label="Negocios verificados" value={verifiedCount} />
@@ -187,6 +188,7 @@ export default async function PilotoPage() {
           value={`${businesses.length - businessesWithoutCatalog.length}/${businesses.length}`}
           accent
         />
+        <Kpi label="Descargas del APK" value={apkDownloadsResult.count ?? 0} accent />
       </div>
 
       <Section title="Negocios sin catálogo todavía" subtitle="Registrados en el piloto pero sin ningún producto ni servicio -- candidatos a llamar/ayudar a cargar catálogo. Ordenados por más antiguos primero.">
@@ -230,8 +232,8 @@ export default async function PilotoPage() {
       </Section>
 
       <div className="rounded-xl bg-gray-50 p-4 text-xs text-gray-500">
-        Nota: la conversión de descargas del APK a registros no se puede medir todavía -- sosmoto.net sirve el archivo
-        directo desde Vercel Blob y no hay ningún evento de descarga registrado en la base.
+        Nota: "Descargas del APK" solo cuenta clics en el botón de sosmoto.net desde que se agregó ese conteo -- no
+        incluye descargas de antes, y no distingue instalaciones reales de clics repetidos de la misma persona.
       </div>
     </div>
   );
