@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientShade } from './GradientShade';
@@ -56,6 +56,12 @@ export function NegocioCatalogoView({ businessId, hrefBase }: { businessId: stri
   const services = data?.services ?? [];
   const products = data?.products ?? [];
 
+  function handleShare() {
+    if (!business) return;
+    const url = `https://sosmoto.net/negocio/${business.id}`;
+    Share.share({ message: `${business.name}\n${url}`, url }).catch(() => {});
+  }
+
   async function handleRefresh() {
     setRefreshing(true);
     try {
@@ -85,7 +91,16 @@ export function NegocioCatalogoView({ businessId, hrefBase }: { businessId: stri
 
   return (
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
-      <Stack.Screen options={{ title: business.name }} />
+      <Stack.Screen
+        options={{
+          title: business.name,
+          headerRight: () => (
+            <Pressable onPress={handleShare} hitSlop={8}>
+              <Ionicons name="share-social-outline" size={22} color={colors.text} />
+            </Pressable>
+          ),
+        }}
+      />
 
       {/* Cabecera del negocio */}
       <View style={styles.businessHeader}>

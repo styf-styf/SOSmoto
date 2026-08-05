@@ -9,6 +9,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -197,6 +198,12 @@ export default function CatalogoScreen() {
   async function handleRefresh() {
     setRefreshing(true);
     try { await load(); } finally { setRefreshing(false); }
+  }
+
+  function handleShare() {
+    if (!business) return;
+    const url = `https://sosmoto.net/negocio/${business.id}`;
+    Share.share({ message: `${business.name}\n${url}`, url }).catch(() => {});
   }
 
   useEffect(() => {
@@ -393,6 +400,9 @@ export default function CatalogoScreen() {
             <Ionicons name="cube-outline" size={18} color={colors.primary} />
             <Text style={styles.inventarioBtnText}>Ver inventario de productos</Text>
             <Ionicons name="chevron-forward-outline" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable style={styles.inventarioInfoBtn} onPress={handleShare} hitSlop={8} accessibilityLabel="Compartir catálogo">
+            <Ionicons name="share-social-outline" size={22} color={colors.primary} />
           </Pressable>
           <Pressable
             style={styles.inventarioInfoBtn}
