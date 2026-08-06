@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import { colors } from '../constants/colors';
 import { getHomeAds, type AdWithBusiness } from '../services/ads';
 import { getFeedCatalogPool, type FeedCatalogItem } from '../services/catalog';
+import { getFollowedBusinessIds } from '../services/follows';
 import { getFollowingFeedPage, getPublicFeedPage, type PostWithAuthor } from '../services/posts';
 import { applyFreshnessOrder } from '../utils/feedOrdering';
 import { AdBanner } from './AdBanner';
@@ -129,18 +130,28 @@ export const HomeFeed = forwardRef<
   const scrollOffsetRef = useRef(0);
 
   const loadInitial = useCallback(async () => {
-    const [postsPage, homeAds] = await Promise.all([
+    const [postsPage, homeAds, followedBusinessIds] = await Promise.all([
       feedMode === 'following' && clientId
         ? getFollowingFeedPage(clientId, { limit: PAGE_SIZE }, role === 'business' ? viewerBusinessId : null)
         : getPublicFeedPage({ limit: PAGE_SIZE }),
       getHomeAds(city, coords),
+      // Mismo filtro que ya aplican las publicaciones en este modo -- antes
+      // el catálogo intercalado era siempre global, sin importar feedMode,
+      // así que "Siguiendo" mostraba producto/servicio de negocios que el
+      // cliente ni sigue.
+      feedMode === 'following' && clientId
+        ? getFollowedBusinessIds(clientId, role === 'business' ? viewerBusinessId : null)
+        : Promise.resolve(undefined),
     ]);
 
     // getFeedCatalogPool depende de homeAds.linkedCatalogIds (para no
     // mostrar la tarjeta orgánica de un producto/servicio que ya tiene su
     // propio anuncio activo en el mismo pool) -- por eso va después, no en
     // el mismo Promise.all.
-    const catalog = await getFeedCatalogPool(30, { excludeIds: homeAds.linkedCatalogIds });
+    const catalog = await getFeedCatalogPool(30, {
+      excludeIds: homeAds.linkedCatalogIds,
+      businessIds: followedBusinessIds,
+    });
 
     setPosts(postsPage);
     // Los anuncios activos se mezclan como tarjetas más del carrusel de

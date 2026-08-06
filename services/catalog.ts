@@ -317,12 +317,15 @@ export interface FeedCatalogItem {
   linkedItemId?: string;
 }
 
-// Muestra global de catálogo (no filtrada por seguidos/cercanía) para
-// intercalar tiras de servicios/productos sueltos dentro del feed de
-// Inicio -- no es un feed propio (sin comentarios/compartir), es más bien un
-// banner de descubrimiento mezclado entre negocios. Devuelve ordenado por más
-// reciente primero -- el propio HomeFeed decide si lo muestra en ese orden
-// (primera carga) o mezclado (recargas sin nada nuevo).
+// Muestra global de catálogo para intercalar tiras de servicios/productos
+// sueltos dentro del feed de Inicio -- no es un feed propio (sin comentarios/
+// compartir), es más bien un banner de descubrimiento mezclado entre
+// negocios. Devuelve ordenado por más reciente primero -- el propio HomeFeed
+// decide si lo muestra en ese orden (primera carga) o mezclado (recargas sin
+// nada nuevo). Sin `businessIds` es global (no filtrada por seguidos/
+// cercanía); con `businessIds` se restringe a esos negocios -- lo usa
+// HomeFeed en feedMode "following" para que el catálogo intercalado respete
+// lo mismo que ya respetan las publicaciones (solo seguidos).
 export interface ExcludedCatalogId {
   kind: 'product' | 'service';
   id: string;
@@ -330,21 +333,30 @@ export interface ExcludedCatalogId {
 
 export async function getFeedCatalogPool(
   limit = 30,
-  opts: { excludeIds?: ExcludedCatalogId[] } = {}
+  opts: { excludeIds?: ExcludedCatalogId[]; businessIds?: string[] } = {}
 ): Promise<FeedCatalogItem[]> {
+  // `businessIds` presente pero vacío = "following" sin ningún seguido
+  // todavía -- mismo corto-circuito que getFollowingFeedPage, evita una
+  // consulta con `.in('business_id', [])` (que Postgres trataría como "no
+  // hay match" de todas formas, pero sin necesidad del round-trip).
+  if (opts.businessIds && opts.businessIds.length === 0) return [];
+
+  let servicesQuery = supabase
+    .from('services')
+    .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
+    .eq('is_active', true);
+  let productsQuery = supabase
+    .from('products')
+    .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
+    .eq('is_active', true);
+  if (opts.businessIds) {
+    servicesQuery = servicesQuery.in('business_id', opts.businessIds);
+    productsQuery = productsQuery.in('business_id', opts.businessIds);
+  }
+
   const [servicesResult, productsResult] = await Promise.all([
-    supabase
-      .from('services')
-      .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(limit),
-    supabase
-      .from('products')
-      .select('*, businesses:businesses_public(name, logo_url, business_type, is_deactivated)')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(limit),
+    servicesQuery.order('created_at', { ascending: false }).limit(limit),
+    productsQuery.order('created_at', { ascending: false }).limit(limit),
   ]);
   if (servicesResult.error) throw servicesResult.error;
   if (productsResult.error) throw productsResult.error;

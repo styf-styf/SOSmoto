@@ -38,6 +38,17 @@ export async function unfollowBusiness(clientId: string, businessId: string, fol
   if (error) throw error;
 }
 
+export async function getFollowedBusinessIds(clientId: string, followerBusinessId?: string | null): Promise<string[]> {
+  let query = supabase.from('follows').select('business_id');
+  query = followerBusinessId
+    ? query.eq('follower_business_id', followerBusinessId)
+    : query.eq('client_id', clientId).is('follower_business_id', null);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((f) => f.business_id as string);
+}
+
 export async function getFollowsCount(clientId: string, followerBusinessId?: string | null): Promise<number> {
   let query = supabase.from('follows').select('id', { count: 'exact', head: true });
   query = followerBusinessId
