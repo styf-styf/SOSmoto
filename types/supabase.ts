@@ -1233,6 +1233,7 @@ export interface Database {
           business_id: string;
           vehicle_id: string | null;
           service_id: string | null;
+          service_name: string | null;
           requested_at: string | null;
           proposed_by: 'client' | 'business' | null;
           notes: string | null;
@@ -1247,6 +1248,7 @@ export interface Database {
           business_id: string;
           vehicle_id?: string | null;
           service_id?: string | null;
+          service_name?: string | null;
           requested_at?: string | null;
           proposed_by?: 'client' | 'business' | null;
           notes?: string | null;
@@ -1261,6 +1263,7 @@ export interface Database {
           business_id?: string;
           vehicle_id?: string | null;
           service_id?: string | null;
+          service_name?: string | null;
           requested_at?: string | null;
           proposed_by?: 'client' | 'business' | null;
           notes?: string | null;
@@ -1461,33 +1464,39 @@ export interface Database {
         Row: {
           id: string;
           client_id: string;
-          product_id: string;
+          product_id: string | null;
           variant_id: string | null;
           business_id: string;
           status: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
           quantity: number;
+          product_name: string | null;
+          product_price: number | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           client_id: string;
-          product_id: string;
+          product_id?: string | null;
           variant_id?: string | null;
           business_id: string;
           status?: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
           quantity?: number;
+          product_name?: string | null;
+          product_price?: number | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           client_id?: string;
-          product_id?: string;
+          product_id?: string | null;
           variant_id?: string | null;
           business_id?: string;
           status?: 'pending' | 'confirmed' | 'sold' | 'unavailable' | 'cancelled_by_client' | 'cancelled_no_show';
           quantity?: number;
+          product_name?: string | null;
+          product_price?: number | null;
           created_at?: string;
           updated_at?: string;
         };

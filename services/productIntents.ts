@@ -62,24 +62,39 @@ export async function createProductIntent(
   quantity: number = 1,
   variantId: string | null = null
 ): Promise<ProductIntent> {
+  // Nombre/precio se piden ANTES del insert -- se guardan como snapshot en
+  // la propia fila (ver migración 0193) para que el apartado sobreviva si
+  // el producto se borra después, y de paso se reusan para la notificación
+  // de abajo en vez de pedirlos otra vez.
+  const { data: product } = await supabase
+    .from('products')
+    .select('name, reference_price')
+    .eq('id', productId)
+    .maybeSingle();
+  let variantLabel: string | null = null;
+  let variantPrice: number | null = null;
+  if (variantId) {
+    const { data: variant } = await supabase.from('product_variants').select('label, reference_price').eq('id', variantId).maybeSingle();
+    variantLabel = variant?.label ?? null;
+    variantPrice = variant?.reference_price ?? null;
+  }
+
   const { data, error } = await supabase
     .from('product_intents')
-    .insert({ client_id: clientId, product_id: productId, variant_id: variantId, business_id: businessId, quantity })
+    .insert({
+      client_id: clientId,
+      product_id: productId,
+      variant_id: variantId,
+      business_id: businessId,
+      quantity,
+      product_name: product?.name ?? null,
+      product_price: variantPrice ?? product?.reference_price ?? null,
+    })
     .select()
     .single();
   if (error) throw error;
 
   const ownerId = await getBusinessOwnerForNotify(businessId);
-  const { data: product } = await supabase
-    .from('products')
-    .select('name')
-    .eq('id', productId)
-    .maybeSingle();
-  let variantLabel: string | null = null;
-  if (variantId) {
-    const { data: variant } = await supabase.from('product_variants').select('label').eq('id', variantId).maybeSingle();
-    variantLabel = variant?.label ?? null;
-  }
   if (ownerId && product?.name) {
     const qtyPrefix = quantity > 1 ? `${quantity} x ` : '';
     const buyerLabel = await getBuyerLabel(clientId);
@@ -166,7 +181,11 @@ export async function updateProductIntentQuantity(intentId: string, quantity: nu
     .eq('id', intentId);
   if (error) throw error;
 
-  const { data: product } = await supabase.from('products').select('name').eq('id', intent.product_id).maybeSingle();
+  // product_id puede ser null si el producto ya se borró (ver migración
+  // 0193) -- sin producto que buscar, cae directo al texto genérico.
+  const { data: product } = intent.product_id
+    ? await supabase.from('products').select('name').eq('id', intent.product_id).maybeSingle()
+    : { data: null };
   let variantLabel: string | null = null;
   if (intent.variant_id) {
     const { data: variant } = await supabase.from('product_variants').select('label').eq('id', intent.variant_id).maybeSingle();
@@ -199,11 +218,9 @@ export async function cancelProductIntent(intentId: string): Promise<void> {
 
   if (intent) {
     const ownerId = await getBusinessOwnerForNotify(intent.business_id);
-    const { data: product } = await supabase
-      .from('products')
-      .select('name')
-      .eq('id', intent.product_id)
-      .maybeSingle();
+    const { data: product } = intent.product_id
+      ? await supabase.from('products').select('name').eq('id', intent.product_id).maybeSingle()
+      : { data: null };
     let variantLabel: string | null = null;
     if (intent.variant_id) {
       const { data: variant } = await supabase.from('product_variants').select('label').eq('id', intent.variant_id).maybeSingle();
@@ -241,7 +258,9 @@ export async function updateIntentStatus(
   // llamadas concurrentes) si el intent ya estaba marcado como vendido.
   if (status === 'sold' && intent.status === 'sold') return;
 
-  if (status === 'sold') {
+  // product_id puede ser null si el producto ya se borró (ver migración
+  // 0193) -- sin producto no hay stock que descontar.
+  if (status === 'sold' && intent.product_id) {
     // El movimiento de stock va ANTES de marcar la venta -- si falla (ej. no
     // hay stock suficiente), el intent se queda en su estado anterior en vez
     // de quedar marcado "vendido" sin haber descontado nada del inventario.
@@ -272,11 +291,9 @@ export async function updateIntentStatus(
   if (error) throw error;
 
   if (status === 'confirmed' || status === 'sold' || status === 'unavailable' || status === 'cancelled_no_show') {
-    const { data: product } = await supabase
-      .from('products')
-      .select('name')
-      .eq('id', intent.product_id)
-      .maybeSingle();
+    const { data: product } = intent.product_id
+      ? await supabase.from('products').select('name').eq('id', intent.product_id).maybeSingle()
+      : { data: null };
     let variantLabel: string | null = null;
     if (intent.variant_id) {
       const { data: variant } = await supabase.from('product_variants').select('label').eq('id', intent.variant_id).maybeSingle();
@@ -340,13 +357,15 @@ export async function getActionableIntentsForBusinessClient(
 
   return (
     (data ?? []) as unknown as (ProductIntent & {
+      product_name: string | null;
+      product_price: number | null;
       products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
       product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     })[]
   ).map((row) => ({
     ...row,
-    product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
+    product_name: withVariantLabel(row.products?.name ?? row.product_name ?? 'Producto', row.product_variants?.label),
+    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity) ?? row.product_price,
   }));
 }
 
@@ -413,7 +432,9 @@ export function subscribeToProductIntentCancelled(
     async (payload) => {
       const row = payload.new as ProductIntent;
       if (row.client_id !== clientId || row.status !== 'cancelled_by_client') return;
-      const { data: product } = await supabase.from('products').select('name').eq('id', row.product_id).maybeSingle();
+      const { data: product } = row.product_id
+        ? await supabase.from('products').select('name').eq('id', row.product_id).maybeSingle()
+        : { data: null };
       let variantLabel: string | null = null;
       if (row.variant_id) {
         const { data: variant } = await supabase.from('product_variants').select('label').eq('id', row.variant_id).maybeSingle();
@@ -462,6 +483,10 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as (ProductIntent & {
+    // Snapshot guardado al crearse (ver migración 0193) -- respaldo por si
+    // el producto ya se borró (products/product_variants vienen null ahí).
+    product_name: string | null;
+    product_price: number | null;
     products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
     product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     users: { full_name: string; phone: string | null; avatar_url: string | null } | null;
@@ -483,8 +508,8 @@ export async function getBusinessProductIntents(businessId: string): Promise<Pro
     const buyerBusiness = buyerBusinessByOwnerId.get(row.client_id) ?? null;
     return {
       ...row,
-      product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-      product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
+      product_name: withVariantLabel(row.products?.name ?? row.product_name ?? 'Producto', row.product_variants?.label),
+      product_price: intentUnitPrice(row.products, row.product_variants, row.quantity) ?? row.product_price,
       client_name: row.users?.full_name ?? 'Cliente',
       client_phone: row.users?.phone ?? null,
       client_avatar_url: buyerBusiness ? buyerBusiness.logo_url : row.users?.avatar_url ?? null,
@@ -507,13 +532,15 @@ export async function getClientProductIntents(
 
   return (
     (data ?? []) as unknown as (ProductIntent & {
+      product_name: string | null;
+      product_price: number | null;
       products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
       product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     })[]
   ).map((row) => ({
     ...row,
-    product_name: withVariantLabel(row.products?.name ?? 'Producto', row.product_variants?.label),
-    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity),
+    product_name: withVariantLabel(row.products?.name ?? row.product_name ?? 'Producto', row.product_variants?.label),
+    product_price: intentUnitPrice(row.products, row.product_variants, row.quantity) ?? row.product_price,
   }));
 }
 
@@ -555,7 +582,7 @@ export interface MyProductPurchase {
   status: ProductIntentStatus;
   createdAt: string;
   updatedAt: string;
-  productId: string;
+  productId: string | null;
   productName: string;
   productPrice: number | null;
   quantity: number;
@@ -578,6 +605,8 @@ export async function getMyProductPurchases(userId: string): Promise<MyProductPu
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as (ProductIntent & {
+    product_name: string | null;
+    product_price: number | null;
     products: { name: string; reference_price: number | null; min_order_quantity: number | null; price_tiers: ProductPriceTier[] | null } | null;
     product_variants: { label: string; reference_price: number | null; price_tiers: ProductPriceTier[] | null } | null;
     businesses: { name: string } | null;
@@ -604,8 +633,8 @@ export async function getMyProductPurchases(userId: string): Promise<MyProductPu
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     productId: r.product_id,
-    productName: withVariantLabel(r.products?.name ?? 'Producto', r.product_variants?.label),
-    productPrice: intentUnitPrice(r.products, r.product_variants, r.quantity),
+    productName: withVariantLabel(r.products?.name ?? r.product_name ?? 'Producto', r.product_variants?.label),
+    productPrice: intentUnitPrice(r.products, r.product_variants, r.quantity) ?? r.product_price,
     quantity: r.quantity,
     businessId: r.business_id,
     businessName: r.businesses?.name ?? 'Negocio',

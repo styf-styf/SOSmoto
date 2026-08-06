@@ -21,18 +21,18 @@ export async function getServiceAppointmentStats(serviceId: string): Promise<{ r
 }
 
 export interface ServiceDeleteBlockers {
+  // Citas activas (pendiente/agendada/confirmada) -- esto sí es "algo por
+  // cancelar", se le puede pedir al dueño que las resuelva antes de borrar.
   appointments: number;
+  // Solicitudes de cita sin responder -- idem, accionable.
   requests: number;
 }
 
-// Antes de borrar un servicio hay que revisar si tiene algo pendiente que
-// dependa de él -- appointments.service_id no tiene "on delete cascade/set
-// null" (a diferencia de las otras tablas que referencian services), así
-// que Postgres bloquea el borrado con un error críptico si hay alguna cita
-// activa. appointment_requests sí tiene "on delete set null" (no bloquea
-// a nivel de base), pero igual conviene avisar: borrar el servicio dejaría
-// a un cliente esperando respuesta a una solicitud de un servicio que ya
-// no existe.
+// appointments.service_id ahora es "on delete set null" (ver migración
+// 0192, con service_name como snapshot de respaldo) -- borrar un servicio
+// con historial de citas completadas/canceladas ya funciona sin problema,
+// así que solo hace falta avisar de lo que sí es accionable: citas y
+// solicitudes todavía pendientes.
 export async function getServiceDeleteBlockers(serviceId: string): Promise<ServiceDeleteBlockers> {
   const [apptResult, reqResult] = await Promise.all([
     supabase
@@ -67,7 +67,9 @@ export async function getClientAppointments(clientId: string): Promise<ClientApp
   return (data ?? []).map((row: any) => ({
     ...row,
     business_name: row.businesses?.name ?? '',
-    service_name: row.services?.name ?? null,
+    // Si el servicio ya se borró, cae al snapshot guardado al agendar
+    // (ver migración 0192) en vez de perder el nombre.
+    service_name: row.services?.name ?? row.service_name ?? null,
   })) as ClientAppointment[];
 }
 
@@ -116,7 +118,7 @@ export async function getBusinessAppointments(businessId: string): Promise<Busin
     const displayName = client?.full_name ?? row.external_client_name ?? 'Cliente';
     return {
       ...row,
-      service_name: row.services?.name ?? null,
+      service_name: row.services?.name ?? row.service_name ?? null,
       client,
       vehicle: veh ? { brand: veh.brand, model: veh.model, year: veh.year, plate: veh.plate ?? null } : null,
       display_name: displayName,
@@ -387,7 +389,7 @@ export async function getActiveClientAppointments(
 ): Promise<ActiveClientAppointment[]> {
   const { data, error } = await supabase
     .from('appointments')
-    .select('id, status, requested_at, proposed_by, notes, services(name)')
+    .select('id, status, requested_at, proposed_by, notes, service_name, services(name)')
     .eq('business_id', businessId)
     .eq('client_id', clientId)
     .in('status', ['pending', 'scheduled', 'confirmed'])
@@ -399,7 +401,7 @@ export async function getActiveClientAppointments(
     status: r.status,
     requested_at: r.requested_at ?? null,
     proposed_by: r.proposed_by ?? null,
-    service_name: r.services?.name ?? null,
+    service_name: r.services?.name ?? r.service_name ?? null,
     notes: r.notes ?? null,
   }));
 }

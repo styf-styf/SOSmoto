@@ -390,13 +390,6 @@ export default function CatalogoScreen() {
             setForm(null);
           } catch (err) {
             console.error('delete service error', err);
-            if ((err as { code?: string })?.code === '23503') {
-              Alert.alert('No puedes eliminar este servicio', 'Tiene citas asociadas. Resuélvelas primero, o desactívalo en su lugar.', [
-                { text: 'Cerrar', style: 'cancel' },
-                { text: 'Ver citas', onPress: () => router.push('/(business)/agenda-negocio') },
-              ]);
-              return;
-            }
             Alert.alert('Error', 'No se pudo eliminar el servicio. Intenta de nuevo.');
           }
         },

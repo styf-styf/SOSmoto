@@ -288,6 +288,9 @@ export async function acceptAppointmentRequest(
     business_id: request.business_id,
     vehicle_id: request.vehicle_id ?? null,
     service_id: request.service_id ?? null,
+    // Snapshot del nombre al momento de confirmar (ver migración 0192) --
+    // sobrevive aunque el servicio se borre después.
+    service_name: request.service_name ?? null,
     notes: request.notes ?? null,
     requested_at: confirmedAt,
     proposed_by: null,

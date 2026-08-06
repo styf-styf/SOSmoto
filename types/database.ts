@@ -537,6 +537,7 @@ export interface Appointment {
   business_id: string;
   vehicle_id: string | null;
   service_id: string | null;
+  service_name: string | null;
   requested_at: string | null;
   proposed_by: 'client' | 'business' | null;
   notes: string | null;
@@ -649,7 +650,10 @@ export type ProductIntentStatus =
 export interface ProductIntent {
   id: string;
   client_id: string;
-  product_id: string;
+  // Nullable desde la migración 0193: al borrar el producto, el intent
+  // sobrevive con product_id en null (antes cascadeaba y se borraba con
+  // el producto) -- product_name/product_price quedan como snapshot.
+  product_id: string | null;
   variant_id: string | null;
   business_id: string;
   status: ProductIntentStatus;
