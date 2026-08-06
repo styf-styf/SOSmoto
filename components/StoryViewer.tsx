@@ -3,10 +3,11 @@ import { ActivityIndicator, Alert, Animated, Easing, Image, Pressable, StyleShee
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
+import { getBusinessOwnerForChat } from '../services/businesses';
 import { registerStoryClick, registerStoryView } from '../services/stories';
 import type { Story } from '../types/database';
 
-const DURATION_MS = 5000;
+const DURATION_MS = 15000;
 
 const actionLabel: Record<string, string> = {
   service: 'Ver servicio',
@@ -15,19 +16,56 @@ const actionLabel: Record<string, string> = {
   business_tag: 'Ver negocio',
 };
 
-function getActionHref(story: Story, contactBusinessId?: string): string | null {
+// Solo decide si el botón se muestra -- la ruta real se arma en
+// resolveActionHref, que necesita saber el rol de quien está viendo (una
+// historia de negocio la puede ver tanto un cliente como otro negocio, ej.
+// un taller navegando la de una tienda) y, para "contact", resolver el
+// user id del dueño de forma async.
+function hasAction(story: Story, contactBusinessId?: string): boolean {
   // Las historias de cliente nunca tienen botón de acción (no tienen
   // catálogo ni perfil de negocio que mostrar).
-  if (story.client_id) return null;
+  if (story.client_id) return false;
   switch (story.action_type) {
     case 'service':
-      return `/(client)/servicio/${story.action_target_id}`;
     case 'product':
-      return `/(client)/producto/${story.action_target_id}`;
-    case 'contact':
-      return contactBusinessId ? `/(client)/chat/${contactBusinessId}` : null;
     case 'business_tag':
-      return `/(client)/business/${story.action_target_id}`;
+      return true;
+    case 'contact':
+      return !!contactBusinessId;
+    default:
+      return false;
+  }
+}
+
+// "producto"/"servicio"/"business" viven bajo un prefijo distinto según el
+// rol de quien ve la historia -- antes esto estaba fijo a "/(client)" sin
+// importar quién miraba, lo que rompía el botón para negocios (ruta
+// inexistente bajo su propio grupo) y además le faltaba el segmento
+// "(tabs)" incluso para clientes.
+async function resolveActionHref(
+  story: Story,
+  contactBusinessId: string | undefined,
+  isBusiness: boolean
+): Promise<string | null> {
+  const prefix = isBusiness ? '/(business)' : '/(client)';
+  switch (story.action_type) {
+    case 'service':
+      return `${prefix}/(tabs)/servicio/${story.action_target_id}`;
+    case 'product':
+      return `${prefix}/(tabs)/producto/${story.action_target_id}`;
+    case 'business_tag':
+      return `${prefix}/business/${story.action_target_id}`;
+    case 'contact': {
+      if (!contactBusinessId) return null;
+      if (isBusiness) {
+        const ownerId = await getBusinessOwnerForChat(contactBusinessId).catch((err) => {
+          console.error('get business owner for chat error', err);
+          return null;
+        });
+        return ownerId ? `/(business)/chat/${ownerId}?sellerBusinessId=${contactBusinessId}` : null;
+      }
+      return `/(client)/chat/${contactBusinessId}`;
+    }
     default:
       return null;
   }
@@ -121,9 +159,9 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId, canDelet
     };
   }, [current, profile, goNext, progressAnim]);
 
-  function handleAction() {
+  async function handleAction() {
     if (!current) return;
-    const href = getActionHref(current, contactBusinessId);
+    const href = await resolveActionHref(current, contactBusinessId, profile?.role === 'business');
     if (!href) return;
     registerStoryClick(current.id).catch((err) => console.error('register story click error', err));
     router.push(href);
@@ -173,7 +211,7 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId, canDelet
     );
   }
 
-  const actionHref = getActionHref(current, contactBusinessId);
+  const showAction = hasAction(current, contactBusinessId);
 
   return (
     <View style={styles.container}>
@@ -217,7 +255,7 @@ export function StoryViewer({ loadStories, homeHref, contactBusinessId, canDelet
         </View>
       )}
 
-      {actionHref && (
+      {showAction && (
         <Pressable style={styles.actionButton} onPress={handleAction}>
           <Text style={styles.actionText}>{actionLabel[current.action_type]}</Text>
         </Pressable>

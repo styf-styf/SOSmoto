@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -75,6 +75,12 @@ export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole
     }
   }
 
+  function handleShare() {
+    if (!ad) return;
+    const url = `https://sosmoto.net/ad/${ad.id}`;
+    Share.share({ message: `${ad.title || ad.business?.name || 'Anuncio'}\n${url}`, url }).catch(() => {});
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -141,6 +147,11 @@ export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole
               <Text style={styles.catalogButtonText}>Chatear</Text>
             </Pressable>
           )}
+
+          <Pressable style={styles.catalogButton} onPress={handleShare}>
+            <Ionicons name="share-social-outline" size={16} color={colors.primary} />
+            <Text style={styles.catalogButtonText}>Compartir</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </View>
