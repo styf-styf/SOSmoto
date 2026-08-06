@@ -36,7 +36,14 @@ function avatarHtml(url, name, size) {
 // negocio) -- a diferencia de renderPreviewPage() (previewPage.js), estas
 // NO son intersticiales de apertura de la app: no llevan auto-redirect a
 // sosmoto://, y el ancho de tarjeta es mas generoso para listas/perfiles.
-function renderPage({ title, description, maxWidth = 480, bodyHtml, showHomeLink = true, extraStyle = '' }) {
+//
+// ogImage debe ser una URL absoluta (WhatsApp/Twitter/etc. la piden asi,
+// no aceptan rutas relativas como "/favicon.png") -- sin esta etiqueta,
+// WhatsApp arma su propia vista previa adivinando una imagen de la página
+// (terminaba usando el ícono de SOSmoto en vez del logo real del negocio).
+// "summary" (no "summary_large_image") a propósito -- tarjeta chica, no el
+// banner grande que sí usa renderPreviewPage() para producto/servicio/post.
+function renderPage({ title, description, maxWidth = 480, bodyHtml, showHomeLink = true, extraStyle = '', ogImage = null }) {
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -45,6 +52,11 @@ function renderPage({ title, description, maxWidth = 480, bodyHtml, showHomeLink
 <link rel="icon" type="image/png" href="/favicon.png" />
 <title>${escapeHtml(title)}</title>
 ${description ? `<meta name="description" content="${escapeHtml(description)}" />` : ''}
+<meta property="og:title" content="${escapeHtml(title)}" />
+${description ? `<meta property="og:description" content="${escapeHtml(description)}" />` : ''}
+${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />` : ''}
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
 <style>
 * { box-sizing: border-box; }
 body {

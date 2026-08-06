@@ -273,6 +273,10 @@ ${
       maxWidth: 520,
       bodyHtml,
       extraStyle,
+      // Logo real del negocio si lo tiene -- si no, el de SOSmoto, pero con
+      // URL absoluta (ver comentario en renderPage) para que WhatsApp/etc.
+      // sí lo puedan usar como vista previa del link compartido.
+      ogImage: business.logo_url || 'https://sosmoto.net/favicon.png',
     })
   );
 };
