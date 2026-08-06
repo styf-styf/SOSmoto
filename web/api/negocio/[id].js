@@ -1,6 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
-const { escapeHtml, avatarHtml, renderPage } = require('../_lib/webPage');
+const { COLORS, escapeHtml, renderPage } = require('../_lib/webPage');
 const { notFoundPage } = require('../_lib/previewPage');
+
+// A diferencia de avatarHtml() (círculo con inicial si no hay logo, usado
+// en listados), acá ambos casos van CUADRADOS (esquinas redondeadas, no
+// círculo) -- el logo del negocio si lo tiene, si no el de SOSmoto.
+function businessAvatarHtml(logoUrl, size) {
+  if (logoUrl) {
+    return `<img src="${escapeHtml(logoUrl)}" alt="" style="width:${size}px;height:${size}px;border-radius:10px;object-fit:cover;display:block;" />`;
+  }
+  return `<img src="/favicon.png" alt="SOSmoto" style="box-sizing:border-box;width:${size}px;height:${size}px;border-radius:10px;object-fit:contain;background:${COLORS.surface};padding:${Math.round(size * 0.12)}px;display:block;" />`;
+}
 
 // Perfil publico de negocio (https://sosmoto.net/negocio/:id) --
 // mismos campos que el modo "publico" de components/BusinessProfileView.tsx,
@@ -156,7 +166,7 @@ module.exports = async (req, res) => {
 
   const bodyHtml = `
 <div class="header-row">
-  ${avatarHtml(business.logo_url, business.name, 64)}
+  ${businessAvatarHtml(business.logo_url, 64)}
   <div class="header-info">
     <p class="biz-title">${escapeHtml(business.name)}${business.is_verified ? ' <span class="verified">✓</span>' : ''}</p>
     <p class="biz-subtitle">${escapeHtml(typeLabel)}${business.city ? ` · ${escapeHtml(business.city)}` : ''}</p>
