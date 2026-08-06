@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getUsersByIds } from './users';
+import { distanceKm as calcDistanceKm } from '../utils/distance';
 import type { Story, StoryActionType } from '../types/database';
 
 export async function getBusinessStories(businessId: string): Promise<Story[]> {
@@ -128,7 +129,24 @@ export async function getVisibleClientStories(): Promise<ClientStoryWithAuthor[]
 }
 
 export interface BusinessStoryWithAuthor extends Story {
-  businesses: { id: string; name: string; logo_url: string | null; is_verified: boolean } | null;
+  businesses: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    is_verified: boolean;
+    latitude: number | null;
+    longitude: number | null;
+    plan_id: string;
+  } | null;
+}
+
+// "Pagado" = cualquier plan que no sea free (workshop o store) -- se usa
+// como boost de prioridad en el orden del carrusel de historias
+// (groupStoriesByAuthor), no depende del tipo de negocio.
+export async function getPaidPlanIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('subscription_plans').select('id').neq('name', 'free');
+  if (error) throw error;
+  return new Set((data ?? []).map((p) => p.id as string));
 }
 
 // Historias activas de TODOS los negocios (no solo seguidos/cercanos) -- junto
@@ -138,7 +156,7 @@ export async function getVisibleBusinessStoriesGlobal(): Promise<BusinessStoryWi
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses:businesses_public(id, name, logo_url, is_verified, business_type)')
+    .select('*, businesses:businesses_public(id, name, logo_url, is_verified, business_type, latitude, longitude, plan_id)')
     .not('business_id', 'is', null)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });
@@ -156,39 +174,70 @@ export interface StoryFeedItem {
   isVerified: boolean;
 }
 
+interface ScoredStoryFeedItem extends StoryFeedItem {
+  isPaidPlan: boolean;
+  isFollowed: boolean;
+  distanceKm: number;
+  latestCreatedAtMs: number;
+}
+
 // Agrupa las historias de negocios y de clientes por autor (un ítem por
 // negocio/cliente, no por historia individual) para la fila combinada de
 // "Estados". `excludeBusinessId`/`excludeClientId` quitan al propio
 // viewer -- ese se muestra aparte, como el primer espacio de la fila.
 // Las listas vienen ordenadas por created_at ascendente, así que la última
 // historia recorrida por autor es siempre la más reciente -- esa es la que
-// se usa como miniatura de la tarjeta.
+// se usa como miniatura de la tarjeta y como `latestCreatedAtMs`.
+//
+// Orden final (claves en cascada, no un score mezclado -- más fácil de
+// razonar): sin ver > plan pagado > seguido > más cercano > más reciente.
+// Las historias de cliente no tienen plan/seguido/distancia (quedan en el
+// mismo nivel que un negocio free/no-seguido/sin ubicación conocida), así
+// que dentro de ese grupo el desempate final por recencia es lo único que
+// las ordena -- antes no había ningún criterio de fecha y el orden salía
+// casi aleatorio.
 export function groupStoriesByAuthor(params: {
   businessStories: BusinessStoryWithAuthor[];
   clientStories: ClientStoryWithAuthor[];
   seenStoryIds: Set<string>;
   excludeBusinessId?: string;
   excludeClientId?: string;
+  paidPlanIds?: Set<string>;
+  followedBusinessIds?: Set<string>;
+  userCoords?: { latitude: number; longitude: number } | null;
 }): StoryFeedItem[] {
-  const items = new Map<string, StoryFeedItem>();
+  const items = new Map<string, ScoredStoryFeedItem>();
 
   for (const story of params.businessStories) {
     if (!story.businesses || story.business_id === params.excludeBusinessId) continue;
     const unseen = !params.seenStoryIds.has(story.id);
     const key = `business:${story.business_id}`;
+    const biz = story.businesses;
+    const distanceKm =
+      params.userCoords && biz.latitude != null && biz.longitude != null
+        ? calcDistanceKm(params.userCoords.latitude, params.userCoords.longitude, biz.latitude, biz.longitude)
+        : Infinity;
+    const isPaidPlan = params.paidPlanIds?.has(biz.plan_id) ?? false;
+    const isFollowed = params.followedBusinessIds?.has(story.business_id as string) ?? false;
+    const createdAtMs = new Date(story.created_at).getTime();
     const existing = items.get(key);
     if (existing) {
       existing.hasUnseen = existing.hasUnseen || unseen;
       existing.previewImageUrl = story.image_url;
+      existing.latestCreatedAtMs = createdAtMs;
     } else {
       items.set(key, {
         id: story.business_id as string,
         kind: 'business',
-        name: story.businesses.name,
-        avatarUrl: story.businesses.logo_url,
+        name: biz.name,
+        avatarUrl: biz.logo_url,
         previewImageUrl: story.image_url,
         hasUnseen: unseen,
-        isVerified: story.businesses.is_verified,
+        isVerified: biz.is_verified,
+        isPaidPlan,
+        isFollowed,
+        distanceKm,
+        latestCreatedAtMs: createdAtMs,
       });
     }
   }
@@ -197,10 +246,12 @@ export function groupStoriesByAuthor(params: {
     if (!story.users || story.client_id === params.excludeClientId) continue;
     const unseen = !params.seenStoryIds.has(story.id);
     const key = `client:${story.client_id}`;
+    const createdAtMs = new Date(story.created_at).getTime();
     const existing = items.get(key);
     if (existing) {
       existing.hasUnseen = existing.hasUnseen || unseen;
       existing.previewImageUrl = story.image_url;
+      existing.latestCreatedAtMs = createdAtMs;
     } else {
       items.set(key, {
         id: story.client_id as string,
@@ -210,11 +261,23 @@ export function groupStoriesByAuthor(params: {
         previewImageUrl: story.image_url,
         hasUnseen: unseen,
         isVerified: false,
+        isPaidPlan: false,
+        isFollowed: false,
+        distanceKm: Infinity,
+        latestCreatedAtMs: createdAtMs,
       });
     }
   }
 
-  return Array.from(items.values()).sort((a, b) => Number(b.hasUnseen) - Number(a.hasUnseen));
+  return Array.from(items.values())
+    .sort((a, b) => {
+      if (a.hasUnseen !== b.hasUnseen) return a.hasUnseen ? -1 : 1;
+      if (a.isPaidPlan !== b.isPaidPlan) return a.isPaidPlan ? -1 : 1;
+      if (a.isFollowed !== b.isFollowed) return a.isFollowed ? -1 : 1;
+      if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+      return b.latestCreatedAtMs - a.latestCreatedAtMs;
+    })
+    .map(({ isPaidPlan, isFollowed, distanceKm, latestCreatedAtMs, ...rest }) => rest);
 }
 
 // Historias activas de los negocios que sigue un cliente específico.
@@ -234,7 +297,7 @@ export async function getVisibleBusinessStoriesFollowed(
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
-    .select('*, businesses:businesses_public(id, name, logo_url, is_verified)')
+    .select('*, businesses:businesses_public(id, name, logo_url, is_verified, latitude, longitude, plan_id)')
     .in('business_id', businessIds)
     .or(`is_pinned.eq.true,created_at.gt.${dayAgoIso}`)
     .order('created_at', { ascending: true });

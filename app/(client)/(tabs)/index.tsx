@@ -31,6 +31,7 @@ import {
   type MaintenanceAlert,
 } from '../../../services/maintenance';
 import {
+  getPaidPlanIds,
   getSeenStoryIds,
   getVisibleBusinessStoriesFollowed,
   getVisibleBusinessStoriesGlobal,
@@ -149,6 +150,7 @@ export default function ClientHomeScreen() {
         clientStoriesGlobal,
         newNearby,
         businessStoriesFollowed,
+        paidPlanIds,
       ] = await Promise.all([
         getVisibleBusinessStoriesGlobal(),
         getVisibleClientStories(),
@@ -156,8 +158,17 @@ export default function ClientHomeScreen() {
         profile
           ? getVisibleBusinessStoriesFollowed(profile.id)
           : Promise.resolve([]),
+        getPaidPlanIds(),
       ]);
       setNearbyNew(newNearby);
+
+      // Ya se tienen las historias de seguidos con historia activa -- se
+      // arma el set de ids desde ahí en vez de otra consulta aparte (un
+      // negocio seguido sin historia activa no aparece en ninguna lista de
+      // todas formas, así que no hace falta distinguirlo).
+      const followedBusinessIds = new Set(
+        businessStoriesFollowed.map((s) => s.business_id as string),
+      );
 
       const allStoryIds = [
         ...businessStoriesGlobal.map((s) => s.id),
@@ -175,6 +186,9 @@ export default function ClientHomeScreen() {
           clientStories: clientStoriesGlobal,
           seenStoryIds: seenIds,
           excludeClientId: profile?.id,
+          paidPlanIds,
+          followedBusinessIds,
+          userCoords: coords,
         }),
       );
       setFeedItemsFollowing(
@@ -183,6 +197,9 @@ export default function ClientHomeScreen() {
           clientStories: [],
           seenStoryIds: seenIds,
           excludeClientId: profile?.id,
+          paidPlanIds,
+          followedBusinessIds,
+          userCoords: coords,
         }),
       );
       setOwnHasStory(!!ownClientStory);

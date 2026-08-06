@@ -55,6 +55,7 @@ import {
 } from '../../../services/growth';
 import {
   getBusinessStories,
+  getPaidPlanIds,
   getSeenStoryIds,
   getVisibleBusinessStoriesFollowed,
   getVisibleBusinessStoriesGlobal,
@@ -200,6 +201,7 @@ export default function BusinessHomeScreen() {
         businessStoriesFollowed,
         newNearbyStores,
         followCount,
+        paidPlanIds,
       ] = await Promise.all([
         getBusinessStories(result.id),
         getVisibleBusinessStoriesGlobal(),
@@ -217,6 +219,7 @@ export default function BusinessHomeScreen() {
         result.business_type === 'workshop'
           ? getFollowsCount(profile.id, result.id)
           : Promise.resolve(0),
+        getPaidPlanIds(),
       ]);
       setGrowthSuggestion(suggestion);
       setNearbyNewStores(newNearbyStores);
@@ -224,6 +227,14 @@ export default function BusinessHomeScreen() {
       const visibleOwnStories = stories.filter(isStoryVisible);
       setActiveStories(visibleOwnStories.length);
       setOwnPreviewImageUrl(visibleOwnStories[0]?.image_url ?? null);
+
+      // Ya se tienen las historias de seguidos con historia activa -- se
+      // arma el set de ids desde ahí en vez de otra consulta aparte (un
+      // negocio seguido sin historia activa no aparece en ninguna lista de
+      // todas formas, así que no hace falta distinguirlo).
+      const followedBusinessIds = new Set(
+        businessStoriesFollowed.map((s) => s.business_id as string),
+      );
 
       const allStoryIds = [
         ...businessStoriesGlobal.map((s) => s.id),
@@ -237,6 +248,9 @@ export default function BusinessHomeScreen() {
           clientStories: clientStoriesGlobal,
           seenStoryIds: seenIds,
           excludeBusinessId: result.id,
+          paidPlanIds,
+          followedBusinessIds,
+          userCoords: coords,
         }),
       );
       setFeedItemsFollowing(
@@ -245,6 +259,9 @@ export default function BusinessHomeScreen() {
           clientStories: [],
           seenStoryIds: seenIds,
           excludeBusinessId: result.id,
+          paidPlanIds,
+          followedBusinessIds,
+          userCoords: coords,
         }),
       );
     } catch (err) {
