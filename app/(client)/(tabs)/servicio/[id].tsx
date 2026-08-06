@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Button } from '../../../../components/Button';
 import { CircleActionButton } from '../../../../components/CircleActionButton';
+import { ExpandableText } from '../../../../components/ExpandableText';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
@@ -252,7 +253,7 @@ export default function ServiceDetailScreen() {
       {service.description && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Descripción</Text>
-          <Text style={styles.description}>{service.description}</Text>
+          <ExpandableText text={service.description} style={styles.description} />
         </View>
       )}
 

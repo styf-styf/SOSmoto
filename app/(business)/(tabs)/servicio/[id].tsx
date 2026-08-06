@@ -4,6 +4,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } fr
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../../../constants/colors';
+import { ExpandableText } from '../../../../components/ExpandableText';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
@@ -176,7 +177,7 @@ export default function BusinessServiceDetailScreen() {
       {service.description && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Descripción</Text>
-          <Text style={styles.description}>{service.description}</Text>
+          <ExpandableText text={service.description} style={styles.description} />
         </View>
       )}
 

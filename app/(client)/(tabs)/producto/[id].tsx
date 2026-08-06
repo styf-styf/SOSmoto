@@ -4,6 +4,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } fr
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../../../components/Button';
+import { ExpandableText } from '../../../../components/ExpandableText';
 import { QuantityStepper } from '../../../../components/QuantityStepper';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
@@ -250,7 +251,7 @@ export default function ProductDetailScreen() {
       {product.description && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Descripción</Text>
-          <Text style={styles.description}>{product.description}</Text>
+          <ExpandableText text={product.description} style={styles.description} />
         </View>
       )}
 

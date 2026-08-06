@@ -6,6 +6,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
+import { ExpandableText } from './ExpandableText';
 import { MultiPhotoPicker } from './MultiPhotoPicker';
 import { PhotoCarousel } from './PhotoCarousel';
 import { ReportModal } from './ReportModal';
@@ -461,7 +462,7 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
 
         <PhotoCarousel photos={post.photos} naturalAspect />
 
-        {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
+        {post.caption && <ExpandableText text={post.caption} style={styles.caption} />}
 
         <View style={styles.tagEngagementRow}>
           {tag ? (

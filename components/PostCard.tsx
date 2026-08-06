@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import type { GestureResponderEvent, NativeSyntheticEvent, NativeScrollEvent, TextLayoutEventData } from 'react-native';
+import type { GestureResponderEvent, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useImageAspectRatio } from '../hooks/useImageAspectRatio';
+import { ExpandableText } from './ExpandableText';
 import { GradientShade } from './GradientShade';
 import { getPostAuthorAvatar, getPostAuthorName, getPostTag, incrementPostShares, type PostWithAuthor } from '../services/posts';
 import { markHomeFeedPreserveScroll } from '../utils/homeFeedScrollPreserve';
@@ -49,12 +50,6 @@ export function PostCard({
   // todas comparten el alto de la primera (mismo criterio que Instagram),
   // ver el mini-carrusel más abajo.
   const imageRatio = useImageAspectRatio(post.photos[0], { clampMin: 3 / 4 });
-  const [captionExpanded, setCaptionExpanded] = useState(false);
-  const [captionTruncated, setCaptionTruncated] = useState(false);
-  // Primeras 3 líneas reales (medidas, no una cuenta de caracteres) con un
-  // pequeño recorte al final de la 3ra para dejarle espacio a "Ver más" en
-  // la misma línea -- ver handleCaptionMeasure.
-  const [captionPreview, setCaptionPreview] = useState('');
   const [photoIndex, setPhotoIndex] = useState(0);
   // Un swipe corto y rápido para cambiar de foto puede terminar dentro del
   // mismo Pressable sin que el ScrollView llegue a "reclamar" el gesto --
@@ -87,33 +82,6 @@ export function PostCard({
   }
 
   const caption = post.caption ?? '';
-
-  // Mide la descripción completa sin límite de líneas, de forma invisible y
-  // superpuesta -- si mide más de 3 líneas, arma el preview con el texto
-  // REAL de esas 3 líneas (cada línea medida trae su propio texto exacto,
-  // no una estimación de caracteres) y recorta un poco el final de la 3ra
-  // para que "Ver más" quede en la misma línea, como pidió el diseño.
-  function handleCaptionMeasure(e: NativeSyntheticEvent<TextLayoutEventData>) {
-    const lines = e.nativeEvent.lines;
-    if (lines.length <= 3) return;
-    setCaptionTruncated(true);
-    const firstThreeLines = lines.slice(0, 3).map((l) => l.text).join('');
-    // Recorte de más (18 caracteres) a propósito -- es una estimación por
-    // cantidad de caracteres, no por ancho real de cada letra, así que
-    // conviene dejar margen de sobra: que falte un poco de texto visible se
-    // nota menos que "Ver más" cortado a la mitad por el clip de 3 líneas.
-    setCaptionPreview(firstThreeLines.trimEnd().slice(0, -18).trimEnd());
-  }
-
-  function handleExpandCaption(e: GestureResponderEvent) {
-    e.stopPropagation();
-    setCaptionExpanded(true);
-  }
-
-  function handleCollapseCaption(e: GestureResponderEvent) {
-    e.stopPropagation();
-    setCaptionExpanded(false);
-  }
 
   function handleTagPress(e: GestureResponderEvent) {
     e.stopPropagation();
@@ -207,34 +175,7 @@ export function PostCard({
           sin imagen, que muestra el texto completo sin límite). */}
       {hasImage && caption && (
         <Pressable style={styles.captionBlock} onPress={() => goToDetail()}>
-          {!captionExpanded && (
-            <Text
-              style={[styles.captionCollapsedText, styles.measure]}
-              numberOfLines={4}
-              onTextLayout={handleCaptionMeasure}
-            >
-              {caption}
-            </Text>
-          )}
-          {captionExpanded ? (
-            <Text style={styles.captionCollapsedText}>
-              {caption}
-              <Text style={styles.moreLink} onPress={handleCollapseCaption}>
-                {'  Ver menos'}
-              </Text>
-            </Text>
-          ) : captionTruncated ? (
-            <Text style={styles.captionCollapsedText} numberOfLines={3} ellipsizeMode="clip">
-              {captionPreview}
-              <Text style={styles.moreLink} onPress={handleExpandCaption}>
-                {'... Ver más'}
-              </Text>
-            </Text>
-          ) : (
-            <Text style={styles.captionCollapsedText} numberOfLines={3}>
-              {caption}
-            </Text>
-          )}
+          <ExpandableText text={caption} style={styles.captionCollapsedText} />
         </Pressable>
       )}
 
@@ -371,13 +312,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
   },
-  measure: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    opacity: 0,
-  },
   authorNameWrap: {
     flex: 1,
   },
@@ -394,11 +328,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     lineHeight: 19,
-  },
-  moreLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
   },
   imageWrap: {
     width: '100%',
