@@ -416,8 +416,11 @@ export default function AuxilioScreen() {
                     coordinate={businessMarkerCoords ?? businessCoords}
                     label={businessLabel}
                     color={colors.primary}
-                    avatarUrl={business.logo_url}
-                    fallbackIcon="storefront"
+                    // DIAGNÓSTICO TEMPORAL: sin avatarUrl/fallbackIcon fuerza
+                    // el pin clásico (sin círculo de avatar) en vez de la
+                    // burbuja personalizada -- para confirmar si el problema
+                    // es específico del snapshot con imagen async, o si ni
+                    // siquiera el marcador más simple se ve bien acá.
                     zIndex={2}
                   />
                 )
