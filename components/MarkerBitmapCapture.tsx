@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
@@ -36,17 +36,27 @@ export interface MarkerBitmapCaptureProps {
 export function MarkerBitmapCapture({ label, color = colors.primary, avatarUrl, fallbackIcon, onReady }: MarkerBitmapCaptureProps) {
   const viewRef = useRef<View>(null);
   const showBubble = avatarUrl != null || fallbackIcon != null;
+  // Image.prefetch() por sí solo no alcanza: calienta la caché, pero no
+  // garantiza que ESTE <Image> en particular ya haya pintado sus píxeles en
+  // la vista offscreen al momento exacto de capturar (salía el círculo en
+  // blanco). Se espera la señal real de "esta imagen ya cargó" vía
+  // onLoad/onError antes de disparar la captura.
+  const [imageLoaded, setImageLoaded] = useState(!avatarUrl);
 
   useEffect(() => {
-    let cancelled = false;
+    setImageLoaded(!avatarUrl);
+  }, [avatarUrl]);
 
-    async function run() {
-      if (avatarUrl) {
-        await Image.prefetch(avatarUrl).catch(() => {});
-      }
-      // Margen de un frame para que el layout/paint del contenido (ya con
-      // el avatar precargado) termine antes de capturar.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  useEffect(() => {
+    if (avatarUrl) {
+      Image.prefetch(avatarUrl).catch(() => {});
+    }
+  }, [avatarUrl]);
+
+  useEffect(() => {
+    if (!imageLoaded) return;
+    let cancelled = false;
+    const raf = requestAnimationFrame(async () => {
       if (cancelled || !viewRef.current) return;
       try {
         const uri = await captureRef(viewRef, { format: 'png', quality: 1, result: 'tmpfile' });
@@ -54,14 +64,13 @@ export function MarkerBitmapCapture({ label, color = colors.primary, avatarUrl, 
       } catch (err) {
         console.error('capture marker bitmap error', err);
       }
-    }
-
-    run();
+    });
     return () => {
       cancelled = true;
+      cancelAnimationFrame(raf);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [label, color, avatarUrl, fallbackIcon]);
+  }, [imageLoaded, label, color, avatarUrl, fallbackIcon]);
 
   return (
     <View style={styles.offscreen} pointerEvents="none">
@@ -73,7 +82,12 @@ export function MarkerBitmapCapture({ label, color = colors.primary, avatarUrl, 
         {showBubble ? (
           <View style={[styles.circle, { borderColor: color }]}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              <Image
+                source={{ uri: avatarUrl }}
+                style={styles.avatar}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageLoaded(true)}
+              />
             ) : (
               <View style={[styles.fallback, { backgroundColor: color }]}>
                 <Ionicons name={fallbackIcon!} size={16} color="#fff" />

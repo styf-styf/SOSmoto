@@ -473,7 +473,7 @@ export default function SolicitudesScreen() {
           {active ? (
             <>
               <MarkerBitmapCapture
-                label="Cliente"
+                label={activeClientInfo?.name ?? 'Cliente'}
                 color={colors.sos}
                 avatarUrl={activeClientInfo?.avatarUrl ?? null}
                 fallbackIcon="person"

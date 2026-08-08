@@ -368,10 +368,6 @@ export default function AuxilioScreen() {
     myMapCoords && businessCoords
       ? separateOverlappingCoords(myMapCoords, businessCoords)
       : [myMapCoords, businessCoords];
-  const businessIsLive =
-    !!activeRequest &&
-    activeRequest.business_latitude !== null &&
-    activeRequest.business_longitude !== null;
   const businessDistanceKm =
     activeRequest && businessCoords
       ? distanceKm(
@@ -381,9 +377,7 @@ export default function AuxilioScreen() {
           businessCoords.longitude,
         )
       : null;
-  const businessLabel = businessIsLive
-    ? `${business?.name ?? 'Taller'} (en camino)`
-    : (business?.name ?? 'Taller');
+  const businessLabel = business?.name ?? 'Taller';
 
   return (
     <View style={styles.screen}>
