@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../../components/Button';
@@ -23,7 +23,7 @@ import {
   InfoStep,
   infoTextStyles,
 } from '../../../components/InfoModal';
-import { MapNamedMarker } from '../../../components/MapNamedMarker';
+import { MarkerBitmapCapture } from '../../../components/MarkerBitmapCapture';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
@@ -83,6 +83,12 @@ export default function SolicitudesScreen() {
     avatarUrl: string | null;
   } | null>(null);
   const [cancelledNotice, setCancelledNotice] = useState<string | null>(null);
+  // Imágenes ya "reveladas" (ver MarkerBitmapCapture) para cada marcador --
+  // el <Marker image={...}> real solo se pinta una vez que su captura está
+  // lista.
+  const [ownMarkerUri, setOwnMarkerUri] = useState<string | null>(null);
+  const [clientMarkerUri, setClientMarkerUri] = useState<string | null>(null);
+  const [pendingMarkerUris, setPendingMarkerUris] = useState<Record<string, string>>({});
   // Ninguna otra tarjeta pendiente debe poder aceptar/rechazar mientras una
   // aceptación está en curso -- si no, aceptar dos casi al mismo tiempo puede
   // dejar la otra solicitud huérfana (getActiveBusinessRequest solo muestra
@@ -461,6 +467,52 @@ export default function SolicitudesScreen() {
 
       {myCoords && (
         <View style={styles.mapContainer}>
+          {/* Capturas offscreen -- generan la imagen real de cada marcador
+              (ver MarkerBitmapCapture) antes de que el <Marker> dentro del
+              MapView la use. Viven fuera del MapView a propósito. */}
+          {active ? (
+            <>
+              <MarkerBitmapCapture
+                label="Cliente"
+                color={colors.sos}
+                avatarUrl={activeClientInfo?.avatarUrl ?? null}
+                fallbackIcon="person"
+                onReady={setClientMarkerUri}
+              />
+              {active.business_latitude !== null && active.business_longitude !== null && (
+                <MarkerBitmapCapture
+                  label="Tu ubicación"
+                  color={colors.primary}
+                  avatarUrl={business?.logo_url}
+                  fallbackIcon="storefront"
+                  onReady={setOwnMarkerUri}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <MarkerBitmapCapture
+                label="Tú"
+                color={colors.primary}
+                avatarUrl={business?.logo_url}
+                fallbackIcon="storefront"
+                onReady={setOwnMarkerUri}
+              />
+              {pending.map((item) => (
+                <MarkerBitmapCapture
+                  key={item.helpRequest.id}
+                  label={item.client?.full_name ?? 'Cliente'}
+                  color={colors.sos}
+                  avatarUrl={item.client?.avatar_url ?? null}
+                  fallbackIcon="person"
+                  onReady={(uri) =>
+                    setPendingMarkerUris((prev) => ({ ...prev, [item.helpRequest.id]: uri }))
+                  }
+                />
+              ))}
+            </>
+          )}
+
           <MapView
             ref={mapRef}
             key={active ? 'active' : 'pending'}
@@ -483,55 +535,51 @@ export default function SolicitudesScreen() {
           >
             {active ? (
               <>
-                <MapNamedMarker
-                  coordinate={
-                    clientMarkerCoords ?? { latitude: active.latitude, longitude: active.longitude }
-                  }
-                  label="Cliente"
-                  color={colors.sos}
-                  avatarUrl={activeClientInfo?.avatarUrl ?? null}
-                  fallbackIcon="person"
-                  zIndex={2}
-                />
+                {clientMarkerUri && (
+                  <Marker
+                    coordinate={
+                      clientMarkerCoords ?? { latitude: active.latitude, longitude: active.longitude }
+                    }
+                    anchor={{ x: 0.5, y: 1 }}
+                    image={{ uri: clientMarkerUri }}
+                    zIndex={2}
+                  />
+                )}
                 {active.business_latitude !== null &&
-                  active.business_longitude !== null && (
-                    <MapNamedMarker
+                  active.business_longitude !== null &&
+                  ownMarkerUri && (
+                    <Marker
                       coordinate={
                         businessMarkerCoords ?? {
                           latitude: active.business_latitude,
                           longitude: active.business_longitude,
                         }
                       }
-                      label="Tu ubicación"
-                      color={colors.primary}
-                      avatarUrl={business?.logo_url}
-                      fallbackIcon="storefront"
+                      anchor={{ x: 0.5, y: 1 }}
+                      image={{ uri: ownMarkerUri }}
                       zIndex={1}
                     />
                   )}
               </>
             ) : (
               <>
-                <MapNamedMarker
-                  coordinate={myCoords}
-                  label="Tú"
-                  color={colors.primary}
-                  avatarUrl={business?.logo_url}
-                  fallbackIcon="storefront"
-                />
-                {pending.map((item) => (
-                  <MapNamedMarker
-                    key={item.helpRequest.id}
-                    coordinate={{
-                      latitude: item.helpRequest.latitude,
-                      longitude: item.helpRequest.longitude,
-                    }}
-                    label={item.client?.full_name ?? 'Cliente'}
-                    color={colors.sos}
-                    avatarUrl={item.client?.avatar_url ?? null}
-                    fallbackIcon="person"
-                  />
-                ))}
+                {ownMarkerUri && (
+                  <Marker coordinate={myCoords} anchor={{ x: 0.5, y: 1 }} image={{ uri: ownMarkerUri }} />
+                )}
+                {pending.map(
+                  (item) =>
+                    pendingMarkerUris[item.helpRequest.id] && (
+                      <Marker
+                        key={item.helpRequest.id}
+                        coordinate={{
+                          latitude: item.helpRequest.latitude,
+                          longitude: item.helpRequest.longitude,
+                        }}
+                        anchor={{ x: 0.5, y: 1 }}
+                        image={{ uri: pendingMarkerUris[item.helpRequest.id] }}
+                      />
+                    )
+                )}
               </>
             )}
           </MapView>

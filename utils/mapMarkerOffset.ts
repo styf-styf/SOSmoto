@@ -3,10 +3,10 @@ import { distanceKm } from './distance';
 // Cuando dos marcadores (cliente y negocio) están en la misma coordenada o
 // casi (común en pruebas con los dos celulares en el mismo cuarto, pero
 // también puede pasar en producción si alguien está justo afuera del
-// taller), MapNamedMarker los ancla al mismo pixel del mapa y el de mayor
-// zIndex tapa completamente al otro. Esto los separa un poco en diagonal
-// (horizontal Y vertical) para que se vean uno al lado del otro en vez de
-// superpuestos.
+// taller), el <Marker anchor={{x:0.5,y:1}}> de react-native-maps los ancla
+// al mismo pixel del mapa y el de mayor zIndex tapa completamente al otro.
+// Esto los separa un poco en diagonal (horizontal Y vertical) para que se
+// vean uno al lado del otro en vez de superpuestos.
 const OVERLAP_THRESHOLD_METERS = 15;
 const OFFSET_METERS = 12;
 const METERS_PER_DEG_LAT = 111320;

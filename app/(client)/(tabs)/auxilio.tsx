@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../../components/Button';
@@ -24,7 +24,7 @@ import {
   InfoStep,
   infoTextStyles,
 } from '../../../components/InfoModal';
-import { MapNamedMarker } from '../../../components/MapNamedMarker';
+import { MarkerBitmapCapture } from '../../../components/MarkerBitmapCapture';
 import { TextField } from '../../../components/TextField';
 import { colors } from '../../../constants/colors';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
@@ -83,6 +83,12 @@ export default function AuxilioScreen() {
   const [notifiedCount, setNotifiedCount] = useState<number | null>(null);
   const [outOfRange, setOutOfRange] = useState(false);
   const [reopenedNotice, setReopenedNotice] = useState<string | null>(null);
+  // Imágenes ya "reveladas" (ver MarkerBitmapCapture) para cada marcador --
+  // el <Marker image={...}> real solo se pinta una vez que su captura está
+  // lista.
+  const [myMarkerUri, setMyMarkerUri] = useState<string | null>(null);
+  const [businessMarkerUri, setBusinessMarkerUri] = useState<string | null>(null);
+  const [workshopMarkerUris, setWorkshopMarkerUris] = useState<Record<string, string>>({});
 
   const mapRef = useRef<MapView>(null);
   const isMounted = useRef(false);
@@ -389,17 +395,40 @@ export default function AuxilioScreen() {
       </View>
       {myMapCoords ? (
         <View style={styles.mapContainer}>
+          {/* Capturas offscreen -- generan la imagen real de cada marcador
+              (ver MarkerBitmapCapture) antes de que el <Marker> dentro del
+              MapView la use. Viven fuera del MapView a propósito. */}
+          <MarkerBitmapCapture
+            label="Tú"
+            color={colors.sos}
+            avatarUrl={profile?.avatar_url}
+            fallbackIcon="person"
+            onReady={setMyMarkerUri}
+          />
+          {activeRequest && business && (
+            <MarkerBitmapCapture
+              key={business.id}
+              label={businessLabel}
+              color={colors.primary}
+              avatarUrl={business.logo_url}
+              fallbackIcon="storefront"
+              onReady={setBusinessMarkerUri}
+            />
+          )}
+          {!activeRequest &&
+            nearbyWorkshops.map((workshop) => (
+              <MarkerBitmapCapture
+                key={workshop.id}
+                label={workshop.name}
+                color={colors.primary}
+                avatarUrl={workshop.logo_url}
+                fallbackIcon="storefront"
+                onReady={(uri) => setWorkshopMarkerUris((prev) => ({ ...prev, [workshop.id]: uri }))}
+              />
+            ))}
+
           <MapView
-            // DIAGNÓSTICO TEMPORAL: antes esta key solo distinguía
-            // 'active'/'idle' -- si `activeRequest` se activaba antes de que
-            // `business` (fetch aparte) terminara de cargar, el mapa ya
-            // remontaba en modo "active" SIN el marcador del taller (todavía
-            // no había business), y ese marcador se agregaba recién después,
-            // sobre un mapa que ya estaba montado -- distinto al marcador
-            // "Tú", que sí nace como hijo inicial. Se agrega si `business`
-            // ya está listo para forzar un remontaje más, así ambos
-            // marcadores nacen juntos.
-            key={activeRequest ? (business ? 'active-ready' : 'active-loading') : 'idle'}
+            key={activeRequest ? 'active' : 'idle'}
             ref={mapRef}
             style={StyleSheet.absoluteFill}
             initialRegion={{
@@ -409,41 +438,40 @@ export default function AuxilioScreen() {
               longitudeDelta: 0.05,
             }}
           >
-            <MapNamedMarker
-              // DIAGNÓSTICO TEMPORAL: sin avatarUrl/fallbackIcon en NINGÚN
-              // marcador de esta pantalla (propio y del taller) -- fuerza el
-              // pin clásico (sin círculo de avatar) en los dos, para
-              // confirmar si el problema es específico del snapshot con
-              // imagen async, o si ni el marcador más simple se ve bien acá.
-              coordinate={myMarkerCoords ?? myMapCoords}
-              label="Tú"
-              color={colors.sos}
-              zIndex={1}
-            />
+            {myMarkerUri && (
+              <Marker
+                coordinate={myMarkerCoords ?? myMapCoords}
+                anchor={{ x: 0.5, y: 1 }}
+                image={{ uri: myMarkerUri }}
+                zIndex={1}
+              />
+            )}
             {activeRequest
               ? businessCoords &&
-                business && (
-                  <MapNamedMarker
+                business &&
+                businessMarkerUri && (
+                  <Marker
                     key={business.id}
                     coordinate={businessMarkerCoords ?? businessCoords}
-                    label={businessLabel}
-                    color={colors.primary}
+                    anchor={{ x: 0.5, y: 1 }}
+                    image={{ uri: businessMarkerUri }}
                     zIndex={2}
                   />
                 )
-              : nearbyWorkshops.map((workshop) => (
-                  <MapNamedMarker
-                    key={workshop.id}
-                    coordinate={{
-                      latitude: workshop.latitude,
-                      longitude: workshop.longitude,
-                    }}
-                    label={workshop.name}
-                    color={colors.primary}
-                    avatarUrl={workshop.logo_url}
-                    fallbackIcon="storefront"
-                  />
-                ))}
+              : nearbyWorkshops.map(
+                  (workshop) =>
+                    workshopMarkerUris[workshop.id] && (
+                      <Marker
+                        key={workshop.id}
+                        coordinate={{
+                          latitude: workshop.latitude,
+                          longitude: workshop.longitude,
+                        }}
+                        anchor={{ x: 0.5, y: 1 }}
+                        image={{ uri: workshopMarkerUris[workshop.id] }}
+                      />
+                    )
+                )}
           </MapView>
           <Pressable style={styles.locateBtn} onPress={handleLocate}>
             <Ionicons name="locate" size={22} color={colors.primary} />
