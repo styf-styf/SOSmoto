@@ -205,7 +205,7 @@ export default function CatalogoScreen() {
   function handleShare() {
     if (!business) return;
     const url = `https://sosmoto.net/negocio/${business.id}`;
-    Share.share({ message: `Catálogo-(${business.name})\n${url}`, url }).catch(() => {});
+    Share.share({ message: `Catálogo-${business.name}\n${url}`, url }).catch(() => {});
   }
 
   useEffect(() => {

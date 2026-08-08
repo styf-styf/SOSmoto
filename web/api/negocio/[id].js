@@ -268,7 +268,7 @@ ${
 
   res.status(200).send(
     renderPage({
-      title: `Catálogo-(${business.name}) · SOSmoto`,
+      title: `Catálogo-${business.name} · SOSmoto`,
       description: business.description || `${typeLabel} en SOSmoto`,
       maxWidth: 520,
       bodyHtml,

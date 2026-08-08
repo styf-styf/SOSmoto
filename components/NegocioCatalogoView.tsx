@@ -59,7 +59,7 @@ export function NegocioCatalogoView({ businessId, hrefBase }: { businessId: stri
   function handleShare() {
     if (!business) return;
     const url = `https://sosmoto.net/negocio/${business.id}`;
-    Share.share({ message: `Catálogo-(${business.name})\n${url}`, url }).catch(() => {});
+    Share.share({ message: `Catálogo-${business.name}\n${url}`, url }).catch(() => {});
   }
 
   async function handleRefresh() {
@@ -93,7 +93,7 @@ export function NegocioCatalogoView({ businessId, hrefBase }: { businessId: stri
     <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}>
       <Stack.Screen
         options={{
-          title: `Catálogo-(${business.name})`,
+          title: 'Catálogo',
           headerRight: () => (
             <Pressable onPress={handleShare} hitSlop={8}>
               <Ionicons name="share-social-outline" size={22} color={colors.text} />
