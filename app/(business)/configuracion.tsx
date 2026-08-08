@@ -370,6 +370,11 @@ export default function BusinessConfiguracionScreen() {
 
       <Text style={styles.sectionTitle}>General</Text>
       <View style={styles.menuGroup}>
+        <MenuRow
+          icon="bulb-outline"
+          label="Enviar sugerencia"
+          onPress={() => router.push('/enviar-sugerencia')}
+        />
         {isOwner && (
           <MenuRow
             icon={business.is_deactivated ? 'eye-outline' : 'eye-off-outline'}

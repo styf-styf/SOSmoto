@@ -54,6 +54,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'account_restored':
         router.push('/(client)/estado-cuenta');
         break;
+      case 'pilot_feedback_prompt':
+        router.push('/enviar-sugerencia');
+        break;
     }
     return;
   }
@@ -125,6 +128,9 @@ function routeNotification(data: Record<string, unknown>, role: Role) {
       case 'account_limited':
       case 'account_restored':
         router.push('/(business)/estado-cuenta');
+        break;
+      case 'pilot_feedback_prompt':
+        router.push('/enviar-sugerencia');
         break;
     }
   }

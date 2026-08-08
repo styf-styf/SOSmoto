@@ -91,6 +91,11 @@ export default function ConfiguracionScreen() {
           onPress={() => router.push('/(client)/estado-cuenta')}
         />
         <MenuRow
+          icon="bulb-outline"
+          label="Enviar sugerencia"
+          onPress={() => router.push('/enviar-sugerencia')}
+        />
+        <MenuRow
           icon="trash-outline"
           label="Eliminar cuenta"
           onPress={() => router.push('/eliminar-cuenta')}

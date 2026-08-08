@@ -36,7 +36,7 @@ function fmtDate(iso: string) {
 export default async function PilotoPage() {
   const supabase = createAdminClient();
 
-  const [clientsResult, businessesResult, apkDownloadsResult, mapLoadsResult] = await Promise.all([
+  const [clientsResult, businessesResult, apkDownloadsResult, mapLoadsResult, pilotFeedbackResult] = await Promise.all([
     supabase
       .from('users')
       .select('id, full_name, email, created_at')
@@ -53,6 +53,14 @@ export default async function PilotoPage() {
     // el consumo mensual real contra el cupo gratis de Google Maps (10,000
     // llamadas/mes por API), no la ventana del piloto.
     supabase.from('map_loads').select('screen, created_at'),
+    // Sugerencias enviadas desde Configuración > Enviar sugerencia (ver
+    // migración 0198) -- no filtradas por PILOT_START porque la propia tabla
+    // solo existe desde el piloto, no hay filas viejas que excluir.
+    supabase
+      .from('pilot_feedback')
+      .select('id, message, created_at, users(full_name, email, role)')
+      .order('created_at', { ascending: false })
+      .limit(50),
   ]);
 
   const mapLoadsByScreen = new Map<string, number>();
@@ -113,7 +121,15 @@ export default async function PilotoPage() {
     serviceIntentsResult.error,
     recentHelpRequestsResult.error,
     recentReviewsResult.error,
+    pilotFeedbackResult.error,
   ].filter(Boolean);
+
+  const pilotFeedback = (pilotFeedbackResult.data ?? []) as unknown as {
+    id: string;
+    message: string;
+    created_at: string;
+    users: { full_name: string; email: string; role: string } | null;
+  }[];
 
   // ---- Embudo de negocios: registrado -> con catálogo -> verificado ----
   const businessesWithCatalog = new Set<string>([
@@ -236,6 +252,30 @@ export default async function PilotoPage() {
                   <span className="ml-1.5 text-xs text-gray-400">{item.sub}</span>
                 </span>
                 <span className="whitespace-nowrap text-xs text-gray-400">{fmtDate(item.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Sugerencias de usuarios" subtitle="Enviadas desde Configuración > Enviar sugerencia (cliente y negocio). Últimas 50.">
+        {pilotFeedback.length === 0 ? (
+          <p className="text-sm text-gray-400">Todavía no hay sugerencias.</p>
+        ) : (
+          <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
+            {pilotFeedback.map((item) => (
+              <div key={item.id} className="px-3 py-2.5 text-sm">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-medium">
+                    {item.users?.full_name ?? 'Usuario eliminado'}
+                    <span className="ml-1.5 text-xs font-normal text-gray-400">
+                      {item.users?.role === 'business' ? 'negocio' : 'cliente'}
+                      {item.users?.email ? ` · ${item.users.email}` : ''}
+                    </span>
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap text-xs text-gray-400">{fmtDate(item.created_at)}</span>
+                </div>
+                <p className="whitespace-pre-wrap text-gray-700">{item.message}</p>
               </div>
             ))}
           </div>

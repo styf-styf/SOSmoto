@@ -417,6 +417,33 @@ export async function businessCancelAcceptedRequest(
   );
 }
 
+// Piloto: además del aviso normal de "Auxilio completado", si este fue el
+// PRIMER auxilio que esa cuenta completa (como cliente o como negocio), se
+// suma un push aparte pidiendo sugerencias -- es la primera vez que esa
+// cuenta vivió el flujo completo de punta a punta, el momento con más
+// contexto real para pedir opinión. Sin categoría de notification_prefs a
+// propósito (no encaja limpio en ninguna de las existentes, y es tan poco
+// frecuente -- una sola vez por cuenta -- que no vale la pena inventar una).
+async function promptPilotFeedbackIfFirstCompleted(
+  filter: { column: 'client_id' | 'accepted_business_id'; value: string },
+  notifyUserId: string,
+): Promise<void> {
+  const { count, error } = await supabase
+    .from('help_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq(filter.column, filter.value)
+    .eq('status', 'completed');
+  if (error) throw error;
+  if (count !== 1) return;
+
+  await notifyUser(
+    notifyUserId,
+    '¿Cómo te fue con tu primer auxilio?',
+    'Estamos en piloto y tu opinión nos ayuda mucho -- cuéntanos qué te pareció.',
+    { type: 'pilot_feedback_prompt' },
+  );
+}
+
 export async function completeHelpRequest(
   helpRequestId: string,
   completedBy: 'client' | 'business',
@@ -440,6 +467,7 @@ export async function completeHelpRequest(
       { type: 'help_request_completed', helpRequestId },
       'auxilio',
     );
+    await promptPilotFeedbackIfFirstCompleted({ column: 'client_id', value: request.client_id }, request.client_id);
     return;
   }
 
@@ -453,6 +481,10 @@ export async function completeHelpRequest(
     'El cliente marcó el auxilio como completado. Ya puedes calificarlo.',
     { type: 'help_request_completed', helpRequestId },
     'auxilio',
+  );
+  await promptPilotFeedbackIfFirstCompleted(
+    { column: 'accepted_business_id', value: request.accepted_business_id },
+    ownerId,
   );
 }
 

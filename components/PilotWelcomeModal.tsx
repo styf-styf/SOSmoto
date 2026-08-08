@@ -51,7 +51,8 @@ export function PilotWelcomeModal() {
           <Text style={styles.subtitle}>Estás usando la versión piloto</Text>
           <Text style={styles.body}>
             Este piloto dura 30 días. Gracias por ser parte de este lanzamiento -- tu opinión nos ayuda a mejorar
-            la app para motociclistas y talleres en Ecuador.
+            la app para motociclistas y talleres en Ecuador. Conforme la vayas usando, nos puedes dejar
+            sugerencias desde Configuración.
           </Text>
           <Pressable style={styles.button} onPress={dismiss}>
             <Text style={styles.buttonText}>Entendido</Text>
