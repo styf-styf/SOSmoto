@@ -401,11 +401,14 @@ export default function AuxilioScreen() {
             }}
           >
             <MapNamedMarker
+              // DIAGNÓSTICO TEMPORAL: sin avatarUrl/fallbackIcon en NINGÚN
+              // marcador de esta pantalla (propio y del taller) -- fuerza el
+              // pin clásico (sin círculo de avatar) en los dos, para
+              // confirmar si el problema es específico del snapshot con
+              // imagen async, o si ni el marcador más simple se ve bien acá.
               coordinate={myMarkerCoords ?? myMapCoords}
               label="Tú"
               color={colors.sos}
-              avatarUrl={profile?.avatar_url}
-              fallbackIcon="person"
               zIndex={1}
             />
             {activeRequest
@@ -416,11 +419,6 @@ export default function AuxilioScreen() {
                     coordinate={businessMarkerCoords ?? businessCoords}
                     label={businessLabel}
                     color={colors.primary}
-                    // DIAGNÓSTICO TEMPORAL: sin avatarUrl/fallbackIcon fuerza
-                    // el pin clásico (sin círculo de avatar) en vez de la
-                    // burbuja personalizada -- para confirmar si el problema
-                    // es específico del snapshot con imagen async, o si ni
-                    // siquiera el marcador más simple se ve bien acá.
                     zIndex={2}
                   />
                 )
