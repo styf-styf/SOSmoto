@@ -390,7 +390,16 @@ export default function AuxilioScreen() {
       {myMapCoords ? (
         <View style={styles.mapContainer}>
           <MapView
-            key={activeRequest ? 'active' : 'idle'}
+            // DIAGNÓSTICO TEMPORAL: antes esta key solo distinguía
+            // 'active'/'idle' -- si `activeRequest` se activaba antes de que
+            // `business` (fetch aparte) terminara de cargar, el mapa ya
+            // remontaba en modo "active" SIN el marcador del taller (todavía
+            // no había business), y ese marcador se agregaba recién después,
+            // sobre un mapa que ya estaba montado -- distinto al marcador
+            // "Tú", que sí nace como hijo inicial. Se agrega si `business`
+            // ya está listo para forzar un remontaje más, así ambos
+            // marcadores nacen juntos.
+            key={activeRequest ? (business ? 'active-ready' : 'active-loading') : 'idle'}
             ref={mapRef}
             style={StyleSheet.absoluteFill}
             initialRegion={{
