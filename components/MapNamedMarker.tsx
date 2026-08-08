@@ -108,8 +108,14 @@ export function MapNamedMarker({
     );
   }
 
+  // Esta rama (sin avatarUrl NI fallbackIcon) nunca se había usado en
+  // ningún lugar de la app hasta el diagnóstico de este marcador -- tenía
+  // tracksViewChanges={false} fijo desde siempre, nunca probado. Si el
+  // marcador con avatar necesita al menos un render con
+  // tracksViewChanges=true para generar su primer snapshot válido (ver
+  // historial), este también lo necesita.
   return (
-    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false} zIndex={zIndex}>
+    <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges zIndex={zIndex}>
       <View style={styles.classicWrap}>
         <View style={styles.classicBubble}>
           <Text style={styles.classicText} numberOfLines={1}>{label}</Text>
