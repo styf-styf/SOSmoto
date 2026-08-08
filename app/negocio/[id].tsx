@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
-import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
+import { navigateToNegocioDeepLink } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir catálogo/perfil de negocio"
 // (https://sosmoto.net/negocio/:id) -- mismo patrón que app/post/[id].tsx.
@@ -25,8 +25,7 @@ export default function NegocioLinkResolver() {
       return;
     }
 
-    const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
-    navigateToDeepLinkTarget(prefix, 'business', id);
+    navigateToNegocioDeepLink(profile, id).catch((err) => console.error('navigate negocio deep link error', err));
   }, [loading, session, profile, id]);
 
   return (

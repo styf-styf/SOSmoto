@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { getMyWorkBusiness } from '../services/businesses';
 import { markProductoServicioStacksForReset } from './productoServicioStackReset';
 
 // Usado por las 4 pantallas resolutoras (app/{post,ad,product,service}/[id].tsx)
@@ -31,4 +32,32 @@ export function navigateToDeepLinkTarget(prefix: '/(client)' | '/(business)', sc
   // segmentos de ruta extra y navegaria en silencio a otra pantalla en vez
   // de fallar limpio.
   router.replace(`${prefix}/${screen}/${encodeURIComponent(id)}`);
+}
+
+// Destino de "compartir catálogo" (https://sosmoto.net/negocio/:id) --
+// llevaba siempre al perfil de solo-lectura del negocio (screen 'business'),
+// nunca al catálogo en sí, que era el punto del botón "Compartir" en
+// catalogo.tsx/NegocioCatalogoView.tsx. Ahora apunta a 'negocio-catalogo'.
+// Además, si quien abre el link es el DUEÑO/empleado de ESE mismo negocio,
+// lo manda a su propia pestaña "Catálogo" (con controles de editar/eliminar)
+// en vez de la vista de solo-lectura pensada para visitantes.
+export async function navigateToNegocioDeepLink(
+  profile: { id: string; role: string },
+  id: string
+): Promise<void> {
+  if (profile.role === 'business') {
+    const work = await getMyWorkBusiness(profile.id).catch(() => null);
+    if (work?.business.id === id) {
+      try {
+        router.dismissAll();
+      } catch {
+        // No había pila que descartar -- normal en primer launch en frío.
+      }
+      router.replace('/(business)/(tabs)/catalogo');
+      return;
+    }
+    navigateToDeepLinkTarget('/(business)', 'negocio-catalogo', id);
+    return;
+  }
+  navigateToDeepLinkTarget('/(client)', 'negocio-catalogo', id);
 }

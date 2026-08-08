@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../constants/colors';
 import { consumePendingDeepLink, consumePendingPaymentResult, type PendingDeepLinkKind } from '../utils/pendingDeepLink';
-import { navigateToDeepLinkTarget } from '../utils/deepLinkNavigate';
+import { navigateToDeepLinkTarget, navigateToNegocioDeepLink } from '../utils/deepLinkNavigate';
 import { getPendingDeletionRequest } from '../services/accountDeletion';
 
 const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
@@ -81,8 +81,12 @@ export default function Index() {
     consumePendingDeepLink()
       .then(async (pending) => {
         if (pending) {
-          const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
-          navigateToDeepLinkTarget(prefix, PENDING_DEEP_LINK_SCREEN[pending.kind], pending.id);
+          if (pending.kind === 'negocio') {
+            await navigateToNegocioDeepLink(profile, pending.id);
+          } else {
+            const prefix = profile.role === 'business' ? '/(business)' : '/(client)';
+            navigateToDeepLinkTarget(prefix, PENDING_DEEP_LINK_SCREEN[pending.kind], pending.id);
+          }
           setHandledPending(true);
           return;
         }
