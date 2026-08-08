@@ -39,15 +39,21 @@ export function MapNamedMarker({
   // sesión (ej. el logo de un negocio nunca visitado antes), pierde la
   // carrera contra el snapshot y el avatar sale en blanco.
   //
-  // Primer intento (esperar el onLoad del <Image> antes de apagar
-  // tracksViewChanges) no fue suficiente margen -- el evento onLoad de JS
-  // no garantiza que el bitmap nativo ya esté pintado a tiempo para el
-  // snapshot, sobre todo en la primera descarga+decodificación de una
-  // imagen. Ahora se precarga con Image.prefetch() ANTES de siquiera
-  // montar el <Image> del marcador -- así, cuando el <Image> por fin se
-  // monta, lee de una caché ya tibia (mismo mecanismo que hace que el
-  // propio avatar/logo, ya visto en otra pantalla, siempre funcione bien),
-  // en vez de competir en una carrera de red cada vez.
+  // Intento 1 (esperar el onLoad del <Image> antes de apagar
+  // tracksViewChanges) y el intento 2 (precargar con Image.prefetch() antes
+  // de montar el <Image>, pero ACTUALIZANDO el mismo marcador cuando queda
+  // lista) tampoco fueron suficientes -- el puente nativo de Android no
+  // parece reaccionar de forma confiable a una actualización a mitad de
+  // camino del mismo marcador, sin importar cuánto margen de tiempo se le
+  // dé desde JS.
+  //
+  // Intento 3: se sigue precargando con Image.prefetch(), pero en vez de
+  // actualizar el marcador existente, se le cambia el `key` una vez que la
+  // imagen ya está lista -- eso fuerza a React (y al puente nativo) a
+  // DESMONTAR el marcador viejo y crear uno completamente nuevo desde
+  // cero, ya con la imagen resuelta desde caché y el texto en su tamaño
+  // final, en vez de pedirle al mapa que reaccione correctamente a un
+  // cambio en un marcador que ya existía.
   const [imageReady, setImageReady] = useState(!avatarUrl);
 
   useEffect(() => {
@@ -60,7 +66,7 @@ export function MapNamedMarker({
     Image.prefetch(avatarUrl)
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) requestAnimationFrame(() => setImageReady(true));
+        if (!cancelled) setImageReady(true);
       });
     return () => {
       cancelled = true;
@@ -69,7 +75,13 @@ export function MapNamedMarker({
 
   if (showBubble) {
     return (
-      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={!imageReady} zIndex={zIndex}>
+      <Marker
+        key={imageReady ? 'ready' : 'loading'}
+        coordinate={coordinate}
+        anchor={{ x: 0.5, y: 1 }}
+        tracksViewChanges={!imageReady}
+        zIndex={zIndex}
+      >
         <View style={styles.wrapper} collapsable={false}>
           {/* Chip con nombre */}
           <View style={styles.chip}>
