@@ -9,6 +9,7 @@ import { colors } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
 import { usePendingOrders } from '../../../hooks/usePendingOrders';
+import { useActiveBusinessHelpRequest } from '../../../hooks/useActiveBusinessHelpRequest';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import type { BusinessType } from '../../../types/database';
 
@@ -40,6 +41,7 @@ export default function BusinessTabsLayout() {
   const { profile } = useAuth();
   const hasUnreadMessages = useUnreadMessages(profile);
   const hasPendingOrders = usePendingOrders(profile);
+  const hasActiveHelpRequest = useActiveBusinessHelpRequest(profile);
   const insets = useSafeAreaInsets();
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
@@ -160,7 +162,9 @@ export default function BusinessTabsLayout() {
         options={{
           title: 'Solicitudes',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-circle" size={size} color={color} />
+            <TabIconBadge showDot={hasActiveHelpRequest}>
+              <Ionicons name="alert-circle" size={size} color={color} />
+            </TabIconBadge>
           ),
           href: isWorkshop ? undefined : null,
         }}

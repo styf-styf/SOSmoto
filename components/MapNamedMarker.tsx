@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Marker } from 'react-native-maps';
@@ -27,9 +28,33 @@ export function MapNamedMarker({
 }: MapNamedMarkerProps) {
   const showBubble = avatarUrl != null || fallbackIcon != null;
 
+  // En Android, react-native-maps convierte este marcador (una vista JSX
+  // normal) a un bitmap para dibujarlo sobre el mapa nativo -- si esa "foto"
+  // se toma antes de que el avatar (que carga por red, async) termine de
+  // pintarse, el snapshot queda con el círculo vacío para siempre
+  // (tracksViewChanges solo controla SI se vuelve a tomar la foto). Cuando
+  // la imagen ya estaba en caché de otra pantalla (ej. el propio avatar del
+  // usuario, visto antes en su perfil) esto no se nota porque carga
+  // instantáneo; cuando es la primera vez que se pide esa imagen en la
+  // sesión (ej. el logo de un negocio nunca visitado antes), pierde la
+  // carrera contra el snapshot y el avatar sale en blanco. Se arranca
+  // "trackeando" mientras haya una imagen por cargar, y se apaga recién en
+  // el frame siguiente a que termine (onLoad/onError) -- así el snapshot
+  // final ya incluye la imagen real. Sin avatarUrl (solo ícono de respaldo)
+  // no hay nada async que esperar.
+  const [imageSettled, setImageSettled] = useState(!avatarUrl);
+
+  useEffect(() => {
+    setImageSettled(!avatarUrl);
+  }, [avatarUrl]);
+
+  function handleImageResolved() {
+    requestAnimationFrame(() => setImageSettled(true));
+  }
+
   if (showBubble) {
     return (
-      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges zIndex={zIndex}>
+      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={!imageSettled} zIndex={zIndex}>
         <View style={styles.wrapper} collapsable={false}>
           {/* Chip con nombre */}
           <View style={styles.chip}>
@@ -39,7 +64,12 @@ export function MapNamedMarker({
           {/* Círculo con avatar */}
           <View style={[styles.circle, { borderColor: color }]}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              <Image
+                source={{ uri: avatarUrl }}
+                style={styles.avatar}
+                onLoad={handleImageResolved}
+                onError={handleImageResolved}
+              />
             ) : (
               <View style={[styles.fallback, { backgroundColor: color }]}>
                 <Ionicons name={fallbackIcon!} size={16} color="#fff" />
