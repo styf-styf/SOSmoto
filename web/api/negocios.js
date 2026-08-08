@@ -23,7 +23,7 @@ function supabaseAdmin() {
 //   cd web && npx vercel blob put <ruta-al-apk> --pathname SOSmoto.apk \
 //     --access public --rw-token <BLOB_READ_WRITE_TOKEN de web/.env.local>
 // y actualizar la URL de acá abajo con la que devuelva el comando.
-const APK_DOWNLOAD_URL = 'https://zs7jfd4nqamxevzt.public.blob.vercel-storage.com/SOSmoto-CIKTwTpy9t3blYe6rlrIt354JWIEEu.apk';
+const APK_DOWNLOAD_URL = 'https://zs7jfd4nqamxevzt.public.blob.vercel-storage.com/SOSmoto.apk';
 
 module.exports = async (req, res) => {
   const supabase = supabaseAdmin();
