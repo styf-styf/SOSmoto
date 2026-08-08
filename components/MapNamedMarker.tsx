@@ -40,20 +40,25 @@ export function MapNamedMarker({
   // carrera contra el snapshot y el avatar sale en blanco.
   //
   // Intento 1 (esperar el onLoad del <Image> antes de apagar
-  // tracksViewChanges) y el intento 2 (precargar con Image.prefetch() antes
-  // de montar el <Image>, pero ACTUALIZANDO el mismo marcador cuando queda
-  // lista) tampoco fueron suficientes -- el puente nativo de Android no
-  // parece reaccionar de forma confiable a una actualización a mitad de
-  // camino del mismo marcador, sin importar cuánto margen de tiempo se le
-  // dé desde JS.
+  // tracksViewChanges) e intento 2 (precargar con Image.prefetch() antes de
+  // montar el <Image>, pero ACTUALIZANDO el mismo marcador y apagando
+  // tracksViewChanges cuando queda lista) tampoco fueron suficientes -- el
+  // puente nativo de Android no parece reaccionar de forma confiable a una
+  // actualización a mitad de camino del mismo marcador.
   //
-  // Intento 3: se sigue precargando con Image.prefetch(), pero en vez de
-  // actualizar el marcador existente, se le cambia el `key` una vez que la
-  // imagen ya está lista -- eso fuerza a React (y al puente nativo) a
-  // DESMONTAR el marcador viejo y crear uno completamente nuevo desde
-  // cero, ya con la imagen resuelta desde caché y el texto en su tamaño
-  // final, en vez de pedirle al mapa que reaccione correctamente a un
-  // cambio en un marcador que ya existía.
+  // Intento 3 (fallido, revertido): además de precargar, se le cambiaba el
+  // `key` una vez lista la imagen para forzar un remontaje limpio -- pero
+  // el marcador NUEVO nacía con tracksViewChanges ya en `false` desde su
+  // primer render, y aparentemente Android necesita al menos un render con
+  // tracksViewChanges=true para generar la primera "foto" válida de un
+  // marcador. Sin eso, el marcador nuevo se quedaba completamente en
+  // blanco -- rompió hasta los casos que antes sí andaban bien (el propio
+  // avatar, el logo del negocio en su propio mapa). Se revierte esa parte:
+  // tracksViewChanges vuelve a quedar SIEMPRE true (como estaba
+  // originalmente, la única variante confirmada sin regresiones), y se
+  // mantiene solo el remontaje con key -- la imagen sigue llegando ya
+  // precargada/tibia al marcador nuevo, que ahora además sigue
+  // "trackeando" cambios permanentemente por si acaso.
   const [imageReady, setImageReady] = useState(!avatarUrl);
 
   useEffect(() => {
@@ -79,7 +84,7 @@ export function MapNamedMarker({
         key={imageReady ? 'ready' : 'loading'}
         coordinate={coordinate}
         anchor={{ x: 0.5, y: 1 }}
-        tracksViewChanges={!imageReady}
+        tracksViewChanges
         zIndex={zIndex}
       >
         <View style={styles.wrapper} collapsable={false}>
