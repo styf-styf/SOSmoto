@@ -37,24 +37,39 @@ export function MapNamedMarker({
   // usuario, visto antes en su perfil) esto no se nota porque carga
   // instantáneo; cuando es la primera vez que se pide esa imagen en la
   // sesión (ej. el logo de un negocio nunca visitado antes), pierde la
-  // carrera contra el snapshot y el avatar sale en blanco. Se arranca
-  // "trackeando" mientras haya una imagen por cargar, y se apaga recién en
-  // el frame siguiente a que termine (onLoad/onError) -- así el snapshot
-  // final ya incluye la imagen real. Sin avatarUrl (solo ícono de respaldo)
-  // no hay nada async que esperar.
-  const [imageSettled, setImageSettled] = useState(!avatarUrl);
+  // carrera contra el snapshot y el avatar sale en blanco.
+  //
+  // Primer intento (esperar el onLoad del <Image> antes de apagar
+  // tracksViewChanges) no fue suficiente margen -- el evento onLoad de JS
+  // no garantiza que el bitmap nativo ya esté pintado a tiempo para el
+  // snapshot, sobre todo en la primera descarga+decodificación de una
+  // imagen. Ahora se precarga con Image.prefetch() ANTES de siquiera
+  // montar el <Image> del marcador -- así, cuando el <Image> por fin se
+  // monta, lee de una caché ya tibia (mismo mecanismo que hace que el
+  // propio avatar/logo, ya visto en otra pantalla, siempre funcione bien),
+  // en vez de competir en una carrera de red cada vez.
+  const [imageReady, setImageReady] = useState(!avatarUrl);
 
   useEffect(() => {
-    setImageSettled(!avatarUrl);
+    if (!avatarUrl) {
+      setImageReady(true);
+      return;
+    }
+    setImageReady(false);
+    let cancelled = false;
+    Image.prefetch(avatarUrl)
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) requestAnimationFrame(() => setImageReady(true));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [avatarUrl]);
-
-  function handleImageResolved() {
-    requestAnimationFrame(() => setImageSettled(true));
-  }
 
   if (showBubble) {
     return (
-      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={!imageSettled} zIndex={zIndex}>
+      <Marker coordinate={coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={!imageReady} zIndex={zIndex}>
         <View style={styles.wrapper} collapsable={false}>
           {/* Chip con nombre */}
           <View style={styles.chip}>
@@ -63,13 +78,8 @@ export function MapNamedMarker({
 
           {/* Círculo con avatar */}
           <View style={[styles.circle, { borderColor: color }]}>
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={styles.avatar}
-                onLoad={handleImageResolved}
-                onError={handleImageResolved}
-              />
+            {avatarUrl && imageReady ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
             ) : (
               <View style={[styles.fallback, { backgroundColor: color }]}>
                 <Ionicons name={fallbackIcon!} size={16} color="#fff" />
@@ -104,11 +114,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    // Tope de ancho (no ancho fijo) -- un ancho fijo en todo el wrapper hacía
-    // que el marcador entero (chip + círculo) desapareciera en algunos casos.
-    // Con solo el chip acotado, el texto largo trunca con "..." en vez de
-    // desbordar, y el resto del marcador queda intacto.
-    maxWidth: 140,
+    // Sin maxWidth a propósito -- con un tope fijo, un nombre largo
+    // ("Taller MotoCentro Sangolquí") se veía cortado a la mitad
+    // ("Taller Mot..."). El chip ahora crece según el contenido; el
+    // `wrapper` que lo contiene tampoco tiene ancho fijo (eso sí causaba
+    // que el marcador entero desapareciera, ver historial), así que no hay
+    // riesgo de reintroducir ese bug.
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.18,

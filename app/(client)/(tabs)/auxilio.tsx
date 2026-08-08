@@ -44,6 +44,7 @@ import { createReview } from '../../../services/reviews';
 import { getVehicles } from '../../../services/vehicles';
 import type { Business, HelpRequest, Vehicle } from '../../../types/database';
 import { distanceKm } from '../../../utils/distance';
+import { separateOverlappingCoords } from '../../../utils/mapMarkerOffset';
 
 const statusLabel: Record<HelpRequest['status'], string> = {
   pending: 'Buscando talleres cercanos…',
@@ -352,6 +353,15 @@ export default function AuxilioScreen() {
       : business
         ? { latitude: business.latitude, longitude: business.longitude }
         : null;
+  // Si el cliente y el taller están en la misma coordenada o casi (dos
+  // celulares en el mismo cuarto durante pruebas, o el cliente ya está
+  // justo en el taller), los dos marcadores quedan anclados al mismo pixel
+  // y el de mayor zIndex tapa completo al otro -- se separan un poco para
+  // que se vean uno al lado del otro.
+  const [myMarkerCoords, businessMarkerCoords] =
+    myMapCoords && businessCoords
+      ? separateOverlappingCoords(myMapCoords, businessCoords)
+      : [myMapCoords, businessCoords];
   const businessIsLive =
     !!activeRequest &&
     activeRequest.business_latitude !== null &&
@@ -391,7 +401,7 @@ export default function AuxilioScreen() {
             }}
           >
             <MapNamedMarker
-              coordinate={myMapCoords}
+              coordinate={myMarkerCoords ?? myMapCoords}
               label="Tú"
               color={colors.sos}
               avatarUrl={profile?.avatar_url}
@@ -403,7 +413,7 @@ export default function AuxilioScreen() {
                 business && (
                   <MapNamedMarker
                     key={business.id}
-                    coordinate={businessCoords}
+                    coordinate={businessMarkerCoords ?? businessCoords}
                     label={businessLabel}
                     color={colors.primary}
                     avatarUrl={business.logo_url}

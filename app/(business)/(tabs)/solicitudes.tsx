@@ -51,6 +51,7 @@ import { getUserById } from '../../../services/users';
 import { formatVehicle } from '../../../types/database';
 import type { Business, HelpRequest } from '../../../types/database';
 import { distanceKm } from '../../../utils/distance';
+import { separateOverlappingCoords } from '../../../utils/mapMarkerOffset';
 
 export default function SolicitudesScreen() {
   const { profile } = useAuth();
@@ -432,6 +433,23 @@ export default function SolicitudesScreen() {
           )
         : null;
 
+  // Si el cliente y el taller están en la misma coordenada o casi (dos
+  // celulares en el mismo cuarto durante pruebas, o el taller ya llegó),
+  // los dos marcadores quedan anclados al mismo pixel y el de mayor zIndex
+  // tapa completo al otro -- se separan un poco para que se vean uno al
+  // lado del otro.
+  const clientMarkerCoordsRaw = active
+    ? { latitude: active.latitude, longitude: active.longitude }
+    : null;
+  const businessMarkerCoordsRaw =
+    active && active.business_latitude !== null && active.business_longitude !== null
+      ? { latitude: active.business_latitude, longitude: active.business_longitude }
+      : null;
+  const [clientMarkerCoords, businessMarkerCoords] =
+    clientMarkerCoordsRaw && businessMarkerCoordsRaw
+      ? separateOverlappingCoords(clientMarkerCoordsRaw, businessMarkerCoordsRaw)
+      : [clientMarkerCoordsRaw, businessMarkerCoordsRaw];
+
   return (
     <View style={styles.screen}>
       <View style={[styles.infoBtnWrap, { top: insets.top + 12 }]}>
@@ -466,10 +484,9 @@ export default function SolicitudesScreen() {
             {active ? (
               <>
                 <MapNamedMarker
-                  coordinate={{
-                    latitude: active.latitude,
-                    longitude: active.longitude,
-                  }}
+                  coordinate={
+                    clientMarkerCoords ?? { latitude: active.latitude, longitude: active.longitude }
+                  }
                   label="Cliente"
                   color={colors.sos}
                   avatarUrl={activeClientInfo?.avatarUrl ?? null}
@@ -479,10 +496,12 @@ export default function SolicitudesScreen() {
                 {active.business_latitude !== null &&
                   active.business_longitude !== null && (
                     <MapNamedMarker
-                      coordinate={{
-                        latitude: active.business_latitude,
-                        longitude: active.business_longitude,
-                      }}
+                      coordinate={
+                        businessMarkerCoords ?? {
+                          latitude: active.business_latitude,
+                          longitude: active.business_longitude,
+                        }
+                      }
                       label="Tu ubicación"
                       color={colors.primary}
                       avatarUrl={business?.logo_url}
