@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -478,7 +479,16 @@ export default function AuxilioScreen() {
 
               {business && (
                 <View style={styles.businessCard}>
-                  <Text style={styles.businessName}>{business.name}</Text>
+                  <View style={styles.businessHeaderRow}>
+                    <View style={styles.businessAvatar}>
+                      {business.logo_url ? (
+                        <Image source={{ uri: business.logo_url }} style={styles.businessAvatarImage} />
+                      ) : (
+                        <Ionicons name="storefront" size={16} color={colors.primary} />
+                      )}
+                    </View>
+                    <Text style={styles.businessName}>{business.name}</Text>
+                  </View>
                   {businessDistanceKm !== null && (
                     <Text style={styles.businessMeta}>
                       Distancia:{' '}
@@ -907,6 +917,24 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 20,
     width: '100%',
+  },
+  businessHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  businessAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  businessAvatarImage: {
+    width: 30,
+    height: 30,
   },
   businessName: {
     fontSize: 16,

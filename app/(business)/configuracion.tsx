@@ -227,11 +227,18 @@ export default function BusinessConfiguracionScreen() {
     >
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, styles.sectionTitleInRow]}>Mi negocio</Text>
-        <View style={styles.planBadge}>
-          <Text style={styles.planBadgeText}>
-            Plan {plan ? (planLabel[plan.planName] ?? plan.planName) : '...'}
-            {business.is_verified ? ' · Verificado' : ''}
-          </Text>
+        <View style={styles.headerBadges}>
+          <View style={styles.planBadge}>
+            <Text style={styles.planBadgeText}>
+              Plan {plan ? (planLabel[plan.planName] ?? plan.planName) : '...'}
+            </Text>
+          </View>
+          {business.is_verified && (
+            <View style={styles.planBadge}>
+              <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
+              <Text style={styles.planBadgeText}>Verificado</Text>
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.menuGroup}>
@@ -510,7 +517,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 24,
   },
+  headerBadges: {
+    flexDirection: 'row',
+    gap: 6,
+  },
   planBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 12,

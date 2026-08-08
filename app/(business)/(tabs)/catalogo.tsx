@@ -456,7 +456,7 @@ export default function CatalogoScreen() {
         <View style={styles.inventarioRow}>
           <Pressable style={styles.inventarioBtn} onPress={() => router.push('/(business)/inventario')}>
             <Ionicons name="cube-outline" size={18} color={colors.primary} />
-            <Text style={styles.inventarioBtnText}>Ver inventario de productos</Text>
+            <Text style={styles.inventarioBtnText}>Ver inventario</Text>
             <Ionicons name="chevron-forward-outline" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable style={styles.inventarioInfoBtn} onPress={handleShare} hitSlop={8} accessibilityLabel="Compartir catálogo">

@@ -250,7 +250,7 @@ export function subscribeToBusinessRequests(
 export interface PendingHelpRequest {
   notification: HelpRequestNotification;
   helpRequest: HelpRequest;
-  client: { id: string; full_name: string; phone: string | null } | null;
+  client: { id: string; full_name: string; phone: string | null; avatar_url: string | null } | null;
   vehicle: VehicleInfo | null;
 }
 
@@ -291,7 +291,7 @@ export async function getPendingRequests(
     clientIds.length
       ? supabase
           .from('users')
-          .select('id, full_name, phone')
+          .select('id, full_name, phone, avatar_url')
           .in('id', clientIds)
       : Promise.resolve({ data: [], error: null }),
     vehicleIds.length

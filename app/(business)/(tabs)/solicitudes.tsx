@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -508,6 +509,7 @@ export default function SolicitudesScreen() {
                     }}
                     label={item.client?.full_name ?? 'Cliente'}
                     color={colors.sos}
+                    avatarUrl={item.client?.avatar_url ?? null}
                     fallbackIcon="person"
                   />
                 ))}
@@ -527,6 +529,16 @@ export default function SolicitudesScreen() {
         {active && (
           <View style={styles.activeCard}>
             <Text style={styles.activeTitle}>Auxilio en curso</Text>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardAvatar}>
+                {activeClientInfo?.avatarUrl ? (
+                  <Image source={{ uri: activeClientInfo.avatarUrl }} style={styles.cardAvatarImage} />
+                ) : (
+                  <Ionicons name="person" size={16} color={colors.primary} />
+                )}
+              </View>
+              <Text style={styles.cardName}>{activeClientInfo?.name ?? 'Cliente'}</Text>
+            </View>
             <Text style={styles.activeMeta}>
               {active.description ?? 'Sin descripción'}
             </Text>
@@ -755,7 +767,16 @@ function RequestCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardName}>{item.client?.full_name ?? 'Cliente'}</Text>
+      <View style={styles.cardHeaderRow}>
+        <View style={styles.cardAvatar}>
+          {item.client?.avatar_url ? (
+            <Image source={{ uri: item.client.avatar_url }} style={styles.cardAvatarImage} />
+          ) : (
+            <Ionicons name="person" size={16} color={colors.primary} />
+          )}
+        </View>
+        <Text style={styles.cardName}>{item.client?.full_name ?? 'Cliente'}</Text>
+      </View>
       {item.client?.phone && (
         <Text style={styles.cardMeta}>{item.client.phone}</Text>
       )}
@@ -924,6 +945,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cardAvatarImage: {
+    width: 28,
+    height: 28,
   },
   cardName: {
     fontSize: 15,
