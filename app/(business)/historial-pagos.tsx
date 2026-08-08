@@ -16,6 +16,7 @@ const paymentStatusLabel: Record<PaymentHistoryRow['status'], string> = {
   completed: 'Pagado',
   failed: 'Rechazado',
   refunded: 'Reembolsado',
+  cancelled: 'Cancelado',
 };
 
 const paymentStatusColor: Record<PaymentHistoryRow['status'], string> = {
@@ -23,6 +24,7 @@ const paymentStatusColor: Record<PaymentHistoryRow['status'], string> = {
   completed: colors.success,
   failed: colors.danger,
   refunded: colors.textMuted,
+  cancelled: colors.textMuted,
 };
 
 export default function HistorialPagosScreen() {

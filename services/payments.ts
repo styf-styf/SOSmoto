@@ -24,7 +24,7 @@ export interface PaymentHistoryRow {
   amount: number;
   currency: string;
   type: 'subscription' | 'advertising';
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
   created_at: string;
 }
 

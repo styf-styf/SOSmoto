@@ -1,0 +1,12 @@
+-- 'cancelled' distingue un pago abandonado/expirado (el negocio nunca
+-- terminó el checkout) de uno explícitamente 'failed' (Payphone lo rechazó
+-- o la confirmación en sí falló) -- mismo patrón que usan otras plataformas
+-- de pago (ver discusión, Stripe Checkout usa "expired" separado de
+-- "failed" por la misma razón: las acciones de seguimiento son distintas).
+--
+-- Va en su propia migración a propósito: Postgres no deja usar un valor de
+-- enum recién agregado en la misma transacción que lo agrega (y
+-- `supabase db push` corre cada archivo de migración como una sola
+-- transacción), así que cualquier código que use 'cancelled' tiene que ir
+-- en una migración posterior.
+alter type payment_status add value 'cancelled';

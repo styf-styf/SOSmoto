@@ -468,7 +468,7 @@ export interface PostComment {
 }
 
 export type PaymentType = 'subscription' | 'advertising';
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
 
 export interface Payment {
   id: string;
@@ -479,6 +479,7 @@ export interface Payment {
   gateway: string;
   gateway_transaction_id: string | null;
   client_transaction_id: string | null;
+  payphone_transaction_id: string | null;
   plan_id: string | null;
   metadata: Record<string, unknown> | null;
   status: PaymentStatus;

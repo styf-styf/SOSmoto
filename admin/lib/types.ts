@@ -119,7 +119,7 @@ export interface AdminSubscriptionPlanRow {
 }
 
 export type PaymentType = 'subscription' | 'advertising';
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
 
 export interface AdminPaymentRow {
   id: string;

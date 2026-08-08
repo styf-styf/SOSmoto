@@ -38,6 +38,22 @@ async function sendPush(token: string, title: string, body: string, data: Record
   });
 }
 
+// Deja registro en `notifications` (bandeja del perfil) además del push --
+// antes esto solo mandaba el push, sin correo ni ningún otro rastro si se
+// perdía. Mismo patrón que notifyUser() del lado de la app
+// (services/notifications.ts), replicado acá porque esta función corre en
+// Deno, no puede importarlo.
+async function recordNotification(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  title: string,
+  body: string,
+  data: Record<string, unknown>
+) {
+  const { error } = await supabase.from('notifications').insert({ user_id: userId, title, body, data });
+  if (error) console.error('insert notification error', error);
+}
+
 Deno.serve(async (req) => {
   // Solo el cron interno (pg_cron, ver 0042_schedule_maintenance_check.sql)
   // puede invocar esto -- antes cualquiera con el anon key (público,
@@ -95,6 +111,13 @@ Deno.serve(async (req) => {
     const daysSinceReminder = lastReminder ? (now.getTime() - lastReminder.getTime()) / MS_PER_DAY : Infinity;
 
     if (daysSinceUpdate >= REMINDER_AFTER_DAYS && daysSinceReminder >= REMINDER_AFTER_DAYS) {
+      await recordNotification(
+        supabase,
+        vehicle.user_id,
+        'Actualiza tu kilometraje',
+        '¿Cuánto llevas rodando? Actualízalo para que te avisemos a tiempo de tu próximo mantenimiento.',
+        { type: 'update_mileage', vehicleId: vehicle.id }
+      );
       await sendPush(
         pushToken,
         'Actualiza tu kilometraje',
@@ -157,6 +180,13 @@ Deno.serve(async (req) => {
       const kmRemaining = (current.due_at_km ?? 0) - estimatedMileage;
 
       if (current.status === 'pending' && kmRemaining > 0 && kmRemaining <= NOTIFY_BUFFER_KM) {
+        await recordNotification(
+          supabase,
+          vehicle.user_id,
+          'Mantenimiento próximo',
+          `${rule.service_name}: estimamos que te faltan ${Math.round(kmRemaining)} km. Confirma tu kilometraje real en la app.`,
+          { type: 'maintenance_upcoming', vehicleId: vehicle.id, ruleId: rule.id }
+        );
         await sendPush(
           pushToken,
           'Mantenimiento próximo',
@@ -169,6 +199,13 @@ Deno.serve(async (req) => {
       }
 
       if (kmRemaining <= 0 && current.status !== 'completed' && !current.overdue_notified_at) {
+        await recordNotification(
+          supabase,
+          vehicle.user_id,
+          'Posible mantenimiento vencido',
+          `Según tu kilometraje estimado, ya deberías haber hecho: ${rule.service_name}. Si todavía no lo hiciste, no lo dejes pasar.`,
+          { type: 'maintenance_overdue', vehicleId: vehicle.id, ruleId: rule.id }
+        );
         await sendPush(
           pushToken,
           'Posible mantenimiento vencido',

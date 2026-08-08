@@ -16,6 +16,7 @@ const statusLabel: Record<PaymentStatus, string> = {
   completed: 'Completado',
   failed: 'Fallido',
   refunded: 'Reembolsado',
+  cancelled: 'Cancelado',
 };
 
 const statusColor: Record<PaymentStatus, string> = {
@@ -23,6 +24,7 @@ const statusColor: Record<PaymentStatus, string> = {
   completed: 'text-green-700',
   failed: 'text-red-600',
   refunded: 'text-gray-500',
+  cancelled: 'text-gray-500',
 };
 
 export default async function SuscripcionesPage({ searchParams }: { searchParams: { page?: string } }) {

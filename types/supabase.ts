@@ -1101,8 +1101,9 @@ export interface Database {
           gateway: string;
           gateway_transaction_id: string | null;
           client_transaction_id: string | null;
+          payphone_transaction_id: string | null;
           plan_id: string | null;
-          status: 'pending' | 'completed' | 'failed' | 'refunded';
+          status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
           created_at: string;
         };
         Insert: {
@@ -1114,8 +1115,9 @@ export interface Database {
           gateway: string;
           gateway_transaction_id?: string | null;
           client_transaction_id?: string | null;
+          payphone_transaction_id?: string | null;
           plan_id?: string | null;
-          status?: 'pending' | 'completed' | 'failed' | 'refunded';
+          status?: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
           created_at?: string;
         };
         Update: {
@@ -1127,8 +1129,9 @@ export interface Database {
           gateway?: string;
           gateway_transaction_id?: string | null;
           client_transaction_id?: string | null;
+          payphone_transaction_id?: string | null;
           plan_id?: string | null;
-          status?: 'pending' | 'completed' | 'failed' | 'refunded';
+          status?: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
           created_at?: string;
         };
         Relationships: [];

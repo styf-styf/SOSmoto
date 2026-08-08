@@ -22,6 +22,21 @@ async function getPushToken(supabase: ReturnType<typeof createClient>, userId: s
   return (data as { push_token: string | null } | null)?.push_token ?? null;
 }
 
+// Deja registro en `notifications` (bandeja del perfil) además del push --
+// antes esto solo mandaba el push, sin ningún rastro si se perdía. Mismo
+// patrón que notifyUser() del lado de la app (services/notifications.ts),
+// replicado acá porque esta función corre en Deno, no puede importarlo.
+async function recordNotification(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  title: string,
+  body: string,
+  data: Record<string, unknown>
+) {
+  const { error } = await supabase.from('notifications').insert({ user_id: userId, title, body, data });
+  if (error) console.error('insert notification error', error);
+}
+
 // Cierra automáticamente los auxilios "accepted"/"in_progress" que nadie
 // cerró (ni cliente ni taller) despues de TIMEOUT_HOURS -- sin esto, un
 // auxilio olvidado deja al taller sin ver "Pendientes" nunca más y al
@@ -59,14 +74,13 @@ Deno.serve(async (req) => {
       })
       .eq('id', request.id);
 
+    const clientTitle = 'Solicitud cerrada automáticamente';
+    const clientBody = 'Tu solicitud de auxilio se cerró por inactividad. Si todavía necesitas ayuda, pide un nuevo auxilio.';
+    const clientData = { type: 'help_request_expired', helpRequestId: request.id };
+    await recordNotification(supabase, request.client_id, clientTitle, clientBody, clientData);
     const clientToken = await getPushToken(supabase, request.client_id);
     if (clientToken) {
-      await sendPush(
-        clientToken,
-        'Solicitud cerrada automáticamente',
-        'Tu solicitud de auxilio se cerró por inactividad. Si todavía necesitas ayuda, pide un nuevo auxilio.',
-        { type: 'help_request_expired', helpRequestId: request.id }
-      );
+      await sendPush(clientToken, clientTitle, clientBody, clientData);
     }
 
     if (request.accepted_business_id) {
@@ -76,14 +90,15 @@ Deno.serve(async (req) => {
         .eq('id', request.accepted_business_id)
         .maybeSingle();
       const ownerId = (businessRow as { owner_id: string } | null)?.owner_id;
-      const businessToken = ownerId ? await getPushToken(supabase, ownerId) : null;
-      if (businessToken) {
-        await sendPush(
-          businessToken,
-          'Auxilio cerrado automáticamente',
-          'Este auxilio se cerró por inactividad. Ya puedes recibir y aceptar nuevas solicitudes.',
-          { type: 'help_request_expired', helpRequestId: request.id }
-        );
+      if (ownerId) {
+        const businessTitle = 'Auxilio cerrado automáticamente';
+        const businessBody = 'Este auxilio se cerró por inactividad. Ya puedes recibir y aceptar nuevas solicitudes.';
+        const businessData = { type: 'help_request_expired', helpRequestId: request.id };
+        await recordNotification(supabase, ownerId, businessTitle, businessBody, businessData);
+        const businessToken = await getPushToken(supabase, ownerId);
+        if (businessToken) {
+          await sendPush(businessToken, businessTitle, businessBody, businessData);
+        }
       }
     }
   }
