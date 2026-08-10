@@ -59,7 +59,7 @@ export function AssignPlanForm({ plans }: { plans: { id: string; name: string; b
   async function handleAssign() {
     if (!selected || !planId || (!unlimited && !expiresAt)) return;
     const planLabel = PLAN_LABELS[plans.find((p) => p.id === planId)?.name ?? ''] ?? 'seleccionado';
-    const whenLabel = unlimited ? 'sin fecha de corte (no vence nunca)' : `hasta el ${new Date(expiresAt).toLocaleDateString('es-EC')}`;
+    const whenLabel = unlimited ? 'sin fecha de corte (no vence nunca)' : `hasta el ${new Date(expiresAt).toLocaleDateString('es-419')}`;
     if (
       !window.confirm(
         `¿Asignar el plan ${planLabel} a "${selected.name}" ${whenLabel}? Esto reemplaza su plan actual sin pasar por pago ni por las restricciones normales de la promoción.`

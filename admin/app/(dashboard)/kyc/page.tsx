@@ -95,7 +95,7 @@ export default async function KycPage({
               {req.ruc_document_path && <DocLink label="RUC" url={signedUrls.get(req.ruc_document_path)} />}
               <DocLink label="Local" url={signedUrls.get(req.storefront_photo_path)} />
             </div>
-            <p className="mt-2 text-xs text-gray-400">{new Date(req.created_at).toLocaleString('es-EC')}</p>
+            <p className="mt-2 text-xs text-gray-400">{new Date(req.created_at).toLocaleString('es-419')}</p>
             <KycReviewActions requestId={req.id} />
           </div>
         ))}
@@ -125,7 +125,7 @@ export default async function KycPage({
                 <span className={statusColor[req.status]}>{statusLabel[req.status]}</span>
               </td>
               <td className="px-4 py-3 text-gray-500">{req.admin_notes ?? '—'}</td>
-              <td className="px-4 py-3">{new Date(req.created_at).toLocaleString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(req.created_at).toLocaleString('es-419')}</td>
             </tr>
           ))}
           {history.length === 0 && !historyResult.error && (

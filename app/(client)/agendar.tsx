@@ -229,7 +229,7 @@ export default function AgendarScreen() {
           <Text style={styles.fieldLabel}>Fecha</Text>
           <Pressable style={styles.pickerButton} onPress={() => setShowDatePicker((prev) => !prev)}>
             <Text style={styles.pickerButtonText}>
-              {pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+              {pickerDate.toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}
             </Text>
           </Pressable>
           {showDatePicker && (
@@ -245,7 +245,7 @@ export default function AgendarScreen() {
           <Text style={styles.fieldLabel}>Hora</Text>
           <Pressable style={styles.pickerButton} onPress={() => setShowTimePicker((prev) => !prev)}>
             <Text style={styles.pickerButtonText}>
-              {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+              {pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </Pressable>
           {showTimePicker && (
@@ -254,7 +254,7 @@ export default function AgendarScreen() {
 
           <Text style={styles.dateHint}>
             Propuesta:{' '}
-            {suggestedDateTime.toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+            {suggestedDateTime.toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' })}
           </Text>
         </View>
       )}

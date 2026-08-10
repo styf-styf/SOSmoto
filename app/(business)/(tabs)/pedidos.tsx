@@ -11,10 +11,11 @@ import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { getMyWorkBusiness } from '../../../services/businesses';
 import { getBusinessProductIntents } from '../../../services/productIntents';
 import { toWhatsappLink } from '../../../utils/whatsapp';
+import { dialCodeForCountry } from '../../../constants/locations';
 import type { ProductIntentWithDetails, ProductIntentStatus } from '../../../types/database';
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(iso).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function fmtPrice(price: number | null) {
@@ -47,6 +48,7 @@ export default function PedidosScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessCountry, setBusinessCountry] = useState<string>('Ecuador');
   const [intents, setIntents] = useState<ProductIntentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,6 +72,7 @@ export default function PedidosScreen() {
       .then((work) => {
         if (!work) return;
         setBusinessId(work.business.id);
+        setBusinessCountry(work.business.country);
         return load(work.business.id);
       })
       .catch((err) => console.error('load pedidos error', err))
@@ -134,7 +137,7 @@ export default function PedidosScreen() {
             {intent.client_phone && (
               <Pressable
                 style={styles.phoneRow}
-                onPress={() => Linking.openURL(toWhatsappLink(intent.client_phone))}
+                onPress={() => Linking.openURL(toWhatsappLink(intent.client_phone, undefined, dialCodeForCountry(businessCountry)))}
               >
                 <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
                 <Text style={styles.phoneText}>{intent.client_phone}</Text>

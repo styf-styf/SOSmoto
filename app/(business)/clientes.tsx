@@ -25,7 +25,7 @@ function formatLastVisit(iso: string): string {
   if (diffDays < 7) return `Hace ${diffDays} días`;
   if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} sem.`;
   if (diffDays < 365) return `Hace ${Math.floor(diffDays / 30)} meses`;
-  return d.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('es-419', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function ClientesScreen() {

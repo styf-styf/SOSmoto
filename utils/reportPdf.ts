@@ -18,7 +18,7 @@ function statusColor(s: InspectionStatus): string {
 
 // Texto plano — fallback para Expo Go
 function buildTextSummary(report: ServiceReportWithBusiness): string {
-  const date = new Date(report.created_at).toLocaleDateString('es-EC', {
+  const date = new Date(report.created_at).toLocaleDateString('es-419', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
   const lines: string[] = [];
@@ -28,7 +28,7 @@ function buildTextSummary(report: ServiceReportWithBusiness): string {
   const clientParts = [report.client_name, report.vehicle_label, report.vehicle_plate].filter(Boolean);
   if (clientParts.length) lines.push('', clientParts.join('  ·  '));
   if (report.service_km) lines.push(`Kilometraje: ${report.service_km.toLocaleString()} km`);
-  if (report.entry_date) lines.push(`Ingreso: ${new Date(report.entry_date).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`);
+  if (report.entry_date) lines.push(`Ingreso: ${new Date(report.entry_date).toLocaleString('es-419', { dateStyle: 'short', timeStyle: 'short' })}`);
   lines.push('', 'SERVICIOS REALIZADOS:');
   report.services_performed.forEach((s) => lines.push(`• ${s}`));
   if (report.parts_used && report.parts_used.length > 0) {
@@ -51,7 +51,7 @@ function buildTextSummary(report: ServiceReportWithBusiness): string {
   if (report.next_maintenance_km || report.next_maintenance_date) {
     lines.push('', 'PRÓXIMO MANTENIMIENTO:');
     if (report.next_maintenance_km) lines.push(`• A los ${report.next_maintenance_km.toLocaleString()} km`);
-    if (report.next_maintenance_date) lines.push(`• ${new Date(report.next_maintenance_date).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}`);
+    if (report.next_maintenance_date) lines.push(`• ${new Date(report.next_maintenance_date).toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}`);
   }
   if (report.client_confirmed_at) lines.push('', `✓ Confirmado por el cliente`);
   lines.push('', '— Generado por SOSmoto');
@@ -60,7 +60,7 @@ function buildTextSummary(report: ServiceReportWithBusiness): string {
 
 // HTML completo — para el PDF en build de producción (Play Store / EAS)
 function buildHtml(report: ServiceReportWithBusiness): string {
-  const date = new Date(report.created_at).toLocaleDateString('es-EC', {
+  const date = new Date(report.created_at).toLocaleDateString('es-419', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
   const clientLine = [report.client_name, report.vehicle_label, report.vehicle_plate].filter(Boolean).join('  ·  ');
@@ -94,7 +94,7 @@ function buildHtml(report: ServiceReportWithBusiness): string {
     <div class="section">
       <div class="section-title">Próximo mantenimiento</div>
       ${report.next_maintenance_km ? `<p class="body-text">A los ${report.next_maintenance_km.toLocaleString()} km</p>` : ''}
-      ${report.next_maintenance_date ? `<p class="body-text">${new Date(report.next_maintenance_date).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}</p>` : ''}
+      ${report.next_maintenance_date ? `<p class="body-text">${new Date(report.next_maintenance_date).toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}</p>` : ''}
     </div>` : '';
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -128,8 +128,8 @@ function buildHtml(report: ServiceReportWithBusiness): string {
   </div>` : ''}
   ${(report.entry_date || report.exit_date) ? `
   <div class="info-grid">
-    ${report.entry_date ? `<div class="info-item"><div class="info-label">Ingreso</div><div class="info-value">${new Date(report.entry_date).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</div></div>` : ''}
-    ${report.exit_date ? `<div class="info-item"><div class="info-label">Salida</div><div class="info-value">${new Date(report.exit_date).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</div></div>` : ''}
+    ${report.entry_date ? `<div class="info-item"><div class="info-label">Ingreso</div><div class="info-value">${new Date(report.entry_date).toLocaleString('es-419', { dateStyle: 'short', timeStyle: 'short' })}</div></div>` : ''}
+    ${report.exit_date ? `<div class="info-item"><div class="info-label">Salida</div><div class="info-value">${new Date(report.exit_date).toLocaleString('es-419', { dateStyle: 'short', timeStyle: 'short' })}</div></div>` : ''}
   </div>` : ''}
   ${report.service_km ? `<div class="km-card">🏍️ ${report.service_km.toLocaleString()} km al momento del servicio</div>` : ''}
   <div class="section"><div class="section-title">Servicios realizados</div>

@@ -215,7 +215,7 @@ module.exports = async (req, res) => {
 
     if (activeSub && activeSub.expires_at) {
       document.getElementById('expiry').innerHTML =
-        '<p class="helper">Tu plan actual vence el ' + new Date(activeSub.expires_at).toLocaleDateString('es-EC') + '.</p>';
+        '<p class="helper">Tu plan actual vence el ' + new Date(activeSub.expires_at).toLocaleDateString('es-419') + '.</p>';
     }
 
     const plansEl = document.getElementById('plans');
@@ -275,7 +275,7 @@ module.exports = async (req, res) => {
         const price = parseFloat(btn.getAttribute('data-price'));
         const plan = (plans || []).find((p) => p.id === planId);
         const expiresLabel = activeSub && activeSub.expires_at
-          ? new Date(activeSub.expires_at).toLocaleDateString('es-EC')
+          ? new Date(activeSub.expires_at).toLocaleDateString('es-419')
           : null;
 
         const lines = price > 0

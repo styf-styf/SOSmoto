@@ -91,7 +91,7 @@ export default async function UsuariosPage({
                   <p className="mt-1 max-w-[220px] text-xs text-gray-500">{user.limitation_reason}</p>
                 )}
               </td>
-              <td className="px-4 py-3">{new Date(user.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(user.created_at).toLocaleDateString('es-419')}</td>
               <td className="px-4 py-3">
                 <UserActions userId={user.id} isLimited={user.is_limited} isAdmin={user.role === 'admin'} />
               </td>

@@ -42,7 +42,7 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 export function formatMessageTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatMessageDateLabel(iso: string): string {
@@ -52,7 +52,7 @@ export function formatMessageDateLabel(iso: string): string {
   yesterday.setDate(today.getDate() - 1);
   if (isSameDay(date, today)) return 'Hoy';
   if (isSameDay(date, yesterday)) return 'Ayer';
-  return date.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return date.toLocaleDateString('es-419', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export function shouldShowDateSeparator(messages: { created_at: string }[], index: number): boolean {

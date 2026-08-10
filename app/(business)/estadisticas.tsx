@@ -194,10 +194,10 @@ export default function EstadisticasScreen() {
       {period === 'custom' && (
         <View style={styles.customRangeRow}>
           <Pressable style={styles.dateBtn} onPress={() => setShowFromPicker(true)}>
-            <Text style={styles.dateBtnText}>Desde: {customFrom.toLocaleDateString('es-EC')}</Text>
+            <Text style={styles.dateBtnText}>Desde: {customFrom.toLocaleDateString('es-419')}</Text>
           </Pressable>
           <Pressable style={styles.dateBtn} onPress={() => setShowToPicker(true)}>
-            <Text style={styles.dateBtnText}>Hasta: {customTo.toLocaleDateString('es-EC')}</Text>
+            <Text style={styles.dateBtnText}>Hasta: {customTo.toLocaleDateString('es-419')}</Text>
           </Pressable>
           <Pressable style={[styles.applyBtn, periodLoading && styles.periodOptionDisabled]} onPress={handleApplyCustomRange} disabled={periodLoading}>
             <Text style={styles.applyBtnText}>Aplicar</Text>

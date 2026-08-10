@@ -75,7 +75,7 @@ export default async function PublicidadPage({
               )}
               <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
               <p className="text-xs text-gray-400">
-                {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
+                {new Date(ad.starts_at).toLocaleDateString('es-419')} – {new Date(ad.ends_at).toLocaleDateString('es-419')}
               </p>
               {ad.link_url && (
                 <a href={ad.link_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
@@ -112,7 +112,7 @@ export default async function PublicidadPage({
                 </p>
                 <p className="mt-1 text-xs text-gray-400">{scopeLabel(ad)}</p>
                 <p className="text-xs text-gray-400">
-                  {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
+                  {new Date(ad.starts_at).toLocaleDateString('es-419')} – {new Date(ad.ends_at).toLocaleDateString('es-419')}
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
                   {ad.impressions} impresiones · {ad.clicks} clics

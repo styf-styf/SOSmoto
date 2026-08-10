@@ -463,13 +463,13 @@ export default function NuevoInformeScreen() {
         <Pressable style={[styles.dateBtn, { flex: 1 }]} onPress={() => setShowEntryDatePicker((p) => !p)}>
           <Ionicons name="calendar-outline" size={15} color={colors.primary} />
           <Text style={styles.dateBtnText}>
-            {entryDate.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            {entryDate.toLocaleDateString('es-419', { day: '2-digit', month: '2-digit', year: 'numeric' })}
           </Text>
         </Pressable>
         <Pressable style={[styles.dateBtn, { flex: 1 }]} onPress={() => setShowEntryTimePicker((p) => !p)}>
           <Ionicons name="time-outline" size={15} color={colors.primary} />
           <Text style={styles.dateBtnText}>
-            {entryDate.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+            {entryDate.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </Pressable>
       </View>
@@ -480,13 +480,13 @@ export default function NuevoInformeScreen() {
         <Pressable style={[styles.dateBtn, { flex: 1 }]} onPress={() => setShowExitDatePicker((p) => !p)}>
           <Ionicons name="calendar-outline" size={15} color={colors.primary} />
           <Text style={styles.dateBtnText}>
-            {exitDate.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            {exitDate.toLocaleDateString('es-419', { day: '2-digit', month: '2-digit', year: 'numeric' })}
           </Text>
         </Pressable>
         <Pressable style={[styles.dateBtn, { flex: 1 }]} onPress={() => setShowExitTimePicker((p) => !p)}>
           <Ionicons name="time-outline" size={15} color={colors.primary} />
           <Text style={styles.dateBtnText}>
-            {exitDate.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+            {exitDate.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </Pressable>
       </View>
@@ -776,7 +776,7 @@ export default function NuevoInformeScreen() {
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             <Text style={styles.savedText}>
               Borrador guardado{' '}
-              {lastSaved.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+              {lastSaved.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
         )}

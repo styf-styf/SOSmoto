@@ -26,33 +26,7 @@ import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
 import { logMapLoad } from '../../services/mapLoads';
 import type { Business } from '../../types/database';
-
-const ECUADOR_PROVINCES_DN = [
-  'Azuay',
-  'Bolívar',
-  'Cañar',
-  'Carchi',
-  'Chimborazo',
-  'Cotopaxi',
-  'El Oro',
-  'Esmeraldas',
-  'Galápagos',
-  'Guayas',
-  'Imbabura',
-  'Loja',
-  'Los Ríos',
-  'Manabí',
-  'Morona Santiago',
-  'Napo',
-  'Orellana',
-  'Pastaza',
-  'Pichincha',
-  'Santa Elena',
-  'Santo Domingo de los Tsáchilas',
-  'Sucumbíos',
-  'Tungurahua',
-  'Zamora Chinchipe',
-];
+import { ECUADOR_PROVINCES, LATAM_COUNTRIES } from '../../constants/locations';
 
 interface DatosNegocioData {
   business: Business | null;
@@ -125,6 +99,9 @@ export default function DatosNegocioScreen() {
   const [description, setDescription] = useState(
     () => data?.business?.description ?? '',
   );
+  const [country, setCountry] = useState(
+    () => data?.business?.country ?? 'Ecuador',
+  );
   const [province, setProvince] = useState(
     () => data?.business?.province ?? '',
   );
@@ -136,7 +113,9 @@ export default function DatosNegocioScreen() {
   );
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
+  const isEcuador = country === 'Ecuador';
 
   // Map picker
   const [selectedCoords, setSelectedCoords] = useState<{
@@ -164,6 +143,7 @@ export default function DatosNegocioScreen() {
     if (!b) return;
     setName(b.name);
     setDescription(b.description ?? '');
+    setCountry(b.country ?? 'Ecuador');
     setProvince(b.province ?? '');
     setCity(b.city);
     setAddress(b.address);
@@ -242,6 +222,7 @@ export default function DatosNegocioScreen() {
       const updated = await updateBusiness(business.id, {
         name: name.trim(),
         description: description.trim() || null,
+        country,
         province: province || null,
         city: city.trim(),
         address: address.trim(),
@@ -319,7 +300,12 @@ export default function DatosNegocioScreen() {
           </InfoCard>
 
           <InfoCard title="Ubicación">
-            <IconInfoRow icon="map-outline" label="Provincia" value={province} />
+            <IconInfoRow icon="flag-outline" label="País" value={country} />
+            <IconInfoRow
+              icon="map-outline"
+              label={isEcuador ? 'Provincia' : 'Provincia/Estado/Departamento'}
+              value={province}
+            />
             <IconInfoRow icon="location-outline" label="Ciudad" value={city} />
             <IconInfoRow icon="pin-outline" label="Dirección" value={address} last={!selectedCoords} />
             {selectedCoords && (
@@ -362,25 +348,48 @@ export default function DatosNegocioScreen() {
             multiline
           />
 
-          <Text style={styles.fieldLabel}>Provincia</Text>
+          <Text style={styles.fieldLabel}>País</Text>
           <Pressable
             style={styles.pickerButton}
-            onPress={() => setShowProvincePicker(true)}
+            onPress={() => setShowCountryPicker(true)}
           >
-            <Text
-              style={[
-                styles.pickerButtonText,
-                !province && styles.pickerButtonPlaceholder,
-              ]}
-            >
-              {province || 'Selecciona una provincia'}
-            </Text>
+            <Text style={styles.pickerButtonText}>{country}</Text>
             <Ionicons
               name="chevron-down"
               size={16}
               color={colors.textMuted}
             />
           </Pressable>
+
+          {isEcuador ? (
+            <>
+              <Text style={styles.fieldLabel}>Provincia</Text>
+              <Pressable
+                style={styles.pickerButton}
+                onPress={() => setShowProvincePicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.pickerButtonText,
+                    !province && styles.pickerButtonPlaceholder,
+                  ]}
+                >
+                  {province || 'Selecciona una provincia'}
+                </Text>
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </>
+          ) : (
+            <TextField
+              label="Provincia/Estado/Departamento"
+              value={province}
+              onChangeText={setProvince}
+            />
+          )}
 
           <TextField
             label="Ciudad"
@@ -418,7 +427,7 @@ export default function DatosNegocioScreen() {
               <View style={styles.modalSheet}>
                 <Text style={styles.modalTitle}>Selecciona la provincia</Text>
                 <FlatList
-                  data={ECUADOR_PROVINCES_DN}
+                  data={ECUADOR_PROVINCES}
                   keyExtractor={(item) => item}
                   renderItem={({ item }) => (
                     <Pressable
@@ -440,6 +449,58 @@ export default function DatosNegocioScreen() {
                         {item}
                       </Text>
                       {province === item && (
+                        <Ionicons
+                          name="checkmark"
+                          size={16}
+                          color={colors.primary}
+                        />
+                      )}
+                    </Pressable>
+                  )}
+                />
+              </View>
+            </Pressable>
+          </Modal>
+
+          <Modal
+            visible={showCountryPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCountryPicker(false)}
+          >
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => setShowCountryPicker(false)}
+            >
+              <View style={styles.modalSheet}>
+                <Text style={styles.modalTitle}>Selecciona el país</Text>
+                <FlatList
+                  data={LATAM_COUNTRIES}
+                  keyExtractor={(item) => item.name}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={[
+                        styles.provinceItem,
+                        country === item.name && styles.provinceItemSelected,
+                      ]}
+                      onPress={() => {
+                        setCountry(item.name);
+                        // Provincia solo aplica a Ecuador -- al cambiar de país
+                        // se limpia para no dejar un valor de la lista vieja
+                        // guardado por error como si fuera texto libre.
+                        if (item.name !== 'Ecuador') setProvince('');
+                        setShowCountryPicker(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.provinceText,
+                          country === item.name && styles.provinceTextSelected,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      {country === item.name && (
                         <Ionicons
                           name="checkmark"
                           size={16}

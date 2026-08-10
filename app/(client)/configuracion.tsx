@@ -17,7 +17,7 @@ import { signOut } from '../../services/auth';
 // segundo plano y se usan recién en la SIGUIENTE apertura de la app).
 const buildInfo = Updates.isEmbeddedLaunch
   ? 'Build de fábrica (sin actualización OTA aplicada)'
-  : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
+  : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-419') ?? ''}`;
 const appVersion = Constants.expoConfig?.version ?? '?';
 
 const THEME_MODE_LABEL: Record<'light' | 'dark' | 'system', string> = {

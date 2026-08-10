@@ -18,6 +18,7 @@ import { getActiveProducts, getActiveServices, getPlanLimits } from '../../servi
 import { pickAndUploadBusinessImage } from '../../services/storage';
 import type { Ad, AdKind, AdPricing, AdTargetScope, Business, Product, Service } from '../../types/database';
 import { toWhatsappLink } from '../../utils/whatsapp';
+import { dialCodeForCountry } from '../../constants/locations';
 
 const SIDE_PADDING = 20;
 const GRID_GAP = 12;
@@ -275,7 +276,7 @@ export default function PublicidadScreen() {
       );
       return;
     }
-    setLinkUrl(toWhatsappLink(business.whatsapp));
+    setLinkUrl(toWhatsappLink(business.whatsapp, undefined, dialCodeForCountry(business.country)));
     setLinkLabel('WhatsApp');
   }
 
@@ -677,7 +678,7 @@ export default function PublicidadScreen() {
               </Text>
               <Text style={styles.gridMeta}>{ad.target_city ?? 'Nacional'}</Text>
               <Text style={styles.gridMeta}>
-                {new Date(ad.starts_at).toLocaleDateString('es-EC')} – {new Date(ad.ends_at).toLocaleDateString('es-EC')}
+                {new Date(ad.starts_at).toLocaleDateString('es-419')} – {new Date(ad.ends_at).toLocaleDateString('es-419')}
               </Text>
               <Text style={styles.gridMeta}>
                 {ad.impressions} impresiones · {ad.clicks} clics

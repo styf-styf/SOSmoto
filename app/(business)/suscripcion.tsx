@@ -127,7 +127,7 @@ export default function SuscripcionScreen() {
   async function handleSwitch(plan: SubscriptionPlan) {
     if (!business) return;
 
-    const expiresAtLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('es-EC') : null;
+    const expiresAtLabel = expiresAt ? new Date(expiresAt).toLocaleDateString('es-419') : null;
     const isRenewal = plan.id === business.plan_id;
 
     if (plan.price_monthly > 0) {
@@ -261,7 +261,7 @@ export default function SuscripcionScreen() {
       </Text>
       {expiresAt && (
         <Text style={styles.helperText}>
-          Tu plan actual vence el {new Date(expiresAt).toLocaleDateString('es-EC')}.
+          Tu plan actual vence el {new Date(expiresAt).toLocaleDateString('es-419')}.
         </Text>
       )}
 

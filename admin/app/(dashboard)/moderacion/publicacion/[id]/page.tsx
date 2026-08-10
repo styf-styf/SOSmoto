@@ -53,7 +53,7 @@ export default async function PostDetailPage({ params }: { params: { id: string 
 
         {post.caption && <p className="mb-2 whitespace-pre-wrap text-sm text-gray-700">{post.caption}</p>}
         <p className="text-xs text-gray-400">
-          Publicado el {new Date(post.created_at).toLocaleString('es-EC')} · {post.comments_count} comentario(s)
+          Publicado el {new Date(post.created_at).toLocaleString('es-419')} · {post.comments_count} comentario(s)
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default async function PostDetailPage({ params }: { params: { id: string 
             <div>
               <p className="text-sm font-semibold">{comment.users?.full_name ?? 'Usuario'}</p>
               <p className="text-sm text-gray-600">{comment.body}</p>
-              <p className="mt-1 text-xs text-gray-400">{new Date(comment.created_at).toLocaleString('es-EC')}</p>
+              <p className="mt-1 text-xs text-gray-400">{new Date(comment.created_at).toLocaleString('es-419')}</p>
             </div>
             <PostCommentDeleteButton commentId={comment.id} />
           </div>

@@ -76,7 +76,7 @@ export default function CuentaEliminacionPendienteScreen() {
     );
   }
 
-  const scheduledDate = new Date(request.scheduled_for).toLocaleDateString('es-EC', {
+  const scheduledDate = new Date(request.scheduled_for).toLocaleDateString('es-419', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -89,7 +89,7 @@ export default function CuentaEliminacionPendienteScreen() {
       </View>
       <Text style={styles.title}>Tu cuenta se eliminará el {scheduledDate}</Text>
       <Text style={styles.body}>
-        Pediste eliminar tu cuenta el {new Date(request.requested_at).toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })}.
+        Pediste eliminar tu cuenta el {new Date(request.requested_at).toLocaleDateString('es-419', { day: 'numeric', month: 'long', year: 'numeric' })}.
         Mientras tanto tu cuenta queda suspendida y no puedes usar la app. Si cambiaste de opinión, puedes cancelar la
         eliminación en cualquier momento antes de esa fecha.
       </Text>

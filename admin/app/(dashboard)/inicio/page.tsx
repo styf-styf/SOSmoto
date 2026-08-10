@@ -163,12 +163,12 @@ export default async function InicioPage() {
         <Section title="Pagos" href="/suscripciones">
           {failedPayments.map((p) => (
             <Row key={p.id} left={`${p.businesses?.name ?? '—'} · ${p.type === 'subscription' ? 'suscripción' : 'publicidad'}`}>
-              Falló · ${p.amount} · {new Date(p.created_at).toLocaleString('es-EC')}
+              Falló · ${p.amount} · {new Date(p.created_at).toLocaleString('es-419')}
             </Row>
           ))}
           {stuckPayments.map((p) => (
             <Row key={p.id} left={`${p.businesses?.name ?? '—'} · ${p.type === 'subscription' ? 'suscripción' : 'publicidad'}`}>
-              Pendiente desde {new Date(p.created_at).toLocaleString('es-EC')} · ${p.amount}
+              Pendiente desde {new Date(p.created_at).toLocaleString('es-419')} · ${p.amount}
             </Row>
           ))}
         </Section>
@@ -178,7 +178,7 @@ export default async function InicioPage() {
         <Section title="Verificación (KYC)" href="/kyc">
           {kycPending.map((k) => (
             <Row key={k.id} left={`${k.businesses?.name ?? '—'} · ${k.businesses?.city ?? ''}`}>
-              Solicitada el {new Date(k.created_at).toLocaleDateString('es-EC')}
+              Solicitada el {new Date(k.created_at).toLocaleDateString('es-419')}
             </Row>
           ))}
         </Section>
@@ -193,7 +193,7 @@ export default async function InicioPage() {
           ))}
           {disputesFlagged.map((d) => (
             <Row key={d.id} left={`Auxilio · ${d.businesses?.name ?? '—'}`}>
-              Marcada el {new Date(d.created_at).toLocaleDateString('es-EC')}
+              Marcada el {new Date(d.created_at).toLocaleDateString('es-419')}
             </Row>
           ))}
         </Section>
@@ -203,7 +203,7 @@ export default async function InicioPage() {
         <Section title="Correos sin leer" href="/correos">
           {unreadEmails.slice(0, 8).map((e) => (
             <Row key={e.id} left={e.from_address}>
-              {e.subject || '(sin asunto)'} · {new Date(e.created_at).toLocaleDateString('es-EC')}
+              {e.subject || '(sin asunto)'} · {new Date(e.created_at).toLocaleDateString('es-419')}
             </Row>
           ))}
           {unreadEmails.length > 8 && <p className="px-4 py-2 text-xs text-gray-400">y {unreadEmails.length - 8} más...</p>}

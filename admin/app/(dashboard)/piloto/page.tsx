@@ -30,7 +30,7 @@ function daysSince(iso: string): number {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleDateString('es-419', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 export default async function PilotoPage() {
@@ -197,7 +197,7 @@ export default async function PilotoPage() {
     <div>
       <h1 className="mb-1 text-xl font-bold">Piloto</h1>
       <p className="mb-4 text-sm text-gray-500">
-        Solo para el lanzamiento piloto -- todo se mide desde el {new Date(PILOT_START).toLocaleDateString('es-EC')}. Día {pilotDay} de{' '}
+        Solo para el lanzamiento piloto -- todo se mide desde el {new Date(PILOT_START).toLocaleDateString('es-419')}. Día {pilotDay} de{' '}
         {PILOT_DURATION_DAYS}. Esta pantalla se quita cuando el piloto termine.
       </p>
 

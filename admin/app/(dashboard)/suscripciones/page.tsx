@@ -99,7 +99,7 @@ export default async function SuscripcionesPage({ searchParams }: { searchParams
               <td className="px-4 py-3">
                 <span className={statusColor[payment.status]}>{statusLabel[payment.status]}</span>
               </td>
-              <td className="px-4 py-3">{new Date(payment.created_at).toLocaleString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(payment.created_at).toLocaleString('es-419')}</td>
               <td className="px-4 py-3">
                 {payment.status === 'completed' && <PaymentRefundButton paymentId={payment.id} />}
               </td>

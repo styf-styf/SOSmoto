@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
 
   const content = row?.content ?? '<p>Este documento todavía no está disponible.</p>';
   const updated = row?.published_at
-    ? new Date(row.published_at).toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(row.published_at).toLocaleDateString('es-419', { day: 'numeric', month: 'long', year: 'numeric' })
     : '—';
 
   res.status(200).send(`<!DOCTYPE html>

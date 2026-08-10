@@ -27,6 +27,7 @@ import { GradientShade } from '../../../components/GradientShade';
 import { TextField } from '../../../components/TextField';
 import { useColors } from '../../../hooks/ThemeContext';
 import type { ColorTheme } from '../../../constants/colors';
+import { ECUADOR_PROVINCES, LATAM_COUNTRIES } from '../../../constants/locations';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import {
@@ -907,33 +908,6 @@ function PendingInvitationsScreen({
   );
 }
 
-const ECUADOR_PROVINCES = [
-  'Azuay',
-  'Bolívar',
-  'Cañar',
-  'Carchi',
-  'Chimborazo',
-  'Cotopaxi',
-  'El Oro',
-  'Esmeraldas',
-  'Galápagos',
-  'Guayas',
-  'Imbabura',
-  'Loja',
-  'Los Ríos',
-  'Manabí',
-  'Morona Santiago',
-  'Napo',
-  'Orellana',
-  'Pastaza',
-  'Pichincha',
-  'Santa Elena',
-  'Santo Domingo de los Tsáchilas',
-  'Sucumbíos',
-  'Tungurahua',
-  'Zamora Chinchipe',
-];
-
 const QUITO_DEFAULT = { latitude: -0.1807, longitude: -78.4678 };
 
 function BusinessOnboarding({
@@ -947,13 +921,16 @@ function BusinessOnboarding({
   const { coords, getCoords } = useLocation();
   const [businessType, setBusinessType] = useState<BusinessType>('workshop');
   const [name, setName] = useState('');
+  const [country, setCountry] = useState('Ecuador');
   const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [gettingAddress, setGettingAddress] = useState(false);
+  const isEcuador = country === 'Ecuador';
 
   // Teclado
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -1044,6 +1021,7 @@ function BusinessOnboarding({
         ownerId: profile.id,
         businessType,
         name: name.trim(),
+        country,
         province,
         city: city.trim(),
         address: address.trim(),
@@ -1097,21 +1075,40 @@ function BusinessOnboarding({
         onChangeText={setName}
       />
 
-      <Text style={styles.fieldLabel}>Provincia *</Text>
+      <Text style={styles.fieldLabel}>País *</Text>
       <Pressable
         style={styles.pickerButton}
-        onPress={() => setShowProvincePicker(true)}
+        onPress={() => setShowCountryPicker(true)}
       >
-        <Text
-          style={[
-            styles.pickerButtonText,
-            !province && styles.pickerButtonPlaceholder,
-          ]}
-        >
-          {province || 'Selecciona una provincia'}
-        </Text>
+        <Text style={styles.pickerButtonText}>{country}</Text>
         <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
+
+      {isEcuador ? (
+        <>
+          <Text style={styles.fieldLabel}>Provincia *</Text>
+          <Pressable
+            style={styles.pickerButton}
+            onPress={() => setShowProvincePicker(true)}
+          >
+            <Text
+              style={[
+                styles.pickerButtonText,
+                !province && styles.pickerButtonPlaceholder,
+              ]}
+            >
+              {province || 'Selecciona una provincia'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+          </Pressable>
+        </>
+      ) : (
+        <TextField
+          label="Provincia/Estado/Departamento *"
+          value={province}
+          onChangeText={setProvince}
+        />
+      )}
 
       <TextField
         label="Ciudad *"
@@ -1202,6 +1199,59 @@ function BusinessOnboarding({
                     {item}
                   </Text>
                   {province === item && (
+                    <Ionicons
+                      name="checkmark"
+                      size={16}
+                      color={colors.primary}
+                    />
+                  )}
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Country picker */}
+      <Modal
+        visible={showCountryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowCountryPicker(false)}
+        >
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Selecciona el país</Text>
+            <FlatList
+              data={LATAM_COUNTRIES}
+              keyExtractor={(item) => item.name}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.provinceItem,
+                    country === item.name && styles.provinceItemSelected,
+                  ]}
+                  onPress={() => {
+                    setCountry(item.name);
+                    // Provincia solo aplica a Ecuador -- al cambiar de país se
+                    // limpia para no dejar un valor de la lista vieja guardado
+                    // por error como si fuera texto libre.
+                    if (item.name !== 'Ecuador') setProvince('');
+                    setShowCountryPicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.provinceText,
+                      country === item.name && styles.provinceTextSelected,
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                  {country === item.name && (
                     <Ionicons
                       name="checkmark"
                       size={16}

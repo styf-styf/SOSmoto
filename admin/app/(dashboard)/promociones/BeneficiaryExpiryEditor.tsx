@@ -17,7 +17,7 @@ export function BeneficiaryExpiryEditor({ subscriptionId, expiresAt }: { subscri
 
   async function handleSave() {
     if (!value) return;
-    const formatted = new Date(value).toLocaleDateString('es-EC');
+    const formatted = new Date(value).toLocaleDateString('es-419');
     if (!window.confirm(`¿Cambiar la fecha de corte de este negocio a ${formatted}?`)) return;
     setSaving(true);
     setError(null);
@@ -39,7 +39,7 @@ export function BeneficiaryExpiryEditor({ subscriptionId, expiresAt }: { subscri
   if (!editing) {
     return (
       <div className="flex items-center gap-2">
-        <span>{expiresAt ? new Date(expiresAt).toLocaleDateString('es-EC') : '—'}</span>
+        <span>{expiresAt ? new Date(expiresAt).toLocaleDateString('es-419') : '—'}</span>
         <button onClick={() => setEditing(true)} className="text-xs font-semibold text-primary hover:underline">
           Cambiar fecha
         </button>

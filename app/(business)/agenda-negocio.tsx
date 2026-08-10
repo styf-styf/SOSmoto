@@ -35,7 +35,7 @@ import { createClientReview, getReviewedTargetIds } from '../../services/reviews
 import { getReportIdsByAppointments, type AppointmentReportInfo } from '../../services/serviceReports';
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(iso).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 interface AgendaData {
@@ -331,7 +331,7 @@ export default function AgendaNegocioScreen() {
                   <Text style={styles.fieldLabel}>Fecha</Text>
                   <Pressable style={styles.pickerButton} onPress={() => requestActions.setShowApproveDatePicker((prev) => !prev)}>
                     <Text style={styles.pickerButtonText}>
-                      {requestActions.approvePickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      {requestActions.approvePickerDate.toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}
                     </Text>
                   </Pressable>
                   {requestActions.showApproveDatePicker && (
@@ -347,7 +347,7 @@ export default function AgendaNegocioScreen() {
                   <Text style={styles.fieldLabel}>Hora</Text>
                   <Pressable style={styles.pickerButton} onPress={() => requestActions.setShowApproveTimePicker((prev) => !prev)}>
                     <Text style={styles.pickerButtonText}>
-                      {requestActions.approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      {requestActions.approvePickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </Pressable>
                   {requestActions.showApproveTimePicker && (
@@ -527,7 +527,7 @@ export default function AgendaNegocioScreen() {
                     onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                      {rescheduleActions.pickerDate.toLocaleDateString('es-419', {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
@@ -550,7 +550,7 @@ export default function AgendaNegocioScreen() {
                     onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </Pressable>
                   {rescheduleActions.showTimePicker && (

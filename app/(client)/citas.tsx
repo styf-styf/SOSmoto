@@ -29,7 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(iso).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 // Componente estable (definido una sola vez, no dentro del .map de la
@@ -316,7 +316,7 @@ export default function CitasScreen() {
                     onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                      {rescheduleActions.pickerDate.toLocaleDateString('es-419', {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
@@ -339,7 +339,7 @@ export default function CitasScreen() {
                     onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </Pressable>
                   {rescheduleActions.showTimePicker && (

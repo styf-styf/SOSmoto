@@ -77,7 +77,7 @@ export default function HistorialPagosScreen() {
               <View style={styles.paymentInfo}>
                 <Text style={styles.paymentType}>{paymentTypeLabel[payment.type] ?? payment.type}</Text>
                 <Text style={styles.paymentDate}>
-                  {new Date(payment.created_at).toLocaleDateString('es-EC', { dateStyle: 'medium' })}
+                  {new Date(payment.created_at).toLocaleDateString('es-419', { dateStyle: 'medium' })}
                 </Text>
               </View>
               <Text style={styles.paymentAmount}>

@@ -163,7 +163,7 @@ export function AppointmentCalendar({ appointments, selectedDate, onSelectDate }
       {selectedDate && (
         <View style={styles.filterRow}>
           <Text style={styles.filterText} numberOfLines={1}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-EC', {
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-419', {
               weekday: 'long', day: 'numeric', month: 'long',
             })}
             {'  '}

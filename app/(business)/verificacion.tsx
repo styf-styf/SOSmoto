@@ -174,7 +174,7 @@ export default function VerificacionScreen() {
         <Ionicons name="time-outline" size={48} color={colors.warning} />
         <Text style={styles.statusTitle}>Tu solicitud está en revisión</Text>
         <Text style={styles.placeholder}>
-          Enviada el {new Date(latestRequest.created_at).toLocaleDateString('es-EC')}. Te avisaremos cuando se apruebe.
+          Enviada el {new Date(latestRequest.created_at).toLocaleDateString('es-419')}. Te avisaremos cuando se apruebe.
         </Text>
       </View>
     );

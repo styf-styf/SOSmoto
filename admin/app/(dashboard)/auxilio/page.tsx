@@ -150,9 +150,9 @@ export default async function AuxilioPage({ searchParams }: { searchParams: { pa
                 <span className={statusColor[r.status]}>{statusLabel[r.status]}</span>
               </td>
               <td className="px-4 py-3">{r.estimated_arrival_minutes !== null ? `${r.estimated_arrival_minutes} min` : '—'}</td>
-              <td className="px-4 py-3">{new Date(r.created_at).toLocaleString('es-EC')}</td>
-              <td className="px-4 py-3">{r.accepted_at ? new Date(r.accepted_at).toLocaleString('es-EC') : '—'}</td>
-              <td className="px-4 py-3">{r.completed_at ? new Date(r.completed_at).toLocaleString('es-EC') : '—'}</td>
+              <td className="px-4 py-3">{new Date(r.created_at).toLocaleString('es-419')}</td>
+              <td className="px-4 py-3">{r.accepted_at ? new Date(r.accepted_at).toLocaleString('es-419') : '—'}</td>
+              <td className="px-4 py-3">{r.completed_at ? new Date(r.completed_at).toLocaleString('es-419') : '—'}</td>
               <td className="px-4 py-3">
                 <DisputeCell requestId={r.id} status={r.dispute_status as DisputeStatus} notes={r.admin_notes} />
               </td>

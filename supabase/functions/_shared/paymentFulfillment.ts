@@ -78,7 +78,7 @@ async function notifyPlanChanged(
 <tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Negocio</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(business.name)}</td></tr>
 <tr style="border-bottom:1px solid #eee"><td style="padding:10px 0;color:#666;font-size:13px">Plan</td><td style="padding:10px 0;text-align:right;font-weight:bold">${escapeHtml(planLabel)}</td></tr>
 ${priceRow}
-<tr><td style="padding:10px 0;color:#666;font-size:13px">Vigente hasta</td><td style="padding:10px 0;text-align:right">${expiresAt.toLocaleDateString('es-EC')}</td></tr>
+<tr><td style="padding:10px 0;color:#666;font-size:13px">Vigente hasta</td><td style="padding:10px 0;text-align:right">${expiresAt.toLocaleDateString('es-419')}</td></tr>
 </table>
 ${appButton('pago-resultado', { tipo: 'subscription', ok: '1' })}`
     );

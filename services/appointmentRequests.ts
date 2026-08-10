@@ -139,7 +139,7 @@ export async function createAppointmentRequest(
   if (params.vehicleLabel) lines.push(`Moto: ${params.vehicleLabel}`);
   if (params.notes) lines.push(`Notas: ${params.notes}`);
   if (params.suggestedAt) {
-    const dtStr = new Date(params.suggestedAt).toLocaleString('es-EC', {
+    const dtStr = new Date(params.suggestedAt).toLocaleString('es-419', {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
@@ -307,7 +307,7 @@ export async function acceptAppointmentRequest(
   if (error) throw error;
 
   // 3. Mensaje de confirmación en el chat
-  const dtStr = new Date(confirmedAt).toLocaleString('es-EC', {
+  const dtStr = new Date(confirmedAt).toLocaleString('es-419', {
     dateStyle: 'medium',
     timeStyle: 'short',
   });

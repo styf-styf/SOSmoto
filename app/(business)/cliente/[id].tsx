@@ -13,6 +13,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { supabase } from '../../../services/supabase';
 import { getMyWorkBusiness } from '../../../services/businesses';
+import { dialCodeForCountry } from '../../../constants/locations';
 import { getClientProfileForBusiness, getBusinessHistory, type HistoryItem, type ClientProfileForBusiness } from '../../../services/history';
 import {
   cancelAppointment,
@@ -36,7 +37,7 @@ import { formatVehicle, type Vehicle, type ProductIntentWithProduct } from '../.
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('es-419', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // La pestaña "Historial" mezcla 3 fuentes distintas (interacciones
@@ -68,6 +69,7 @@ export default function ClienteDetailScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [isStore, setIsStore] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessCountry, setBusinessCountry] = useState<string>('Ecuador');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ClienteTab>('citas');
   const [refreshing, setRefreshing] = useState(false);
@@ -86,6 +88,7 @@ export default function ClienteDetailScreen() {
     ]);
     if (!work || !clientProfile) return;
     setBusinessId(work.business.id);
+    setBusinessCountry(work.business.country);
     setClient(clientProfile);
     const storeType = work.business.business_type === 'store';
     setIsStore(storeType);
@@ -349,7 +352,7 @@ export default function ClienteDetailScreen() {
 
       {/* Acciones rápidas */}
       <View style={styles.actionsRow}>
-        {client.phone && <ContactActionButtons phone={client.phone} />}
+        {client.phone && <ContactActionButtons phone={client.phone} dialCode={dialCodeForCountry(businessCountry)} />}
         <Pressable
           style={[styles.actionBtn, isPending && styles.actionBtnDisabled]}
           onPress={() => !isPending && router.push(`/(business)/chat/${id}`)}
@@ -459,7 +462,7 @@ export default function ClienteDetailScreen() {
                     onPress={() => requestActions.setShowApproveDatePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {requestActions.approvePickerDate.toLocaleDateString('es-EC', {
+                      {requestActions.approvePickerDate.toLocaleDateString('es-419', {
                         day: '2-digit', month: 'long', year: 'numeric',
                       })}
                     </Text>
@@ -479,7 +482,7 @@ export default function ClienteDetailScreen() {
                     onPress={() => requestActions.setShowApproveTimePicker((prev) => !prev)}
                   >
                     <Text style={styles.pickerButtonText}>
-                      {requestActions.approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                      {requestActions.approvePickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </Pressable>
                   {requestActions.showApproveTimePicker && (
@@ -538,7 +541,7 @@ export default function ClienteDetailScreen() {
                   <StatusBadge label={aptStatusLabel(apt)} tone={aptTone(apt)} />
                   {apt.requested_at && (
                     <Text style={styles.aptDate}>
-                      {new Date(apt.requested_at).toLocaleString('es-EC', {
+                      {new Date(apt.requested_at).toLocaleString('es-419', {
                         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
                       })}
                     </Text>
@@ -560,7 +563,7 @@ export default function ClienteDetailScreen() {
                       onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}
                     >
                       <Text style={styles.pickerButtonText}>
-                        {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                        {rescheduleActions.pickerDate.toLocaleDateString('es-419', {
                           day: '2-digit', month: 'long', year: 'numeric',
                         })}
                       </Text>
@@ -580,7 +583,7 @@ export default function ClienteDetailScreen() {
                       onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}
                     >
                       <Text style={styles.pickerButtonText}>
-                        {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                        {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </Pressable>
                     {rescheduleActions.showTimePicker && (

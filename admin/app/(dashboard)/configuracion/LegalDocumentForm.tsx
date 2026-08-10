@@ -54,7 +54,7 @@ export function LegalDocumentForm({ type, doc }: { type: 'terms' | 'privacy'; do
         <div>
           <p className="text-sm font-semibold text-gray-700">{TYPE_LABEL[type]}</p>
           <p className="text-xs text-gray-400">
-            {doc ? `Versión ${doc.version} · publicada el ${new Date(doc.published_at).toLocaleDateString('es-EC')}` : 'Sin publicar todavía'}
+            {doc ? `Versión ${doc.version} · publicada el ${new Date(doc.published_at).toLocaleDateString('es-419')}` : 'Sin publicar todavía'}
           </p>
         </div>
         {!editing && (

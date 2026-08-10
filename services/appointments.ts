@@ -349,7 +349,7 @@ export async function createAppointmentByBusiness(
   if (!isExternal && params.clientId) {
     // Notificar al cliente en la app
     const svcLabel = params.serviceName ? `· ${params.serviceName}` : '';
-    const dtStr = new Date(params.scheduledAt).toLocaleString('es-EC', {
+    const dtStr = new Date(params.scheduledAt).toLocaleString('es-419', {
       dateStyle: 'medium',
       timeStyle: 'short',
     });

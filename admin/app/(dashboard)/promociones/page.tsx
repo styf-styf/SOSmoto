@@ -143,7 +143,7 @@ export default async function PromocionesPage() {
             <tr key={row.id} className="border-b border-gray-100">
               <td className="px-4 py-3 font-medium">{row.businesses?.name ?? '—'}</td>
               <td className="px-4 py-3">{PLAN_LABELS[row.subscription_plans?.name as PlanName] ?? '—'}</td>
-              <td className="px-4 py-3">{new Date(row.started_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(row.started_at).toLocaleDateString('es-419')}</td>
               <td className="px-4 py-3">
                 <BeneficiaryExpiryEditor subscriptionId={row.id} expiresAt={row.expires_at} />
               </td>

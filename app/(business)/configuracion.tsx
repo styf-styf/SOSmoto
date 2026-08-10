@@ -26,7 +26,7 @@ import { getMyWorkBusiness, setBusinessDeactivated } from '../../services/busine
 // dispositivo ya aplicó la última actualización OTA o sigue en la anterior.
 const buildInfo = Updates.isEmbeddedLaunch
   ? 'Build de fábrica (sin actualización OTA aplicada)'
-  : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
+  : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-419') ?? ''}`;
 const appVersion = Constants.expoConfig?.version ?? '?';
 import { ADS_ENABLED } from '../../constants/features';
 import { getPlanLimits, type PlanLimits } from '../../services/catalog';

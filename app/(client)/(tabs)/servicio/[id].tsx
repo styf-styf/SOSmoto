@@ -32,7 +32,7 @@ import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/
 import type { Appointment } from '../../../../types/database';
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(iso).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export default function ServiceDetailScreen() {
@@ -308,7 +308,7 @@ export default function ServiceDetailScreen() {
             <Text style={styles.fieldLabel}>Fecha</Text>
             <Pressable style={styles.pickerButton} onPress={() => rescheduleActions.setShowDatePicker((prev) => !prev)}>
               <Text style={styles.pickerButtonText}>
-                {rescheduleActions.pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                {rescheduleActions.pickerDate.toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}
               </Text>
             </Pressable>
             {rescheduleActions.showDatePicker && (
@@ -323,7 +323,7 @@ export default function ServiceDetailScreen() {
             <Text style={styles.fieldLabel}>Hora</Text>
             <Pressable style={styles.pickerButton} onPress={() => rescheduleActions.setShowTimePicker((prev) => !prev)}>
               <Text style={styles.pickerButtonText}>
-                {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </Pressable>
             {rescheduleActions.showTimePicker && (

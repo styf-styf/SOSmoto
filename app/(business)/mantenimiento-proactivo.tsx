@@ -9,6 +9,7 @@ import { getMyWorkBusiness } from '../../services/businesses';
 import { getClientsWithUpcomingMaintenance, type ClientMaintenanceItem } from '../../services/maintenanceOutreach';
 import { notifyUser } from '../../services/notifications';
 import { toWhatsappLink } from '../../utils/whatsapp';
+import { dialCodeForCountry } from '../../constants/locations';
 import type { BusinessType } from '../../types/database';
 
 export default function MantenimientoProactivoScreen() {
@@ -17,6 +18,7 @@ export default function MantenimientoProactivoScreen() {
   const { profile } = useAuth();
   const [items, setItems] = useState<ClientMaintenanceItem[]>([]);
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+  const [businessCountry, setBusinessCountry] = useState<string>('Ecuador');
   const [loading, setLoading] = useState(true);
   const [notifying, setNotifying] = useState<string | null>(null);
   // Solo se deshabilitaba mientras el envío estaba en curso -- después volvía
@@ -32,6 +34,7 @@ export default function MantenimientoProactivoScreen() {
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return;
     setBusinessType(work.business.business_type);
+    setBusinessCountry(work.business.country);
     if (work.business.business_type !== 'workshop') return;
     const data = await getClientsWithUpcomingMaintenance(work.business.id);
     setItems(data);
@@ -174,7 +177,7 @@ export default function MantenimientoProactivoScreen() {
               {item.clientPhone && (
                 <Pressable
                   style={[styles.actionBtn, styles.actionBtnSecondary]}
-                  onPress={() => Linking.openURL(toWhatsappLink(item.clientPhone))}
+                  onPress={() => Linking.openURL(toWhatsappLink(item.clientPhone, undefined, dialCodeForCountry(businessCountry)))}
                 >
                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
                   <Text style={styles.actionBtnText}>WhatsApp</Text>

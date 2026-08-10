@@ -75,8 +75,8 @@ export default async function EliminacionCuentasPage({
               <td className="px-4 py-3 font-medium">{req.users?.full_name ?? '—'}</td>
               <td className="px-4 py-3 text-gray-500">{req.users?.role === 'business' ? 'Negocio' : 'Cliente'}</td>
               <td className="px-4 py-3 text-gray-500">{req.reason ?? '—'}</td>
-              <td className="px-4 py-3">{new Date(req.requested_at).toLocaleDateString('es-EC')}</td>
-              <td className="px-4 py-3">{new Date(req.scheduled_for).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(req.requested_at).toLocaleDateString('es-419')}</td>
+              <td className="px-4 py-3">{new Date(req.scheduled_for).toLocaleDateString('es-419')}</td>
             </tr>
           ))}
           {pending.length === 0 && !pendingResult.error && (
@@ -111,7 +111,7 @@ export default async function EliminacionCuentasPage({
               </td>
               <td className="px-4 py-3 text-gray-500">{req.reason ?? '—'}</td>
               <td className="px-4 py-3">
-                {new Date(req.completed_at ?? req.cancelled_at ?? req.requested_at).toLocaleDateString('es-EC')}
+                {new Date(req.completed_at ?? req.cancelled_at ?? req.requested_at).toLocaleDateString('es-419')}
               </td>
             </tr>
           ))}

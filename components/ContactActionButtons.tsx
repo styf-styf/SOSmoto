@@ -11,7 +11,10 @@ import { toWhatsappLink } from '../utils/whatsapp';
 // Pressable -- el caller sigue poniendo su propio View con actionsRow
 // alrededor, junto a los demás botones que sí difieren por pantalla (chat,
 // crear informe, invitar a la app).
-export function ContactActionButtons({ phone }: { phone: string }) {
+// dialCode: código de marcado del país del negocio dueño del número (ver
+// constants/locations.ts dialCodeForCountry) -- opcional, cae a Ecuador
+// (593) si el caller todavía no lo pasa.
+export function ContactActionButtons({ phone, dialCode }: { phone: string; dialCode?: string }) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
@@ -20,7 +23,7 @@ export function ContactActionButtons({ phone }: { phone: string }) {
         <Ionicons name="call-outline" size={20} color={colors.primary} />
         <Text style={styles.actionLabel}>Llamar</Text>
       </Pressable>
-      <Pressable style={styles.actionBtn} onPress={() => Linking.openURL(toWhatsappLink(phone))}>
+      <Pressable style={styles.actionBtn} onPress={() => Linking.openURL(toWhatsappLink(phone, undefined, dialCode))}>
         <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
         <Text style={styles.actionLabel}>WhatsApp</Text>
       </Pressable>

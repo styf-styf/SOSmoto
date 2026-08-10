@@ -361,7 +361,7 @@ export default function ChatScreen() {
                     <Text style={styles.requestBannerSub} numberOfLines={1}>
                       {request.service_name}
                       {request.suggested_at
-                        ? ` · ${new Date(request.suggested_at).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}`
+                        ? ` · ${new Date(request.suggested_at).toLocaleString('es-419', { dateStyle: 'short', timeStyle: 'short' })}`
                         : ''}
                     </Text>
                   ) : null}
@@ -410,7 +410,7 @@ export default function ChatScreen() {
                       <Text style={styles.requestBannerSub} numberOfLines={1}>
                         {appt.service_name ? `${appt.service_name} · ` : ''}
                         {appt.requested_at
-                          ? new Date(appt.requested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })
+                          ? new Date(appt.requested_at).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' })
                           : ''}
                       </Text>
                     </View>
@@ -487,7 +487,7 @@ export default function ChatScreen() {
                       }}
                     >
                       <Text style={styles.apptPickerBtnText}>
-                        {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                        {rescheduleActions.pickerDate.toLocaleDateString('es-419', {
                           day: '2-digit',
                           month: 'long',
                           year: 'numeric',
@@ -513,7 +513,7 @@ export default function ChatScreen() {
                       }}
                     >
                       <Text style={styles.apptPickerBtnText}>
-                        {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                        {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </Pressable>
                     {rescheduleActions.showTimePicker && (

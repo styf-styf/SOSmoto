@@ -22,6 +22,7 @@ import {
 } from '../../services/businessClients';
 import { getExternalClientData, type ExternalClientData } from '../../services/history';
 import { toWhatsappLink } from '../../utils/whatsapp';
+import { dialCodeForCountry } from '../../constants/locations';
 
 const ACTIVE_STATUSES = new Set(['pending', 'scheduled', 'confirmed']);
 
@@ -45,11 +46,11 @@ function aptTone(status: string): StatusBadgeTone {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('es-419', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('es-419', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 interface VehicleForm { brand: string; model: string; year: string; plate: string }
@@ -69,6 +70,7 @@ export default function ClienteExternoScreen() {
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string>('');
+  const [businessCountry, setBusinessCountry] = useState<string>('Ecuador');
   // Los informes de servicio y las citas son exclusivos de taller -- esta
   // pantalla (a diferencia de cliente/[id].tsx) no filtraba por tipo de
   // negocio y ofrecía "Crear informe" a una tienda, que terminaba en el
@@ -103,6 +105,7 @@ export default function ClienteExternoScreen() {
           if (!work) return;
           setBusinessId(work.business.id);
           setBusinessName(work.business.name);
+          setBusinessCountry(work.business.country);
           setIsStore(work.business.business_type === 'store');
           const [extData, bcRecord] = await Promise.all([
             getExternalClientData(work.business.id, decodedName),
@@ -354,7 +357,7 @@ export default function ClienteExternoScreen() {
 
       {/* Acciones rápidas */}
       <View style={styles.actionsRow}>
-        {displayPhone && <ContactActionButtons phone={displayPhone} />}
+        {displayPhone && <ContactActionButtons phone={displayPhone} dialCode={dialCodeForCountry(businessCountry)} />}
         {displayPhone && (
           <Pressable
             style={styles.actionBtn}
@@ -362,7 +365,8 @@ export default function ClienteExternoScreen() {
               Linking.openURL(
                 toWhatsappLink(
                   displayPhone,
-                  `¡Hola ${decodedName}! Soy de ${businessName || 'tu taller de confianza'} en SOSmoto 🏍️. Te recomiendo descargar la app -- desde ahí puedes agendar citas, ver nuestro catálogo y más. Muy pronto disponible aquí: https://sosmoto.net`
+                  `¡Hola ${decodedName}! Soy de ${businessName || 'tu taller de confianza'} en SOSmoto 🏍️. Te recomiendo descargar la app -- desde ahí puedes agendar citas, ver nuestro catálogo y más. Muy pronto disponible aquí: https://sosmoto.net`,
+                  dialCodeForCountry(businessCountry)
                 )
               )
             }

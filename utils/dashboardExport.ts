@@ -90,7 +90,7 @@ function buildHtml(stats: BusinessDashboardStats, businessName: string): string 
   </style></head><body>
   <div class="header">
     <div class="header-title">${businessName}</div>
-    <div class="header-date">${periodDisplayLabel[stats.period] ?? stats.period} · Generado el ${new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+    <div class="header-date">${periodDisplayLabel[stats.period] ?? stats.period} · Generado el ${new Date().toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
   </div>
   <table>
     <thead><tr><th>Métrica</th><th style="text-align:right">Valor actual</th><th style="text-align:right">Periodo anterior</th></tr></thead>

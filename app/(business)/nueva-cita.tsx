@@ -22,6 +22,7 @@ import { scheduleAppointmentReminder } from '../../services/appointmentReminders
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getCRMClients, searchUsers, type CRMClient, type UserSearchResult } from '../../services/history';
 import { toWhatsappLink } from '../../utils/whatsapp';
+import { dialCodeForCountry } from '../../constants/locations';
 import type { Appointment, AppointmentRequest, BusinessType, Service } from '../../types/database';
 
 interface SelectedClient {
@@ -67,6 +68,7 @@ interface NuevaCitaData {
   businessId: string | null;
   businessName: string;
   businessType: BusinessType | null;
+  businessCountry: string;
   crmClients: CRMClient[];
   services: Service[];
 }
@@ -132,12 +134,12 @@ export default function NuevaCitaScreen() {
 
   const cacheKey = profile ? `nueva-cita-${profile.id}` : null;
   const { data, loading } = useCachedLoad<NuevaCitaData>(cacheKey, async () => {
-    const empty: NuevaCitaData = { businessId: null, businessName: '', businessType: null, crmClients: [], services: [] };
+    const empty: NuevaCitaData = { businessId: null, businessName: '', businessType: null, businessCountry: 'Ecuador', crmClients: [], services: [] };
     if (!profile) return empty;
     const work = await getMyWorkBusiness(profile.id);
     if (!work) return empty;
     if (work.business.business_type !== 'workshop') {
-      return { ...empty, businessId: work.business.id, businessName: work.business.name, businessType: work.business.business_type };
+      return { ...empty, businessId: work.business.id, businessName: work.business.name, businessType: work.business.business_type, businessCountry: work.business.country };
     }
     const [crm, svcList] = await Promise.all([
       getCRMClients(work.business.id),
@@ -147,6 +149,7 @@ export default function NuevaCitaScreen() {
       businessId: work.business.id,
       businessName: work.business.name,
       businessType: work.business.business_type,
+      businessCountry: work.business.country,
       crmClients: crm,
       services: svcList,
     };
@@ -154,6 +157,7 @@ export default function NuevaCitaScreen() {
   const businessId = data?.businessId ?? null;
   const businessName = data?.businessName ?? '';
   const businessType = data?.businessType ?? null;
+  const businessCountry = data?.businessCountry ?? 'Ecuador';
   const crmClients = data?.crmClients ?? [];
   const services = data?.services ?? [];
 
@@ -316,7 +320,7 @@ export default function NuevaCitaScreen() {
       });
 
       if (selectedClient.isExternal && selectedClient.phone) {
-        const dateStr = new Date(scheduledAt).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' });
+        const dateStr = new Date(scheduledAt).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' });
         const waMessage =
           `¡Hola ${selectedClient.full_name}! Te agendé una cita en ${businessName || 'el taller'}` +
           `${selectedService ? ` para ${selectedService.name}` : ''} el ${dateStr}. Cualquier cambio avísame. ` +
@@ -327,7 +331,7 @@ export default function NuevaCitaScreen() {
           {
             text: 'Avisar por WhatsApp',
             onPress: () => {
-              Linking.openURL(toWhatsappLink(selectedClient.phone, waMessage));
+              Linking.openURL(toWhatsappLink(selectedClient.phone, waMessage, dialCodeForCountry(businessCountry)));
               router.back();
             },
           },
@@ -506,7 +510,7 @@ export default function NuevaCitaScreen() {
           {conflictRequest.suggested_at && (
             <Text style={styles.conflictSub}>
               Fecha sugerida:{' '}
-              {new Date(conflictRequest.suggested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+              {new Date(conflictRequest.suggested_at).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' })}
             </Text>
           )}
           {requestActions.approvingRequestId === conflictRequest.id ? (
@@ -520,7 +524,7 @@ export default function NuevaCitaScreen() {
                 }}
               >
                 <Text style={styles.pickerBtnText}>
-                  {requestActions.approvePickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  {requestActions.approvePickerDate.toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}
                 </Text>
               </Pressable>
               {requestActions.showApproveDatePicker && (
@@ -541,7 +545,7 @@ export default function NuevaCitaScreen() {
                 }}
               >
                 <Text style={styles.pickerBtnText}>
-                  {requestActions.approvePickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                  {requestActions.approvePickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </Pressable>
               {requestActions.showApproveTimePicker && (
@@ -585,7 +589,7 @@ export default function NuevaCitaScreen() {
           </Text>
           {conflictAppointment.requested_at && (
             <Text style={styles.conflictSub}>
-              {new Date(conflictAppointment.requested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+              {new Date(conflictAppointment.requested_at).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' })}
             </Text>
           )}
           {rescheduleActions.reschedulingId === conflictAppointment.id ? (
@@ -599,7 +603,7 @@ export default function NuevaCitaScreen() {
                 }}
               >
                 <Text style={styles.pickerBtnText}>
-                  {rescheduleActions.pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  {rescheduleActions.pickerDate.toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}
                 </Text>
               </Pressable>
               {rescheduleActions.showDatePicker && (
@@ -620,7 +624,7 @@ export default function NuevaCitaScreen() {
                 }}
               >
                 <Text style={styles.pickerBtnText}>
-                  {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                  {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </Pressable>
               {rescheduleActions.showTimePicker && (
@@ -664,7 +668,7 @@ export default function NuevaCitaScreen() {
             onPress={() => { setShowDatePicker((v) => !v); setShowTimePicker(false); }}
           >
             <Text style={styles.pickerBtnText}>
-              {pickerDate.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}
+              {pickerDate.toLocaleDateString('es-419', { day: '2-digit', month: 'long', year: 'numeric' })}
             </Text>
           </Pressable>
           {showDatePicker && (
@@ -687,7 +691,7 @@ export default function NuevaCitaScreen() {
             onPress={() => { setShowTimePicker((v) => !v); setShowDatePicker(false); }}
           >
             <Text style={styles.pickerBtnText}>
-              {pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+              {pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </Pressable>
           {showTimePicker && (
@@ -703,7 +707,7 @@ export default function NuevaCitaScreen() {
           )}
 
           <Text style={styles.dateHint}>
-            Cita para: {new Date(scheduledAt).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+            Cita para: {new Date(scheduledAt).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' })}
           </Text>
 
           {/* Notas */}

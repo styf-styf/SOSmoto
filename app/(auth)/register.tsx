@@ -12,7 +12,7 @@ import { useSaveAccountFlow } from '../../hooks/useSaveAccountFlow';
 import { signUp } from '../../services/auth';
 import type { UserRole } from '../../types/database';
 import { translateAuthError } from '../../utils/authErrors';
-import { getPasswordStrength, isValidEcuadorPhone, isValidEmail } from '../../utils/validators';
+import { getPasswordStrength, isValidPhone, isValidEmail } from '../../utils/validators';
 
 type SelectableRole = Exclude<UserRole, 'admin'>;
 
@@ -65,8 +65,8 @@ export default function RegisterScreen() {
     if (!email.trim()) next.email = 'Ingresa tu correo.';
     else if (!isValidEmail(email)) next.email = 'Ese correo no tiene un formato válido.';
     if (!phone.trim()) next.phone = 'Ingresa tu teléfono.';
-    else if (!isValidEcuadorPhone(phone)) {
-      next.phone = 'Usa un celular ecuatoriano válido (ej. 09xxxxxxxx).';
+    else if (!isValidPhone(phone)) {
+      next.phone = 'Usa un número de celular válido, con código de país si es necesario.';
     }
     if (!password) next.password = 'Ingresa una contraseña.';
     else if (password.length < 6) next.password = 'Usa al menos 6 caracteres.';

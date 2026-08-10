@@ -877,7 +877,7 @@ export default function ChatScreen() {
                           <Text style={styles.requestSub}>
                             Fecha sugerida:{' '}
                             {new Date(request.suggested_at).toLocaleString(
-                              'es-EC',
+                              'es-419',
                               { dateStyle: 'medium', timeStyle: 'short' },
                             )}
                           </Text>
@@ -950,7 +950,7 @@ export default function ChatScreen() {
                           </Text>
                           {appt.requested_at && (
                             <Text style={styles.requestSub}>
-                              {new Date(appt.requested_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+                              {new Date(appt.requested_at).toLocaleString('es-419', { dateStyle: 'medium', timeStyle: 'short' })}
                             </Text>
                           )}
                         </View>
@@ -1038,7 +1038,7 @@ export default function ChatScreen() {
                           }}
                         >
                           <Text style={styles.approvePickerBtnText}>
-                            {rescheduleActions.pickerDate.toLocaleDateString('es-EC', {
+                            {rescheduleActions.pickerDate.toLocaleDateString('es-419', {
                               day: '2-digit',
                               month: 'long',
                               year: 'numeric',
@@ -1064,7 +1064,7 @@ export default function ChatScreen() {
                           }}
                         >
                           <Text style={styles.approvePickerBtnText}>
-                            {rescheduleActions.pickerTime.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                            {rescheduleActions.pickerTime.toLocaleTimeString('es-419', { hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         </Pressable>
                         {rescheduleActions.showTimePicker && (
@@ -1724,7 +1724,7 @@ export default function ChatScreen() {
                   }}
                 >
                   <Text style={styles.approvePickerBtnText}>
-                    {requestActions.approvePickerDate.toLocaleDateString('es-EC', {
+                    {requestActions.approvePickerDate.toLocaleDateString('es-419', {
                       day: '2-digit',
                       month: 'long',
                       year: 'numeric',
@@ -1750,7 +1750,7 @@ export default function ChatScreen() {
                   }}
                 >
                   <Text style={styles.approvePickerBtnText}>
-                    {requestActions.approvePickerTime.toLocaleTimeString('es-EC', {
+                    {requestActions.approvePickerTime.toLocaleTimeString('es-419', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
@@ -1767,7 +1767,7 @@ export default function ChatScreen() {
 
                 <Text style={styles.approveHint}>
                   Cita para:{' '}
-                  {approveDateTime.toLocaleString('es-EC', {
+                  {approveDateTime.toLocaleString('es-419', {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}

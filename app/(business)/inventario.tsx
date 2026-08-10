@@ -44,7 +44,7 @@ function stockColors(colors: ColorTheme) {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('es-419', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // Para productos con variantes, el nivel "efectivo" para filtrar/alertar es

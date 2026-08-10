@@ -44,7 +44,7 @@ interface HelpRequestRow {
   businesses: { city: string } | null;
 }
 
-const fmtInt = (n: number) => Math.round(n).toLocaleString('es-EC');
+const fmtInt = (n: number) => Math.round(n).toLocaleString('es-419');
 const fmtMoney = (n: number) => `$${n.toFixed(2)}`;
 const fmtPct = (n: number) => `${Math.round(n)}%`;
 function fmtMinutes(min: number | null): string {
@@ -370,7 +370,7 @@ export default async function MetricasPage({
       </div>
       {range && (
         <p className="mb-6 text-xs text-gray-400">
-          {range.since.toLocaleDateString('es-EC')} — {range.until.toLocaleDateString('es-EC')}
+          {range.since.toLocaleDateString('es-419')} — {range.until.toLocaleDateString('es-419')}
         </p>
       )}
       {!range && <p className="mb-6 text-xs text-gray-400">Todo el historial</p>}

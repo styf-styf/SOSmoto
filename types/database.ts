@@ -72,6 +72,7 @@ export interface Business {
   address: string;
   city: string;
   province: string | null;
+  country: string;
   latitude: number;
   longitude: number;
   phone: string | null;

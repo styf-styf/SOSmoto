@@ -217,7 +217,7 @@ export function CorreosClient({
               </span>
               <div className="flex w-full items-center justify-between">
                 <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-500">{email.alias}</span>
-                <span className="text-[10px] text-gray-400">{new Date(email.created_at).toLocaleString('es-EC')}</span>
+                <span className="text-[10px] text-gray-400">{new Date(email.created_at).toLocaleString('es-419')}</span>
               </div>
             </button>
           ))}
@@ -241,7 +241,7 @@ export function CorreosClient({
                   {selected.type === 'received' ? `De: ${selected.from_address}` : `Para: ${selected.to_address}`}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {selected.alias} · {new Date(selected.created_at).toLocaleString('es-EC')}
+                  {selected.alias} · {new Date(selected.created_at).toLocaleString('es-419')}
                 </p>
               </div>
               <div className="flex gap-2">

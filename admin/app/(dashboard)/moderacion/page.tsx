@@ -384,7 +384,7 @@ async function ReviewsTab({ supabase, from, to, page }: { supabase: any; from: n
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">Interna</span>
                 )}
               </td>
-              <td className="px-4 py-3">{new Date(review.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(review.created_at).toLocaleDateString('es-419')}</td>
               <td className="px-4 py-3">
                 <ReviewDeleteButton reviewId={review.id} />
               </td>
@@ -490,7 +490,7 @@ async function ReportsTab({ supabase, from, to, page }: { supabase: any; from: n
               </td>
               <td className="px-4 py-3 max-w-[200px] text-gray-600">{report.reason ?? '—'}</td>
               <td className="px-4 py-3">{REPORT_STATUS_LABEL[report.status]}</td>
-              <td className="px-4 py-3">{new Date(report.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(report.created_at).toLocaleDateString('es-419')}</td>
               <td className="px-4 py-3">
                 {report.status === 'pending' ? (
                   <ReportActions reportId={report.id} />
@@ -571,7 +571,7 @@ async function CommentsTab({
                   Ver publicación
                 </a>
               </td>
-              <td className="px-4 py-3">{new Date(comment.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(comment.created_at).toLocaleDateString('es-419')}</td>
               <td className="px-4 py-3">
                 <PostCommentDeleteButton commentId={comment.id} />
               </td>
@@ -612,7 +612,7 @@ async function CommentsTab({
               <td className="px-4 py-3 font-medium">{comment.users?.full_name ?? '—'}</td>
               <td className="px-4 py-3">{comment.ads?.title ?? '—'}</td>
               <td className="px-4 py-3 max-w-[300px] text-gray-600">{comment.body}</td>
-              <td className="px-4 py-3">{new Date(comment.created_at).toLocaleDateString('es-EC')}</td>
+              <td className="px-4 py-3">{new Date(comment.created_at).toLocaleDateString('es-419')}</td>
               <td className="px-4 py-3">
                 <AdCommentDeleteButton commentId={comment.id} />
               </td>

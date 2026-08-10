@@ -68,7 +68,7 @@ export function buildBuckets(since: Date, until: Date): Bucket[] {
     const cursor = new Date(since.getFullYear(), since.getMonth(), 1);
     while (cursor.getTime() < until.getTime()) {
       const start = cursor.getTime();
-      const label = cursor.toLocaleDateString('es-EC', { month: 'short' });
+      const label = cursor.toLocaleDateString('es-419', { month: 'short' });
       cursor.setMonth(cursor.getMonth() + 1);
       buckets.push({ label, start, end: cursor.getTime() });
     }

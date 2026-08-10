@@ -152,6 +152,7 @@ export interface Database {
           address: string;
           city: string;
           province: string | null;
+          country: string;
           latitude: number;
           longitude: number;
           phone: string | null;
@@ -180,6 +181,7 @@ export interface Database {
           address: string;
           city: string;
           province?: string | null;
+          country?: string;
           latitude: number;
           longitude: number;
           phone?: string | null;
@@ -208,6 +210,7 @@ export interface Database {
           address?: string;
           city?: string;
           province?: string | null;
+          country?: string;
           latitude?: number;
           longitude?: number;
           phone?: string | null;
@@ -1925,6 +1928,7 @@ export interface Database {
           is_24h: boolean;
           province: string | null;
           created_at: string;
+          country: string;
         };
         Relationships: [];
       };

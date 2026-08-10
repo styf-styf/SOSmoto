@@ -47,7 +47,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function ServiceReportView({ report, footer }: Props) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const date = new Date(report.created_at).toLocaleDateString('es-EC', {
+  const date = new Date(report.created_at).toLocaleDateString('es-419', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
 
@@ -115,7 +115,7 @@ export function ServiceReportView({ report, footer }: Props) {
               <View>
                 <Text style={styles.infoLabel}>Ingreso</Text>
                 <Text style={styles.infoValue}>
-                  {new Date(report.entry_date).toLocaleString('es-EC', {
+                  {new Date(report.entry_date).toLocaleString('es-419', {
                     dateStyle: 'short', timeStyle: 'short',
                   })}
                 </Text>
@@ -128,7 +128,7 @@ export function ServiceReportView({ report, footer }: Props) {
               <View>
                 <Text style={styles.infoLabel}>Salida</Text>
                 <Text style={styles.infoValue}>
-                  {new Date(report.exit_date).toLocaleString('es-EC', {
+                  {new Date(report.exit_date).toLocaleString('es-419', {
                     dateStyle: 'short', timeStyle: 'short',
                   })}
                 </Text>
@@ -154,7 +154,7 @@ export function ServiceReportView({ report, footer }: Props) {
           <Ionicons name="checkmark-circle" size={16} color={colors.success} />
           <Text style={styles.confirmedText}>
             Confirmado por el cliente el{' '}
-            {new Date(report.client_confirmed_at).toLocaleDateString('es-EC', {
+            {new Date(report.client_confirmed_at).toLocaleDateString('es-419', {
               day: '2-digit', month: 'short', year: 'numeric',
             })}
           </Text>
@@ -243,7 +243,7 @@ export function ServiceReportView({ report, footer }: Props) {
               )}
               {report.next_maintenance_date && (
                 <Text style={styles.nextMaintText}>
-                  {new Date(report.next_maintenance_date).toLocaleDateString('es-EC', {
+                  {new Date(report.next_maintenance_date).toLocaleDateString('es-419', {
                     day: '2-digit', month: 'long', year: 'numeric',
                   })}
                 </Text>

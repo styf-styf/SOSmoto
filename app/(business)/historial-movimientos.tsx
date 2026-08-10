@@ -13,7 +13,7 @@ import {
 const PAGE_SIZE = 50;
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('es-EC', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('es-419', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function HistorialMovimientosScreen() {
