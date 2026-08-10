@@ -251,10 +251,14 @@ export default function ClientHomeScreen() {
       try {
         const [place] = await Location.reverseGeocodeAsync(coords);
         if (!place?.country) return;
+        // El geocoder nativo (sobre todo en Android) a veces devuelve
+        // `city: null` aunque sí resolvió el lugar -- el dato real termina
+        // en `subregion` o `district` según el dispositivo/OS. Se prueba en
+        // orden hasta encontrar el primero con valor.
         await updateLastKnownLocation(profile.id, {
           country: place.country,
           region: place.region ?? null,
-          city: place.city ?? null,
+          city: place.city ?? place.subregion ?? place.district ?? null,
         });
         await AsyncStorage.setItem(key, String(Date.now()));
       } catch (err) {
