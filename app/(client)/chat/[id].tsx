@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
 import { ImageViewerModal } from '../../../components/ImageViewerModal';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useChatMessaging } from '../../../hooks/useChatMessaging';
 import { getBusinessById, getMyBusiness } from '../../../services/businesses';
@@ -54,6 +55,8 @@ import {
 } from '../../../utils/chatFormat';
 
 export default function ChatScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id, prefill, autoSend } = useLocalSearchParams<{
     id: string;
     prefill?: string;
@@ -851,373 +854,375 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  messages: {
-    padding: 16,
-    gap: 8,
-  },
-  loadOlderBtn: {
-    alignSelf: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    marginBottom: 8,
-  },
-  loadOlderBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  // Sin tope de alto a propósito -- si hay varios banners a la vez crece
-  // natural y puede tapar el resto del chat, el usuario los cierra con la X.
-  bannerScroll: {},
-  bannerScrollContent: {},
-  requestBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#EEF4FF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  dismissBannerBtn: {
-    padding: 2,
-  },
-  // Citas confirmed/scheduled necesitan hasta 3 botones (Cancelar/Proponer
-  // otra/Aprobar) + un formulario de fecha -- no entran en la fila de una
-  // sola línea que usa requestBanner, por eso usan un layout de tarjeta
-  // (info arriba, acciones debajo) en vez del banner angosto.
-  apptCard: {
-    backgroundColor: '#EEF4FF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  apptCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  apptActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  apptBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  apptBtnPrimary: {
-    backgroundColor: colors.primary,
-  },
-  apptBtnNeutral: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  apptBtnDanger: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  apptBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  apptBtnTextNeutral: {
-    color: colors.text,
-  },
-  apptBtnTextDanger: {
-    color: colors.danger,
-  },
-  apptRescheduleForm: {
-    gap: 4,
-  },
-  apptFieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 6,
-    marginBottom: 2,
-  },
-  apptPickerBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  apptPickerBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  requestBannerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  requestBannerText: {
-    flex: 1,
-  },
-  requestBannerTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  requestBannerSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 3,
-  },
-  cancelRequestBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  cancelRequestBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  dateSeparator: {
-    alignSelf: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginVertical: 8,
-  },
-  dateSeparatorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  bubble: {
-    maxWidth: '80%',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  bubbleMine: {
-    backgroundColor: colors.primary,
-    alignSelf: 'flex-end',
-  },
-  bubbleTheirs: {
-    backgroundColor: colors.surface,
-    alignSelf: 'flex-start',
-  },
-  bubbleText: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  bubbleTextMine: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  messageTimeRow: {
-    marginTop: 2,
-    marginBottom: 4,
-    minHeight: 16,
-    justifyContent: 'center',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  messageTimeMine: {
-    alignSelf: 'flex-end',
-  },
-  messageTimeTheirs: {
-    alignSelf: 'flex-start',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 120,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  attachWrap: {
-    position: 'absolute',
-    bottom: 38,
-    left: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    zIndex: 10,
-  },
-  attachBar: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    paddingVertical: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  attachLabels: {
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  attachLabelRow: {
-    height: 36,
-    justifyContent: 'center',
-  },
-  attachLabelText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textShadowColor: 'rgba(255,255,255,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  pendingImageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pendingImageThumb: {
-    width: 80,
-    aspectRatio: 3 / 4,
-    borderRadius: 8,
-  },
-  pendingImageRemove: {
-    position: 'absolute',
-    top: 4,
-    left: 80,
-  },
-  imageBubble: {
-    maxWidth: '80%',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  chatImage: {
-    width: 200,
-    aspectRatio: 3 / 4,
-  },
-  imageBubbleCaption: {
-    fontSize: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  quoteCard: {
-    maxWidth: '80%',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-  },
-  quoteCardMine: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#FFF8F0',
-    borderColor: colors.primary,
-  },
-  quoteCardTheirs: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  quoteHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 6,
-  },
-  quoteTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  quoteService: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  quoteRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 2,
-  },
-  quoteLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    minWidth: 80,
-  },
-  quoteValue: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    messages: {
+      padding: 16,
+      gap: 8,
+    },
+    loadOlderBtn: {
+      alignSelf: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      marginBottom: 8,
+    },
+    loadOlderBtnText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 20,
+    },
+    // Sin tope de alto a propósito -- si hay varios banners a la vez crece
+    // natural y puede tapar el resto del chat, el usuario los cierra con la X.
+    bannerScroll: {},
+    bannerScrollContent: {},
+    requestBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#EEF4FF',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 8,
+    },
+    dismissBannerBtn: {
+      padding: 2,
+    },
+    // Citas confirmed/scheduled necesitan hasta 3 botones (Cancelar/Proponer
+    // otra/Aprobar) + un formulario de fecha -- no entran en la fila de una
+    // sola línea que usa requestBanner, por eso usan un layout de tarjeta
+    // (info arriba, acciones debajo) en vez del banner angosto.
+    apptCard: {
+      backgroundColor: '#EEF4FF',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 8,
+    },
+    apptCardTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    apptActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    apptBtn: {
+      flex: 1,
+      paddingVertical: 6,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    apptBtnPrimary: {
+      backgroundColor: colors.primary,
+    },
+    apptBtnNeutral: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    apptBtnDanger: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.danger,
+    },
+    apptBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    apptBtnTextNeutral: {
+      color: colors.text,
+    },
+    apptBtnTextDanger: {
+      color: colors.danger,
+    },
+    apptRescheduleForm: {
+      gap: 4,
+    },
+    apptFieldLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginTop: 6,
+      marginBottom: 2,
+    },
+    apptPickerBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    apptPickerBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    requestBannerInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
+    requestBannerText: {
+      flex: 1,
+    },
+    requestBannerTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    requestBannerSub: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 3,
+    },
+    cancelRequestBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.danger,
+    },
+    cancelRequestBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.danger,
+    },
+    dateSeparator: {
+      alignSelf: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      marginVertical: 8,
+    },
+    dateSeparatorText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    bubble: {
+      maxWidth: '80%',
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    bubbleMine: {
+      backgroundColor: colors.primary,
+      alignSelf: 'flex-end',
+    },
+    bubbleTheirs: {
+      backgroundColor: colors.surface,
+      alignSelf: 'flex-start',
+    },
+    bubbleText: {
+      color: colors.text,
+      fontSize: 14,
+    },
+    bubbleTextMine: {
+      color: '#fff',
+      fontSize: 14,
+    },
+    messageTimeRow: {
+      marginTop: 2,
+      marginBottom: 4,
+      minHeight: 16,
+      justifyContent: 'center',
+    },
+    messageTime: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    messageTimeMine: {
+      alignSelf: 'flex-end',
+    },
+    messageTimeTheirs: {
+      alignSelf: 'flex-start',
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    iconButton: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    input: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 120,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    sendButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    attachWrap: {
+      position: 'absolute',
+      bottom: 38,
+      left: 0,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      zIndex: 10,
+    },
+    attachBar: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      paddingVertical: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    attachLabels: {
+      paddingVertical: 2,
+      marginLeft: 8,
+    },
+    attachLabelRow: {
+      height: 36,
+      justifyContent: 'center',
+    },
+    attachLabelText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textShadowColor: 'rgba(255,255,255,0.9)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    pendingImageRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    pendingImageThumb: {
+      width: 80,
+      aspectRatio: 3 / 4,
+      borderRadius: 8,
+    },
+    pendingImageRemove: {
+      position: 'absolute',
+      top: 4,
+      left: 80,
+    },
+    imageBubble: {
+      maxWidth: '80%',
+      borderRadius: 14,
+      overflow: 'hidden',
+    },
+    chatImage: {
+      width: 200,
+      aspectRatio: 3 / 4,
+    },
+    imageBubbleCaption: {
+      fontSize: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    quoteCard: {
+      maxWidth: '80%',
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+    },
+    quoteCardMine: {
+      alignSelf: 'flex-end',
+      backgroundColor: '#FFF8F0',
+      borderColor: colors.primary,
+    },
+    quoteCardTheirs: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+    quoteHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 6,
+    },
+    quoteTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    quoteService: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    quoteRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginTop: 2,
+    },
+    quoteLabel: {
+      fontSize: 13,
+      color: colors.textMuted,
+      minWidth: 80,
+    },
+    quoteValue: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+      flex: 1,
+    },
+  });
+}

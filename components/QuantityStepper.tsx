@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 interface QuantityStepperProps {
   value: number;
@@ -10,6 +12,8 @@ interface QuantityStepperProps {
 }
 
 export function QuantityStepper({ value, onChange, min = 1, max }: QuantityStepperProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const canDecrement = value > min;
   const canIncrement = max === undefined || value < max;
 
@@ -34,33 +38,35 @@ export function QuantityStepper({ value, onChange, min = 1, max }: QuantityStepp
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 4,
-  },
-  btn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  btnDisabled: {
-    opacity: 0.4,
-  },
-  value: {
-    minWidth: 28,
-    textAlign: 'center',
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      padding: 4,
+    },
+    btn: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+    },
+    btnDisabled: {
+      opacity: 0.4,
+    },
+    value: {
+      minWidth: 28,
+      textAlign: 'center',
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+  });
+}

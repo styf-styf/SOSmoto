@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { GestureResponderEvent, NativeSyntheticEvent, StyleProp, TextLayoutEventData, TextStyle } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 const MAX_LINES = 3;
 // Recorte de más (18 caracteres) a propósito -- es una estimación por
@@ -15,6 +16,8 @@ const TRIM_CHARS = 18;
 // publicación) para que sea consistente en toda la app. Extraído de
 // PostCard.tsx, que fue donde se probó primero este patrón.
 export function ExpandableText({ text, style }: { text: string; style?: StyleProp<TextStyle> }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
   // Primeras MAX_LINES líneas reales (medidas, no una cuenta de
@@ -77,19 +80,21 @@ export function ExpandableText({ text, style }: { text: string; style?: StylePro
   );
 }
 
-const styles = StyleSheet.create({
-  measure: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    opacity: 0,
-  },
-  // Sin fontSize/lineHeight a propósito -- hereda del `style` de cada
-  // caller (14 en producto/servicio, 15 en el detalle de publicación) en
-  // vez de un tamaño fijo que quedaría desproporcionado según el caller.
-  moreLink: {
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    measure: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      opacity: 0,
+    },
+    // Sin fontSize/lineHeight a propósito -- hereda del `style` de cada
+    // caller (14 en producto/servicio, 15 en el detalle de publicación) en
+    // vez de un tamaño fijo que quedaría desproporcionado según el caller.
+    moreLink: {
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+  });
+}

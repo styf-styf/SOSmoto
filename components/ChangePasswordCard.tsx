@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { TextField } from './TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { changePassword } from '../services/users';
 
 // Tarjeta de "Seguridad" (cambiar contraseña) -- se usa tanto en
@@ -11,6 +12,8 @@ import { changePassword } from '../services/users';
 // negocio en sí -- por eso no se gatea por `isOwner`). Antes vivía como
 // pantalla propia (cambiar-password.tsx), ahora integrada en el perfil.
 export function ChangePasswordCard() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [editing, setEditing] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -79,42 +82,44 @@ export function ChangePasswordCard() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  changeLink: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  dots: {
-    fontSize: 16,
-    color: colors.text,
-    letterSpacing: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  flexButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    cardTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    changeLink: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    dots: {
+      fontSize: 16,
+      color: colors.text,
+      letterSpacing: 2,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 4,
+    },
+    flexButton: {
+      flex: 1,
+    },
+  });
+}

@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, getSubscriptionPlans, updateBusinessPlan } from '../../services/businesses';
@@ -49,6 +50,8 @@ interface SuscripcionData {
 }
 
 export default function SuscripcionScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [switching, setSwitching] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -397,146 +400,148 @@ export default function SuscripcionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  cardCurrent: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-    backgroundColor: '#FFF8F2',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  currentBadge: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  currentBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  promoBadge: {
-    backgroundColor: colors.warning,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  promoBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  promoNotice: {
-    fontSize: 13,
-    color: colors.warning,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  promoCountdown: {
-    fontSize: 13,
-    color: colors.danger,
-    fontWeight: '700',
-    marginTop: 16,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginTop: 10,
-    marginBottom: 14,
-  },
-  priceAmount: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: colors.primary,
-    lineHeight: 42,
-  },
-  pricePeriod: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginLeft: 4,
-    marginBottom: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginBottom: 14,
-  },
-  featureList: {
-    gap: 12,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  feature: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 19,
-  },
-  featureUnavailable: {
-    color: colors.textMuted,
-  },
-  switchButton: {
-    marginTop: 20,
-  },
-  renewNotice: {
-    fontSize: 13,
-    color: colors.warning,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
+    card: {
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    cardCurrent: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+      backgroundColor: '#FFF8F2',
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    currentBadge: {
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    currentBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    promoBadge: {
+      backgroundColor: colors.warning,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    promoBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    promoNotice: {
+      fontSize: 13,
+      color: colors.warning,
+      fontWeight: '600',
+      marginTop: 16,
+    },
+    promoCountdown: {
+      fontSize: 13,
+      color: colors.danger,
+      fontWeight: '700',
+      marginTop: 16,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      marginTop: 10,
+      marginBottom: 14,
+    },
+    priceAmount: {
+      fontSize: 38,
+      fontWeight: '800',
+      color: colors.primary,
+      lineHeight: 42,
+    },
+    pricePeriod: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginLeft: 4,
+      marginBottom: 4,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginBottom: 14,
+    },
+    featureList: {
+      gap: 12,
+    },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    feature: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 19,
+    },
+    featureUnavailable: {
+      color: colors.textMuted,
+    },
+    switchButton: {
+      marginTop: 20,
+    },
+    renewNotice: {
+      fontSize: 13,
+      color: colors.warning,
+      fontWeight: '600',
+      marginTop: 16,
+    },
+  });
+}

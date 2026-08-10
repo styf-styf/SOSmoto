@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,8 @@ import { CategoryPicker } from '../../components/CategoryPicker';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { MultiPhotoPicker } from '../../components/MultiPhotoPicker';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { ADS_ENABLED } from '../../constants/features';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
@@ -35,14 +36,16 @@ const statusLabel: Record<Ad['status'], string> = {
   paused: 'Pausada',
 };
 
-const statusColor: Record<Ad['status'], string> = {
-  pending_review: colors.warning,
-  approved: colors.success,
-  active: colors.success,
-  rejected: colors.danger,
-  expired: colors.textMuted,
-  paused: colors.warning,
-};
+function statusColor(colors: ColorTheme): Record<Ad['status'], string> {
+  return {
+    pending_review: colors.warning,
+    approved: colors.success,
+    active: colors.success,
+    rejected: colors.danger,
+    expired: colors.textMuted,
+    paused: colors.warning,
+  };
+}
 
 interface PublicidadData {
   business: Business | null;
@@ -74,6 +77,8 @@ interface PublicidadDraft {
 const draftCache = new Map<string, PublicidadDraft>();
 
 export default function PublicidadScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const params = useLocalSearchParams<{ openForm?: string }>();
   const draftKey = profile ? `publicidad-draft-${profile.id}` : null;
@@ -663,7 +668,7 @@ export default function PublicidadScreen() {
             <View key={ad.id} style={styles.gridItem}>
               <View style={styles.gridImageWrap}>
                 <Image source={{ uri: ad.photos[0] }} style={styles.gridImage} resizeMode="cover" />
-                <View style={[styles.statusBadgeOverlay, { backgroundColor: statusColor[ad.status] }]}>
+                <View style={[styles.statusBadgeOverlay, { backgroundColor: statusColor(colors)[ad.status] }]}>
                   <Text style={styles.statusBadgeOverlayText}>{statusLabel[ad.status]}</Text>
                 </View>
               </View>
@@ -810,200 +815,202 @@ export default function PublicidadScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  headerRowText: {
-    flex: 1,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  createButton: {
-    marginBottom: 16,
-  },
-  limitedNotice: {
-    fontSize: 13,
-    color: colors.danger,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  whatsappButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#25D366',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  whatsappButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  chipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: colors.primary,
-  },
-  chipDisabled: {
-    opacity: 0.5,
-  },
-  resubmitNotice: {
-    fontSize: 12,
-    color: colors.primary,
-    backgroundColor: '#FFF1E6',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 14,
-    lineHeight: 17,
-  },
-  catalogLoading: {
-    marginBottom: 16,
-  },
-  photosRow: {
-    marginBottom: 16,
-  },
-  priceText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
-  gridItem: {
-    width: CARD_WIDTH,
-  },
-  gridImageWrap: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  gridImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  statusBadgeOverlay: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  statusBadgeOverlayText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  gridTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 8,
-  },
-  gridMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  gridPauseButton: {
-    marginTop: 8,
-  },
-  rejectionReasonText: {
-    fontSize: 12,
-    color: colors.danger,
-    marginTop: 6,
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  flexButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    headerRowText: {
+      flex: 1,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    createButton: {
+      marginBottom: 16,
+    },
+    limitedNotice: {
+      fontSize: 13,
+      color: colors.danger,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 16,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    whatsappButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: '#25D366',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      marginBottom: 12,
+    },
+    whatsappButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#1a1a1a',
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    chipText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    chipTextSelected: {
+      color: colors.primary,
+    },
+    chipDisabled: {
+      opacity: 0.5,
+    },
+    resubmitNotice: {
+      fontSize: 12,
+      color: colors.primary,
+      backgroundColor: '#FFF1E6',
+      borderRadius: 10,
+      padding: 10,
+      marginBottom: 14,
+      lineHeight: 17,
+    },
+    catalogLoading: {
+      marginBottom: 16,
+    },
+    photosRow: {
+      marginBottom: 16,
+    },
+    priceText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: GRID_GAP,
+    },
+    gridItem: {
+      width: CARD_WIDTH,
+    },
+    gridImageWrap: {
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+    },
+    gridImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    statusBadgeOverlay: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    statusBadgeOverlayText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    gridTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 8,
+    },
+    gridMeta: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    gridPauseButton: {
+      marginTop: 8,
+    },
+    rejectionReasonText: {
+      fontSize: 12,
+      color: colors.danger,
+      marginTop: 6,
+    },
+    editActions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    flexButton: {
+      flex: 1,
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
@@ -69,14 +70,18 @@ function buildDefaultGroups(): GroupState[] {
   }));
 }
 
-const STATUS_OPTIONS: { value: InspectionStatus; label: string; color: string; icon: string }[] = [
-  { value: 'ok', label: 'OK', color: colors.success, icon: 'checkmark-circle' },
-  { value: 'attention', label: 'Atención', color: colors.warning, icon: 'warning' },
-  { value: 'critical', label: 'Crítico', color: colors.danger, icon: 'close-circle' },
-  { value: 'na', label: 'N/A', color: colors.textMuted, icon: 'remove-circle-outline' },
-];
+function statusOptions(colors: ColorTheme): { value: InspectionStatus; label: string; color: string; icon: string }[] {
+  return [
+    { value: 'ok', label: 'OK', color: colors.success, icon: 'checkmark-circle' },
+    { value: 'attention', label: 'Atención', color: colors.warning, icon: 'warning' },
+    { value: 'critical', label: 'Crítico', color: colors.danger, icon: 'close-circle' },
+    { value: 'na', label: 'N/A', color: colors.textMuted, icon: 'remove-circle-outline' },
+  ];
+}
 
 export default function NuevoInformeScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const params = useLocalSearchParams<{
     appointmentId?: string;
@@ -629,7 +634,7 @@ export default function NuevoInformeScreen() {
       {/* Checklist de inspección */}
       <Text style={styles.sectionTitle}>Inspección visual</Text>
       <View style={styles.legendRow}>
-        {STATUS_OPTIONS.map((opt) => (
+        {statusOptions(colors).map((opt) => (
           <View key={opt.value} style={styles.legendItem}>
             <Ionicons name={opt.icon as any} size={14} color={opt.color} />
             <Text style={[styles.legendText, { color: opt.color }]}>{opt.label}</Text>
@@ -663,7 +668,7 @@ export default function NuevoInformeScreen() {
                   </Pressable>
                   <Text style={styles.checkItemLabel}>{it.item}</Text>
                   <View style={styles.checkBtns}>
-                    {STATUS_OPTIONS.map((opt) => (
+                    {statusOptions(colors).map((opt) => (
                       <Pressable
                         key={opt.value}
                         style={[styles.checkBtn, it.status === opt.value && { backgroundColor: opt.color }]}
@@ -799,119 +804,121 @@ export default function NuevoInformeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  placeholder: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 20 },
-  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
-  subtitle: { fontSize: 14, color: colors.textMuted, marginBottom: 4 },
-  clientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  clientRowText: { flex: 1, fontSize: 14, color: colors.textMuted },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 24, marginBottom: 10 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  categoryChip: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.surface,
-  },
-  categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  categoryChipTextActive: { color: '#fff' },
-  lineInput: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
-    color: colors.text, backgroundColor: colors.surface,
-  },
-  rowInput: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  removeBtn: { padding: 2 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  addBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  legendRow: { flexDirection: 'row', gap: 14, marginBottom: 12 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendText: { fontSize: 12, fontWeight: '600' },
-  checkGroup: {
-    backgroundColor: colors.surface, borderRadius: 12, marginBottom: 10, overflow: 'hidden',
-  },
-  checkGroupHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 14,
-  },
-  checkGroupHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  checkGroupTitle: { fontSize: 13, fontWeight: '700', color: colors.text, flex: 1 },
-  checkRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 6, paddingHorizontal: 14,
-    borderTopWidth: 1, borderTopColor: colors.border,
-  },
-  removeItemBtn: { marginRight: 8 },
-  checkItemLabel: { flex: 1, fontSize: 13, color: colors.text },
-  checkBtns: { flexDirection: 'row', gap: 6 },
-  checkBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  addItemRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingBottom: 10,
-  },
-  textarea: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
-    color: colors.text, backgroundColor: colors.surface, minHeight: 90,
-  },
-  clientBlock: { marginBottom: 16, gap: 8 },
-  vehicleChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  vehicleChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderColor: colors.border, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 7,
-    backgroundColor: colors.surface,
-  },
-  vehicleChipSelected: { borderColor: colors.primary, backgroundColor: '#FFF1E6' },
-  vehicleChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  vehicleChipTextSelected: { color: colors.primary },
-  vehicleRow: { flexDirection: 'row', gap: 8 },
-  dateRow: { flexDirection: 'row', gap: 10 },
-  dateCol: { flex: 1 },
-  dateColLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
-  dateBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 12,
-    backgroundColor: colors.surface,
-  },
-  dateBtnText: { fontSize: 13, color: colors.text, flex: 1 },
-  actionsFooter: { marginTop: 28, gap: 10 },
-  savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  savedText: { fontSize: 12, color: colors.success, fontStyle: 'italic' },
-  draftLoadedBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F0F7FF', borderWidth: 1, borderColor: '#BBDEFB',
-    borderRadius: 10, padding: 10, marginBottom: 12,
-  },
-  draftLoadedText: { flex: 1, fontSize: 13, color: colors.primary },
-  lockedBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#FFF8E1',
-    borderWidth: 1,
-    borderColor: '#FFD54F',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-  },
-  lockedBannerText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#F57F17',
-    lineHeight: 18,
-  },
-  lockedHint: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    placeholder: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 20 },
+    container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+    subtitle: { fontSize: 14, color: colors.textMuted, marginBottom: 4 },
+    clientRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    clientRowText: { flex: 1, fontSize: 14, color: colors.textMuted },
+    sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 24, marginBottom: 10 },
+    categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    categoryChip: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 20,
+      paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.surface,
+    },
+    categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    categoryChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+    categoryChipTextActive: { color: '#fff' },
+    lineInput: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
+      color: colors.text, backgroundColor: colors.surface,
+    },
+    rowInput: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    removeBtn: { padding: 2 },
+    addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+    addBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+    legendRow: { flexDirection: 'row', gap: 14, marginBottom: 12 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    legendText: { fontSize: 12, fontWeight: '600' },
+    checkGroup: {
+      backgroundColor: colors.surface, borderRadius: 12, marginBottom: 10, overflow: 'hidden',
+    },
+    checkGroupHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      padding: 14,
+    },
+    checkGroupHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    checkGroupTitle: { fontSize: 13, fontWeight: '700', color: colors.text, flex: 1 },
+    checkRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingVertical: 6, paddingHorizontal: 14,
+      borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    removeItemBtn: { marginRight: 8 },
+    checkItemLabel: { flex: 1, fontSize: 13, color: colors.text },
+    checkBtns: { flexDirection: 'row', gap: 6 },
+    checkBtn: {
+      width: 32, height: 32, borderRadius: 16,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    addItemRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingHorizontal: 14, paddingBottom: 10,
+    },
+    textarea: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
+      color: colors.text, backgroundColor: colors.surface, minHeight: 90,
+    },
+    clientBlock: { marginBottom: 16, gap: 8 },
+    vehicleChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    vehicleChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      borderWidth: 1, borderColor: colors.border, borderRadius: 8,
+      paddingHorizontal: 10, paddingVertical: 7,
+      backgroundColor: colors.surface,
+    },
+    vehicleChipSelected: { borderColor: colors.primary, backgroundColor: '#FFF1E6' },
+    vehicleChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+    vehicleChipTextSelected: { color: colors.primary },
+    vehicleRow: { flexDirection: 'row', gap: 8 },
+    dateRow: { flexDirection: 'row', gap: 10 },
+    dateCol: { flex: 1 },
+    dateColLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 6 },
+    dateBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 10, paddingVertical: 12,
+      backgroundColor: colors.surface,
+    },
+    dateBtnText: { fontSize: 13, color: colors.text, flex: 1 },
+    actionsFooter: { marginTop: 28, gap: 10 },
+    savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    savedText: { fontSize: 12, color: colors.success, fontStyle: 'italic' },
+    draftLoadedBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: '#F0F7FF', borderWidth: 1, borderColor: '#BBDEFB',
+      borderRadius: 10, padding: 10, marginBottom: 12,
+    },
+    draftLoadedText: { flex: 1, fontSize: 13, color: colors.primary },
+    lockedBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      backgroundColor: '#FFF8E1',
+      borderWidth: 1,
+      borderColor: '#FFD54F',
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 16,
+    },
+    lockedBannerText: {
+      flex: 1,
+      fontSize: 13,
+      color: '#F57F17',
+      lineHeight: 18,
+    },
+    lockedHint: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 8,
+      fontStyle: 'italic',
+    },
+  });
+}

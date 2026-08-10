@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { SaveAccountPrompt } from '../../components/SaveAccountPrompt';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useSaveAccountFlow } from '../../hooks/useSaveAccountFlow';
 import { signUp } from '../../services/auth';
 import type { UserRole } from '../../types/database';
@@ -29,13 +30,17 @@ const strengthLabel: Record<string, string> = {
   strong: 'Fuerte',
 };
 
-const strengthColor: Record<string, string> = {
-  weak: colors.danger,
-  medium: colors.warning,
-  strong: colors.success,
-};
+function strengthColor(colors: ColorTheme): Record<string, string> {
+  return {
+    weak: colors.danger,
+    medium: colors.warning,
+    strong: colors.success,
+  };
+}
 
 export default function RegisterScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [role, setRole] = useState<SelectableRole>('client');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -176,7 +181,7 @@ export default function RegisterScreen() {
         }}
       />
       {password.length > 0 && !errors.password && (
-        <Text style={[styles.strengthText, { color: strengthColor[passwordStrength] }]}>
+        <Text style={[styles.strengthText, { color: strengthColor(colors)[passwordStrength] }]}>
           Fuerza de la contraseña: {strengthLabel[passwordStrength]}
         </Text>
       )}
@@ -249,6 +254,8 @@ function RoleOption({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable
       onPress={onPress}
@@ -262,79 +269,81 @@ function RoleOption({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 64,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 24,
-  },
-  roleSelector: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  roleOption: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  roleOptionText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  roleOptionTextSelected: {
-    color: colors.primary,
-  },
-  strengthText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: -10,
-    marginBottom: 16,
-  },
-  submitButton: {
-    marginTop: 4,
-  },
-  termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 16,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  footerText: {
-    color: colors.textMuted,
-  },
-  link: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      padding: 24,
+      paddingTop: 64,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 24,
+    },
+    roleSelector: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 24,
+    },
+    roleOption: {
+      flex: 1,
+      height: 48,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    roleOptionSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    roleOptionText: {
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    roleOptionTextSelected: {
+      color: colors.primary,
+    },
+    strengthText: {
+      fontSize: 12,
+      fontWeight: '600',
+      marginTop: -10,
+      marginBottom: 16,
+    },
+    submitButton: {
+      marginTop: 4,
+    },
+    termsRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      marginBottom: 16,
+    },
+    termsText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+    termsLink: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 24,
+    },
+    footerText: {
+      color: colors.textMuted,
+    },
+    link: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+  });
+}

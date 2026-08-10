@@ -1,7 +1,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { getHomeAds, type AdWithBusiness } from '../services/ads';
 import { getFeedCatalogPool, type FeedCatalogItem } from '../services/catalog';
 import { getFollowedBusinessIds } from '../services/follows';
@@ -115,6 +116,8 @@ export const HomeFeed = forwardRef<
   { role, city, coords = null, feedMode = 'all', clientId, emptyMessage, ListHeaderComponent, onRefresh, viewerBusinessId },
   ref
 ) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [catalogPoolPhoto, setCatalogPoolPhoto] = useState<FeedCatalogItem[]>([]);
   const [catalogPoolNoPhoto, setCatalogPoolNoPhoto] = useState<FeedCatalogItem[]>([]);
@@ -292,23 +295,25 @@ export const HomeFeed = forwardRef<
   );
 });
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    backgroundColor: colors.background,
-    flexGrow: 1,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    paddingHorizontal: 20,
-  },
-  footerLoader: {
-    marginTop: 12,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      backgroundColor: colors.background,
+      flexGrow: 1,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      paddingHorizontal: 20,
+    },
+    footerLoader: {
+      marginTop: 12,
+    },
+  });
+}

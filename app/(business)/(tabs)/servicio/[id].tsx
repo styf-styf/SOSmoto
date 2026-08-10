@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../../../constants/colors';
+import { useColors } from '../../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../../constants/colors';
 import { ExpandableText } from '../../../../components/ExpandableText';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
@@ -17,6 +18,8 @@ import { consumeProductoServicioResetFlag } from '../../../../utils/productoServ
 import type { ServiceWithBusiness, FeedCatalogItem } from '../../../../services/catalog';
 
 export default function BusinessServiceDetailScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
   const navigation = useNavigation();
@@ -265,160 +268,162 @@ export default function BusinessServiceDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    // El header lo renderiza react-native-screens (nativo), no el
-    // HeaderButton de @react-navigation/elements -- ese valor (8) no era el
-    // real y quedó pegado al borde. Subido a mano según feedback visual.
-    marginRight: 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  businessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  businessAvatarWrap: {
-    position: 'relative',
-  },
-  businessAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  businessAvatarImage: {
-    width: 28,
-    height: 28,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  businessName: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  category: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 16,
-  },
-  section: {
-    marginTop: 24,
-  },
-  relatedSection: {
-    marginTop: 28,
-    marginHorizontal: -20,
-  },
-  relatedSectionTitle: {
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  buttonGroup: {
-    marginTop: 32,
-    gap: 10,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginTop: 32,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  noticeBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-  },
-  noticeText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 17,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  actionBtn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 10,
-  },
-  actionBtnLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      // El header lo renderiza react-native-screens (nativo), no el
+      // HeaderButton de @react-navigation/elements -- ese valor (8) no era el
+      // real y quedó pegado al borde. Subido a mano según feedback visual.
+      marginRight: 20,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    name: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    businessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    businessAvatarWrap: {
+      position: 'relative',
+    },
+    businessAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    businessAvatarImage: {
+      width: 28,
+      height: 28,
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    businessName: {
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '600',
+      flexShrink: 1,
+    },
+    category: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    price: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 16,
+    },
+    section: {
+      marginTop: 24,
+    },
+    relatedSection: {
+      marginTop: 28,
+      marginHorizontal: -20,
+    },
+    relatedSectionTitle: {
+      paddingHorizontal: 20,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    description: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    buttonGroup: {
+      marginTop: 32,
+      gap: 10,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      marginTop: 32,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    statBox: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 16,
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    noticeBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 12,
+    },
+    noticeText: {
+      flex: 1,
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    actionBtn: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 10,
+    },
+    actionBtnLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.text,
+    },
+  });
+}

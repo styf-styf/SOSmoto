@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getAiChatHistory, resolveAiChatAction, sendAiChatMessage } from '../../../services/aiAssistant';
 import type { AiChatMessage } from '../../../types/database';
 import { formatMessageDateLabel, formatMessageTime, shouldShowDateSeparator } from '../../../utils/chatFormat';
 
 export default function ClientAiAssistantScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
@@ -152,72 +155,74 @@ export default function ClientAiAssistantScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  messages: { padding: 16, gap: 8 },
-  placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 20 },
-  dateSeparator: {
-    alignSelf: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginVertical: 8,
-  },
-  dateSeparatorText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  bubble: { maxWidth: '80%', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMine: { backgroundColor: colors.primary, alignSelf: 'flex-end' },
-  bubbleTheirs: { backgroundColor: colors.surface, alignSelf: 'flex-start' },
-  bubbleText: { color: colors.text, fontSize: 14 },
-  bubbleTextMine: { color: '#fff', fontSize: 14 },
-  actionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: '#FFF8F0',
-  },
-  actionChipText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-  messageTimeRow: { marginTop: 2, marginBottom: 4, minHeight: 16, justifyContent: 'center' },
-  messageTime: { fontSize: 11, color: colors.textMuted },
-  messageTimeMine: { alignSelf: 'flex-end' },
-  messageTimeTheirs: { alignSelf: 'flex-start' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 120,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
+    messages: { padding: 16, gap: 8 },
+    placeholder: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 20 },
+    dateSeparator: {
+      alignSelf: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      marginVertical: 8,
+    },
+    dateSeparatorText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    bubble: { maxWidth: '80%', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
+    bubbleMine: { backgroundColor: colors.primary, alignSelf: 'flex-end' },
+    bubbleTheirs: { backgroundColor: colors.surface, alignSelf: 'flex-start' },
+    bubbleText: { color: colors.text, fontSize: 14 },
+    bubbleTextMine: { color: '#fff', fontSize: 14 },
+    actionChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      marginTop: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: '#FFF8F0',
+    },
+    actionChipText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+    messageTimeRow: { marginTop: 2, marginBottom: 4, minHeight: 16, justifyContent: 'center' },
+    messageTime: { fontSize: 11, color: colors.textMuted },
+    messageTimeMine: { alignSelf: 'flex-end' },
+    messageTimeTheirs: { alignSelf: 'flex-start' },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    input: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 120,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    sendButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

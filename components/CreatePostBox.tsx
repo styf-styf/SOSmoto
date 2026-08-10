@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MultiPhotoPicker } from './MultiPhotoPicker';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { searchBusinesses, type BusinessWithDistance } from '../services/businesses';
 import { createPost, MAX_POST_PHOTOS_CLIENT } from '../services/posts';
@@ -14,6 +15,8 @@ type TagResult =
   | { kind: 'client'; id: string; name: string };
 
 export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [caption, setCaption] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -188,111 +191,113 @@ export function CreatePostBox({ onCreated }: { onCreated?: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 8,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconCircleActive: {
-    backgroundColor: colors.primary,
-  },
-  input: {
-    flex: 1,
-    minHeight: 38,
-    maxHeight: 120,
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 14,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  previewWrap: {
-    marginTop: 8,
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF1E6',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 8,
-    maxWidth: '100%',
-  },
-  tagChipText: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  tagSearchWrap: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 8,
-    marginTop: 8,
-  },
-  tagSearchInput: {
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 10,
-    fontSize: 13,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  tagSearchSpinner: {
-    marginTop: 8,
-  },
-  tagResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginTop: 4,
-  },
-  tagResultText: {
-    fontSize: 13,
-    color: colors.text,
-    flexShrink: 1,
-  },
-  cancelTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 8,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+    iconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconCircleActive: {
+      backgroundColor: colors.primary,
+    },
+    input: {
+      flex: 1,
+      minHeight: 38,
+      maxHeight: 120,
+      borderRadius: 19,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      fontSize: 14,
+      color: colors.text,
+      backgroundColor: colors.background,
+    },
+    sendButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sendButtonDisabled: {
+      opacity: 0.5,
+    },
+    previewWrap: {
+      marginTop: 8,
+    },
+    tagChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: '#FFF1E6',
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      marginTop: 8,
+      maxWidth: '100%',
+    },
+    tagChipText: {
+      flexShrink: 1,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    tagSearchWrap: {
+      backgroundColor: colors.background,
+      borderRadius: 10,
+      padding: 8,
+      marginTop: 8,
+    },
+    tagSearchInput: {
+      height: 38,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 10,
+      fontSize: 13,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    tagSearchSpinner: {
+      marginTop: 8,
+    },
+    tagResultItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      marginTop: 4,
+    },
+    tagResultText: {
+      fontSize: 13,
+      color: colors.text,
+      flexShrink: 1,
+    },
+    cancelTagText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+  });
+}

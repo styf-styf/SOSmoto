@@ -9,7 +9,8 @@ import { StatusBadge, type StatusBadgeTone } from '../../components/StatusBadge'
 import { TextField } from '../../components/TextField';
 import { AppointmentCalendar } from '../../components/AppointmentCalendar';
 import { InfoButton, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import {
@@ -47,6 +48,8 @@ interface AgendaData {
 }
 
 export default function AgendaNegocioScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -775,167 +778,169 @@ function statusTone(a: BusinessAppointment): StatusBadgeTone {
   return 'neutral';
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  requestsSection: { marginBottom: 16 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  topBtns: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  newCitaBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: colors.primary, borderRadius: 12,
-    paddingVertical: 12,
-  },
-  newCitaBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  cardTitleRow: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 32,
-    height: 32,
-  },
-  externalBadge: {
-    fontSize: 10, fontWeight: '700', color: colors.textMuted,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 6,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  dateLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  dateValue: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '700',
-  },
-  circleActionsRow: {
-    flexDirection: 'row',
-    marginTop: 14,
-  },
-  waitingRow: {
-    marginTop: 10,
-    gap: 8,
-  },
-  waitingText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-  informeLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 10,
-  },
-  informeLinkText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  proposeBox: {
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-  },
-  proposeTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  pickerButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    marginBottom: 12,
-  },
-  pickerButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  reviewedText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 12,
-  },
-  activeMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 8,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    requestsSection: { marginBottom: 16 },
+    sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 },
+    topBtns: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    newCitaBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: 8, backgroundColor: colors.primary, borderRadius: 12,
+      paddingVertical: 12,
+    },
+    newCitaBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    cardTitleRow: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    },
+    avatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 32,
+      height: 32,
+    },
+    externalBadge: {
+      fontSize: 10, fontWeight: '700', color: colors.textMuted,
+      backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 8,
+      marginBottom: 6,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    cardMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    dateRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    dateLabel: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    dateValue: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '700',
+    },
+    circleActionsRow: {
+      flexDirection: 'row',
+      marginTop: 14,
+    },
+    waitingRow: {
+      marginTop: 10,
+      gap: 8,
+    },
+    waitingText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+    },
+    informeLinkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 10,
+    },
+    informeLinkText: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    proposeBox: {
+      marginTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 12,
+    },
+    proposeTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    pickerButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      marginBottom: 12,
+    },
+    pickerButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    reviewedText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 12,
+    },
+    activeMeta: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginBottom: 12,
+    },
+  });
+}

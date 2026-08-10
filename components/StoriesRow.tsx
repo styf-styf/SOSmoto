@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { GradientShade } from './GradientShade';
 import type { StoryFeedItem } from '../services/stories';
 
@@ -33,6 +34,8 @@ type RowEntry =
 const CARD_SWIPE_THRESHOLD = 10;
 
 export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: StoriesRowItem[] }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const data: RowEntry[] = [
     { type: 'ownAdd', own },
     ...(own.hasStory ? [{ type: 'ownStory' as const, own }] : []),
@@ -136,100 +139,102 @@ export function StoriesRow({ own, items }: { own: StoriesRowOwnSlot; items: Stor
 const CARD_WIDTH = 80;
 const CARD_HEIGHT = 132;
 
-const styles = StyleSheet.create({
-  list: {
-    gap: 6,
-    paddingLeft: 6,
-    paddingRight: 6,
-    paddingBottom: 8,
-  },
-  // Mismo patrón que PostCard/FeedCatalogStrip: la sombra vive en el wrapper
-  // exterior (sin overflow) y el recorte de bordes redondeados en el
-  // interior, porque overflow:'hidden' en la misma vista que la sombra la
-  // recorta también.
-  cardShadow: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  cardImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  cardImagePlaceholder: {
-    backgroundColor: colors.border,
-  },
-  cardOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  addCenter: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarWrap: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-  },
-  avatarBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  avatarBadgeUnseen: {
-    borderColor: colors.primary,
-  },
-  avatarBadgeSeen: {
-    borderColor: '#fff',
-  },
-  avatarImage: {
-    width: 28,
-    height: 28,
-  },
-  cardName: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 6,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#fff',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    list: {
+      gap: 6,
+      paddingLeft: 6,
+      paddingRight: 6,
+      paddingBottom: 8,
+    },
+    // Mismo patrón que PostCard/FeedCatalogStrip: la sombra vive en el wrapper
+    // exterior (sin overflow) y el recorte de bordes redondeados en el
+    // interior, porque overflow:'hidden' en la misma vista que la sombra la
+    // recorta también.
+    cardShadow: {
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    card: {
+      flex: 1,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+    },
+    cardImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    cardImagePlaceholder: {
+      backgroundColor: colors.border,
+    },
+    cardOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    addCenter: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarWrap: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
+    },
+    avatarBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    avatarBadgeUnseen: {
+      borderColor: colors.primary,
+    },
+    avatarBadgeSeen: {
+      borderColor: '#fff',
+    },
+    avatarImage: {
+      width: 28,
+      height: 28,
+    },
+    cardName: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 6,
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#fff',
+    },
+  });
+}

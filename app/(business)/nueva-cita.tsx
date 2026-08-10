@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, Linking, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
@@ -9,7 +9,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { useBusinessAppointmentRequestActions } from '../../hooks/useBusinessAppointmentRequestActions';
@@ -71,6 +72,8 @@ interface NuevaCitaData {
 }
 
 export default function NuevaCitaScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { clientId: preselectedClientId, serviceId: preselectedServiceId, autoConfirm } = useLocalSearchParams<{
     clientId?: string;
@@ -720,103 +723,105 @@ export default function NuevaCitaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background,
-  },
-  placeholder: {
-    fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, backgroundColor: colors.background,
-  },
-  fieldLabel: {
-    fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8,
-  },
-  searchWrap: { marginBottom: 20, zIndex: 10 },
-  searchInput: {
-    height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 14, fontSize: 14, color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  suggestionBox: {
-    marginTop: 4, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 10, backgroundColor: colors.surface, overflow: 'hidden',
-  },
-  suggestionSection: {
-    fontSize: 11, fontWeight: '700', color: colors.textMuted,
-    paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4,
-    textTransform: 'uppercase', letterSpacing: 0.5,
-  },
-  suggestionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  suggestionName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  suggestionPhone: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  extBadge: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
-  hint: {
-    fontSize: 13, color: colors.textMuted, padding: 12,
-  },
-  selectedClient: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#EEF4FF', borderRadius: 10, padding: 12, marginBottom: 20,
-  },
-  selectedClientName: {
-    fontSize: 14, fontWeight: '700', color: colors.primary,
-  },
-  selectedClientPhone: {
-    fontSize: 12, color: colors.textMuted, marginTop: 1,
-  },
-  extTag: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2,
-  },
-  extTagText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
-  externalHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: -12,
-    marginBottom: 20,
-    lineHeight: 17,
-  },
-  chipRow: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20,
-  },
-  chip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  chipSelected: { borderColor: colors.primary, backgroundColor: '#FFF1E6' },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-  chipTextSelected: { color: colors.primary },
-  pickerBtn: {
-    paddingHorizontal: 14, paddingVertical: 13, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.surface, marginBottom: 16,
-  },
-  pickerBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  dateHint: {
-    fontSize: 12, color: colors.textMuted, marginBottom: 20, marginTop: -8,
-  },
-  notesInput: { marginBottom: 8 },
-  submitBtn: { marginTop: 8 },
-  conflictSpinner: { marginBottom: 16 },
-  conflictBox: {
-    borderRadius: 12, borderWidth: 1, borderColor: colors.warning,
-    backgroundColor: colors.warningLight,
-    padding: 14, marginBottom: 16,
-  },
-  conflictTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  conflictSub: { fontSize: 12, color: colors.textMuted, marginBottom: 10 },
-  conflictForm: { marginTop: 6 },
-  conflictBtn: { marginTop: 2 },
-  conflictFormBtn: { marginTop: 4 },
-  conflictFormBtnSecondary: { marginTop: 8 },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background,
+    },
+    placeholder: {
+      fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, backgroundColor: colors.background,
+    },
+    fieldLabel: {
+      fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8,
+    },
+    searchWrap: { marginBottom: 20, zIndex: 10 },
+    searchInput: {
+      height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+      paddingHorizontal: 14, fontSize: 14, color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    suggestionBox: {
+      marginTop: 4, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 10, backgroundColor: colors.surface, overflow: 'hidden',
+    },
+    suggestionSection: {
+      fontSize: 11, fontWeight: '700', color: colors.textMuted,
+      paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4,
+      textTransform: 'uppercase', letterSpacing: 0.5,
+    },
+    suggestionRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    suggestionName: { fontSize: 14, fontWeight: '600', color: colors.text },
+    suggestionPhone: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
+    extBadge: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
+    hint: {
+      fontSize: 13, color: colors.textMuted, padding: 12,
+    },
+    selectedClient: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: '#EEF4FF', borderRadius: 10, padding: 12, marginBottom: 20,
+    },
+    selectedClientName: {
+      fontSize: 14, fontWeight: '700', color: colors.primary,
+    },
+    selectedClientPhone: {
+      fontSize: 12, color: colors.textMuted, marginTop: 1,
+    },
+    extTag: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 6,
+      paddingHorizontal: 6, paddingVertical: 2,
+    },
+    extTagText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
+    externalHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: -12,
+      marginBottom: 20,
+      lineHeight: 17,
+    },
+    chipRow: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20,
+    },
+    chip: {
+      paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    chipSelected: { borderColor: colors.primary, backgroundColor: '#FFF1E6' },
+    chipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+    chipTextSelected: { color: colors.primary },
+    pickerBtn: {
+      paddingHorizontal: 14, paddingVertical: 13, borderRadius: 10,
+      borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.surface, marginBottom: 16,
+    },
+    pickerBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
+    dateHint: {
+      fontSize: 12, color: colors.textMuted, marginBottom: 20, marginTop: -8,
+    },
+    notesInput: { marginBottom: 8 },
+    submitBtn: { marginTop: 8 },
+    conflictSpinner: { marginBottom: 16 },
+    conflictBox: {
+      borderRadius: 12, borderWidth: 1, borderColor: colors.warning,
+      backgroundColor: colors.warningLight,
+      padding: 14, marginBottom: 16,
+    },
+    conflictTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
+    conflictSub: { fontSize: 12, color: colors.textMuted, marginBottom: 10 },
+    conflictForm: { marginTop: 6 },
+    conflictBtn: { marginTop: 2 },
+    conflictFormBtn: { marginTop: 4 },
+    conflictFormBtnSecondary: { marginTop: 8 },
+  });
+}

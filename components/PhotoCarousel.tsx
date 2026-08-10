@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dimensions, FlatList, Image, StyleSheet, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useImageAspectRatio } from '../hooks/useImageAspectRatio';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -20,6 +21,8 @@ export function PhotoCarousel({
   sidePadding?: number;
   naturalAspect?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [index, setIndex] = useState(0);
   const imageWidth = SCREEN_WIDTH - sidePadding * 2;
 
@@ -72,31 +75,33 @@ export function PhotoCarousel({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginBottom: 16,
-  },
-  frame: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  image: {
-    backgroundColor: colors.background,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.border,
-  },
-  dotActive: {
-    backgroundColor: colors.primary,
-    width: 16,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    wrap: {
+      marginBottom: 16,
+    },
+    frame: {
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    image: {
+      backgroundColor: colors.background,
+    },
+    dotsRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+    },
+    dotActive: {
+      backgroundColor: colors.primary,
+      width: 16,
+    },
+  });
+}

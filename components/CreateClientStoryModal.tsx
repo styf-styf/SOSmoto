@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from './Button';
 import { TextField } from './TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { createStory, getClientActiveStoryCount } from '../services/stories';
 import { pickAndUploadClientStoryImage } from '../services/storage';
@@ -26,6 +27,8 @@ export function CreateClientStoryModal({
   onClose: () => void;
   onCreated: (story: Story) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [imageUrl, setImageUrl] = useState('');
   const [caption, setCaption] = useState('');
@@ -134,79 +137,81 @@ export function CreateClientStoryModal({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingTop: 56,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  chipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: colors.primary,
-  },
-  preview: {
-    width: '100%',
-    height: 220,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: colors.surface,
-  },
-  imageButton: {
-    marginBottom: 16,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  flexButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      paddingTop: 56,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    chipText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    chipTextSelected: {
+      color: colors.primary,
+    },
+    preview: {
+      width: '100%',
+      height: 220,
+      borderRadius: 12,
+      marginBottom: 10,
+      backgroundColor: colors.surface,
+    },
+    imageButton: {
+      marginBottom: 16,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    flexButton: {
+      flex: 1,
+    },
+  });
+}

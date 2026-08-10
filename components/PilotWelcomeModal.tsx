@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { lightColors } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 
 // Bienvenida a la version piloto -- se muestra una sola vez por cuenta (no
@@ -46,7 +46,7 @@ export function PilotWelcomeModal() {
           <Pressable style={styles.closeBtn} onPress={dismiss} hitSlop={12}>
             <Ionicons name="close" size={22} color="#fff" />
           </Pressable>
-          <Ionicons name="rocket-outline" size={40} color={colors.primary} />
+          <Ionicons name="rocket-outline" size={40} color={lightColors.primary} />
           <Text style={styles.title}>¡Bienvenido a SOSmoto!</Text>
           <Text style={styles.subtitle}>Estás usando la versión piloto</Text>
           <Text style={styles.body}>
@@ -63,6 +63,11 @@ export function PilotWelcomeModal() {
   );
 }
 
+// Fijo a los colores de marca (no useColors()) a propósito -- es un splash
+// de bienvenida de una sola vez, diseñado como tarjeta azul marino con texto
+// blanco; `secondary` invierte su valor en modo oscuro (pasa a ser lavanda
+// claro), así que seguir el tema activo rompería este diseño en vez de
+// adaptarlo.
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -73,7 +78,7 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_SIZE,
     height: CARD_SIZE,
-    backgroundColor: colors.secondary,
+    backgroundColor: lightColors.secondary,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -95,7 +100,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 15,
     fontWeight: '700',
-    color: colors.primary,
+    color: lightColors.primary,
     textAlign: 'center',
   },
   body: {
@@ -107,7 +112,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 24,
-    backgroundColor: colors.primary,
+    backgroundColor: lightColors.primary,
     borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 32,

@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import type { InspectionGroup, InspectionStatus } from '../types/database';
 import type { ServiceReportWithBusiness } from '../services/serviceReports';
 
@@ -10,7 +12,7 @@ interface Props {
 }
 
 
-function statusColor(s: InspectionStatus): string {
+function statusColor(s: InspectionStatus, colors: ColorTheme): string {
   if (s === 'ok') return colors.success;
   if (s === 'attention') return colors.warning;
   if (s === 'critical') return colors.danger;
@@ -32,6 +34,8 @@ function statusLabel(s: InspectionStatus): string {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -41,6 +45,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function ServiceReportView({ report, footer }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const date = new Date(report.created_at).toLocaleDateString('es-EC', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
@@ -194,9 +200,9 @@ export function ServiceReportView({ report, footer }: Props) {
                 <Text style={styles.checkGroupTitle}>{grp.group}</Text>
                 {visibleItems.map((it, ii) => (
                   <View key={ii} style={styles.checkRow}>
-                    <Ionicons name={statusIcon(it.status) as any} size={16} color={statusColor(it.status)} />
+                    <Ionicons name={statusIcon(it.status) as any} size={16} color={statusColor(it.status, colors)} />
                     <Text style={styles.checkItem}>{it.item}</Text>
-                    <Text style={[styles.checkStatus, { color: statusColor(it.status) }]}>
+                    <Text style={[styles.checkStatus, { color: statusColor(it.status, colors) }]}>
                       {statusLabel(it.status)}
                     </Text>
                   </View>
@@ -252,78 +258,80 @@ export function ServiceReportView({ report, footer }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
-  footerSlot: { gap: 10, paddingTop: 8 },
-  header: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 12,
-  },
-  headerIcon: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center',
-  },
-  headerInfo: { flex: 1 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  headerDate: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  clientRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 6 },
-  clientRowText: { flex: 1, fontSize: 12, color: colors.textMuted },
-  categoryBadge: {
-    alignSelf: 'flex-start', marginTop: 8,
-    backgroundColor: '#EEF4FF', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
-  },
-  categoryBadgeText: { fontSize: 12, color: colors.primary, fontWeight: '700' },
-  infoRow: {
-    flexDirection: 'row', gap: 10, marginBottom: 10,
-  },
-  infoItem: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: colors.surface, borderRadius: 12, padding: 12,
-    flex: 1,
-  },
-  infoLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
-  infoValue: { fontSize: 14, color: colors.text, fontWeight: '700', marginTop: 2 },
-  kmCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 12,
-  },
-  kmText: { fontSize: 14, color: colors.text, fontWeight: '600' },
-  confirmedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.successLight, borderRadius: 10, padding: 10, marginBottom: 12,
-  },
-  confirmedText: { fontSize: 13, color: colors.success, fontWeight: '600' },
-  section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12 },
-  sectionTitle: {
-    fontSize: 13, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
-  },
-  bulletRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
-  bullet: { fontSize: 16, color: colors.primary, lineHeight: 22 },
-  bulletText: { flex: 1, fontSize: 15, color: colors.text, lineHeight: 22 },
-  partsTable: { borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  partsHeader: {
-    flexDirection: 'row', backgroundColor: colors.background,
-    paddingVertical: 8, paddingHorizontal: 12,
-  },
-  partsHeaderText: { fontWeight: '700', color: colors.textMuted, fontSize: 13 },
-  partsRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 12 },
-  partsRowAlt: { backgroundColor: colors.background },
-  partsCell: { fontSize: 14, color: colors.text },
-  checkGroup: { marginBottom: 10 },
-  checkGroupTitle: {
-    fontSize: 12, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', marginBottom: 6,
-  },
-  checkRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border,
-  },
-  checkItem: { flex: 1, fontSize: 14, color: colors.text },
-  checkStatus: { fontSize: 12, fontWeight: '700' },
-  groupObs: { fontSize: 13, color: colors.textMuted, marginTop: 8, fontStyle: 'italic' },
-  bodyText: { fontSize: 15, color: colors.text, lineHeight: 22 },
-  nextMaintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  nextMaintInfo: { flex: 1 },
-  nextMaintText: { fontSize: 15, color: colors.text, fontWeight: '600' },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: { padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+    footerSlot: { gap: 10, paddingTop: 8 },
+    header: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+      backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 12,
+    },
+    headerIcon: {
+      width: 52, height: 52, borderRadius: 26,
+      backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center',
+    },
+    headerInfo: { flex: 1 },
+    headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    headerDate: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    clientRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 6 },
+    clientRowText: { flex: 1, fontSize: 12, color: colors.textMuted },
+    categoryBadge: {
+      alignSelf: 'flex-start', marginTop: 8,
+      backgroundColor: '#EEF4FF', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
+    },
+    categoryBadgeText: { fontSize: 12, color: colors.primary, fontWeight: '700' },
+    infoRow: {
+      flexDirection: 'row', gap: 10, marginBottom: 10,
+    },
+    infoItem: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+      backgroundColor: colors.surface, borderRadius: 12, padding: 12,
+      flex: 1,
+    },
+    infoLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
+    infoValue: { fontSize: 14, color: colors.text, fontWeight: '700', marginTop: 2 },
+    kmCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 12,
+    },
+    kmText: { fontSize: 14, color: colors.text, fontWeight: '600' },
+    confirmedBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: colors.successLight, borderRadius: 10, padding: 10, marginBottom: 12,
+    },
+    confirmedText: { fontSize: 13, color: colors.success, fontWeight: '600' },
+    section: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12 },
+    sectionTitle: {
+      fontSize: 13, fontWeight: '700', color: colors.textMuted,
+      textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
+    },
+    bulletRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+    bullet: { fontSize: 16, color: colors.primary, lineHeight: 22 },
+    bulletText: { flex: 1, fontSize: 15, color: colors.text, lineHeight: 22 },
+    partsTable: { borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+    partsHeader: {
+      flexDirection: 'row', backgroundColor: colors.background,
+      paddingVertical: 8, paddingHorizontal: 12,
+    },
+    partsHeaderText: { fontWeight: '700', color: colors.textMuted, fontSize: 13 },
+    partsRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 12 },
+    partsRowAlt: { backgroundColor: colors.background },
+    partsCell: { fontSize: 14, color: colors.text },
+    checkGroup: { marginBottom: 10 },
+    checkGroupTitle: {
+      fontSize: 12, fontWeight: '700', color: colors.textMuted,
+      textTransform: 'uppercase', marginBottom: 6,
+    },
+    checkRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    checkItem: { flex: 1, fontSize: 14, color: colors.text },
+    checkStatus: { fontSize: 12, fontWeight: '700' },
+    groupObs: { fontSize: 13, color: colors.textMuted, marginTop: 8, fontStyle: 'italic' },
+    bodyText: { fontSize: 15, color: colors.text, lineHeight: 22 },
+    nextMaintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    nextMaintInfo: { flex: 1 },
+    nextMaintText: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  });
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { BrandTitle } from '../../../components/BrandTitle';
 import { LegalUpdateBanner } from '../../../components/LegalUpdateBanner';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import {
@@ -75,6 +76,8 @@ function ratingStarIcons(rating: number): Array<'star' | 'star-half' | 'star-out
 const DESCUBRE_SWIPE_THRESHOLD = 10;
 
 export default function ClientHomeScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { coords } = useLocation();
   const navigation = useNavigation();
@@ -607,198 +610,200 @@ export default function ClientHomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 36,
-    paddingBottom: 6,
-  },
-  headerSide: {
-    flex: 1,
-  },
-  headerSideRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 3,
-  },
-  headerSideLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 3,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  siguiendoBtn: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  maintenanceWrap: {
-    paddingHorizontal: 20,
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  maintenanceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-  },
-  maintenanceCardText: {
-    flex: 1,
-  },
-  maintenanceCardTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  maintenanceCardMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  maintenanceCardAction: {
-    padding: 6,
-  },
-  descubreWrap: {
-    marginBottom: 12,
-  },
-  descubreRow: {
-    // Unificado con el espacio entre tarjetas de Historias/carrusel de
-    // catálogo (gap: 6).
-    gap: 6,
-    // Izquierda y derecha unificadas con Historias/carrusel de catálogo.
-    paddingLeft: 6,
-    paddingRight: 6,
-    paddingBottom: 4,
-  },
-  // Mismo patrón que StoriesRow/FeedCatalogStrip: la sombra vive en el
-  // wrapper exterior (sin overflow) y el recorte de bordes redondeados en el
-  // interior -- la imagen del negocio llena toda la tarjeta, con un degradado
-  // oscuro y el nombre/tipo/distancia/calificación sobrepuestos en blanco.
-  descubreCardShadow: {
-    width: DESCUBRE_CARD_WIDTH,
-    height: DESCUBRE_CARD_HEIGHT,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  descubreCard: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  descubreImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  descubreImagePlaceholder: {
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  descubreVerifiedDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  descubreName: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 48,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  descubreMeta: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 29,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  descubreRatingRow: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  descubreRating: {
-    marginLeft: 4,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  createPostWrap: {
-    paddingHorizontal: 6,
-    paddingBottom: 16,
-  },
-  limitedNotice: {
-    fontSize: 13,
-    color: colors.danger,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 8,
-    padding: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  sectionTitleInset: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-    // Alineado con el margen izquierdo de 6px del resto del feed (el
-    // carrusel de "Nuevos cerca de ti" ya arranca en 6px desde el cambio
-    // anterior; el título estaba desalineado con 20px).
-    paddingHorizontal: 6,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: 36,
+      paddingBottom: 6,
+    },
+    headerSide: {
+      flex: 1,
+    },
+    headerSideRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 3,
+    },
+    headerSideLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      gap: 3,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    siguiendoBtn: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    maintenanceWrap: {
+      paddingHorizontal: 20,
+      gap: 8,
+      marginTop: 8,
+      marginBottom: 12,
+    },
+    maintenanceCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 12,
+    },
+    maintenanceCardText: {
+      flex: 1,
+    },
+    maintenanceCardTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    maintenanceCardMeta: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    maintenanceCardAction: {
+      padding: 6,
+    },
+    descubreWrap: {
+      marginBottom: 12,
+    },
+    descubreRow: {
+      // Unificado con el espacio entre tarjetas de Historias/carrusel de
+      // catálogo (gap: 6).
+      gap: 6,
+      // Izquierda y derecha unificadas con Historias/carrusel de catálogo.
+      paddingLeft: 6,
+      paddingRight: 6,
+      paddingBottom: 4,
+    },
+    // Mismo patrón que StoriesRow/FeedCatalogStrip: la sombra vive en el
+    // wrapper exterior (sin overflow) y el recorte de bordes redondeados en el
+    // interior -- la imagen del negocio llena toda la tarjeta, con un degradado
+    // oscuro y el nombre/tipo/distancia/calificación sobrepuestos en blanco.
+    descubreCardShadow: {
+      width: DESCUBRE_CARD_WIDTH,
+      height: DESCUBRE_CARD_HEIGHT,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    descubreCard: {
+      flex: 1,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+    },
+    descubreImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    descubreImagePlaceholder: {
+      backgroundColor: '#FFF1E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    descubreVerifiedDot: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    descubreName: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 48,
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.6)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    descubreMeta: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 29,
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.6)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    descubreRatingRow: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    descubreRating: {
+      marginLeft: 4,
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.6)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    createPostWrap: {
+      paddingHorizontal: 6,
+      paddingBottom: 16,
+    },
+    limitedNotice: {
+      fontSize: 13,
+      color: colors.danger,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 8,
+      padding: 10,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    sectionTitleInset: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+      // Alineado con el margen izquierdo de 6px del resto del feed (el
+      // carrusel de "Nuevos cerca de ti" ya arranca en 6px desde el cambio
+      // anterior; el título estaba desalineado con 20px).
+      paddingHorizontal: 6,
+    },
+  });
+}

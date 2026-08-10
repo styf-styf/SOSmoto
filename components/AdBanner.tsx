@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import type { GestureResponderEvent, NativeSyntheticEvent, TextLayoutEventData } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { GradientShade } from './GradientShade';
 import { registerAdImpression } from '../services/ads';
 import type { AdWithBusiness } from '../services/ads';
 import { markHomeFeedPreserveScroll } from '../utils/homeFeedScrollPreserve';
 
 export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [expanded, setExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const collapsed = !expanded;
@@ -113,121 +116,123 @@ export function AdBanner({ ad, detailHref }: { ad: AdWithBusiness; detailHref: s
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    // Horizontal unificado con el resto del feed (historias, carrusel de
-    // catálogo, publicaciones); vertical sin cambios.
-    marginHorizontal: 6,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  authorRowExpanded: {
-    alignItems: 'flex-start',
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 32,
-    height: 32,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  authorTextRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  authorLine: {
-    flexShrink: 1,
-  },
-  measure: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    opacity: 0,
-  },
-  authorName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  inlineCaption: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  moreLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginLeft: 4,
-  },
-  imageWrap: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.surface,
-  },
-  adChip: {
-    position: 'absolute',
-    left: 10,
-    bottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  adChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  imageEngagementRow: {
-    position: 'absolute',
-    right: 10,
-    bottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  engagementButtonOverlay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  engagementCountOverlay: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      // Horizontal unificado con el resto del feed (historias, carrusel de
+      // catálogo, publicaciones); vertical sin cambios.
+      marginHorizontal: 6,
+      marginBottom: 8,
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    authorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    authorRowExpanded: {
+      alignItems: 'flex-start',
+    },
+    avatarWrap: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 32,
+      height: 32,
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    authorTextRow: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    authorLine: {
+      flexShrink: 1,
+    },
+    measure: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0,
+      opacity: 0,
+    },
+    authorName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    inlineCaption: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    moreLink: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginLeft: 4,
+    },
+    imageWrap: {
+      width: '100%',
+      aspectRatio: 3 / 4,
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: colors.surface,
+    },
+    adChip: {
+      position: 'absolute',
+      left: 10,
+      bottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    adChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    imageEngagementRow: {
+      position: 'absolute',
+      right: 10,
+      bottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    engagementButtonOverlay: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    engagementCountOverlay: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#fff',
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,7 +15,8 @@ import { FeedCatalogStrip } from '../../components/FeedCatalogStrip';
 import { FilterChip } from '../../components/FilterChip';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { SearchEmptyState } from '../../components/SearchEmptyState';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { ratingFilters } from '../../constants/searchFilters';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from '../../hooks/useLocation';
@@ -69,6 +70,8 @@ let lastState: BuscarNegocioState = {
 };
 
 export default function BusinessBuscarScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { coords } = useLocation();
 
@@ -347,88 +350,90 @@ export default function BusinessBuscarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  searchInput: {
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  searchInputFlex: {
-    flex: 1,
-  },
-  filterToggleButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterToggleButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  limitedContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  limitedText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  activeFiltersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  activeFiltersText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-    flexShrink: 1,
-  },
-  loading: {
-    marginTop: 40,
-  },
-  results: {
-    paddingTop: 4,
-  },
-  discoverGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: DISCOVER_GRID_GAP,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    searchInput: {
+      height: 50,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      fontSize: 16,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    searchInputFlex: {
+      flex: 1,
+    },
+    filterToggleButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filterToggleButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    limitedContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    limitedText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    activeFiltersRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+      marginBottom: 8,
+    },
+    activeFiltersText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+      flexShrink: 1,
+    },
+    loading: {
+      marginTop: 40,
+    },
+    results: {
+      paddingTop: 4,
+    },
+    discoverGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: DISCOVER_GRID_GAP,
+    },
+  });
+}

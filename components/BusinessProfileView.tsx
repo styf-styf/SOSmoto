@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
 import { CARD_MARGIN, PostCard } from './PostCard';
 import { ReportModal } from './ReportModal';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/auth';
 import {
@@ -47,6 +48,8 @@ export interface BusinessProfileViewProps {
 }
 
 export function BusinessProfileView({ mode, businessId }: BusinessProfileViewProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
 
   const [business, setBusiness] = useState<Business | null>(null);
@@ -609,6 +612,8 @@ function ProfileActionButton({
   loading?: boolean;
   active?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable style={styles.profileActionButton} onPress={onPress} disabled={loading}>
       {loading ? (
@@ -623,326 +628,328 @@ function ProfileActionButton({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-    gap: 8,
-  },
-  suspendedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
-  },
-  suspendedBannerText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
-  },
-  container: {
-    paddingHorizontal: SIDE_PADDING,
-    paddingTop: 36,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  // El modo "public" ya tiene header nativo (con flecha de regreso) -- el
-  // padding de 36 era para compensar la ausencia de header y separar del
-  // status bar, ahora sobra y deja el avatar/título muy lejos del header.
-  containerWithHeader: {
-    paddingTop: 16,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 24,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  headerIconsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.danger,
-    borderWidth: 1.5,
-    borderColor: colors.background,
-  },
-  avatarWrap: {
-    width: 72,
-    height: 72,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 72,
-    height: 72,
-  },
-  avatarBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // mode 'self': arriba a la derecha para no chocar con avatarBadge (cámara
-  // de editar), que ya ocupa la esquina inferior derecha.
-  verifiedBadgeTopRight: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-  },
-  // mode 'public': abajo a la derecha, ahí no hay ningún otro badge.
-  verifiedBadgeBottomRight: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-  },
-  headerText: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  profileActionsRow: {
-    flexDirection: 'row',
-    marginTop: 20,
-    marginHorizontal: EDGE_INSET,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  profileActionButton: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  profileActionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  profileActionLabelActive: {
-    color: colors.primary,
-  },
-  section: {
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  // PostCard trae su propio marginHorizontal (6) para alinearse con el resto
-  // del feed de Inicio, que no tiene padding propio -- acá sí lo hay
-  // (SIDE_PADDING), así que se cancela para que las tarjetas queden del
-  // mismo ancho/margen que en Inicio en vez de verse más angostas.
-  postsListWrap: {
-    marginHorizontal: -SIDE_PADDING,
-  },
-  followingScroll: {
-    marginHorizontal: -SIDE_PADDING,
-  },
-  followingRow: {
-    gap: 16,
-    paddingLeft: CARD_MARGIN,
-    // Sin padding a la derecha a propósito -- ver comentario junto al
-    // ScrollView.
-  },
-  followingItem: {
-    width: 64,
-    alignItems: 'center',
-  },
-  followingAvatarWrap: {
-    position: 'relative',
-    marginBottom: 6,
-  },
-  followingAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  followingAvatarImage: {
-    width: 56,
-    height: 56,
-  },
-  followingVerifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  followingName: {
-    fontSize: 12,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  scheduleHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  openBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  openBadgeOpen: {
-    backgroundColor: colors.successLight,
-  },
-  openBadgeClosed: {
-    backgroundColor: colors.dangerLight,
-  },
-  openBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  scheduleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  scheduleDay: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  scheduleHours: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  scheduleDayToday: {
-    color: colors.text,
-    fontWeight: '700',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 20,
-  },
-  placeholderText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  reviewRow: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  reviewRowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  reviewStars: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  reviewComment: {
-    fontSize: 13,
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+      gap: 8,
+    },
+    suspendedBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 16,
+    },
+    suspendedBannerText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.text,
+    },
+    container: {
+      paddingHorizontal: SIDE_PADDING,
+      paddingTop: 36,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    // El modo "public" ya tiene header nativo (con flecha de regreso) -- el
+    // padding de 36 era para compensar la ausencia de header y separar del
+    // status bar, ahora sobra y deja el avatar/título muy lejos del header.
+    containerWithHeader: {
+      paddingTop: 16,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 24,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    headerIconsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: -1,
+      right: -1,
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: colors.danger,
+      borderWidth: 1.5,
+      borderColor: colors.background,
+    },
+    avatarWrap: {
+      width: 72,
+      height: 72,
+    },
+    avatar: {
+      width: 72,
+      height: 72,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 72,
+      height: 72,
+    },
+    avatarBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // mode 'self': arriba a la derecha para no chocar con avatarBadge (cámara
+    // de editar), que ya ocupa la esquina inferior derecha.
+    verifiedBadgeTopRight: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: colors.background,
+      borderRadius: 8,
+    },
+    // mode 'public': abajo a la derecha, ahí no hay ningún otro badge.
+    verifiedBadgeBottomRight: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: colors.background,
+      borderRadius: 8,
+    },
+    headerText: {
+      flex: 1,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontSize: 13,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 20,
+    },
+    statItem: {
+      alignItems: 'center',
+      flex: 1,
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 20,
+    },
+    actionButton: {
+      flex: 1,
+    },
+    profileActionsRow: {
+      flexDirection: 'row',
+      marginTop: 20,
+      marginHorizontal: EDGE_INSET,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    profileActionButton: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+    },
+    profileActionLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    profileActionLabelActive: {
+      color: colors.primary,
+    },
+    section: {
+      marginTop: 20,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    // PostCard trae su propio marginHorizontal (6) para alinearse con el resto
+    // del feed de Inicio, que no tiene padding propio -- acá sí lo hay
+    // (SIDE_PADDING), así que se cancela para que las tarjetas queden del
+    // mismo ancho/margen que en Inicio en vez de verse más angostas.
+    postsListWrap: {
+      marginHorizontal: -SIDE_PADDING,
+    },
+    followingScroll: {
+      marginHorizontal: -SIDE_PADDING,
+    },
+    followingRow: {
+      gap: 16,
+      paddingLeft: CARD_MARGIN,
+      // Sin padding a la derecha a propósito -- ver comentario junto al
+      // ScrollView.
+    },
+    followingItem: {
+      width: 64,
+      alignItems: 'center',
+    },
+    followingAvatarWrap: {
+      position: 'relative',
+      marginBottom: 6,
+    },
+    followingAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    followingAvatarImage: {
+      width: 56,
+      height: 56,
+    },
+    followingVerifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    followingName: {
+      fontSize: 12,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    description: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    scheduleHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    openBadge: {
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    openBadgeOpen: {
+      backgroundColor: colors.successLight,
+    },
+    openBadgeClosed: {
+      backgroundColor: colors.dangerLight,
+    },
+    openBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    scheduleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    scheduleDay: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    scheduleHours: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    scheduleDayToday: {
+      color: colors.text,
+      fontWeight: '700',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 20,
+    },
+    placeholderText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 12,
+    },
+    reviewRow: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    reviewRowTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    reviewStars: {
+      flexDirection: 'row',
+      gap: 2,
+    },
+    reviewComment: {
+      fontSize: 13,
+      color: colors.text,
+    },
+  });
+}

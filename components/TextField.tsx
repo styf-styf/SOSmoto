@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 interface TextFieldProps extends TextInputProps {
   label: string;
@@ -9,6 +11,8 @@ interface TextFieldProps extends TextInputProps {
 }
 
 export function TextField({ label, error, style, rightIcon, ...inputProps }: TextFieldProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // Se despliega hacia abajo (como el input del chat) para que un texto mas
   // largo que el ancho del campo siga siendo visible completo, en vez de
   // recortarse. secureTextEntry queda afuera a proposito: React Native no
@@ -37,49 +41,51 @@ export function TextField({ label, error, style, rightIcon, ...inputProps }: Tex
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  inputWrap: {
-    position: 'relative',
-  },
-  input: {
-    minHeight: 50,
-    maxHeight: 120,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  inputWithIcon: {
-    paddingRight: 44,
-  },
-  iconButton: {
-    position: 'absolute',
-    right: 4,
-    top: 0,
-    bottom: 0,
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 12,
-    marginTop: 4,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    inputWrap: {
+      position: 'relative',
+    },
+    input: {
+      minHeight: 50,
+      maxHeight: 120,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    inputWithIcon: {
+      paddingRight: 44,
+    },
+    iconButton: {
+      position: 'absolute',
+      right: 4,
+      top: 0,
+      bottom: 0,
+      width: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    inputError: {
+      borderColor: colors.danger,
+    },
+    error: {
+      color: colors.danger,
+      fontSize: 12,
+      marginTop: 4,
+    },
+  });
+}

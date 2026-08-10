@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { PhotoCarousel } from './PhotoCarousel';
 import { getAdById, registerAdClick, type AdWithBusiness } from '../services/ads';
 import { getBusinessOwnerForChat } from '../services/businesses';
 
 export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole?: 'client' | 'business' }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const prefix = userRole === 'business' ? '/(business)' : '/(client)';
   const [ad, setAd] = useState<AdWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
@@ -158,112 +161,114 @@ export function AdDetail({ adId, userRole = 'client' }: { adId: string; userRole
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    padding: 20,
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 38,
-    height: 38,
-  },
-  authorName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  imageWrap: {
-    width: '100%',
-  },
-  adChip: {
-    position: 'absolute',
-    left: 10,
-    top: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  adChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  caption: {
-    fontSize: 15,
-    color: colors.text,
-    marginTop: 14,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 14,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  linkButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  catalogButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  catalogButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scroll: {
+      padding: 20,
+    },
+    authorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    avatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 38,
+      height: 38,
+    },
+    authorName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    imageWrap: {
+      width: '100%',
+    },
+    adChip: {
+      position: 'absolute',
+      left: 10,
+      top: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    adChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    caption: {
+      fontSize: 15,
+      color: colors.text,
+      marginTop: 14,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 14,
+    },
+    linkButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primary,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    linkButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    catalogButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    catalogButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });
+}

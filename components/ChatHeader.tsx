@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 interface ChatHeaderProps {
   name: string;
@@ -14,6 +16,8 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ name, avatarUrl, fallbackIcon = 'person', onPressName, isVerified = false }: ChatHeaderProps) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -45,58 +49,60 @@ export function ChatHeader({ name, avatarUrl, fallbackIcon = 'person', onPressNa
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  bar: {
-    height: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    gap: 4,
-  },
-  backButton: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  identity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 28,
-    height: 28,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 7,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flexShrink: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    bar: {
+      height: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+      gap: 4,
+    },
+    backButton: {
+      width: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+    },
+    identity: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
+    avatarWrap: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 28,
+      height: 28,
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: colors.background,
+      borderRadius: 7,
+    },
+    name: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flexShrink: 1,
+    },
+  });
+}

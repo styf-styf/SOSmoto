@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { CircleActionButton } from '../../../components/CircleActionButton';
 import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { getMyWorkBusiness } from '../../../services/businesses';
@@ -42,6 +43,8 @@ function statusTone(status: ProductIntentStatus): StatusBadgeTone {
 }
 
 export default function PedidosScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [intents, setIntents] = useState<ProductIntentWithDetails[]>([]);
@@ -183,73 +186,75 @@ export default function PedidosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 36,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 32,
-    height: 32,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  phoneText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  circleActionsRow: {
-    flexDirection: 'row',
-    marginTop: 12,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 36,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 6,
+    },
+    avatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 32,
+      height: 32,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    cardMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    phoneRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
+    phoneText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    circleActionsRow: {
+      flexDirection: 'row',
+      marginTop: 12,
+    },
+  });
+}

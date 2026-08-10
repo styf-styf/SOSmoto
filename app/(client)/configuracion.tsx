@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
-import { colors } from '../../constants/colors';
+import { useColors, useTheme } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useSavedAccountToggle } from '../../hooks/useSavedAccountToggle';
 import { signOut } from '../../services/auth';
@@ -19,7 +20,15 @@ const buildInfo = Updates.isEmbeddedLaunch
   : `Update ${Updates.updateId?.slice(0, 8) ?? '?'} · ${Updates.createdAt?.toLocaleString('es-EC') ?? ''}`;
 const appVersion = Constants.expoConfig?.version ?? '?';
 
+const THEME_MODE_LABEL: Record<'light' | 'dark' | 'system', string> = {
+  light: 'Claro',
+  dark: 'Oscuro',
+  system: 'Automático',
+};
+
 export default function ConfiguracionScreen() {
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -68,6 +77,15 @@ export default function ConfiguracionScreen() {
       console.error('sign out error', err);
       setSigningOut(false);
     }
+  }
+
+  function handleChooseTheme() {
+    Alert.alert('Apariencia', 'Elige cómo se ve la app', [
+      { text: 'Automático (sistema)', onPress: () => setMode('system') },
+      { text: 'Claro', onPress: () => setMode('light') },
+      { text: 'Oscuro', onPress: () => setMode('dark') },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }
 
   async function handleOpenSettings() {
@@ -124,6 +142,12 @@ export default function ConfiguracionScreen() {
           icon="notifications-outline"
           label="Notificaciones"
           onPress={() => router.push('/(client)/notificaciones-preferencias')}
+        />
+        <MenuRow
+          icon="contrast-outline"
+          label="Apariencia"
+          badge={THEME_MODE_LABEL[mode]}
+          onPress={handleChooseTheme}
         />
         {!quickAccess.checking && (
           <MenuRow
@@ -192,6 +216,8 @@ function MenuRow({
   last?: boolean;
   external?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const content = (
     <>
       <View style={styles.menuRowIconWrap}>
@@ -226,89 +252,91 @@ function MenuRow({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 20,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 20,
-  },
-  menuGroup: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  menuRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rowPressed: {
-    opacity: 0.55,
-  },
-  menuRowIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuRowContent: {
-    flex: 1,
-  },
-  menuRowLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  menuRowHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  menuRowBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-    marginRight: 4,
-  },
-  menuRowBadgeDanger: {
-    color: colors.danger,
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-  },
-  dangerLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.danger,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginTop: 20,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 20,
+    },
+    menuGroup: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+    },
+    menuRowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    rowPressed: {
+      opacity: 0.55,
+    },
+    menuRowIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      backgroundColor: colors.warningLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuRowContent: {
+      flex: 1,
+    },
+    menuRowLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    menuRowHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    menuRowBadge: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+      marginRight: 4,
+    },
+    menuRowBadgeDanger: {
+      color: colors.danger,
+    },
+    dangerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    dangerLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.danger,
+    },
+  });
+}

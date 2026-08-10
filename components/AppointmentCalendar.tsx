@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import type { AppointmentStatus } from '../types/database';
 
 interface CalendarAppointment {
@@ -22,7 +23,7 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 
-function dotColor(status: AppointmentStatus): string {
+function dotColor(status: AppointmentStatus, colors: ColorTheme): string {
   if (status === 'confirmed') return colors.success;
   if (status === 'scheduled') return colors.primary;
   if (status === 'pending') return colors.warning;
@@ -38,6 +39,8 @@ function ymd(year: number, month: number, day: number): string {
 }
 
 export function AppointmentCalendar({ appointments, selectedDate, onSelectDate }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth()); // 0-indexed
@@ -48,13 +51,13 @@ export function AppointmentCalendar({ appointments, selectedDate, onSelectDate }
     appointments.forEach((a) => {
       if (!a.requested_at) return;
       const key = toYMD(a.requested_at);
-      const color = dotColor(a.status);
+      const color = dotColor(a.status, colors);
       if (color === 'transparent') return;
       if (!map.has(key)) map.set(key, new Set());
       map.get(key)!.add(color);
     });
     return map;
-  }, [appointments]);
+  }, [appointments, colors]);
 
   // Construir grilla del mes
   const weeks = useMemo(() => {
@@ -176,6 +179,8 @@ export function AppointmentCalendar({ appointments, selectedDate, onSelectDate }
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -186,131 +191,133 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 
 const CELL_SIZE = 40;
 
-const styles = StyleSheet.create({
-  wrapper: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  navBtn: {
-    padding: 4,
-  },
-  monthTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  dayLabels: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  dayLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  week: {
-    flexDirection: 'row',
-    marginBottom: 2,
-  },
-  cell: {
-    flex: 1,
-    height: CELL_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  cellSelected: {
-    backgroundColor: colors.primary,
-  },
-  cellToday: {
-    backgroundColor: '#FFF1E6',
-  },
-  dayNumber: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  dayNumberSelected: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  dayNumberToday: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 2,
-    marginTop: 2,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  legend: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    flexWrap: 'wrap',
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    gap: 8,
-  },
-  filterText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-    flex: 1,
-    textTransform: 'capitalize',
-  },
-  filterCount: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  clearBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#EEF4FF',
-  },
-  clearBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    wrapper: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 16,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    navBtn: {
+      padding: 4,
+    },
+    monthTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    dayLabels: {
+      flexDirection: 'row',
+      marginBottom: 4,
+    },
+    dayLabel: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    week: {
+      flexDirection: 'row',
+      marginBottom: 2,
+    },
+    cell: {
+      flex: 1,
+      height: CELL_SIZE,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+    },
+    cellSelected: {
+      backgroundColor: colors.primary,
+    },
+    cellToday: {
+      backgroundColor: '#FFF1E6',
+    },
+    dayNumber: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    dayNumberSelected: {
+      color: '#fff',
+      fontWeight: '700',
+    },
+    dayNumberToday: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    dotsRow: {
+      flexDirection: 'row',
+      gap: 2,
+      marginTop: 2,
+    },
+    dot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+    },
+    legend: {
+      flexDirection: 'row',
+      gap: 16,
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      flexWrap: 'wrap',
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    legendLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      gap: 8,
+    },
+    filterText: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+      flex: 1,
+      textTransform: 'capitalize',
+    },
+    filterCount: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    clearBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: '#EEF4FF',
+    },
+    clearBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+  });
+}

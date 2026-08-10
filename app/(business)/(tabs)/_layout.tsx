@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TabIconBadge } from '../../../components/TabIconBadge';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
 import { usePendingOrders } from '../../../hooks/usePendingOrders';
@@ -43,6 +43,7 @@ export default function BusinessTabsLayout() {
   const hasPendingOrders = usePendingOrders(profile);
   const hasActiveHelpRequest = useActiveBusinessHelpRequest(profile);
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
 

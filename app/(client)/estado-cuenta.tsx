@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { signOutEverywhere } from '../../services/auth';
 
 export default function EstadoCuentaScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const isLimited = profile?.is_limited ?? false;
   const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
@@ -101,6 +104,8 @@ export default function EstadoCuentaScreen() {
 }
 
 function ListItem({ text }: { text: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.listItem}>
       <Ionicons name="close-circle" size={16} color={colors.danger} />
@@ -109,100 +114,102 @@ function ListItem({ text }: { text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginBottom: 20,
-  },
-  badgeActive: {
-    backgroundColor: '#E6F4EA',
-  },
-  badgeLimited: {
-    backgroundColor: '#FBE8E8',
-  },
-  badgeText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  reasonLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  reasonText: {
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 10,
-  },
-  list: {
-    marginBottom: 16,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  listItemText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  legalText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 24,
-  },
-  legalLink: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginTop: 24,
-    marginBottom: 20,
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-  },
-  rowPressed: {
-    opacity: 0.55,
-  },
-  dangerLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.danger,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      alignSelf: 'flex-start',
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      marginBottom: 20,
+    },
+    badgeActive: {
+      backgroundColor: '#E6F4EA',
+    },
+    badgeLimited: {
+      backgroundColor: '#FBE8E8',
+    },
+    badgeText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    reasonLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    reasonText: {
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 20,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 10,
+    },
+    list: {
+      marginBottom: 16,
+    },
+    listItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    listItemText: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+    legalText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 24,
+    },
+    legalLink: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginTop: 24,
+      marginBottom: 20,
+    },
+    dangerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    rowPressed: {
+      opacity: 0.55,
+    },
+    dangerLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.danger,
+    },
+  });
+}

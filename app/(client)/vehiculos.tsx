@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getDueMaintenance, markCompleted, type MaintenanceItem } from '../../services/maintenance';
@@ -22,6 +23,8 @@ const motoTypeLabel: Record<MotoType, string> = {
 };
 
 export default function VehiclesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -113,6 +116,8 @@ function VehicleCard({
   onDelete: () => void;
   onUpdated: (vehicle: Vehicle) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [editing, setEditing] = useState(false);
   const [brand, setBrand] = useState(vehicle.brand);
   const [model, setModel] = useState(vehicle.model);
@@ -307,6 +312,8 @@ function AddVehicleForm({
   onCancel: () => void;
   onCreated: (vehicle: Vehicle) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
@@ -399,145 +406,147 @@ function AddVehicleForm({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-    gap: 12,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  plateBadge: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 3,
-    letterSpacing: 1,
-  },
-  cardMeta: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 8,
-  },
-  cardMetaSmall: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  helperText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  editForm: {
-    marginTop: 8,
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  flexButton: {
-    flex: 1,
-  },
-  maintenanceList: {
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-    gap: 8,
-  },
-  maintenanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  maintenanceInfo: {
-    flex: 1,
-  },
-  maintenanceName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  maintenanceMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  maintenanceOverdue: {
-    color: colors.danger,
-    fontWeight: '600',
-  },
-  maintenanceAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  typeOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  typeOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  typeOptionText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  typeOptionTextSelected: {
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+      gap: 12,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    plateBadge: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginTop: 3,
+      letterSpacing: 1,
+    },
+    cardMeta: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 8,
+    },
+    cardMetaSmall: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    helperText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: -8,
+      marginBottom: 8,
+    },
+    editForm: {
+      marginTop: 8,
+    },
+    editActions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    flexButton: {
+      flex: 1,
+    },
+    maintenanceList: {
+      marginTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 12,
+      gap: 8,
+    },
+    maintenanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    maintenanceInfo: {
+      flex: 1,
+    },
+    maintenanceName: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    maintenanceMeta: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    maintenanceOverdue: {
+      color: colors.danger,
+      fontWeight: '600',
+    },
+    maintenanceAction: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    typeSelector: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 12,
+    },
+    typeOption: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    typeOptionSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    typeOptionText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    typeOptionTextSelected: {
+      color: colors.primary,
+    },
+  });
+}

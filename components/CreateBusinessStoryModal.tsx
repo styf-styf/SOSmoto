@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from './Button';
 import { TextField } from './TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { getActiveProducts, getActiveServices, getPlanLimits } from '../services/catalog';
 import { createStory, getBusinessStories, isStoryVisible } from '../services/stories';
 import { pickAndUploadBusinessStoryImage } from '../services/storage';
@@ -37,6 +38,8 @@ export function CreateBusinessStoryModal({
   onClose: () => void;
   onCreated: (story: Story) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [imageUrl, setImageUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [actionType, setActionType] = useState<StoryActionType>('none');
@@ -227,83 +230,85 @@ export function CreateBusinessStoryModal({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingTop: 56,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  chipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: colors.primary,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  preview: {
-    width: '100%',
-    height: 220,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: colors.surface,
-  },
-  imageButton: {
-    marginBottom: 16,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  flexButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      paddingTop: 56,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    chipText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    chipTextSelected: {
+      color: colors.primary,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    preview: {
+      width: '100%',
+      height: 220,
+      borderRadius: 12,
+      marginBottom: 10,
+      backgroundColor: colors.surface,
+    },
+    imageButton: {
+      marginBottom: 16,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    flexButton: {
+      flex: 1,
+    },
+  });
+}

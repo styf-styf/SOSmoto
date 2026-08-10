@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { Button } from '../../components/Button';
-import { colors } from '../../constants/colors';
+import { useColors, useTheme } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { useSavedAccountToggle } from '../../hooks/useSavedAccountToggle';
@@ -49,7 +50,15 @@ interface BusinessConfigData {
   myPermissions: EmployeeWithUser | null;
 }
 
+const THEME_MODE_LABEL: Record<'light' | 'dark' | 'system', string> = {
+  light: 'Claro',
+  dark: 'Oscuro',
+  system: 'Automático',
+};
+
 export default function BusinessConfiguracionScreen() {
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -158,6 +167,15 @@ export default function BusinessConfiguracionScreen() {
       console.error('sign out error', err);
       setSigningOut(false);
     }
+  }
+
+  function handleChooseTheme() {
+    Alert.alert('Apariencia', 'Elige cómo se ve la app', [
+      { text: 'Automático (sistema)', onPress: () => setMode('system') },
+      { text: 'Claro', onPress: () => setMode('light') },
+      { text: 'Oscuro', onPress: () => setMode('dark') },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }
 
   function handleToggleDeactivated() {
@@ -375,6 +393,12 @@ export default function BusinessConfiguracionScreen() {
           label="Enviar sugerencia"
           onPress={() => router.push('/enviar-sugerencia')}
         />
+        <MenuRow
+          icon="contrast-outline"
+          label="Apariencia"
+          badge={THEME_MODE_LABEL[mode]}
+          onPress={handleChooseTheme}
+        />
         {isOwner && (
           <MenuRow
             icon={business.is_deactivated ? 'eye-outline' : 'eye-off-outline'}
@@ -461,6 +485,8 @@ function MenuRow({
   onPress?: () => void;
   last?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const content = (
     <>
       <View style={styles.menuRowIconWrap}>
@@ -502,136 +528,138 @@ function MenuRow({
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 24,
-  },
-  headerBadges: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  planBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  planBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 20,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  // Fila que junta el título de sección "Mi negocio" con el chip de plan y
-  // verificado (esquina superior derecha) -- el margen vertical vive acá en
-  // vez de en el Text (sectionTitleInRow lo resetea) para no duplicarlo.
-  // Sin marginTop: es el primer elemento del scroll (justo bajo el header),
-  // el espacio de arriba lo da solo el paddingTop del contenedor -- el
-  // marginTop de 20 que usan sectionTitle/otras secciones es para separarse
-  // del bloque anterior, que acá no existe.
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionTitleInRow: {
-    marginTop: 0,
-    marginBottom: 0,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 20,
-  },
-  menuGroup: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  menuRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  menuRowPressed: {
-    opacity: 0.55,
-  },
-  menuRowIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuRowContent: {
-    flex: 1,
-  },
-  menuRowLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  menuRowHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  menuRowBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-    marginRight: 4,
-  },
-  menuRowBadgeDanger: {
-    color: colors.danger,
-  },
-  signOutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-  },
-  signOutLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.danger,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 6,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 24,
+    },
+    headerBadges: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    planBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    planBadgeText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginTop: 20,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    // Fila que junta el título de sección "Mi negocio" con el chip de plan y
+    // verificado (esquina superior derecha) -- el margen vertical vive acá en
+    // vez de en el Text (sectionTitleInRow lo resetea) para no duplicarlo.
+    // Sin marginTop: es el primer elemento del scroll (justo bajo el header),
+    // el espacio de arriba lo da solo el paddingTop del contenedor -- el
+    // marginTop de 20 que usan sectionTitle/otras secciones es para separarse
+    // del bloque anterior, que acá no existe.
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    sectionTitleInRow: {
+      marginTop: 0,
+      marginBottom: 0,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 20,
+    },
+    menuGroup: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+    },
+    menuRowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    menuRowPressed: {
+      opacity: 0.55,
+    },
+    menuRowIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      backgroundColor: colors.warningLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuRowContent: {
+      flex: 1,
+    },
+    menuRowLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    menuRowHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    menuRowBadge: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+      marginRight: 4,
+    },
+    menuRowBadgeDanger: {
+      color: colors.danger,
+    },
+    signOutRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    signOutLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.danger,
+    },
+  });
+}

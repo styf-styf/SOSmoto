@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,8 @@ import { router } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createReview, getServiceHistory, type ServiceHistoryItem } from '../../services/reviews';
@@ -71,6 +72,8 @@ interface HistorialData {
 let lastFilter: FilterKey = 'all';
 
 export default function HistorialScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [filter, setFilterState] = useState<FilterKey>(lastFilter);
   const setFilter = (f: FilterKey) => {
@@ -168,6 +171,8 @@ function HistoryCard({
   reportId?: string;
   onReviewed: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -277,108 +282,110 @@ function HistoryCard({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 4,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#fff',
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  reviewDone: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  reviewDoneText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  reviewForm: {
-    marginTop: 12,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  flexButton: {
-    flex: 1,
-  },
-  reviewButton: {
-    marginTop: 12,
-  },
-  cardPressed: {
-    opacity: 0.75,
-  },
-  reportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  reportBtnText: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 4,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    chipText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '500',
+    },
+    chipTextActive: {
+      color: '#fff',
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 20,
+      gap: 12,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    cardMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    reviewDone: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+    },
+    reviewDoneText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    reviewForm: {
+      marginTop: 12,
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginBottom: 12,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    flexButton: {
+      flex: 1,
+    },
+    reviewButton: {
+      marginTop: 12,
+    },
+    cardPressed: {
+      opacity: 0.75,
+    },
+    reportBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+    },
+    reportBtnText: {
+      fontSize: 13,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,7 +6,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { createAppointmentRequest } from '../../services/appointmentRequests';
@@ -42,6 +43,8 @@ interface AgendarDraft {
 const draftCache = new Map<string, AgendarDraft>();
 
 export default function AgendarScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { businessId, serviceId: initialServiceId } = useLocalSearchParams<{ businessId: string; serviceId?: string }>();
   const { profile } = useAuth();
 
@@ -262,105 +265,107 @@ export default function AgendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  chipText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: colors.primary,
-  },
-  notesInput: {
-    marginTop: 0,
-    marginBottom: 20,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  toggleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dateBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  pickerButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    marginBottom: 12,
-  },
-  pickerButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dateHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  submitButton: {
-    marginTop: 8,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    hint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginBottom: 20,
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 20,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    chipText: {
+      color: colors.textMuted,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    chipTextSelected: {
+      color: colors.primary,
+    },
+    notesInput: {
+      marginTop: 0,
+      marginBottom: 20,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 12,
+    },
+    toggleLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    dateBox: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+    },
+    pickerButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      marginBottom: 12,
+    },
+    pickerButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    dateHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    submitButton: {
+      marginTop: 8,
+    },
+  });
+}

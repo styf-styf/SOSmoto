@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image,
   ScrollView, StyleSheet, Text, View,
@@ -6,7 +6,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { CircleActionButton } from '../../components/CircleActionButton';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getPendingInvitations, respondToInvitation, type PendingInvitation } from '../../services/businessClients';
 
@@ -20,6 +21,8 @@ function timeAgo(iso: string): string {
 }
 
 export default function InvitacionesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,84 +142,86 @@ export default function InvitacionesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 14,
-    backgroundColor: colors.background,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  emptyHint: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  list: {
-    padding: 16,
-    gap: 14,
-    backgroundColor: colors.background,
-  },
-  intro: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logo: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: 52,
-    height: 52,
-  },
-  cardInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  bizName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  bizCity: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  cardBody: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+      gap: 14,
+      backgroundColor: colors.background,
+    },
+    emptyTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    emptyHint: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    list: {
+      padding: 16,
+      gap: 14,
+      backgroundColor: colors.background,
+    },
+    intro: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      gap: 12,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    logo: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: '#FFF1E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    logoImage: {
+      width: 52,
+      height: 52,
+    },
+    cardInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    bizName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    bizCity: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    timeAgo: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    cardBody: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+  });
+}

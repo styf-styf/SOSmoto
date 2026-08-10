@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { getFollowedBusinesses } from '../../../services/businesses';
 import { getUnreadNotificationsCount } from '../../../services/notifications';
@@ -22,6 +23,8 @@ const SIDE_PADDING = 20;
 const EDGE_INSET = -(SIDE_PADDING - CARD_MARGIN);
 
 export default function ClientPerfilScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
 
   const [following, setFollowing] = useState<Business[]>([]);
@@ -215,195 +218,197 @@ export default function ClientPerfilScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: SIDE_PADDING,
-    paddingTop: 36,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  headerIconsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.danger,
-    borderWidth: 1.5,
-    borderColor: colors.background,
-  },
-  avatarWrap: {
-    width: 72,
-    height: 72,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 72,
-    height: 72,
-  },
-  avatarBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 36,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    marginTop: 16,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  actionBtn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 10,
-  },
-  actionBtnLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  // Cancela el paddingHorizontal del contenedor (SIDE_PADDING) para que el
-  // viewport del carrusel sea el ancho real de la pantalla -- ver comentario
-  // junto al ScrollView.
-  followingScroll: {
-    marginHorizontal: -SIDE_PADDING,
-  },
-  followingRow: {
-    gap: 16,
-    paddingLeft: CARD_MARGIN,
-    // Sin padding a la derecha a propósito: el último avatar que no alcanza
-    // a entrar se corta justo en el borde real de la pantalla (el "un poco
-    // del siguiente avatar" pedido), no antes.
-  },
-  followingItem: {
-    width: 64,
-    alignItems: 'center',
-  },
-  followingAvatarWrap: {
-    position: 'relative',
-    marginBottom: 6,
-  },
-  followingAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  followingAvatarImage: {
-    width: 56,
-    height: 56,
-  },
-  followingVerifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  followingName: {
-    fontSize: 12,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  // Mismo motivo que BusinessProfileView.tsx/ClientProfileView.tsx: cancela
-  // el padding del contenedor para que las tarjetas queden del mismo ancho
-  // que en Inicio.
-  postsListWrap: {
-    marginHorizontal: -SIDE_PADDING,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: SIDE_PADDING,
+      paddingTop: 36,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    headerIconsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: -1,
+      right: -1,
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: colors.danger,
+      borderWidth: 1.5,
+      borderColor: colors.background,
+    },
+    avatarWrap: {
+      width: 72,
+      height: 72,
+    },
+    avatar: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 72,
+      height: 72,
+    },
+    avatarBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: 36,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerText: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontSize: 13,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 20,
+    },
+    statItem: {
+      alignItems: 'center',
+      flex: 1,
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      marginTop: 16,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    actionBtn: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 10,
+    },
+    actionBtnLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 20,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 12,
+    },
+    // Cancela el paddingHorizontal del contenedor (SIDE_PADDING) para que el
+    // viewport del carrusel sea el ancho real de la pantalla -- ver comentario
+    // junto al ScrollView.
+    followingScroll: {
+      marginHorizontal: -SIDE_PADDING,
+    },
+    followingRow: {
+      gap: 16,
+      paddingLeft: CARD_MARGIN,
+      // Sin padding a la derecha a propósito: el último avatar que no alcanza
+      // a entrar se corta justo en el borde real de la pantalla (el "un poco
+      // del siguiente avatar" pedido), no antes.
+    },
+    followingItem: {
+      width: 64,
+      alignItems: 'center',
+    },
+    followingAvatarWrap: {
+      position: 'relative',
+      marginBottom: 6,
+    },
+    followingAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    followingAvatarImage: {
+      width: 56,
+      height: 56,
+    },
+    followingVerifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    followingName: {
+      fontSize: 12,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    // Mismo motivo que BusinessProfileView.tsx/ClientProfileView.tsx: cancela
+    // el padding del contenedor para que las tarjetas queden del mismo ancho
+    // que en Inicio.
+    postsListWrap: {
+      marginHorizontal: -SIDE_PADDING,
+    },
+  });
+}

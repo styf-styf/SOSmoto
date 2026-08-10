@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import {
@@ -16,6 +17,8 @@ function fmtDate(iso: string) {
 }
 
 export default function HistorialMovimientosScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const businessIdRef = useRef<string | null>(null);
   const [movements, setMovements] = useState<BusinessStockMovement[]>([]);
@@ -119,24 +122,26 @@ export default function HistorialMovimientosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
-  empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 16 },
-  row: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
-  rowContent: { flex: 1 },
-  productName: { fontSize: 14, fontWeight: '700', color: colors.text },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 },
-  source: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
-  notes: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  date: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  loadMoreBtn: {
-    marginTop: 16, alignItems: 'center', paddingVertical: 12,
-    borderRadius: 10, borderWidth: 1, borderColor: colors.border,
-  },
-  loadMoreText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+    empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 16 },
+    row: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+      paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+    rowContent: { flex: 1 },
+    productName: { fontSize: 14, fontWeight: '700', color: colors.text },
+    label: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 },
+    source: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
+    notes: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    date: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    loadMoreBtn: {
+      marginTop: 16, alignItems: 'center', paddingVertical: 12,
+      borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+    },
+    loadMoreText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  });
+}

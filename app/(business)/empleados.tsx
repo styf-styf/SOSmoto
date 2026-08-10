@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { InfoButton, InfoExample, InfoModal, InfoStep, infoTextStyles } from '../../components/InfoModal';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
@@ -76,6 +77,8 @@ interface EmpleadosData {
 }
 
 export default function EmpleadosScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -302,6 +305,8 @@ function InvitationRow({
   isOwner: boolean;
   onCancelled: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [busy, setBusy] = useState(false);
 
   function handleCancel() {
@@ -365,6 +370,8 @@ function EmployeeRow({
   onUpdated: (employee: EmployeeWithUser) => void;
   onRemoved: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [jobTitle, setJobTitle] = useState(employee.job_title ?? '');
@@ -493,6 +500,8 @@ function AddEmployeeForm({
   onCancel: () => void;
   onInvited: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [permissions, setPermissions] = useState<EmployeePermissions>({
@@ -564,157 +573,159 @@ function AddEmployeeForm({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 16,
-  },
-  headerRowText: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  section: {
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  limitedNotice: {
-    fontSize: 13,
-    color: colors.danger,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  invitationCard: {
-    borderWidth: 1,
-    borderColor: colors.warning + '40',
-    backgroundColor: colors.warning + '10',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardHeaderActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  iconButtonBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconButtonBoxDanger: {
-    backgroundColor: '#FBE8E8',
-  },
-  invitationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  invitationStatus: {
-    fontSize: 12,
-    color: colors.warning,
-    fontWeight: '600',
-    marginTop: 6,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 10,
-  },
-  permissionsList: {
-    marginTop: 10,
-    gap: 6,
-  },
-  permissionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  permissionText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  noPermissionsText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-  jobTitleEditBox: {
-    marginTop: 8,
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  flexButton: {
-    flex: 1,
-  },
-  addButton: {
-    marginTop: 4,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginBottom: 16,
+    },
+    headerRowText: {
+      flex: 1,
+      marginBottom: 0,
+    },
+    section: {
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 16,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    limitedNotice: {
+      fontSize: 13,
+      color: colors.danger,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 16,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    invitationCard: {
+      borderWidth: 1,
+      borderColor: colors.warning + '40',
+      backgroundColor: colors.warning + '10',
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cardHeaderActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    iconButtonBox: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      backgroundColor: '#FFF1E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconButtonBoxDanger: {
+      backgroundColor: '#FBE8E8',
+    },
+    invitationInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    cardMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    invitationStatus: {
+      fontSize: 12,
+      color: colors.warning,
+      fontWeight: '600',
+      marginTop: 6,
+    },
+    cardFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 10,
+    },
+    permissionsList: {
+      marginTop: 10,
+      gap: 6,
+    },
+    permissionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    permissionText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    noPermissionsText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+    },
+    jobTitleEditBox: {
+      marginTop: 8,
+    },
+    editActions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 12,
+    },
+    flexButton: {
+      flex: 1,
+    },
+    addButton: {
+      marginTop: 4,
+    },
+  });
+}

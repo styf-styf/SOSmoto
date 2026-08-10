@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader } from '../../../components/ChatHeader';
 import { ImageViewerModal } from '../../../components/ImageViewerModal';
 import { QuantityStepper } from '../../../components/QuantityStepper';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useChatMessaging } from '../../../hooks/useChatMessaging';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
@@ -99,6 +100,8 @@ const QUICK_REPLIES_STORE = [
 ];
 
 export default function ChatScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id, initialMessage, prefill, sellerBusinessId } =
     useLocalSearchParams<{
       id: string;
@@ -1971,644 +1974,646 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  messages: {
-    padding: 16,
-    gap: 8,
-  },
-  loadOlderBtn: {
-    alignSelf: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    marginBottom: 8,
-  },
-  loadOlderBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  dateSeparator: {
-    alignSelf: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginVertical: 8,
-  },
-  dateSeparatorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  bubble: {
-    maxWidth: '80%',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  bubbleMine: {
-    backgroundColor: colors.primary,
-    alignSelf: 'flex-end',
-  },
-  bubbleTheirs: {
-    backgroundColor: colors.surface,
-    alignSelf: 'flex-start',
-  },
-  bubbleText: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  bubbleTextMine: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  messageTimeRow: {
-    marginTop: 2,
-    marginBottom: 4,
-    minHeight: 16,
-    justifyContent: 'center',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  messageTimeMine: {
-    alignSelf: 'flex-end',
-  },
-  messageTimeTheirs: {
-    alignSelf: 'flex-start',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 120,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Alto fijo (chip: paddingVertical 7 + texto ~17 + padding de la fila
-  // 4+4 ≈ 39) -- ver comentario junto al ScrollView.
-  // Alto fijo, conocido de antemano (chip: paddingVertical 7 + texto ~17 +
-  // padding de la fila 4+4 ≈ 39) -- puesto en este View de afuera, no en el
-  // ScrollView de adentro, ver comentario junto al ScrollView.
-  quickRepliesWrap: {
-    height: 40,
-  },
-  quickRepliesRow: {
-    flexDirection: 'row',
-    // Sin esto los chips se estiran al alto del ScrollView (fila completa)
-    // en vez de quedarse en su alto natural (padding + texto) -- mismo
-    // síntoma clásico de un ScrollView horizontal sin alignItems propio.
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 4,
-  },
-  quickReplyChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickReplyText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  quoteForm: {
-    padding: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-    gap: 8,
-  },
-  quoteFormHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  quoteFormTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  quoteKindToggleRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  quoteKindToggle: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  quoteKindToggleSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  quoteKindToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  quoteKindToggleTextSelected: {
-    color: colors.primary,
-  },
-  quoteCatalogSpinner: {
-    marginVertical: 12,
-  },
-  // Limita el alto para que un catálogo largo no empuje el resto del chat
-  // fuera de pantalla -- scrollea internamente, no la pantalla completa.
-  quoteCatalogList: {
-    maxHeight: 180,
-  },
-  quoteEmptyText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    paddingVertical: 8,
-  },
-  quoteCatalogItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  quoteCatalogItemText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  quoteCatalogItemPrice: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  quoteBackLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    alignSelf: 'flex-start',
-  },
-  quoteBackLinkText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  quoteSelectedName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  variantRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  variantChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  variantChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  variantChipText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  variantChipTextSelected: {
-    color: colors.primary,
-  },
-  quoteQuantityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  quoteFieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  quotePricePreview: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  quoteInput: {
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
-  quoteFormActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  quoteFormBtn: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  quoteFormBtnDisabled: {
-    opacity: 0.5,
-  },
-  quoteFormBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  quoteFormBtnSecondary: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quoteFormBtnSecondaryText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  approveForm: {
-    padding: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: '#F0F7FF',
-    gap: 4,
-  },
-  approveFormTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  approveFormSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 8,
-  },
-  approveFieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  approvePickerBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  approvePickerBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  approveHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  approveFormActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  approveFormBtn: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  approveFormBtnDisabled: {
-    opacity: 0.6,
-  },
-  approveFormBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  approveFormBtnSecondary: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  approveFormBtnSecondaryText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  attachWrap: {
-    position: 'absolute',
-    bottom: 38,
-    left: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    zIndex: 10,
-  },
-  attachBar: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    paddingVertical: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  attachLabels: {
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  attachLabelRow: {
-    height: 36,
-    justifyContent: 'center',
-  },
-  attachLabelText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textShadowColor: 'rgba(255,255,255,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  pendingImageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pendingImageThumb: {
-    width: 80,
-    aspectRatio: 3 / 4,
-    borderRadius: 8,
-  },
-  pendingImageRemove: {
-    position: 'absolute',
-    top: 4,
-    left: 80,
-  },
-  imageBubble: {
-    maxWidth: '80%',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  chatImage: {
-    width: 200,
-    aspectRatio: 3 / 4,
-  },
-  imageBubbleCaption: {
-    fontSize: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  quoteCard: {
-    maxWidth: '80%',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-  },
-  quoteCardMine: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#FFF8F0',
-    borderColor: colors.primary,
-  },
-  quoteCardTheirs: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  quoteHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 6,
-  },
-  quoteTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  quoteService: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  quoteRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 2,
-  },
-  quoteLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    minWidth: 80,
-  },
-  quoteLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    marginTop: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  quoteLinkBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  quoteValue: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-    flex: 1,
-  },
-  // Sin tope de alto a propósito -- si hay varios banners a la vez (cita,
-  // apartado, cotización...) crece natural y puede tapar el resto del chat,
-  // el usuario los cierra con la X.
-  intentsBanner: {
-    backgroundColor: '#EEF4FF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  intentsBannerContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  intentCard: {
-    gap: 6,
-  },
-  intentCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  dismissBannerBtn: {
-    padding: 2,
-  },
-  intentInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  requestInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  requestSub: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  intentText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  intentName: {
-    fontWeight: '700',
-  },
-  intentActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  intentBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  intentBtnConfirm: {
-    backgroundColor: colors.primary,
-  },
-  intentBtnReject: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  // Para acciones secundarias que NO son un rechazo/cancelación (ej.
-  // "Reagendar", "Proponer otra") -- intentBtnReject se ve bien para
-  // Cancelar/Rechazar pero pintarlas en rojo sugeriría una acción negativa
-  // que no lo es.
-  intentBtnNeutral: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  intentBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  intentBtnTextReject: {
-    color: colors.danger,
-  },
-  intentBtnTextNeutral: {
-    color: colors.text,
-  },
-  limitedNotice: {
-    padding: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: '#FBE8E8',
-  },
-  limitedNoticeText: {
-    fontSize: 13,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    messages: {
+      padding: 16,
+      gap: 8,
+    },
+    loadOlderBtn: {
+      alignSelf: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      marginBottom: 8,
+    },
+    loadOlderBtnText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 20,
+    },
+    dateSeparator: {
+      alignSelf: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      marginVertical: 8,
+    },
+    dateSeparatorText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    bubble: {
+      maxWidth: '80%',
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    bubbleMine: {
+      backgroundColor: colors.primary,
+      alignSelf: 'flex-end',
+    },
+    bubbleTheirs: {
+      backgroundColor: colors.surface,
+      alignSelf: 'flex-start',
+    },
+    bubbleText: {
+      color: colors.text,
+      fontSize: 14,
+    },
+    bubbleTextMine: {
+      color: '#fff',
+      fontSize: 14,
+    },
+    messageTimeRow: {
+      marginTop: 2,
+      marginBottom: 4,
+      minHeight: 16,
+      justifyContent: 'center',
+    },
+    messageTime: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    messageTimeMine: {
+      alignSelf: 'flex-end',
+    },
+    messageTimeTheirs: {
+      alignSelf: 'flex-start',
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    iconButton: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    input: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 120,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    sendButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Alto fijo (chip: paddingVertical 7 + texto ~17 + padding de la fila
+    // 4+4 ≈ 39) -- ver comentario junto al ScrollView.
+    // Alto fijo, conocido de antemano (chip: paddingVertical 7 + texto ~17 +
+    // padding de la fila 4+4 ≈ 39) -- puesto en este View de afuera, no en el
+    // ScrollView de adentro, ver comentario junto al ScrollView.
+    quickRepliesWrap: {
+      height: 40,
+    },
+    quickRepliesRow: {
+      flexDirection: 'row',
+      // Sin esto los chips se estiran al alto del ScrollView (fila completa)
+      // en vez de quedarse en su alto natural (padding + texto) -- mismo
+      // síntoma clásico de un ScrollView horizontal sin alignItems propio.
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingTop: 4,
+      paddingBottom: 4,
+    },
+    quickReplyChip: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    quickReplyText: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    quoteForm: {
+      padding: 14,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.surface,
+      gap: 8,
+    },
+    quoteFormHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    quoteFormTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    quoteKindToggleRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    quoteKindToggle: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    quoteKindToggleSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    quoteKindToggleText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    quoteKindToggleTextSelected: {
+      color: colors.primary,
+    },
+    quoteCatalogSpinner: {
+      marginVertical: 12,
+    },
+    // Limita el alto para que un catálogo largo no empuje el resto del chat
+    // fuera de pantalla -- scrollea internamente, no la pantalla completa.
+    quoteCatalogList: {
+      maxHeight: 180,
+    },
+    quoteEmptyText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      paddingVertical: 8,
+    },
+    quoteCatalogItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    quoteCatalogItemText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    quoteCatalogItemPrice: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    quoteBackLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      alignSelf: 'flex-start',
+    },
+    quoteBackLinkText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    quoteSelectedName: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    variantRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    variantChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    variantChipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    variantChipText: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    variantChipTextSelected: {
+      color: colors.primary,
+    },
+    quoteQuantityRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    quoteFieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    quotePricePreview: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    quoteInput: {
+      height: 40,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      fontSize: 14,
+      color: colors.text,
+      backgroundColor: colors.background,
+    },
+    quoteFormActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 4,
+    },
+    quoteFormBtn: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    quoteFormBtnDisabled: {
+      opacity: 0.5,
+    },
+    quoteFormBtnText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    quoteFormBtnSecondary: {
+      flex: 1,
+      backgroundColor: colors.background,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    quoteFormBtnSecondaryText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    approveForm: {
+      padding: 14,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: '#F0F7FF',
+      gap: 4,
+    },
+    approveFormTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    approveFormSub: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    approveFieldLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    approvePickerBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    approvePickerBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    approveHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 4,
+      marginBottom: 4,
+    },
+    approveFormActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 8,
+    },
+    approveFormBtn: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    approveFormBtnDisabled: {
+      opacity: 0.6,
+    },
+    approveFormBtnText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    approveFormBtnSecondary: {
+      flex: 1,
+      backgroundColor: colors.background,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    approveFormBtnSecondaryText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    attachWrap: {
+      position: 'absolute',
+      bottom: 38,
+      left: 0,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      zIndex: 10,
+    },
+    attachBar: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      paddingVertical: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    attachLabels: {
+      paddingVertical: 2,
+      marginLeft: 8,
+    },
+    attachLabelRow: {
+      height: 36,
+      justifyContent: 'center',
+    },
+    attachLabelText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textShadowColor: 'rgba(255,255,255,0.9)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    pendingImageRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    pendingImageThumb: {
+      width: 80,
+      aspectRatio: 3 / 4,
+      borderRadius: 8,
+    },
+    pendingImageRemove: {
+      position: 'absolute',
+      top: 4,
+      left: 80,
+    },
+    imageBubble: {
+      maxWidth: '80%',
+      borderRadius: 14,
+      overflow: 'hidden',
+    },
+    chatImage: {
+      width: 200,
+      aspectRatio: 3 / 4,
+    },
+    imageBubbleCaption: {
+      fontSize: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    quoteCard: {
+      maxWidth: '80%',
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+    },
+    quoteCardMine: {
+      alignSelf: 'flex-end',
+      backgroundColor: '#FFF8F0',
+      borderColor: colors.primary,
+    },
+    quoteCardTheirs: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+    quoteHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 6,
+    },
+    quoteTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    quoteService: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    quoteRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginTop: 2,
+    },
+    quoteLabel: {
+      fontSize: 13,
+      color: colors.textMuted,
+      minWidth: 80,
+    },
+    quoteLinkBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      marginTop: 10,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    quoteLinkBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    quoteValue: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+      flex: 1,
+    },
+    // Sin tope de alto a propósito -- si hay varios banners a la vez (cita,
+    // apartado, cotización...) crece natural y puede tapar el resto del chat,
+    // el usuario los cierra con la X.
+    intentsBanner: {
+      backgroundColor: '#EEF4FF',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    intentsBannerContent: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      gap: 8,
+    },
+    intentCard: {
+      gap: 6,
+    },
+    intentCardTopRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 6,
+    },
+    dismissBannerBtn: {
+      padding: 2,
+    },
+    intentInfo: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 6,
+    },
+    requestInfo: {
+      flex: 1,
+      gap: 3,
+    },
+    requestSub: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    intentText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    intentName: {
+      fontWeight: '700',
+    },
+    intentActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    intentBtn: {
+      flex: 1,
+      paddingVertical: 6,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    intentBtnConfirm: {
+      backgroundColor: colors.primary,
+    },
+    intentBtnReject: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.danger,
+    },
+    // Para acciones secundarias que NO son un rechazo/cancelación (ej.
+    // "Reagendar", "Proponer otra") -- intentBtnReject se ve bien para
+    // Cancelar/Rechazar pero pintarlas en rojo sugeriría una acción negativa
+    // que no lo es.
+    intentBtnNeutral: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    intentBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    intentBtnTextReject: {
+      color: colors.danger,
+    },
+    intentBtnTextNeutral: {
+      color: colors.text,
+    },
+    limitedNotice: {
+      padding: 14,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: '#FBE8E8',
+    },
+    limitedNoticeText: {
+      fontSize: 13,
+      color: colors.danger,
+      textAlign: 'center',
+    },
+  });
+}

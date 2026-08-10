@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackHeaderProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 
 // Header compacto (44px de barra + safe area) que reemplaza el nativo de
@@ -11,6 +13,8 @@ import { useAuth } from '../hooks/useAuth';
 export function AppHeader({ options, back }: NativeStackHeaderProps) {
   const insets = useSafeAreaInsets();
   const { session, profile } = useAuth();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // FIX: el prop `back` de React Navigation solo dice si hay una pantalla
   // antes DENTRO DEL STACK ANIDADO local (producto/servicio) -- no si hay
@@ -52,34 +56,36 @@ export function AppHeader({ options, back }: NativeStackHeaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  bar: {
-    height: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  backButton: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  side: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    bar: {
+      height: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    backButton: {
+      width: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+    },
+    side: {
+      width: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
+    },
+  });
+}

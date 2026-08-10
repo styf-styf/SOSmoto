@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../services/supabase';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { translateAuthError } from '../utils/authErrors';
 
 // Destino del botón "Verificar automáticamente" del correo de confirmación
@@ -13,6 +14,7 @@ import { translateAuthError } from '../utils/authErrors';
 // (?code=) en vez de en el fragmento (#access_token=...), mucho más simple
 // de leer acá. Mismo patrón de deep link ya probado en pago-resultado.tsx.
 export default function AuthCallback() {
+  const colors = useColors();
   const { code, flow, error_description } = useLocalSearchParams<{
     code?: string;
     flow?: string;

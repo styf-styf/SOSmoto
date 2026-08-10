@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
@@ -10,6 +11,7 @@ import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 // Mismo patrón que app/post/[id].tsx, pero el destino real vive dentro de
 // (tabs) en ambos roles.
 export default function ProductLinkResolver() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile, loading } = useAuth();
   // Keyed por id -- ver app/post/[id].tsx para el motivo.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,7 +25,8 @@ import {
 } from '../../../components/InfoModal';
 import { MarkerBitmapCapture } from '../../../components/MarkerBitmapCapture';
 import { TextField } from '../../../components/TextField';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLiveLocationSharing } from '../../../hooks/useLiveLocationSharing';
 import { useLocation } from '../../../hooks/useLocation';
@@ -54,6 +55,8 @@ import { distanceKm } from '../../../utils/distance';
 import { separateOverlappingCoords } from '../../../utils/mapMarkerOffset';
 
 export default function SolicitudesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
   const { coords: myCoords } = useLocation();
@@ -793,6 +796,8 @@ function RequestCard({
   acceptingId: string | null;
   onAcceptingChange: (id: string | null) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [saving, setSaving] = useState(false);
   // Mientras cualquier tarjeta está aceptando, el resto se bloquea -- si no,
   // aceptar dos solicitudes casi al mismo tiempo puede dejar una huérfana
@@ -903,167 +908,169 @@ function buildAidInformeUrl(helpRequest: HelpRequest, clientName: string | null)
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  infoBtnWrap: {
-    position: 'absolute',
-    right: 12,
-    zIndex: 10,
-    elevation: 10,
-  },
-  mapContainer: {
-    flex: 1,
-    width: '100%',
-  },
-  locateBtn: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  bottomScroll: {
-    maxHeight: '45%',
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  screenTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  ratingCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-    width: '100%',
-  },
-  activeCard: {
-    backgroundColor: '#FFF1E6',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  activeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  activeMeta: {
-    fontSize: 13,
-    color: colors.text,
-    marginBottom: 2,
-  },
-  locationWarning: {
-    fontSize: 12,
-    color: colors.danger,
-    marginTop: 6,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  cardAvatarImage: {
-    width: 28,
-    height: 28,
-  },
-  cardName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  createReportButton: {
-    marginTop: 10,
-  },
-  circleActionsRow: {
-    flexDirection: 'row',
-    marginTop: 14,
-  },
-  flexButton: {
-    flex: 1,
-  },
-  noPermission: {
-    fontSize: 12,
-    color: colors.danger,
-    marginTop: 8,
-  },
-  outOfRangeNotice: {
-    fontSize: 12,
-    color: colors.warning,
-    marginTop: 6,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    infoBtnWrap: {
+      position: 'absolute',
+      right: 12,
+      zIndex: 10,
+      elevation: 10,
+    },
+    mapContainer: {
+      flex: 1,
+      width: '100%',
+    },
+    locateBtn: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    bottomScroll: {
+      maxHeight: '45%',
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    sectionTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    screenTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    ratingCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginTop: 20,
+      width: '100%',
+    },
+    activeCard: {
+      backgroundColor: '#FFF1E6',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+    },
+    activeTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.primary,
+      marginBottom: 4,
+    },
+    activeMeta: {
+      fontSize: 13,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    locationWarning: {
+      fontSize: 12,
+      color: colors.danger,
+      marginTop: 6,
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginTop: 8,
+      marginBottom: 12,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    cardAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    cardAvatarImage: {
+      width: 28,
+      height: 28,
+    },
+    cardName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    cardMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 12,
+    },
+    createReportButton: {
+      marginTop: 10,
+    },
+    circleActionsRow: {
+      flexDirection: 'row',
+      marginTop: 14,
+    },
+    flexButton: {
+      flex: 1,
+    },
+    noPermission: {
+      fontSize: 12,
+      color: colors.danger,
+      marginTop: 8,
+    },
+    outOfRangeNotice: {
+      fontSize: 12,
+      color: colors.warning,
+      marginTop: 6,
+    },
+  });
+}

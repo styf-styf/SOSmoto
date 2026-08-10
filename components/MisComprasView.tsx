@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -6,7 +6,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from './Button';
 import { StatusBadge, type StatusBadgeTone } from './StatusBadge';
 import { TextField } from './TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { createReview } from '../services/reviews';
 import { cancelProductIntent, getMyProductPurchases, type MyProductPurchase } from '../services/productIntents';
@@ -48,6 +49,8 @@ export function MisComprasView({
   emptyText: string;
   allowCancel: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [purchases, setPurchases] = useState<MyProductPurchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +128,8 @@ function PurchaseCard({
   onReviewed: () => void;
   onCancelled: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -234,75 +239,77 @@ function PurchaseCard({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 6,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  reviewDone: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  reviewDoneText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  reviewForm: {
-    marginTop: 12,
-  },
-  reviewButton: {
-    marginTop: 10,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  flexButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 8,
+      marginBottom: 6,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    cardMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    reviewDone: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+    },
+    reviewDoneText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    reviewForm: {
+      marginTop: 12,
+    },
+    reviewButton: {
+      marginTop: 10,
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginBottom: 12,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    flexButton: {
+      flex: 1,
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -24,7 +24,8 @@ import { CategoryPicker } from '../../../components/CategoryPicker';
 import { GradientShade } from '../../../components/GradientShade';
 import { MultiPhotoPicker } from '../../../components/MultiPhotoPicker';
 import { TextField } from '../../../components/TextField';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import {
   createProduct,
@@ -112,6 +113,8 @@ function parsePriceTierRows(rows: PriceTierRow[], baseMinQuantity: number, baseP
 // Bloques reutilizables del modal de ayuda "Cómo agregar stock y variantes"
 // (ver InventoryInfoModal más abajo) -- un paso numerado + su ejemplo.
 function InfoStep({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.infoStep}>
       <View style={styles.infoStepHeader}>
@@ -126,6 +129,8 @@ function InfoStep({ number, title, children }: { number: number; title: string; 
 }
 
 function InfoExample({ label, ok, children }: { label: string; ok?: boolean; children: ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.infoExampleBox, ok === false && styles.infoExampleBoxError]}>
       <Text style={[styles.infoExampleLabel, ok === false && styles.infoExampleLabelError]}>{label}</Text>
@@ -154,6 +159,8 @@ interface PriceTierRow {
 // trae su propio ícono de eliminar -- así el negocio ve su catálogo "tal
 // cual" lo ve el cliente, con las acciones de gestión superpuestas.
 export default function CatalogoScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { highlightId, editId, editKind } = useLocalSearchParams<{
     highlightId?: string;
@@ -670,6 +677,8 @@ function CatalogGrid<T extends CatalogDisplayItem>({
   highlightedId?: string | null;
   onHighlightLayout?: (y: number) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // Tocar la tarjeta lleva a la página de detalle (donde ya existe el botón
   // Editar en el header) -- ya no abre el formulario de edición directamente.
   function openDetail(item: T) {
@@ -783,6 +792,8 @@ function ServiceForm({
   onSaved: (service: Service) => void;
   onDelete?: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isEdit = !!service;
   const [name, setName] = useState(service?.name ?? '');
   const [description, setDescription] = useState(service?.description ?? '');
@@ -939,6 +950,8 @@ function ProductForm({
   onSaved: (product: Product) => void;
   onDelete?: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isEdit = !!product;
   const [name, setName] = useState(product?.name ?? '');
   const [description, setDescription] = useState(product?.description ?? '');
@@ -1431,436 +1444,438 @@ function ProductForm({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: SIDE_PADDING,
-    paddingTop: 36,
-    paddingBottom: 32,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  limitedNotice: {
-    fontSize: 13,
-    color: colors.danger,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 16,
-  },
-  upsellText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginBottom: 12,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionSpacing: {
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  inventarioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-  },
-  inventarioBtn: {
-    flex: 1,
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
-  },
-  inventarioBtnText: {
-    flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary,
-  },
-  inventarioInfoBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  addButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
-  gridCardWrapper: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 12,
-  },
-  gridCard: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    justifyContent: 'flex-end',
-    padding: 8,
-  },
-  gridImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  gridName: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  gridPrice: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  hiddenBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  hiddenBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  deleteIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listWrapWithGrid: {
-    marginTop: 16,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  itemName: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-  },
-  itemRowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  modalContainer: {
-    padding: 20,
-    paddingTop: 56,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  stockComputedBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-  },
-  stockComputedValue: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  variantHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
-  variantTierHint: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-    marginBottom: 8,
-    lineHeight: 15,
-  },
-  variantCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
-  },
-  variantCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  variantLabelInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 10,
-    fontSize: 14,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
-  variantCardFieldsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  variantFieldCol: {
-    flex: 1,
-  },
-  variantFieldLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  variantSmallInput: {
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 10,
-    fontSize: 14,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
-  variantTiersWrap: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  variantTierRemoveBtn: {
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  addVariantTierBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
-  addVariantBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    paddingVertical: 10,
-    marginBottom: 20,
-  },
-  addVariantBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  photoLimitHint: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-    marginBottom: 10,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  toggleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  saveButton: {
-    marginTop: 4,
-  },
-  spacedButton: {
-    marginTop: 10,
-  },
-  deleteLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 24,
-    paddingVertical: 8,
-  },
-  deleteLinkText: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  gridCardHighlight: {
-    borderWidth: 2.5,
-    borderColor: colors.primary,
-    borderRadius: 12,
-  },
-  itemRowHighlight: {
-    backgroundColor: `${colors.primary}18`,
-  },
-  infoModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  infoModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  infoModalBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  infoModalCloseButton: {
-    marginTop: 8,
-  },
-  infoStep: {
-    marginBottom: 26,
-  },
-  infoStepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
-  },
-  infoStepBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoStepBadgeText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  infoStepTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  infoText: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 19,
-    marginBottom: 10,
-  },
-  infoBold: {
-    fontWeight: '700',
-  },
-  infoExampleBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.success,
-  },
-  infoExampleBoxError: {
-    borderLeftColor: colors.danger,
-  },
-  infoExampleLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.success,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  infoExampleLabelError: {
-    color: colors.danger,
-  },
-  infoExampleText: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 18,
-  },
-  infoExampleTextMuted: {
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 17,
-    marginTop: 4,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: SIDE_PADDING,
+      paddingTop: 36,
+      paddingBottom: 32,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    limitedNotice: {
+      fontSize: 13,
+      color: colors.danger,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 16,
+    },
+    upsellText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginBottom: 12,
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    sectionSpacing: {
+      marginTop: 24,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    inventarioRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 20,
+    },
+    inventarioBtn: {
+      flex: 1,
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: colors.surface, borderRadius: 12,
+      paddingHorizontal: 14, paddingVertical: 14,
+    },
+    inventarioBtnText: {
+      flex: 1, fontSize: 14, fontWeight: '600', color: colors.primary,
+    },
+    inventarioInfoBtn: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    addButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: GRID_GAP,
+    },
+    gridCardWrapper: {
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      borderRadius: 12,
+    },
+    gridCard: {
+      flex: 1,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+      justifyContent: 'flex-end',
+      padding: 8,
+    },
+    gridImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    gridName: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    gridPrice: {
+      color: '#fff',
+      fontSize: 12,
+      marginTop: 2,
+    },
+    hiddenBadge: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    hiddenBadgeText: {
+      color: '#fff',
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    deleteIcon: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    listWrapWithGrid: {
+      marginTop: 16,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    itemName: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+    },
+    itemRowRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    itemPrice: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    modalContainer: {
+      padding: 20,
+      paddingTop: 56,
+      backgroundColor: colors.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    stockComputedBox: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 16,
+    },
+    stockComputedValue: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    variantHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 10,
+    },
+    variantTierHint: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 2,
+      marginBottom: 8,
+      lineHeight: 15,
+    },
+    variantCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      padding: 10,
+      marginBottom: 8,
+    },
+    variantCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    variantLabelInput: {
+      flex: 1,
+      height: 40,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 10,
+      fontSize: 14,
+      color: colors.text,
+      backgroundColor: colors.background,
+    },
+    variantCardFieldsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 8,
+    },
+    variantFieldCol: {
+      flex: 1,
+    },
+    variantFieldLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    variantSmallInput: {
+      height: 38,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 10,
+      fontSize: 14,
+      color: colors.text,
+      backgroundColor: colors.background,
+    },
+    variantTiersWrap: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    variantTierRemoveBtn: {
+      justifyContent: 'center',
+      paddingHorizontal: 2,
+    },
+    addVariantTierBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 6,
+    },
+    addVariantBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      paddingVertical: 10,
+      marginBottom: 20,
+    },
+    addVariantBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    photoLimitHint: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+      marginBottom: 10,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    toggleLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    saveButton: {
+      marginTop: 4,
+    },
+    spacedButton: {
+      marginTop: 10,
+    },
+    deleteLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 24,
+      paddingVertical: 8,
+    },
+    deleteLinkText: {
+      color: colors.danger,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    gridCardHighlight: {
+      borderWidth: 2.5,
+      borderColor: colors.primary,
+      borderRadius: 12,
+    },
+    itemRowHighlight: {
+      backgroundColor: `${colors.primary}18`,
+    },
+    infoModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 56,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    infoModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    infoModalBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 40,
+    },
+    infoModalCloseButton: {
+      marginTop: 8,
+    },
+    infoStep: {
+      marginBottom: 26,
+    },
+    infoStepHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 8,
+    },
+    infoStepBadge: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    infoStepBadgeText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    infoStepTitle: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    infoText: {
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 19,
+      marginBottom: 10,
+    },
+    infoBold: {
+      fontWeight: '700',
+    },
+    infoExampleBox: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.success,
+    },
+    infoExampleBoxError: {
+      borderLeftColor: colors.danger,
+    },
+    infoExampleLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.success,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+    },
+    infoExampleLabelError: {
+      color: colors.danger,
+    },
+    infoExampleText: {
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 18,
+    },
+    infoExampleTextMuted: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+      marginTop: 4,
+    },
+  });
+}

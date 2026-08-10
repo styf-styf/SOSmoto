@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { getCategories, suggestCategory } from '../services/catalog';
 import type { Category, CategoryKind } from '../types/database';
 
@@ -14,6 +15,8 @@ interface CategoryPickerProps {
 }
 
 export function CategoryPicker({ label = 'Categoría', kind, value, onChange, error }: CategoryPickerProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -120,77 +123,79 @@ export function CategoryPicker({ label = 'Categoría', kind, value, onChange, er
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  input: {
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  dropdown: {
-    marginTop: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    maxHeight: 220,
-    overflow: 'hidden',
-  },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  optionText: {
-    fontSize: 15,
-    color: colors.text,
-  },
-  pendingTag: {
-    fontSize: 11,
-    color: colors.warning,
-    fontWeight: '600',
-  },
-  suggestOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  suggestText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  emptyText: {
-    padding: 14,
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 12,
-    marginTop: 4,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    input: {
+      height: 50,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      fontSize: 16,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    inputError: {
+      borderColor: colors.danger,
+    },
+    dropdown: {
+      marginTop: 6,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      maxHeight: 220,
+      overflow: 'hidden',
+    },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    optionText: {
+      fontSize: 15,
+      color: colors.text,
+    },
+    pendingTag: {
+      fontSize: 11,
+      color: colors.warning,
+      fontWeight: '600',
+    },
+    suggestOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    suggestText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '600',
+      flexShrink: 1,
+    },
+    emptyText: {
+      padding: 14,
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    error: {
+      color: colors.danger,
+      fontSize: 12,
+      marginTop: 4,
+    },
+  });
+}

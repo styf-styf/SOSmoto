@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Dimensions, Image, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientShade } from './GradientShade';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useCachedLoad } from '../hooks/useCachedLoad';
 import { getBusinessById } from '../services/businesses';
 import { getActiveProducts, getActiveServices } from '../services/catalog';
@@ -40,6 +41,8 @@ interface NegocioCatalogoData {
 // Compartida entre cliente y negocio (mismo contenido, solo cambian las
 // rutas de destino de cada tarjeta vía hrefBase).
 export function NegocioCatalogoView({ businessId, hrefBase }: { businessId: string | undefined; hrefBase: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [refreshing, setRefreshing] = useState(false);
 
   const cacheKey = businessId ? `negocio-catalogo-${hrefBase}-${businessId}` : null;
@@ -148,6 +151,8 @@ export function NegocioCatalogoView({ businessId, hrefBase }: { businessId: stri
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -157,6 +162,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function CatalogGrid({ items, hrefBase }: { items: CatalogDisplayItem[]; hrefBase: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const withPhoto = items.filter((item) => item.photos.length > 0);
   const withoutPhoto = items.filter((item) => item.photos.length === 0);
   return (
@@ -191,134 +198,136 @@ function CatalogGrid({ items, hrefBase }: { items: CatalogDisplayItem[]; hrefBas
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: SIDE_PADDING,
-    paddingTop: 16,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  businessHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  businessLogoOuter: {
-    width: 48,
-    height: 48,
-  },
-  businessLogoWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-  },
-  businessLogo: {
-    width: 48,
-    height: 48,
-  },
-  businessInfo: {
-    flex: 1,
-  },
-  businessNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  businessName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  businessCity: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  section: {
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-  },
-  gridCard: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    justifyContent: 'flex-end',
-    padding: 8,
-  },
-  gridImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  gridName: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  gridPrice: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  listWrapWithGrid: {
-    marginTop: 16,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  itemName: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: SIDE_PADDING,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    businessHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 20,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    businessLogoOuter: {
+      width: 48,
+      height: 48,
+    },
+    businessLogoWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    verifiedBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: colors.background,
+      borderRadius: 8,
+    },
+    businessLogo: {
+      width: 48,
+      height: 48,
+    },
+    businessInfo: {
+      flex: 1,
+    },
+    businessNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    businessName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    businessCity: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    section: {
+      marginTop: 20,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: GRID_GAP,
+    },
+    gridCard: {
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+      justifyContent: 'flex-end',
+      padding: 8,
+    },
+    gridImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    gridName: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    gridPrice: {
+      color: '#fff',
+      fontSize: 12,
+      marginTop: 2,
+    },
+    listWrapWithGrid: {
+      marginTop: 16,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    itemName: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+    },
+    itemPrice: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });
+}

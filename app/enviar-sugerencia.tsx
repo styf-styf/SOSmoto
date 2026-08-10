@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { submitPilotFeedback } from '../services/pilotFeedback';
 
@@ -14,6 +15,8 @@ import { submitPilotFeedback } from '../services/pilotFeedback';
 // única a nivel raíz (mismo patrón que eliminar-cuenta.tsx) porque es
 // idéntica para los dos roles, no hace falta duplicarla.
 export default function EnviarSugerenciaScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,29 +63,31 @@ export default function EnviarSugerenciaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 19,
-  },
-  submitButton: {
-    marginTop: 20,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    infoCard: {
+      flexDirection: 'row',
+      gap: 12,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 20,
+    },
+    infoText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 19,
+    },
+    submitButton: {
+      marginTop: 20,
+    },
+  });
+}

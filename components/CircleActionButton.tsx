@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -6,7 +7,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 interface CircleActionButtonProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -23,12 +25,15 @@ const SIZE = 52;
 export function CircleActionButton({
   icon,
   label,
-  color = colors.primary,
+  color,
   variant = 'solid',
   onPress,
   loading,
   disabled,
 }: CircleActionButtonProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const circleColor = color ?? colors.primary;
   const isOutline = variant === 'outline';
 
   return (
@@ -41,14 +46,14 @@ export function CircleActionButton({
         style={[
           styles.circle,
           isOutline
-            ? { backgroundColor: '#fff', borderWidth: 2, borderColor: color }
-            : { backgroundColor: color },
+            ? { backgroundColor: colors.background, borderWidth: 2, borderColor: circleColor }
+            : { backgroundColor: circleColor },
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={isOutline ? color : '#fff'} size="small" />
+          <ActivityIndicator color={isOutline ? circleColor : '#fff'} size="small" />
         ) : (
-          <Ionicons name={icon} size={22} color={isOutline ? color : '#fff'} />
+          <Ionicons name={icon} size={22} color={isOutline ? circleColor : '#fff'} />
         )}
       </View>
       <Text style={styles.label} numberOfLines={1}>
@@ -58,27 +63,29 @@ export function CircleActionButton({
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-  },
-  circle: {
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    wrapper: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 6,
+    },
+    circle: {
+      width: SIZE,
+      height: SIZE,
+      borderRadius: SIZE / 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOpacity: 0.15,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.text,
+    },
+  });
+}

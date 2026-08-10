@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
@@ -12,6 +13,7 @@ import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 // resuelven al mismo path sin prefijo (ver plan). Esta pantalla solo decide
 // a cuál de los dos mandar según el rol de quien tiene la sesión activa.
 export default function PostLinkResolver() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile, loading } = useAuth();
   // Keyed por id (no un booleano suelto) -- si esta misma instancia llega a

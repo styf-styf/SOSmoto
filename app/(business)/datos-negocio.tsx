@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -19,7 +19,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { ChangePasswordCard } from '../../components/ChangePasswordCard';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
@@ -59,6 +60,8 @@ interface DatosNegocioData {
 }
 
 function InfoCard({ title, children }: { title: string; children: ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.infoCard}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -80,6 +83,8 @@ function IconInfoRow({
   iconColor?: string;
   last?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.iconRow, !last && styles.iconRowSpacing]}>
       <View style={[styles.iconCircle, iconColor && { backgroundColor: `${iconColor}1A` }]}>
@@ -94,6 +99,8 @@ function IconInfoRow({
 }
 
 export default function DatosNegocioScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -537,267 +544,269 @@ export default function DatosNegocioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 28,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  readOnlyBanner: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.textMuted,
-  },
-  readOnlyText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  infoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 14,
-  },
-  iconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconRowSpacing: {
-    marginBottom: 14,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: `${colors.primary}1A`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconRowText: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  mapPreviewWrap: {
-    height: 140,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 14,
-  },
-  mapPreview: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
-  locationButton: {
-    marginBottom: 4,
-  },
-  saveButton: {
-    marginTop: 24,
-  },
-  cancelButton: {
-    marginTop: 10,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
-    backgroundColor: colors.surface,
-    marginBottom: 16,
-  },
-  pickerButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  pickerButtonPlaceholder: {
-    color: colors.textMuted,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    paddingTop: 16,
-    paddingBottom: 28,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 20,
-  },
-  provinceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  provinceItemSelected: {
-    backgroundColor: '#FFF1E6',
-  },
-  provinceText: {
-    fontSize: 15,
-    color: colors.text,
-  },
-  provinceTextSelected: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  locationConfirmed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.confirmedGreen,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
-    backgroundColor: colors.confirmedGreenBg,
-    marginBottom: 12,
-  },
-  locationConfirmedText: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.confirmedGreenText,
-    fontWeight: '500',
-  },
-  locationChangeLink: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  mapPickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 12,
-    height: 50,
-    marginBottom: 12,
-    backgroundColor: '#FFF1E6',
-  },
-  mapPickerButtonText: {
-    fontSize: 15,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  mapContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  mapPinWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  mapPinShadow: {
-    width: 12,
-    height: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    marginTop: -8,
-  },
-  mapHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 52,
-    paddingBottom: 14,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-  },
-  mapCloseBtn: {
-    padding: 4,
-  },
-  mapInstructions: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  mapFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 36,
-    paddingTop: 16,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 28,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    readOnlyBanner: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 16,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.textMuted,
+    },
+    readOnlyText: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    infoCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+    },
+    cardTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 14,
+    },
+    iconRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    iconRowSpacing: {
+      marginBottom: 14,
+    },
+    iconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: `${colors.primary}1A`,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconRowText: {
+      flex: 1,
+    },
+    infoLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 2,
+    },
+    infoValue: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    mapPreviewWrap: {
+      height: 140,
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginTop: 14,
+    },
+    mapPreview: {
+      flex: 1,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 10,
+    },
+    locationButton: {
+      marginBottom: 4,
+    },
+    saveButton: {
+      marginTop: 24,
+    },
+    cancelButton: {
+      marginTop: 10,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    pickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 50,
+      backgroundColor: colors.surface,
+      marginBottom: 16,
+    },
+    pickerButtonText: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    pickerButtonPlaceholder: {
+      color: colors.textMuted,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '70%',
+      paddingTop: 16,
+      paddingBottom: 28,
+    },
+    modalTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: 8,
+      paddingHorizontal: 20,
+    },
+    provinceItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    provinceItemSelected: {
+      backgroundColor: '#FFF1E6',
+    },
+    provinceText: {
+      fontSize: 15,
+      color: colors.text,
+    },
+    provinceTextSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    locationConfirmed: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.confirmedGreen,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 50,
+      backgroundColor: colors.confirmedGreenBg,
+      marginBottom: 12,
+    },
+    locationConfirmedText: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.confirmedGreenText,
+      fontWeight: '500',
+    },
+    locationChangeLink: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    mapPickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 12,
+      height: 50,
+      marginBottom: 12,
+      backgroundColor: '#FFF1E6',
+    },
+    mapPickerButtonText: {
+      fontSize: 15,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    mapContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    mapPinWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    mapPinShadow: {
+      width: 12,
+      height: 4,
+      borderRadius: 6,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      marginTop: -8,
+    },
+    mapHeader: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingTop: 52,
+      paddingBottom: 14,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+    },
+    mapCloseBtn: {
+      padding: 4,
+    },
+    mapInstructions: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    mapFooter: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20,
+      paddingBottom: 36,
+      paddingTop: 16,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+    },
+  });
+}

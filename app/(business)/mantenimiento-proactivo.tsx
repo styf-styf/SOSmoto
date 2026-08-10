@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getClientsWithUpcomingMaintenance, type ClientMaintenanceItem } from '../../services/maintenanceOutreach';
@@ -11,6 +12,8 @@ import { toWhatsappLink } from '../../utils/whatsapp';
 import type { BusinessType } from '../../types/database';
 
 export default function MantenimientoProactivoScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [items, setItems] = useState<ClientMaintenanceItem[]>([]);
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
@@ -185,116 +188,118 @@ export default function MantenimientoProactivoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  intro: {
-    fontSize: 14,
-    color: colors.textMuted,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingTop: 60,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  clientName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
-  },
-  badgeDue: {
-    backgroundColor: '#FBE8E8',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  badgeSoon: {
-    backgroundColor: '#FFF1E6',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  meta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    flex: 1,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  actionBtnPrimary: {
-    backgroundColor: colors.primary,
-  },
-  actionBtnSecondary: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionBtnTextWhite: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingHorizontal: 20,
+    },
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    intro: {
+      fontSize: 14,
+      color: colors.textMuted,
+      lineHeight: 20,
+      marginBottom: 16,
+    },
+    emptyWrap: {
+      alignItems: 'center',
+      paddingTop: 60,
+      gap: 12,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      maxWidth: 280,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    clientName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+    },
+    badgeDue: {
+      backgroundColor: '#FBE8E8',
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    badgeSoon: {
+      backgroundColor: '#FFF1E6',
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 4,
+    },
+    meta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      flex: 1,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+    },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+    },
+    actionBtnPrimary: {
+      backgroundColor: colors.primary,
+    },
+    actionBtnSecondary: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    actionBtnTextWhite: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    actionBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+  });
+}

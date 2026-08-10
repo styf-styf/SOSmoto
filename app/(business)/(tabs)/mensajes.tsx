@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { AI_ASSISTANT_ENABLED } from '../../../constants/features';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../../services/businesses';
@@ -28,6 +29,8 @@ interface ConversationRow {
 }
 
 export default function BusinessMensajesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
@@ -239,127 +242,129 @@ export default function BusinessMensajesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 36,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 44,
-    height: 44,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  rowContent: {
-    flex: 1,
-  },
-  rowTopLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rowNameWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 1,
-  },
-  aidBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.sos,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  aidBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  rowBottomLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  rowName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    flexShrink: 1,
-  },
-  rowNameUnread: {
-    color: colors.text,
-    fontWeight: '700',
-  },
-  rowTime: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  rowTimeUnread: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  imagePreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flex: 1,
-  },
-  rowMessage: {
-    fontSize: 13,
-    color: colors.textMuted,
-    flex: 1,
-  },
-  rowMessageUnread: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 36,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    avatarWrap: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 44,
+      height: 44,
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    rowContent: {
+      flex: 1,
+    },
+    rowTopLine: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 8,
+    },
+    rowNameWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
+    },
+    aidBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: colors.sos,
+      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    aidBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    rowBottomLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 2,
+    },
+    rowName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+      flexShrink: 1,
+    },
+    rowNameUnread: {
+      color: colors.text,
+      fontWeight: '700',
+    },
+    rowTime: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    rowTimeUnread: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    imagePreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flex: 1,
+    },
+    rowMessage: {
+      fontSize: 13,
+      color: colors.textMuted,
+      flex: 1,
+    },
+    rowMessageUnread: {
+      color: colors.text,
+      fontWeight: '600',
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+  });
+}

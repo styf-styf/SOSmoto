@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -7,7 +7,8 @@ import { CircleActionButton } from '../../../components/CircleActionButton';
 import { ContactActionButtons } from '../../../components/ContactActionButtons';
 import { SegmentedTabs } from '../../../components/SegmentedTabs';
 import { StatusBadge, type StatusBadgeTone } from '../../../components/StatusBadge';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProductIntentAction } from '../../../hooks/useProductIntentAction';
 import { supabase } from '../../../services/supabase';
@@ -49,6 +50,8 @@ type HistorialEntry =
 type ClienteTab = 'citas' | 'pedidos' | 'informes' | 'historial';
 
 export default function ClienteDetailScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id, pending, highlightIntentId } = useLocalSearchParams<{ id: string; pending?: string; highlightIntentId?: string }>();
   const isPending = pending === 'true';
   const { profile } = useAuth();
@@ -868,253 +871,255 @@ function aptTone(apt: ActiveClientAppointment): StatusBadgeTone {
   return 'neutral';
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFF8E1',
-    borderWidth: 1,
-    borderColor: '#FFD54F',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
-  },
-  pendingBannerText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#F57F17',
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  actionBtnDisabled: {
-    opacity: 0.4,
-  },
-  actionLabelDisabled: {
-    color: colors.textMuted,
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-  },
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 56,
-    height: 56,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  clientPhone: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  actionBtn: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionLabel: {
-    fontSize: 12,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 10,
-    marginTop: 4,
-  },
-  historyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-  },
-  historyCardHighlight: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  badge: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  badgeAid: {
-    backgroundColor: '#FFF1E6',
-  },
-  badgeAppt: {
-    backgroundColor: '#E8F0FF',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  historyDate: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  historyMeta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  historyDesc: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  placeholder: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  activeAptCard: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  activeAptHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  aptDate: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  aptService: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  aptNotes: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  aptLink: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  historyReportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 10,
-  },
-  historyReportBtnText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  vehiclesCard: {
-    backgroundColor: colors.surface, borderRadius: 12,
-    padding: 14, marginBottom: 16, gap: 8,
-  },
-  vehiclesCardMuted: {
-    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 12, padding: 14, marginBottom: 16, gap: 8,
-  },
-  vehiclesLabel: {
-    fontSize: 12, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
-  },
-  vehicleChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.background, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 7,
-  },
-  vehicleChipText: { fontSize: 13, color: colors.text },
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    pendingBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: '#FFF8E1',
+      borderWidth: 1,
+      borderColor: '#FFD54F',
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 14,
+    },
+    pendingBannerText: {
+      flex: 1,
+      fontSize: 13,
+      color: '#F57F17',
+      fontWeight: '600',
+      lineHeight: 18,
+    },
+    actionBtnDisabled: {
+      opacity: 0.4,
+    },
+    actionLabelDisabled: {
+      color: colors.textMuted,
+    },
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    profileCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 16,
+    },
+    avatarCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 56,
+      height: 56,
+    },
+    profileInfo: {
+      flex: 1,
+    },
+    clientName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    clientPhone: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 20,
+    },
+    actionBtn: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      gap: 4,
+    },
+    actionLabel: {
+      fontSize: 12,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 10,
+      marginTop: 4,
+    },
+    historyCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+    },
+    historyCardHighlight: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    historyHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    badge: {
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+    },
+    badgeAid: {
+      backgroundColor: '#FFF1E6',
+    },
+    badgeAppt: {
+      backgroundColor: '#E8F0FF',
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    historyDate: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    historyMeta: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    historyDesc: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    placeholder: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    activeAptCard: {
+      backgroundColor: '#F0F7FF',
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+    },
+    activeAptHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    aptDate: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    aptService: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    aptNotes: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    aptLink: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    historyReportBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 10,
+    },
+    historyReportBtnText: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    vehiclesCard: {
+      backgroundColor: colors.surface, borderRadius: 12,
+      padding: 14, marginBottom: 16, gap: 8,
+    },
+    vehiclesCardMuted: {
+      backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 12, padding: 14, marginBottom: 16, gap: 8,
+    },
+    vehiclesLabel: {
+      fontSize: 12, fontWeight: '700', color: colors.textMuted,
+      textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
+    },
+    vehicleChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: colors.background, borderRadius: 8,
+      paddingHorizontal: 10, paddingVertical: 7,
+    },
+    vehicleChipText: { fontSize: 13, color: colors.text },
 
-  notesCard: {
-    backgroundColor: colors.surface, borderRadius: 12,
-    padding: 14, marginBottom: 16,
-  },
-  notesHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6,
-  },
-  notesTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
-  notesText: { fontSize: 14, color: colors.text, lineHeight: 20 },
-  notesPlaceholder: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
-  notesInput: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text,
-    backgroundColor: colors.background, minHeight: 80, textAlignVertical: 'top',
-  },
-  notesActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  notesBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  notesBtnCancel: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
-  notesBtnCancelText: { fontSize: 14, fontWeight: '600', color: colors.text },
-  notesBtnSave: { backgroundColor: colors.primary },
-  notesBtnSaveText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  notesBtnDisabled: { opacity: 0.6 },
+    notesCard: {
+      backgroundColor: colors.surface, borderRadius: 12,
+      padding: 14, marginBottom: 16,
+    },
+    notesHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6,
+    },
+    notesTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+    notesText: { fontSize: 14, color: colors.text, lineHeight: 20 },
+    notesPlaceholder: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
+    notesInput: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text,
+      backgroundColor: colors.background, minHeight: 80, textAlignVertical: 'top',
+    },
+    notesActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+    notesBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
+    notesBtnCancel: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+    notesBtnCancelText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    notesBtnSave: { backgroundColor: colors.primary },
+    notesBtnSaveText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+    notesBtnDisabled: { opacity: 0.6 },
 
-  circleActionsRow: {
-    flexDirection: 'row', marginTop: 10,
-  },
-  waitingRow: { marginTop: 8, gap: 8 },
-  waitingText: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
-  proposeBox: {
-    marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10,
-  },
-  proposeTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 10 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 },
-  pickerButton: {
-    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, marginBottom: 10,
-  },
-  pickerButtonText: { fontSize: 14, fontWeight: '600', color: colors.text },
-});
+    circleActionsRow: {
+      flexDirection: 'row', marginTop: 10,
+    },
+    waitingRow: { marginTop: 8, gap: 8 },
+    waitingText: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic' },
+    proposeBox: {
+      marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10,
+    },
+    proposeTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 10 },
+    fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 },
+    pickerButton: {
+      paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
+      borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, marginBottom: 10,
+    },
+    pickerButtonText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  });
+}

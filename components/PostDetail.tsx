@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,8 @@ import { MultiPhotoPicker } from './MultiPhotoPicker';
 import { PhotoCarousel } from './PhotoCarousel';
 import { ReportModal } from './ReportModal';
 import { TextField } from './TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAccountLimited } from '../hooks/useAccountLimited';
 import { useAuth } from '../hooks/useAuth';
 import { getMyWorkBusiness, searchBusinesses, type BusinessWithDistance } from '../services/businesses';
@@ -59,6 +60,8 @@ function tagIconForKind(kind: EditTagSelection['kind']): keyof typeof Ionicons.g
 }
 
 export function PostDetail({ postId, userRole = 'client' }: { postId: string; userRole?: 'client' | 'business' }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { isLimited } = useAccountLimited();
   // El header nativo (react-native-screens) vive fuera del árbol de React
@@ -705,309 +708,311 @@ export function PostDetail({ postId, userRole = 'client' }: { postId: string; us
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    padding: 20,
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 38,
-    height: 38,
-  },
-  authorName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  caption: {
-    fontSize: 15,
-    color: colors.text,
-    marginTop: 14,
-  },
-  tagEngagementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF1E6',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  engagementButtonsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-  },
-  engagementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  engagementCount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 24,
-    marginBottom: 10,
-  },
-  commentRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  commentAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  commentAvatarImage: {
-    width: 28,
-    height: 28,
-  },
-  commentBubble: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 10,
-  },
-  commentHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  commentAuthorPress: {
-    flex: 1,
-  },
-  commentAuthor: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  commentBody: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 120,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  limitedNotice: {
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.dangerLight,
-  },
-  limitedNoticeText: {
-    fontSize: 13,
-    color: colors.danger,
-    textAlign: 'center',
-  },
-  modalContainer: {
-    padding: 20,
-    paddingTop: 56,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  photosSection: {
-    marginBottom: 20,
-  },
-  saveButton: {
-    marginTop: 16,
-  },
-  spacedButton: {
-    marginTop: 10,
-  },
-  deleteLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 24,
-    paddingVertical: 8,
-  },
-  deleteLinkText: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tagEditChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF1E6',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 16,
-    maxWidth: '100%',
-  },
-  tagEditChipText: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  tagChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  tagOptionChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tagOptionChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  tagOptionChipText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  tagOptionChipTextSelected: {
-    color: colors.primary,
-  },
-  tagSearchWrap: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 8,
-    marginBottom: 16,
-  },
-  tagSearchInput: {
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 10,
-    fontSize: 13,
-    color: colors.text,
-    backgroundColor: colors.background,
-  },
-  tagSearchSpinner: {
-    marginTop: 8,
-  },
-  tagResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginTop: 4,
-  },
-  tagResultText: {
-    fontSize: 13,
-    color: colors.text,
-    flexShrink: 1,
-  },
-  tagCancelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scroll: {
+      padding: 20,
+    },
+    authorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    avatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 38,
+      height: 38,
+    },
+    authorName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    caption: {
+      fontSize: 15,
+      color: colors.text,
+      marginTop: 14,
+    },
+    tagEngagementRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 12,
+    },
+    tagChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: '#FFF1E6',
+      borderRadius: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    tagText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    engagementButtonsGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 18,
+    },
+    engagementButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    engagementCount: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 24,
+      marginBottom: 10,
+    },
+    commentRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 12,
+    },
+    commentAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    commentAvatarImage: {
+      width: 28,
+      height: 28,
+    },
+    commentBubble: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 10,
+    },
+    commentHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    commentAuthorPress: {
+      flex: 1,
+    },
+    commentAuthor: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    commentBody: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingTop: 6,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    input: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 120,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    sendButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    limitedNotice: {
+      padding: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.dangerLight,
+    },
+    limitedNoticeText: {
+      fontSize: 13,
+      color: colors.danger,
+      textAlign: 'center',
+    },
+    modalContainer: {
+      padding: 20,
+      paddingTop: 56,
+      backgroundColor: colors.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+      marginBottom: 6,
+    },
+    photosSection: {
+      marginBottom: 20,
+    },
+    saveButton: {
+      marginTop: 16,
+    },
+    spacedButton: {
+      marginTop: 10,
+    },
+    deleteLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 24,
+      paddingVertical: 8,
+    },
+    deleteLinkText: {
+      color: colors.danger,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    tagEditChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: '#FFF1E6',
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      marginBottom: 16,
+      maxWidth: '100%',
+    },
+    tagEditChipText: {
+      flexShrink: 1,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    tagChipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    tagOptionChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    tagOptionChipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    tagOptionChipText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    tagOptionChipTextSelected: {
+      color: colors.primary,
+    },
+    tagSearchWrap: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      padding: 8,
+      marginBottom: 16,
+    },
+    tagSearchInput: {
+      height: 38,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 10,
+      fontSize: 13,
+      color: colors.text,
+      backgroundColor: colors.background,
+    },
+    tagSearchSpinner: {
+      marginTop: 8,
+    },
+    tagResultItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      marginTop: 4,
+    },
+    tagResultText: {
+      fontSize: 13,
+      color: colors.text,
+      flexShrink: 1,
+    },
+    tagCancelText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+  });
+}

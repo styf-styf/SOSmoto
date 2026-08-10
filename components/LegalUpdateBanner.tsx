@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { acknowledgeLegalUpdate, getLatestLegalPublishedAt } from '../services/legal';
 
@@ -9,6 +10,8 @@ import { acknowledgeLegalUpdate, getLatestLegalPublishedAt } from '../services/l
 // considera que los aceptó -- por eso no bloquea nada, solo informa. Se
 // muestra en el Home de cliente y negocio.
 export function LegalUpdateBanner() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile, refreshProfile } = useAuth();
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -49,36 +52,38 @@ export function LegalUpdateBanner() {
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    backgroundColor: '#FFF7E6',
-    borderWidth: 1,
-    borderColor: '#F5C563',
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-  },
-  text: {
-    fontSize: 12.5,
-    color: '#7A5B00',
-    lineHeight: 17,
-    marginBottom: 8,
-  },
-  link: {
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-  button: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    banner: {
+      backgroundColor: '#FFF7E6',
+      borderWidth: 1,
+      borderColor: '#F5C563',
+      borderRadius: 12,
+      padding: 12,
+      marginHorizontal: 16,
+      marginBottom: 12,
+    },
+    text: {
+      fontSize: 12.5,
+      color: '#7A5B00',
+      lineHeight: 17,
+      marginBottom: 8,
+    },
+    link: {
+      fontWeight: '700',
+      textDecorationLine: 'underline',
+    },
+    button: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+    },
+    buttonText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+  });
+}

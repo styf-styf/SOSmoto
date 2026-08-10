@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,8 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import {
@@ -28,6 +29,8 @@ interface AuxilioCarreteraData {
 }
 
 export default function AuxilioCarreteraScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -226,70 +229,72 @@ export default function AuxilioCarreteraScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 28,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  readOnlyBanner: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.textMuted,
-  },
-  readOnlyText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  availabilityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    gap: 12,
-  },
-  availabilityInfo: {
-    flex: 1,
-  },
-  availabilityLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  availabilityHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: -8,
-    marginBottom: 16,
-  },
-  saveButton: {
-    marginTop: 8,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 28,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    readOnlyBanner: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 16,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.textMuted,
+    },
+    readOnlyText: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    availabilityRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 16,
+      gap: 12,
+    },
+    availabilityInfo: {
+      flex: 1,
+    },
+    availabilityLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    availabilityHint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: -8,
+      marginBottom: 16,
+    },
+    saveButton: {
+      marginTop: 8,
+    },
+  });
+}

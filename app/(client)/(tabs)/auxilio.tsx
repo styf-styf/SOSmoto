@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -26,7 +26,8 @@ import {
 } from '../../../components/InfoModal';
 import { MarkerBitmapCapture } from '../../../components/MarkerBitmapCapture';
 import { TextField } from '../../../components/TextField';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
@@ -55,6 +56,8 @@ const statusLabel: Record<HelpRequest['status'], string> = {
 };
 
 export default function AuxilioScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const insets = useSafeAreaInsets();
   const { coords, getCoords, refresh: refreshLocation } = useLocation();
@@ -726,6 +729,8 @@ function CompletedRequestCard({
   request: HelpRequest;
   onDone: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [rating, setRating] = useState(5);
@@ -801,229 +806,231 @@ function CompletedRequestCard({
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  mapContainer: {
-    flex: 1,
-    width: '100%',
-  },
-  infoBtnWrap: {
-    position: 'absolute',
-    right: 12,
-    zIndex: 10,
-    elevation: 10,
-  },
-  locateBtn: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  keyboardStickyWrap: {
-    backgroundColor: colors.background,
-  },
-  formScroll: {
-    maxHeight: 340,
-    flexGrow: 0,
-  },
-  formContent: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  bottomBar: {
-    padding: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  // Cancela el padding horizontal de formContent (16) para que el viewport
-  // ocupe el ancho completo -- la moto que no alcanza a entrar queda
-  // cortada justo en el borde real de la pantalla en vez de uno más adentro,
-  // mismo patrón que el carrusel de Siguiendo en Perfil.
-  vehicleSelectorScroll: {
-    marginBottom: 20,
-    marginHorizontal: -16,
-  },
-  vehicleSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingLeft: 16,
-    // Sin padding a la derecha a propósito -- ver comentario arriba.
-  },
-  vehicleOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  vehicleOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFF1E6',
-  },
-  vehicleOptionText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  vehicleOptionTextSelected: {
-    color: colors.primary,
-  },
-  sosButton: {
-    backgroundColor: colors.sos,
-    marginTop: 8,
-  },
-  addVehicleButton: {
-    marginTop: 16,
-  },
-  statusTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  statusSpinner: {
-    marginTop: 16,
-  },
-  statusDetail: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  statusDetailMuted: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 6,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  externallyClosedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-  },
-  externallyClosedText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-  },
-  reopenedNotice: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.warning,
-    textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 12,
-  },
-  businessCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-    width: '100%',
-  },
-  businessHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  businessAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  businessAvatarImage: {
-    width: 30,
-    height: 30,
-  },
-  businessName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  businessMeta: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  activeCard: {
-    backgroundColor: '#FFF1E6',
-    borderRadius: 12,
-    padding: 16,
-  },
-  circleActionsRow: {
-    flexDirection: 'row',
-    marginTop: 14,
-  },
-  businessActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  flexButton: {
-    flex: 1,
-  },
-  businessActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  businessActionText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    mapContainer: {
+      flex: 1,
+      width: '100%',
+    },
+    infoBtnWrap: {
+      position: 'absolute',
+      right: 12,
+      zIndex: 10,
+      elevation: 10,
+    },
+    locateBtn: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    keyboardStickyWrap: {
+      backgroundColor: colors.background,
+    },
+    formScroll: {
+      maxHeight: 340,
+      flexGrow: 0,
+    },
+    formContent: {
+      padding: 16,
+      paddingBottom: 8,
+    },
+    bottomBar: {
+      padding: 16,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    // Cancela el padding horizontal de formContent (16) para que el viewport
+    // ocupe el ancho completo -- la moto que no alcanza a entrar queda
+    // cortada justo en el borde real de la pantalla en vez de uno más adentro,
+    // mismo patrón que el carrusel de Siguiendo en Perfil.
+    vehicleSelectorScroll: {
+      marginBottom: 20,
+      marginHorizontal: -16,
+    },
+    vehicleSelector: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingLeft: 16,
+      // Sin padding a la derecha a propósito -- ver comentario arriba.
+    },
+    vehicleOption: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    vehicleOptionSelected: {
+      borderColor: colors.primary,
+      backgroundColor: '#FFF1E6',
+    },
+    vehicleOptionText: {
+      color: colors.textMuted,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    vehicleOptionTextSelected: {
+      color: colors.primary,
+    },
+    sosButton: {
+      backgroundColor: colors.sos,
+      marginTop: 8,
+    },
+    addVehicleButton: {
+      marginTop: 16,
+    },
+    statusTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    statusSpinner: {
+      marginTop: 16,
+    },
+    statusDetail: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 12,
+      textAlign: 'center',
+    },
+    statusDetailMuted: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 6,
+      textAlign: 'center',
+      paddingHorizontal: 20,
+    },
+    externallyClosedBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 16,
+    },
+    externallyClosedText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.danger,
+    },
+    reopenedNotice: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.warning,
+      textAlign: 'center',
+      marginTop: 8,
+      paddingHorizontal: 12,
+    },
+    businessCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginTop: 20,
+      width: '100%',
+    },
+    businessHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    businessAvatar: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    businessAvatarImage: {
+      width: 30,
+      height: 30,
+    },
+    businessName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    businessMeta: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    activeCard: {
+      backgroundColor: '#FFF1E6',
+      borderRadius: 12,
+      padding: 16,
+    },
+    circleActionsRow: {
+      flexDirection: 'row',
+      marginTop: 14,
+    },
+    businessActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 12,
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    flexButton: {
+      flex: 1,
+    },
+    businessActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    businessActionText: {
+      color: colors.primary,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+  });
+}

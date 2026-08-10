@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import {
   getMyNotifications,
@@ -78,6 +79,8 @@ function resolveNotificationRoute(notification: AppNotification, role: 'client' 
 // app/(business)/notificaciones.tsx, los wrappers finos que la registran en
 // cada Stack y le pasan su `role`.
 export function NotificationsScreen({ role }: { role: 'client' | 'business' }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,72 +202,74 @@ export function NotificationsScreen({ role }: { role: 'client' | 'business' }) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  emptyState: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 40,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowContent: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  rowBody: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  rowTime: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  loadMoreBtn: {
-    marginTop: 16,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  loadMoreText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    emptyState: {
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 40,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    icon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowContent: {
+      flex: 1,
+    },
+    rowTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    rowBody: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    rowTime: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    loadMoreBtn: {
+      marginTop: 16,
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    loadMoreText: {
+      color: colors.primary,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+  });
+}

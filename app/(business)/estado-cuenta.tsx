@@ -1,14 +1,17 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { signOutEverywhere } from '../../services/auth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import type { Business } from '../../types/database';
 
 export default function EstadoCuentaScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
@@ -174,6 +177,8 @@ export default function EstadoCuentaScreen() {
 }
 
 function ListItem({ text }: { text: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.listItem}>
       <Ionicons name="close-circle" size={16} color={colors.danger} />
@@ -182,132 +187,134 @@ function ListItem({ text }: { text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeActive: {
-    backgroundColor: '#E6F4EA',
-  },
-  badgeLimited: {
-    backgroundColor: '#FBE8E8',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  reasonLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  reasonText: {
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 10,
-  },
-  list: {
-    marginBottom: 16,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  listItemText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  typeLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  typeRightGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  typeLabel: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  typeValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  legalText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 24,
-  },
-  legalLink: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-  },
-  actionRowSpacing: {
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  rowPressed: {
-    opacity: 0.55,
-  },
-  actionLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  dangerLabel: {
-    color: colors.danger,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    badgeActive: {
+      backgroundColor: '#E6F4EA',
+    },
+    badgeLimited: {
+      backgroundColor: '#FBE8E8',
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    reasonLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    reasonText: {
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 20,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 10,
+    },
+    list: {
+      marginBottom: 16,
+    },
+    listItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    listItemText: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+    typeRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    typeLeftGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    typeRightGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    typeLabel: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    typeValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    legalText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 24,
+    },
+    legalLink: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    actionRowSpacing: {
+      marginTop: 20,
+      marginBottom: 10,
+    },
+    rowPressed: {
+      opacity: 0.55,
+    },
+    actionLabel: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    dangerLabel: {
+      color: colors.danger,
+    },
+  });
+}

@@ -1,10 +1,14 @@
+import { useMemo } from 'react';
 import { Image, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 // Título de marca del Home (cliente y negocio): el logo reemplaza las letras
 // "SOS" y "moto" sigue como texto normal, para que junto se lea "SOSmoto"
 // pero con el ícono de la app en vez de las 3 letras.
 export function BrandTitle({ style }: { style?: ViewStyle }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.row, style]}>
       <Image source={require('../assets/icon_header.png')} style={styles.icon} resizeMode="contain" />
@@ -13,20 +17,22 @@ export function BrandTitle({ style }: { style?: ViewStyle }) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  icon: {
-    width: 34,
-    height: 21,
-    marginRight: 1,
-  },
-  moto: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 6,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    icon: {
+      width: 34,
+      height: 21,
+      marginRight: 1,
+    },
+    moto: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 6,
+    },
+  });
+}

@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { setPendingPaymentResult } from '../utils/pendingDeepLink';
 
 const TARGET_BY_TYPE: Record<string, string> = {
@@ -25,6 +26,7 @@ const LABEL_BY_TYPE: Record<string, string> = {
 // mandar a login -- sin esto, tras loguearse caía al home en vez de a Plan y
 // suscripción/Publicidad (ver utils/pendingDeepLink.ts).
 export default function PagoResultado() {
+  const colors = useColors();
   const { tipo, ok } = useLocalSearchParams<{ tipo?: string; ok?: string }>();
   const { profile, loading } = useAuth();
   const handledRef = useRef(false);

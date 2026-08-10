@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import type { GestureResponderEvent, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useImageAspectRatio } from '../hooks/useImageAspectRatio';
 import { ExpandableText } from './ExpandableText';
@@ -38,6 +39,8 @@ export function PostCard({
   // trataba como un visitante cualquiera (solo se comparaba owner_id).
   viewerBusinessId?: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const authorName = getPostAuthorName(post);
   const avatarUrl = getPostAuthorAvatar(post);
@@ -274,180 +277,182 @@ export function PostCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    marginHorizontal: CARD_MARGIN,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 32,
-    height: 32,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  authorNameWrap: {
-    flex: 1,
-  },
-  authorName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  captionBlock: {
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  captionCollapsedText: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 19,
-  },
-  imageWrap: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-  },
-  imageScroll: {
-    // Ancho explícito en vez de '100%': tiene que ser el mismo entero que
-    // `CARD_WIDTH` (usado por cada página) para que `pagingEnabled` snapee
-    // exactamente al ancho de cada foto -- ver nota junto a CARD_WIDTH.
-    width: CARD_WIDTH,
-    height: '100%',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.background,
-  },
-  multiPhotoBadge: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 12,
-    padding: 5,
-  },
-  dotsRowOverlay: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  dotOverlay: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
-  dotOverlayActive: {
-    backgroundColor: '#fff',
-    width: 16,
-  },
-  tagChip: {
-    position: 'absolute',
-    left: 10,
-    bottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  tagChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  imageEngagementRow: {
-    position: 'absolute',
-    right: 10,
-    bottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  engagementButtonOverlay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  engagementCountOverlay: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  caption: {
-    fontSize: 14,
-    color: colors.text,
-    paddingHorizontal: 12,
-    marginTop: 10,
-  },
-  engagementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  tagChipFlat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF1E6',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  tagChipFlatText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  engagementButtonsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-  },
-  engagementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  engagementCount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      marginHorizontal: CARD_MARGIN,
+      marginBottom: 8,
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    authorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    avatarWrap: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 32,
+      height: 32,
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    authorNameWrap: {
+      flex: 1,
+    },
+    authorName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    captionBlock: {
+      paddingHorizontal: 12,
+      paddingBottom: 8,
+    },
+    captionCollapsedText: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 19,
+    },
+    imageWrap: {
+      width: '100%',
+      aspectRatio: 3 / 4,
+    },
+    imageScroll: {
+      // Ancho explícito en vez de '100%': tiene que ser el mismo entero que
+      // `CARD_WIDTH` (usado por cada página) para que `pagingEnabled` snapee
+      // exactamente al ancho de cada foto -- ver nota junto a CARD_WIDTH.
+      width: CARD_WIDTH,
+      height: '100%',
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: colors.background,
+    },
+    multiPhotoBadge: {
+      position: 'absolute',
+      right: 10,
+      top: 10,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 12,
+      padding: 5,
+    },
+    dotsRowOverlay: {
+      position: 'absolute',
+      bottom: 10,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 5,
+    },
+    dotOverlay: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: 'rgba(255,255,255,0.5)',
+    },
+    dotOverlayActive: {
+      backgroundColor: '#fff',
+      width: 16,
+    },
+    tagChip: {
+      position: 'absolute',
+      left: 10,
+      bottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    tagChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    imageEngagementRow: {
+      position: 'absolute',
+      right: 10,
+      bottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    engagementButtonOverlay: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    engagementCountOverlay: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    caption: {
+      fontSize: 14,
+      color: colors.text,
+      paddingHorizontal: 12,
+      marginTop: 10,
+    },
+    engagementRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 10,
+    },
+    tagChipFlat: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#FFF1E6',
+      borderRadius: 14,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    tagChipFlatText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    engagementButtonsGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 18,
+    },
+    engagementButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    engagementCount: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+  });
+}

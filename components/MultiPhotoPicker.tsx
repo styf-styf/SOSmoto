@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 // Fila horizontal de fotos ya elegidas (con botón para quitar cada una) +
 // una tarjeta "Agregar" al final que desaparece al llegar al tope -- mismo
@@ -30,6 +32,8 @@ export function MultiPhotoPicker({
   borderRadius?: number;
   addLabel?: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const atLimit = photos.length >= max;
 
   return (
@@ -66,35 +70,37 @@ export function MultiPhotoPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    paddingTop: 8,
-  },
-  thumbWrap: {
-    position: 'relative',
-  },
-  thumb: {
-    aspectRatio: 3 / 4,
-    backgroundColor: colors.surface,
-  },
-  removeBtn: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-  },
-  addTile: {
-    aspectRatio: 3 / 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addTileText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    row: {
+      paddingTop: 8,
+    },
+    thumbWrap: {
+      position: 'relative',
+    },
+    thumb: {
+      aspectRatio: 3 / 4,
+      backgroundColor: colors.surface,
+    },
+    removeBtn: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      backgroundColor: '#fff',
+      borderRadius: 10,
+    },
+    addTile: {
+      aspectRatio: 3 / 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addTileText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });
+}

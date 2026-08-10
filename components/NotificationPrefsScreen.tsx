@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { NotificationPrefsList, type NotificationCategoryOption } from './NotificationPrefsList';
 import { getNotificationPrefs, updateNotificationPrefs } from '../services/notifications';
@@ -16,6 +17,8 @@ export function NotificationPrefsScreen({
 }: {
   loadOptions: (profileId: string) => Promise<NotificationCategoryOption[]>;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [prefs, setPrefs] = useState<NotificationPrefs>({});
   const [options, setOptions] = useState<NotificationCategoryOption[]>([]);
@@ -90,17 +93,19 @@ export function NotificationPrefsScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { flexGrow: 1, padding: 20, gap: 12, backgroundColor: colors.background },
-  systemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-  },
-  systemRowText: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.text },
-  hint: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    container: { flexGrow: 1, padding: 20, gap: 12, backgroundColor: colors.background },
+    systemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 14,
+    },
+    systemRowText: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.text },
+    hint: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  });
+}

@@ -1,11 +1,12 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits } from '../../services/catalog';
@@ -30,6 +31,8 @@ const statusLabel: Record<BusinessVerificationRequest['status'], string> = {
 };
 
 export default function VerificacionScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
 
   const [business, setBusiness] = useState<Business | null>(null);
@@ -229,6 +232,8 @@ export default function VerificacionScreen() {
 }
 
 function DocPicker({ label, doc, onPress }: { label: string; doc: DocState; onPress: () => void }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.docSection}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -244,81 +249,83 @@ function DocPicker({ label, doc, onPress }: { label: string; doc: DocState; onPr
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-    gap: 8,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 20,
-  },
-  statusTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 8,
-  },
-  rejectedBox: {
-    backgroundColor: '#FBE8E8',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-  },
-  rejectedTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.danger,
-    marginBottom: 4,
-  },
-  rejectedText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  docSection: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  preview: {
-    width: '100%',
-    height: 160,
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: colors.surface,
-  },
-  pickButton: {},
-  submitButton: {
-    marginTop: 8,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+      gap: 8,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    helperText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 20,
+    },
+    statusTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 8,
+    },
+    rejectedBox: {
+      backgroundColor: '#FBE8E8',
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 20,
+    },
+    rejectedTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.danger,
+      marginBottom: 4,
+    },
+    rejectedText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    docSection: {
+      marginBottom: 20,
+    },
+    fieldLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    preview: {
+      width: '100%',
+      height: 160,
+      borderRadius: 12,
+      marginBottom: 10,
+      backgroundColor: colors.surface,
+    },
+    pickButton: {},
+    submitButton: {
+      marginTop: 8,
+    },
+  });
+}

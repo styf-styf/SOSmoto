@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { Button } from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { consumePendingDeepLink, consumePendingPaymentResult, type PendingDeepLinkKind } from '../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget, navigateToNegocioDeepLink } from '../utils/deepLinkNavigate';
 import { getPendingDeletionRequest } from '../services/accountDeletion';
@@ -17,6 +18,7 @@ const PENDING_DEEP_LINK_SCREEN: Record<PendingDeepLinkKind, string> = {
 };
 
 function RetryScreen({ onRetry, stillFailing }: { onRetry: () => Promise<void>; stillFailing: boolean }) {
+  const colors = useColors();
   const [retrying, setRetrying] = useState(false);
   // Antes el botón no daba ningún indicio de que el tap se había registrado
   // -- si seguía sin internet, reintentaba y fallaba igual, pero la
@@ -51,6 +53,7 @@ function RetryScreen({ onRetry, stillFailing }: { onRetry: () => Promise<void>; 
 }
 
 export default function Index() {
+  const colors = useColors();
   const { session, profile, loading, sessionAmbiguous, retrySession, profileFetchError, refreshProfile } = useAuth();
   const [pendingChecked, setPendingChecked] = useState(false);
   const [handledPending, setHandledPending] = useState(false);

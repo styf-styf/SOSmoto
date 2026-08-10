@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 // Grafica de barras agrupadas hecha con Views planos -- no hay libreria de
 // graficas instalada en el proyecto, y para pocas barras/series esto
@@ -24,6 +25,8 @@ const CHART_HEIGHT = 120;
 const BAR_GAP = 3;
 
 export function TrendBarChart({ data, series }: { data: ChartPoint[]; series: ChartSeries[] }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [selected, setSelected] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => Math.max(...series.map((s) => d.values[s.key] ?? 0))));
 
@@ -68,6 +71,8 @@ export function TrendBarChart({ data, series }: { data: ChartPoint[]; series: Ch
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendSwatch, { backgroundColor: color }]} />
@@ -76,69 +81,71 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  legendRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 10,
-    flexWrap: 'wrap',
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
-  },
-  legendText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  chart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: CHART_HEIGHT + 36,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingTop: 8,
-  },
-  column: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: '100%',
-  },
-  valueLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  barsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: BAR_GAP,
-  },
-  bar: {
-    width: 10,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
-  axisLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 6,
-  },
-  hint: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    legendRow: {
+      flexDirection: 'row',
+      gap: 16,
+      marginBottom: 10,
+      flexWrap: 'wrap',
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    legendSwatch: {
+      width: 10,
+      height: 10,
+      borderRadius: 3,
+    },
+    legendText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    chart: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      height: CHART_HEIGHT + 36,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingTop: 8,
+    },
+    column: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      height: '100%',
+    },
+    valueLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    barsRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: BAR_GAP,
+    },
+    bar: {
+      width: 10,
+      borderTopLeftRadius: 3,
+      borderTopRightRadius: 3,
+    },
+    axisLabel: {
+      fontSize: 10,
+      color: colors.textMuted,
+      marginTop: 6,
+    },
+    hint: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+  });
+}

@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getPlanLimits } from '../../services/catalog';
@@ -32,6 +33,8 @@ const periodLabel: Record<DashboardPeriod, string> = {
 };
 
 export default function EstadisticasScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [period, setPeriod] = useState<DashboardPeriod>('week');
   const [customFrom, setCustomFrom] = useState(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
@@ -439,6 +442,8 @@ function formatMinutes(minutes: number): string {
 }
 
 function PeakCard({ icon, title, peak }: { icon: keyof typeof Ionicons.glyphMap; title: string; peak: { dayLabel: string; hourLabel: string } }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.statCard}>
       <View style={styles.peakHeader}>
@@ -470,6 +475,8 @@ function StatCard({
   lowerIsBetter?: boolean;
   wide?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const numericValue = rawValue ?? (typeof value === 'number' ? value : null);
   const hasDelta = prevValue !== undefined && prevValue !== null && numericValue !== null && prevValue > 0;
   const delta = hasDelta ? ((numericValue as number) - (prevValue as number)) / (prevValue as number) : null;
@@ -513,6 +520,8 @@ function RankedRow({
   reservationsLabel: string;
   completedLabel: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.rankedRow}>
       <Text style={styles.rankedName} numberOfLines={1}>{name}</Text>
@@ -525,205 +534,207 @@ function RankedRow({
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  planBadge: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignSelf: 'flex-start',
-  },
-  planBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 16,
-  },
-  periodOption: {
-    flex: 1,
-    textAlign: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    overflow: 'hidden',
-  },
-  periodOptionActive: {
-    backgroundColor: colors.background,
-    color: colors.primary,
-  },
-  periodOptionDisabled: {
-    opacity: 0.5,
-  },
-  customRangeRow: {
-    marginBottom: 16,
-  },
-  dateBtn: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 8,
-  },
-  dateBtnText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  applyBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  applyBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-  },
-  statCardWide: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 6,
-  },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  deltaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  deltaText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  statMeta: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  peakHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  peakValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 10,
-  },
-  upsell: {
-    fontSize: 13,
-    color: colors.primary,
-    backgroundColor: '#FFF1E6',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
-    lineHeight: 18,
-  },
-  rankedRow: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  rankedName: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  rankedStats: {
-    flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  rankedValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  rankedValueMuted: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  exportBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingVertical: 14,
-  },
-  exportBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 12,
+    },
+    planBadge: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      alignSelf: 'flex-start',
+    },
+    planBadgeText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    periodSelector: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      padding: 4,
+      marginBottom: 16,
+    },
+    periodOption: {
+      flex: 1,
+      textAlign: 'center',
+      paddingVertical: 8,
+      borderRadius: 8,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      overflow: 'hidden',
+    },
+    periodOptionActive: {
+      backgroundColor: colors.background,
+      color: colors.primary,
+    },
+    periodOptionDisabled: {
+      opacity: 0.5,
+    },
+    customRangeRow: {
+      marginBottom: 16,
+    },
+    dateBtn: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 8,
+    },
+    dateBtnText: {
+      fontSize: 13,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    applyBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    applyBtnText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    row: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 12,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 16,
+    },
+    statCardWide: {
+      flex: 1,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 6,
+    },
+    statValueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    statValue: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    deltaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    deltaText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    statMeta: {
+      fontSize: 10,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    peakHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 6,
+    },
+    peakValue: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 16,
+      marginBottom: 10,
+    },
+    upsell: {
+      fontSize: 13,
+      color: colors.primary,
+      backgroundColor: '#FFF1E6',
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 8,
+      lineHeight: 18,
+    },
+    rankedRow: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginBottom: 8,
+    },
+    rankedName: {
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: 6,
+    },
+    rankedStats: {
+      flexDirection: 'row',
+      gap: 12,
+      flexWrap: 'wrap',
+    },
+    rankedValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    rankedValueMuted: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    exportBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingVertical: 14,
+    },
+    exportBtnText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+  });
+}

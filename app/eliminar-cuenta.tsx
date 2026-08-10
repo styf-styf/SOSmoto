@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { useAuth } from '../hooks/useAuth';
 import { getPendingDeletionRequest, requestAccountDeletion } from '../services/accountDeletion';
 
@@ -14,6 +15,8 @@ import { getPendingDeletionRequest, requestAccountDeletion } from '../services/a
 // es opcional a propósito: no se debe bloquear la solicitud solo porque el
 // usuario no quiera explicar por qué se va.
 export default function EliminarCuentaScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -100,35 +103,37 @@ export default function EliminarCuentaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-  },
-  warningCard: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#FBE8E8',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 19,
-  },
-  submitButton: {
-    marginTop: 24,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+      backgroundColor: colors.background,
+    },
+    warningCard: {
+      flexDirection: 'row',
+      gap: 12,
+      backgroundColor: '#FBE8E8',
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 20,
+    },
+    warningText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 19,
+    },
+    submitButton: {
+      marginTop: 24,
+    },
+  });
+}

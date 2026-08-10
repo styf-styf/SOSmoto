@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import { getActiveGrowthSuggestion } from '../../services/growth';
@@ -26,6 +27,8 @@ const SUGGESTION_CTA: Record<GrowthSuggestion['type'], string> = {
 };
 
 export default function CreceTuNegocioScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [suggestion, setSuggestion] = useState<GrowthSuggestion | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,48 +95,50 @@ export default function CreceTuNegocioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 4,
-  },
-  body: {
-    fontSize: 14,
-    color: colors.textMuted,
-    lineHeight: 20,
-  },
-  button: {
-    marginTop: 8,
-    alignSelf: 'stretch',
-  },
-  linkText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-    marginTop: 20,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 20,
+      alignItems: 'flex-start',
+      gap: 8,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 4,
+    },
+    body: {
+      fontSize: 14,
+      color: colors.textMuted,
+      lineHeight: 20,
+    },
+    button: {
+      marginTop: 8,
+      alignSelf: 'stretch',
+    },
+    linkText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+      marginTop: 20,
+      textAlign: 'center',
+    },
+  });
+}

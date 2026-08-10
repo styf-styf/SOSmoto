@@ -1,14 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToNegocioDeepLink } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir catálogo/perfil de negocio"
 // (https://sosmoto.net/negocio/:id) -- mismo patrón que app/post/[id].tsx.
 export default function NegocioLinkResolver() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile, loading } = useAuth();
   // Keyed por id -- ver app/post/[id].tsx para el motivo.

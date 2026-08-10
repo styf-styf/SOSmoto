@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,8 @@ import { Link, router } from 'expo-router';
 import { Button } from '../../components/Button';
 import { SaveAccountPrompt } from '../../components/SaveAccountPrompt';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useSaveAccountFlow } from '../../hooks/useSaveAccountFlow';
 import { resendSignupCode, sendPasswordResetEmail, signIn } from '../../services/auth';
 import {
@@ -17,6 +18,8 @@ import {
 } from '../../services/accountSwitcher';
 
 export default function LoginScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -216,105 +219,107 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  savedAccountsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 20,
-    marginBottom: 16,
-  },
-  savedAccountItem: {
-    alignItems: 'center',
-    width: 76,
-  },
-  savedAvatarWrap: {
-    position: 'relative',
-  },
-  savedAvatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  savedAvatarImage: {
-    width: 56,
-    height: 56,
-  },
-  savedAvatarLoading: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  savedRemoveBtn: {
-    position: 'absolute',
-    top: -4,
-    right: 6,
-    backgroundColor: colors.background,
-    borderRadius: 9,
-  },
-  savedAccountName: {
-    fontSize: 11,
-    color: colors.text,
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  orDivider: {
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  forgotLink: {
-    alignSelf: 'flex-end',
-    marginBottom: 20,
-    marginTop: -4,
-  },
-  forgotLinkText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  footerText: {
-    color: colors.textMuted,
-  },
-  link: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: 24,
+      backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: colors.primary,
+      textAlign: 'center',
+      marginBottom: 4,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 32,
+    },
+    savedAccountsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 20,
+      marginBottom: 16,
+    },
+    savedAccountItem: {
+      alignItems: 'center',
+      width: 76,
+    },
+    savedAvatarWrap: {
+      position: 'relative',
+    },
+    savedAvatarCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    savedAvatarImage: {
+      width: 56,
+      height: 56,
+    },
+    savedAvatarLoading: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: 28,
+      backgroundColor: 'rgba(255,255,255,0.7)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    savedRemoveBtn: {
+      position: 'absolute',
+      top: -4,
+      right: 6,
+      backgroundColor: colors.background,
+      borderRadius: 9,
+    },
+    savedAccountName: {
+      fontSize: 11,
+      color: colors.text,
+      marginTop: 6,
+      textAlign: 'center',
+    },
+    orDivider: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    forgotLink: {
+      alignSelf: 'flex-end',
+      marginBottom: 20,
+      marginTop: -4,
+    },
+    forgotLinkText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 24,
+    },
+    footerText: {
+      color: colors.textMuted,
+    },
+    link: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+  });
+}

@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 interface ButtonProps {
   title: string;
@@ -18,6 +20,8 @@ export function Button({
   variant = 'primary',
   style,
 }: ButtonProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isSecondary = variant === 'secondary';
   const isDanger = variant === 'danger';
   const isOutline = isSecondary || isDanger;
@@ -44,39 +48,41 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    height: 50,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  danger: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  text: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  textSecondary: {
-    color: colors.primary,
-  },
-  textDanger: {
-    color: colors.danger,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    base: {
+      height: 50,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 16,
+    },
+    primary: {
+      backgroundColor: colors.primary,
+    },
+    secondary: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    danger: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: colors.danger,
+    },
+    disabled: {
+      opacity: 0.6,
+    },
+    text: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+    textSecondary: {
+      color: colors.primary,
+    },
+    textDanger: {
+      color: colors.danger,
+    },
+  });
+}

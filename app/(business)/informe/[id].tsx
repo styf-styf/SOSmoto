@@ -1,13 +1,16 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Text, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { getServiceReport, type ServiceReportWithBusiness } from '../../../services/serviceReports';
 import { ServiceReportView } from '../../../components/ServiceReportView';
 import { shareReportAsPdf } from '../../../utils/reportPdf';
 import { Button } from '../../../components/Button';
 
 export default function InformeNegocioScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [report, setReport] = useState<ServiceReportWithBusiness | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +73,9 @@ export default function InformeNegocioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background, padding: 20 },
-  placeholder: { color: colors.textMuted, fontSize: 14 },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background, padding: 20 },
+    placeholder: { color: colors.textMuted, fontSize: 14 },
+  });
+}

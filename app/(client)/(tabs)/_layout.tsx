@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabIconBadge } from '../../../components/TabIconBadge';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
 import { useActiveHelpRequestContext } from '../../../hooks/ActiveHelpRequestContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
@@ -27,6 +27,7 @@ export default function ClientTabsLayout() {
   const { activeRequest } = useActiveHelpRequestContext();
   const hasUnreadMessages = useUnreadMessages(profile);
   const insets = useSafeAreaInsets();
+  const colors = useColors();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

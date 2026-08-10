@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import { colors as lightColors } from '../constants/colors';
+import type { ColorTheme } from '../constants/colors';
 
 // Botón ⓘ reutilizable -- abre un InfoModal con la guía de una pantalla
 // compleja (mismo patrón que catalogo.tsx introdujo para stock/variantes).
@@ -15,6 +18,8 @@ export function InfoButton({
   accessibilityLabel: string;
   size?: number;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable style={styles.infoBtn} onPress={onPress} hitSlop={8} accessibilityLabel={accessibilityLabel}>
       <Ionicons name="information-circle-outline" size={size} color={colors.primary} />
@@ -33,6 +38,8 @@ export function InfoModal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.header}>
@@ -50,6 +57,8 @@ export function InfoModal({
 }
 
 export function InfoStep({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.step}>
       <View style={styles.stepHeader}>
@@ -64,6 +73,8 @@ export function InfoStep({ number, title, children }: { number: number; title: s
 }
 
 export function InfoExample({ label, ok, children }: { label: string; ok?: boolean; children: ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.exampleBox, ok === false && styles.exampleBoxError]}>
       <Text style={[styles.exampleLabel, ok === false && styles.exampleLabelError]}>{label}</Text>
@@ -72,95 +83,102 @@ export function InfoExample({ label, ok, children }: { label: string; ok?: boole
   );
 }
 
-const styles = StyleSheet.create({
-  infoBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
-    marginRight: 12,
-  },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  closeButton: {
-    marginTop: 8,
-  },
-  step: {
-    marginBottom: 26,
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
-  },
-  stepBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepBadgeText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  stepTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  exampleBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.success,
-  },
-  exampleBoxError: {
-    borderLeftColor: colors.danger,
-  },
-  exampleLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.success,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  exampleLabelError: {
-    color: colors.danger,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    infoBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 56,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+      marginRight: 12,
+    },
+    body: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 40,
+    },
+    closeButton: {
+      marginTop: 8,
+    },
+    step: {
+      marginBottom: 26,
+    },
+    stepHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 8,
+    },
+    stepBadge: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepBadgeText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    stepTitle: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    exampleBox: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.success,
+    },
+    exampleBoxError: {
+      borderLeftColor: colors.danger,
+    },
+    exampleLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.success,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+    },
+    exampleLabelError: {
+      color: colors.danger,
+    },
+  });
+}
 
+// Usado por las pantallas que arman su propio contenido de InfoModal
+// (agenda, empleados, publicidad, citas, buscar, solicitudes/auxilio) --
+// se queda fijo en el tema claro hasta que esas pantallas se migren a
+// useColors() en la fase 3/4; no tiene sentido convertirlo en hook mientras
+// ningún consumidor puede aprovecharlo todavía.
 export const infoTextStyles = StyleSheet.create({
   text: {
     fontSize: 13,
-    color: colors.text,
+    color: lightColors.text,
     lineHeight: 19,
     marginBottom: 10,
   },
@@ -169,12 +187,12 @@ export const infoTextStyles = StyleSheet.create({
   },
   exampleText: {
     fontSize: 13,
-    color: colors.text,
+    color: lightColors.text,
     lineHeight: 18,
   },
   exampleTextMuted: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: lightColors.textMuted,
     lineHeight: 17,
     marginTop: 4,
   },

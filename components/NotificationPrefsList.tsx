@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import type { NotificationCategory, NotificationPrefs } from '../types/database';
 
 export interface NotificationCategoryOption {
@@ -20,6 +22,8 @@ export function NotificationPrefsList({
   onToggle: (key: NotificationCategory, value: boolean) => void;
   disabled?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.group}>
       {options.map((opt, i) => {
@@ -43,34 +47,36 @@ export function NotificationPrefsList({
   );
 }
 
-const styles = StyleSheet.create({
-  group: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  info: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  hint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    group: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+    },
+    rowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    info: {
+      flex: 1,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    hint: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+  });
+}

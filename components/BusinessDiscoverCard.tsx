@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { GradientShade } from './GradientShade';
 import type { BusinessWithDistance } from '../services/businesses';
 
@@ -35,6 +37,8 @@ export function BusinessDiscoverCard({
   width: number;
   hrefPrefix?: '/(client)' | '/(business)';
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.cardShadow, { width, height: width }]}>
       <Pressable style={styles.card} onPress={() => router.push(`${hrefPrefix}/business/${business.id}`)}>
@@ -81,89 +85,91 @@ export function BusinessDiscoverCard({
   );
 }
 
-const styles = StyleSheet.create({
-  cardShadow: {
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  image: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  imagePlaceholder: {
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verifiedDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  featuredBadge: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  featuredBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  name: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 48,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  meta: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 29,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  ratingRow: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  rating: {
-    marginLeft: 4,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    cardShadow: {
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    card: {
+      flex: 1,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+    },
+    image: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    imagePlaceholder: {
+      backgroundColor: '#FFF1E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    verifiedDot: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    featuredBadge: {
+      position: 'absolute',
+      top: 6,
+      left: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+    },
+    featuredBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    name: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 48,
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    meta: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 29,
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    ratingRow: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    rating: {
+      marginLeft: 4,
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#fff',
+    },
+  });
+}

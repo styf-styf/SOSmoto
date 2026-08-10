@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Button } from './Button';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 // Modal simple para reportar contenido/negocios inapropiados (posts,
 // reseñas, negocios) -- reusado desde PostDetail y BusinessProfileView.
@@ -17,6 +18,8 @@ export function ReportModal({
   onCancel: () => void;
   onSubmit: (reason: string) => Promise<void>;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [reason, setReason] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -65,58 +68,60 @@ export function ReportModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  close: {
-    fontSize: 16,
-    color: colors.textMuted,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 12,
-  },
-  input: {
-    minHeight: 80,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
-  },
-  flexButton: {
-    flex: 1,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      padding: 20,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    close: {
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    subtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 12,
+    },
+    input: {
+      minHeight: 80,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 16,
+    },
+    flexButton: {
+      flex: 1,
+    },
+  });
+}

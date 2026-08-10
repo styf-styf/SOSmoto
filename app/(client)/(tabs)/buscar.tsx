@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,7 +15,8 @@ import { BusinessDiscoverCard } from '../../../components/BusinessDiscoverCard';
 import { FeedCatalogStrip } from '../../../components/FeedCatalogStrip';
 import { FilterChip } from '../../../components/FilterChip';
 import { SearchEmptyState } from '../../../components/SearchEmptyState';
-import { colors } from '../../../constants/colors';
+import { useColors } from '../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../constants/colors';
 import { ratingFilters } from '../../../constants/searchFilters';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
@@ -36,6 +37,8 @@ const typeFilters: { label: string; value: BusinessType | undefined }[] = [
 ];
 
 export default function BuscarScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const params = useLocalSearchParams<{ service?: string }>();
   const { profile } = useAuth();
   const { coords } = useLocation();
@@ -280,106 +283,108 @@ export default function BuscarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 36,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  searchInput: {
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  searchInputFlex: {
-    flex: 1,
-  },
-  filterToggleButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterToggleButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  limitedContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  limitedText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  activeFiltersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  activeFiltersText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-    flexShrink: 1,
-  },
-  serviceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 8,
-  },
-  serviceBadgeText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  loading: {
-    marginTop: 40,
-  },
-  results: {
-    paddingTop: 4,
-  },
-  discoverGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: DISCOVER_GRID_GAP,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 36,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    searchInput: {
+      height: 50,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      fontSize: 16,
+      color: colors.text,
+      backgroundColor: colors.surface,
+    },
+    searchInputFlex: {
+      flex: 1,
+    },
+    filterToggleButton: {
+      width: 50,
+      height: 50,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filterToggleButtonActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary,
+    },
+    limitedContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    limitedText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    activeFiltersRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+      marginBottom: 8,
+    },
+    activeFiltersText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+      flexShrink: 1,
+    },
+    serviceBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      marginBottom: 8,
+    },
+    serviceBadgeText: {
+      fontSize: 13,
+      color: colors.text,
+    },
+    loading: {
+      marginTop: 40,
+    },
+    results: {
+      paddingTop: 4,
+    },
+    discoverGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: DISCOVER_GRID_GAP,
+    },
+  });
+}

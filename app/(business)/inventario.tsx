@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness } from '../../services/businesses';
@@ -34,11 +35,13 @@ type VariantWithLevel = ProductVariant & { stockLevel: 'out' | 'low' | 'ok' };
 type FilterTab = 'all' | 'low' | 'out';
 type MovementType = 'entry' | 'exit' | 'adjustment';
 
-const STOCK_COLORS = {
-  out: colors.danger,
-  low: '#F57C00',
-  ok: colors.success,
-};
+function stockColors(colors: ColorTheme) {
+  return {
+    out: colors.danger,
+    low: colors.warning,
+    ok: colors.success,
+  };
+}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -60,6 +63,8 @@ interface InventarioData {
 }
 
 export default function InventarioScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const [filter, setFilter] = useState<FilterTab>('all');
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
@@ -317,8 +322,8 @@ export default function InventarioScreen() {
                 {!product.is_active && <Text style={styles.inactiveTag}>Inactivo</Text>}
               </View>
               <View style={styles.stockBadge}>
-                <View style={[styles.stockDot, { backgroundColor: STOCK_COLORS[displayLevel] }]} />
-                <Text style={[styles.stockNum, { color: STOCK_COLORS[displayLevel] }]}>
+                <View style={[styles.stockDot, { backgroundColor: stockColors(colors)[displayLevel] }]} />
+                <Text style={[styles.stockNum, { color: stockColors(colors)[displayLevel] }]}>
                   {product.stock}
                 </Text>
                 <Text style={styles.stockUnit}>{hasVariants ? 'uds total' : 'uds'}</Text>
@@ -341,8 +346,8 @@ export default function InventarioScreen() {
                       <Pressable style={styles.variantListRow} onPress={() => selectVariant(product, variant)}>
                         <Text style={styles.variantListLabel} numberOfLines={1}>{variant.label}</Text>
                         <View style={styles.stockBadge}>
-                          <View style={[styles.stockDot, { backgroundColor: STOCK_COLORS[variant.stockLevel] }]} />
-                          <Text style={[styles.stockNum, styles.stockNumSmall, { color: STOCK_COLORS[variant.stockLevel] }]}>
+                          <View style={[styles.stockDot, { backgroundColor: stockColors(colors)[variant.stockLevel] }]} />
+                          <Text style={[styles.stockNum, styles.stockNumSmall, { color: stockColors(colors)[variant.stockLevel] }]}>
                             {variant.stock}
                           </Text>
                           <Text style={styles.stockUnit}>uds</Text>
@@ -497,102 +502,104 @@ export default function InventarioScreen() {
   }
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
-  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  summaryCard: {
-    flex: 1, alignItems: 'center', backgroundColor: colors.surface,
-    borderRadius: 12, paddingVertical: 14, gap: 4,
-  },
-  summaryCardWarn: { backgroundColor: '#FFF3E0' },
-  summaryCardDanger: { backgroundColor: '#FFEBEE' },
-  summaryCardActive: { borderWidth: 2, borderColor: colors.primary },
-  summaryNum: { fontSize: 22, fontWeight: '800', color: colors.text },
-  summaryLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-  empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 16 },
-  card: {
-    backgroundColor: colors.surface, borderRadius: 12,
-    marginBottom: 10, overflow: 'hidden',
-  },
-  cardRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 14, gap: 12,
-  },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '600', color: colors.text },
-  cardMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  inactiveTag: {
-    fontSize: 11, fontWeight: '700', color: colors.textMuted,
-    backgroundColor: colors.border, borderRadius: 4,
-    paddingHorizontal: 5, paddingVertical: 1,
-    alignSelf: 'flex-start', marginTop: 4,
-  },
-  stockBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  stockDot: { width: 8, height: 8, borderRadius: 4 },
-  stockNum: { fontSize: 20, fontWeight: '800' },
-  stockNumSmall: { fontSize: 15 },
-  stockUnit: { fontSize: 11, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
-  variantListWrap: {
-    borderTopWidth: 1, borderTopColor: colors.border,
-  },
-  variantListRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 12, gap: 12,
-    paddingLeft: 26,
-    borderTopWidth: 1, borderTopColor: colors.border,
-  },
-  variantListLabel: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
-  panel: {
-    borderTopWidth: 1, borderTopColor: colors.border,
-    paddingHorizontal: 14, paddingTop: 14, paddingBottom: 16,
-    gap: 12,
-  },
-  movTypeTabs: { flexDirection: 'row', gap: 8 },
-  movTypeTab: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 9, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background,
-  },
-  movTypeTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  movTypeText: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
-  movTypeTextActive: { color: '#fff' },
-  fieldRow: { gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
-  fieldHint: { fontSize: 12, color: colors.textMuted, fontWeight: '400' },
-  input: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 16, color: colors.text, backgroundColor: colors.background,
-  },
-  reasonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reasonChip: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.background,
-  },
-  reasonChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  reasonChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  reasonChipTextActive: { color: '#fff' },
-  notesInput: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14,
-    color: colors.text, backgroundColor: colors.background,
-    minHeight: 60,
-  },
-  saveBtn: {
-    backgroundColor: colors.primary, borderRadius: 12,
-    paddingVertical: 13, alignItems: 'center',
-  },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  histTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 4 },
-  movRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border,
-  },
-  movDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
-  movLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
-  movSource: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
-  movNotes: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  movDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+    summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    summaryCard: {
+      flex: 1, alignItems: 'center', backgroundColor: colors.surface,
+      borderRadius: 12, paddingVertical: 14, gap: 4,
+    },
+    summaryCardWarn: { backgroundColor: '#FFF3E0' },
+    summaryCardDanger: { backgroundColor: '#FFEBEE' },
+    summaryCardActive: { borderWidth: 2, borderColor: colors.primary },
+    summaryNum: { fontSize: 22, fontWeight: '800', color: colors.text },
+    summaryLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+    empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 16 },
+    card: {
+      backgroundColor: colors.surface, borderRadius: 12,
+      marginBottom: 10, overflow: 'hidden',
+    },
+    cardRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 14, paddingVertical: 14, gap: 12,
+    },
+    cardInfo: { flex: 1 },
+    cardName: { fontSize: 15, fontWeight: '600', color: colors.text },
+    cardMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    inactiveTag: {
+      fontSize: 11, fontWeight: '700', color: colors.textMuted,
+      backgroundColor: colors.border, borderRadius: 4,
+      paddingHorizontal: 5, paddingVertical: 1,
+      alignSelf: 'flex-start', marginTop: 4,
+    },
+    stockBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    stockDot: { width: 8, height: 8, borderRadius: 4 },
+    stockNum: { fontSize: 20, fontWeight: '800' },
+    stockNumSmall: { fontSize: 15 },
+    stockUnit: { fontSize: 11, color: colors.textMuted, fontWeight: '600', marginTop: 4 },
+    variantListWrap: {
+      borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    variantListRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 14, paddingVertical: 12, gap: 12,
+      paddingLeft: 26,
+      borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    variantListLabel: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
+    panel: {
+      borderTopWidth: 1, borderTopColor: colors.border,
+      paddingHorizontal: 14, paddingTop: 14, paddingBottom: 16,
+      gap: 12,
+    },
+    movTypeTabs: { flexDirection: 'row', gap: 8 },
+    movTypeTab: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: 5, paddingVertical: 9, borderRadius: 10,
+      borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background,
+    },
+    movTypeTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    movTypeText: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
+    movTypeTextActive: { color: '#fff' },
+    fieldRow: { gap: 6 },
+    fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
+    fieldHint: { fontSize: 12, color: colors.textMuted, fontWeight: '400' },
+    input: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 16, color: colors.text, backgroundColor: colors.background,
+    },
+    reasonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    reasonChip: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 20,
+      paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.background,
+    },
+    reasonChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    reasonChipText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+    reasonChipTextActive: { color: '#fff' },
+    notesInput: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 10, fontSize: 14,
+      color: colors.text, backgroundColor: colors.background,
+      minHeight: 60,
+    },
+    saveBtn: {
+      backgroundColor: colors.primary, borderRadius: 12,
+      paddingVertical: 13, alignItems: 'center',
+    },
+    saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    histTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 4 },
+    movRow: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+      paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    movDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+    movLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
+    movSource: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
+    movNotes: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+    movDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  });
+}

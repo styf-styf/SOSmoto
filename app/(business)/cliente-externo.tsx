@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -9,7 +9,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ContactActionButtons } from '../../components/ContactActionButtons';
 import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { StatusBadge, type StatusBadgeTone } from '../../components/StatusBadge';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyWorkBusiness } from '../../services/businesses';
 import {
@@ -56,6 +57,8 @@ interface VehicleForm { brand: string; model: string; year: string; plate: strin
 type ClienteExternoTab = 'citas' | 'informes' | 'historial';
 
 export default function ClienteExternoScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useAuth();
   const { name, phone } = useLocalSearchParams<{ name: string; phone?: string }>();
   const decodedName = decodeURIComponent(name ?? '');
@@ -512,91 +515,93 @@ export default function ClienteExternoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+    container: { flexGrow: 1, padding: 20, backgroundColor: colors.background, paddingBottom: 40 },
 
-  profileCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 16,
-  },
-  avatarCircle: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center',
-  },
-  profileInfo: { flex: 1 },
-  clientName: { fontSize: 18, fontWeight: '700', color: colors.text },
-  clientPhone: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
-  editIconBtn: { padding: 6 },
+    profileCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 16,
+    },
+    avatarCircle: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center',
+    },
+    profileInfo: { flex: 1 },
+    clientName: { fontSize: 18, fontWeight: '700', color: colors.text },
+    clientPhone: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+    editIconBtn: { padding: 6 },
 
-  vehiclesCard: {
-    backgroundColor: colors.surface, borderRadius: 12,
-    padding: 14, marginBottom: 16, gap: 8,
-  },
-  vehiclesLabel: {
-    fontSize: 12, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
-  },
-  vehicleChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.background, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 7,
-  },
-  vehicleChipText: { fontSize: 13, color: colors.text },
+    vehiclesCard: {
+      backgroundColor: colors.surface, borderRadius: 12,
+      padding: 14, marginBottom: 16, gap: 8,
+    },
+    vehiclesLabel: {
+      fontSize: 12, fontWeight: '700', color: colors.textMuted,
+      textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
+    },
+    vehicleChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: colors.background, borderRadius: 8,
+      paddingHorizontal: 10, paddingVertical: 7,
+    },
+    vehicleChipText: { fontSize: 13, color: colors.text },
 
-  actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  actionBtn: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 12,
-    paddingVertical: 12, alignItems: 'center', gap: 4,
-  },
-  actionLabel: { fontSize: 12, color: colors.text, fontWeight: '600' },
+    actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    actionBtn: {
+      flex: 1, backgroundColor: colors.surface, borderRadius: 12,
+      paddingVertical: 12, alignItems: 'center', gap: 4,
+    },
+    actionLabel: { fontSize: 12, color: colors.text, fontWeight: '600' },
 
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 10, marginTop: 4 },
+    sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 10, marginTop: 4 },
 
-  activeAptCard: {
-    backgroundColor: '#F0F7FF', borderRadius: 12, padding: 14, marginBottom: 10,
-    borderLeftWidth: 3, borderLeftColor: colors.primary,
-  },
-  activeAptHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
-  },
-  aptDate: { fontSize: 13, fontWeight: '700', color: colors.text },
-  aptService: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 2 },
-  aptNotes: { fontSize: 13, color: colors.textMuted, marginBottom: 4 },
-  aptLink: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 4 },
+    activeAptCard: {
+      backgroundColor: '#F0F7FF', borderRadius: 12, padding: 14, marginBottom: 10,
+      borderLeftWidth: 3, borderLeftColor: colors.primary,
+    },
+    activeAptHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+    },
+    aptDate: { fontSize: 13, fontWeight: '700', color: colors.text },
+    aptService: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 2 },
+    aptNotes: { fontSize: 13, color: colors.textMuted, marginBottom: 4 },
+    aptLink: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 4 },
 
-  historyCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10 },
-  historyHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
-  },
-  historyDate: { fontSize: 12, color: colors.textMuted },
-  historyMeta: { fontSize: 13, color: colors.textMuted, marginBottom: 2 },
-  historyDesc: { fontSize: 14, color: colors.text },
-  historyReportBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  historyReportBtnText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
+    historyCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10 },
+    historyHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+    },
+    historyDate: { fontSize: 12, color: colors.textMuted },
+    historyMeta: { fontSize: 13, color: colors.textMuted, marginBottom: 2 },
+    historyDesc: { fontSize: 14, color: colors.text },
+    historyReportBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+    historyReportBtnText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
 
-  placeholder: { fontSize: 14, color: colors.textMuted, marginBottom: 16 },
+    placeholder: { fontSize: 14, color: colors.textMuted, marginBottom: 16 },
 
-  // Edit mode
-  label: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 6, marginTop: 16 },
-  input: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
-    color: colors.text, backgroundColor: colors.surface,
-  },
-  vehiclesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
-  addVehicleBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addVehicleBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  vehicleForm: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginTop: 10, gap: 8 },
-  vehicleFormHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  vehicleFormTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
-  vehicleRow: { flexDirection: 'row', gap: 8 },
-  editActions: { flexDirection: 'row', gap: 12, marginTop: 28 },
-  editBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-  cancelBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  cancelBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  saveBtn: { backgroundColor: colors.primary },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-});
+    // Edit mode
+    label: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 6, marginTop: 16 },
+    input: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
+      color: colors.text, backgroundColor: colors.surface,
+    },
+    vehiclesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
+    addVehicleBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    addVehicleBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+    vehicleForm: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginTop: 10, gap: 8 },
+    vehicleFormHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+    vehicleFormTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+    vehicleRow: { flexDirection: 'row', gap: 8 },
+    editActions: { flexDirection: 'row', gap: 12, marginTop: 28 },
+    editBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+    cancelBtn: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    cancelBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
+    saveBtn: { backgroundColor: colors.primary },
+    saveBtnDisabled: { opacity: 0.6 },
+    saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  });
+}

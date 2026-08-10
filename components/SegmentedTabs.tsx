@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 
 export interface SegmentedTabItem<T extends string> {
   key: T;
@@ -25,6 +27,8 @@ export function SegmentedTabs<T extends string>({
   active: T;
   onChange: (key: T) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.tabsRow}>
       {tabs
@@ -47,42 +51,44 @@ export function SegmentedTabs<T extends string>({
   );
 }
 
-const styles = StyleSheet.create({
-  tabsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    marginBottom: -1,
-  },
-  tabButtonActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabButtonLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  tabButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  tabButtonTextActive: {
-    color: colors.primary,
-  },
-  tabDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.sos,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    tabsRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tabButton: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+      marginBottom: -1,
+    },
+    tabButtonActive: {
+      borderBottomColor: colors.primary,
+    },
+    tabButtonLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    tabButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    tabButtonTextActive: {
+      color: colors.primary,
+    },
+    tabDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      backgroundColor: colors.sos,
+    },
+  });
+}

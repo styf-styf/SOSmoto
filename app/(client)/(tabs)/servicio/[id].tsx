@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
@@ -10,7 +10,8 @@ import { ExpandableText } from '../../../../components/ExpandableText';
 import { FeedCatalogStrip } from '../../../../components/FeedCatalogStrip';
 import { PhotoCarousel } from '../../../../components/PhotoCarousel';
 import { ReportModal } from '../../../../components/ReportModal';
-import { colors } from '../../../../constants/colors';
+import { useColors } from '../../../../hooks/ThemeContext';
+import type { ColorTheme } from '../../../../constants/colors';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getServiceById, getServicesByCategory, incrementServiceViews } from '../../../../services/catalog';
 import {
@@ -35,6 +36,8 @@ function fmtDate(iso: string) {
 }
 
 export default function ServiceDetailScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
   const navigation = useNavigation();
@@ -428,170 +431,172 @@ export default function ServiceDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  businessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  businessAvatarWrap: {
-    position: 'relative',
-  },
-  businessAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  businessAvatarImage: {
-    width: 28,
-    height: 28,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  businessName: {
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 16,
-  },
-  section: {
-    marginTop: 24,
-  },
-  relatedSection: {
-    marginTop: 28,
-    marginHorizontal: -20,
-  },
-  relatedSectionTitle: {
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  buttonGroup: {
-    marginTop: 32,
-    gap: 10,
-  },
-  apartarButton: {
-    height: 42,
-  },
-  buttonCancel: {
-    backgroundColor: colors.danger,
-  },
-  intentBadge: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  intentBadgeConfirmed: {
-    color: colors.success,
-  },
-  waitingText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  circleActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  counterBox: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-  },
-  counterTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  pickerButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    marginBottom: 12,
-  },
-  pickerButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  actionBtn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 10,
-  },
-  actionBtnLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  button: {},
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      padding: 20,
+    },
+    container: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 20,
+      backgroundColor: colors.background,
+    },
+    placeholder: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    name: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    businessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    businessAvatarWrap: {
+      position: 'relative',
+    },
+    businessAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    businessAvatarImage: {
+      width: 28,
+      height: 28,
+    },
+    verifiedDot: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#fff',
+      borderRadius: 8,
+    },
+    businessName: {
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '600',
+      flexShrink: 1,
+    },
+    price: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 16,
+    },
+    section: {
+      marginTop: 24,
+    },
+    relatedSection: {
+      marginTop: 28,
+      marginHorizontal: -20,
+    },
+    relatedSectionTitle: {
+      paddingHorizontal: 20,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    description: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    buttonGroup: {
+      marginTop: 32,
+      gap: 10,
+    },
+    apartarButton: {
+      height: 42,
+    },
+    buttonCancel: {
+      backgroundColor: colors.danger,
+    },
+    intentBadge: {
+      fontSize: 13,
+      color: colors.primary,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    intentBadgeConfirmed: {
+      color: colors.success,
+    },
+    waitingText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+    circleActionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    counterBox: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 12,
+    },
+    counterTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    pickerButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      marginBottom: 12,
+    },
+    pickerButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    actionBtn: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 10,
+    },
+    actionBtnLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    button: {},
+  });
+}

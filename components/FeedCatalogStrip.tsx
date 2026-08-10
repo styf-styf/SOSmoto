@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { useColors } from '../hooks/ThemeContext';
+import type { ColorTheme } from '../constants/colors';
 import { GradientShade } from './GradientShade';
 import { registerAdClick, registerAdImpression } from '../services/ads';
 import type { FeedCatalogItem } from '../services/catalog';
@@ -34,6 +35,8 @@ export function FeedCatalogStrip({
   listItems: FeedCatalogItem[];
   role?: 'client' | 'business';
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       {items.length > 0 && (
@@ -62,6 +65,8 @@ function formatPrice(referencePrice: number | null): string {
 }
 
 function BusinessAvatar({ logoUrl, size = 16 }: { logoUrl?: string; size?: number }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.businessAvatar, { width: size, height: size, borderRadius: size / 2 }]}>
       {logoUrl ? (
@@ -74,6 +79,8 @@ function BusinessAvatar({ logoUrl, size = 16 }: { logoUrl?: string; size?: numbe
 }
 
 function CatalogCard({ item, role = 'client' }: { item: FeedCatalogItem; role?: 'client' | 'business' }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const prefix = role === 'business' ? '/(business)' : '/(client)';
   const href = item.isAd
     ? `${prefix}/anuncio/${item.adId}`
@@ -126,6 +133,8 @@ function CatalogCard({ item, role = 'client' }: { item: FeedCatalogItem; role?: 
 }
 
 function CatalogListRow({ item, role = 'client' }: { item: FeedCatalogItem; role?: 'client' | 'business' }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const prefix = role === 'business' ? '/(business)' : '/(client)';
   const href = item.kind === 'service' ? `${prefix}/servicio/${item.id}` : `${prefix}/producto/${item.id}`;
   return (
@@ -153,147 +162,149 @@ function CatalogListRow({ item, role = 'client' }: { item: FeedCatalogItem; role
   );
 }
 
-const styles = StyleSheet.create({
-  container: {},
-  list: {
-    gap: GAP,
-    paddingLeft: SIDE_PADDING,
-    paddingRight: SIDE_PADDING,
-    paddingVertical: 8,
-  },
-  // Mismo patrón que PostCard/AdBanner: la sombra vive en el wrapper exterior
-  // (sin overflow) y el recorte de bordes redondeados en el interior, porque
-  // overflow:'hidden' en la misma vista que la sombra la recorta también.
-  // Cada tarjeta del carrusel es su propia tarjeta flotante (no el carrusel
-  // completo) -- los items sin foto (listItems) se quedan como filas simples
-  // sobre el fondo gris del feed, sin caja blanca.
-  cardShadow: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  cardImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  businessBadge: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    right: 6,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  // Dejar espacio a la derecha para el chip "Anuncio" (ver adChip) cuando la
-  // tarjeta es un anuncio mezclado en el carrusel de catálogo.
-  businessBadgeWithAdChip: {
-    right: 30,
-  },
-  adChip: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 10,
-    padding: 4,
-  },
-  businessAvatar: {
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  businessName: {
-    flexShrink: 1,
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  cardName: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 26,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  cardPrice: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 8,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  listWrap: {
-    paddingHorizontal: SIDE_PADDING,
-    paddingBottom: 8,
-  },
-  listWrapWithCarousel: {
-    paddingTop: 2,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  listIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFF1E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listInfo: {
-    flex: 1,
-  },
-  listName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  listMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  listPrice: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});
+function createStyles(colors: ColorTheme) {
+  return StyleSheet.create({
+    container: {},
+    list: {
+      gap: GAP,
+      paddingLeft: SIDE_PADDING,
+      paddingRight: SIDE_PADDING,
+      paddingVertical: 8,
+    },
+    // Mismo patrón que PostCard/AdBanner: la sombra vive en el wrapper exterior
+    // (sin overflow) y el recorte de bordes redondeados en el interior, porque
+    // overflow:'hidden' en la misma vista que la sombra la recorta también.
+    // Cada tarjeta del carrusel es su propia tarjeta flotante (no el carrusel
+    // completo) -- los items sin foto (listItems) se quedan como filas simples
+    // sobre el fondo gris del feed, sin caja blanca.
+    cardShadow: {
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    card: {
+      flex: 1,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+    },
+    cardImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    businessBadge: {
+      position: 'absolute',
+      top: 6,
+      left: 6,
+      right: 6,
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      borderRadius: 12,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+    },
+    // Dejar espacio a la derecha para el chip "Anuncio" (ver adChip) cuando la
+    // tarjeta es un anuncio mezclado en el carrusel de catálogo.
+    businessBadgeWithAdChip: {
+      right: 30,
+    },
+    adChip: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 10,
+      padding: 4,
+    },
+    businessAvatar: {
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    businessName: {
+      flexShrink: 1,
+      fontSize: 10,
+      fontWeight: '600',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.6)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    cardName: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 26,
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.6)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    cardPrice: {
+      position: 'absolute',
+      left: 8,
+      right: 8,
+      bottom: 8,
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.6)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
+    },
+    listWrap: {
+      paddingHorizontal: SIDE_PADDING,
+      paddingBottom: 8,
+    },
+    listWrapWithCarousel: {
+      paddingTop: 2,
+    },
+    listRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 8,
+    },
+    listIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: '#FFF1E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    listInfo: {
+      flex: 1,
+    },
+    listName: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    listMeta: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    listPrice: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });
+}

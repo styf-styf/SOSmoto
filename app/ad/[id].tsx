@@ -1,14 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
-import { colors } from '../../constants/colors';
+import { useColors } from '../../hooks/ThemeContext';
+import type { ColorTheme } from '../../constants/colors';
 import { setPendingDeepLink } from '../../utils/pendingDeepLink';
 import { navigateToDeepLinkTarget } from '../../utils/deepLinkNavigate';
 
 // Destino público de "compartir anuncio" (https://sosmoto.net/ad/:id,
 // vía Universal Links/App Links) -- mismo patrón que app/post/[id].tsx.
 export default function AdLinkResolver() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile, loading } = useAuth();
   // Keyed por id -- ver app/post/[id].tsx para el motivo.
