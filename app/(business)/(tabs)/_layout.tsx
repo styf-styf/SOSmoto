@@ -126,6 +126,9 @@ export default function BusinessTabsLayout() {
           tabBarInactiveTintColor: colors.textMuted,
           tabBarHideOnKeyboard: true,
           lazy: false,
+          // Sin esto, React Navigation pinta la tab bar con su fondo/borde
+          // por defecto (blanco/gris claro fijo) sin importar el tema activo.
+          tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
         }}
       >
       <Tabs.Screen
