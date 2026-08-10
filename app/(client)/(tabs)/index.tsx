@@ -14,6 +14,8 @@ import {
 import type { GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BrandTitle } from '../../../components/BrandTitle';
 import { LegalUpdateBanner } from '../../../components/LegalUpdateBanner';
 import { useColors } from '../../../hooks/ThemeContext';
@@ -26,6 +28,7 @@ import {
   type BusinessWithDistance,
 } from '../../../services/businesses';
 import { getFollowsCount } from '../../../services/follows';
+import { updateLastKnownLocation } from '../../../services/users';
 import {
   getHomeMaintenanceAlerts,
   markCompleted,
@@ -54,6 +57,8 @@ import { markProductoServicioStacksForReset } from '../../../utils/productoServi
 import { consumeHomeFeedPreserveScroll, markHomeFeedPreserveScroll } from '../../../utils/homeFeedScrollPreserve';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const LOCATION_SYNC_KEY_PREFIX = 'last-location-sync-';
+const LOCATION_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const bizTypeLabel: Record<string, string> = {
   workshop: 'Taller',
   store: 'Tienda',
@@ -230,6 +235,33 @@ export default function ClientHomeScreen() {
       );
     }
   }, [load]);
+
+  // Última ubicación conocida (país/región/ciudad) -- solo para la métrica
+  // interna del admin, nunca se muestra en la app (ver
+  // services/users.ts updateLastKnownLocation). Reusa el GPS que Inicio ya
+  // pide para otra cosa (ciudad más cercana, Descubre), no dispara ningún
+  // permiso ni pedido nuevo. Throttle de 24h por cuenta vía AsyncStorage
+  // para no reverse-geocodear ni escribir en cada apertura de la app.
+  useEffect(() => {
+    if (!profile?.id || !coords) return;
+    (async () => {
+      const key = LOCATION_SYNC_KEY_PREFIX + profile.id;
+      const lastSync = await AsyncStorage.getItem(key).catch(() => null);
+      if (lastSync && Date.now() - Number(lastSync) < LOCATION_SYNC_INTERVAL_MS) return;
+      try {
+        const [place] = await Location.reverseGeocodeAsync(coords);
+        if (!place?.country) return;
+        await updateLastKnownLocation(profile.id, {
+          country: place.country,
+          region: place.region ?? null,
+          city: place.city ?? null,
+        });
+        await AsyncStorage.setItem(key, String(Date.now()));
+      } catch (err) {
+        console.error('sync last known location error', err);
+      }
+    })();
+  }, [profile?.id, !!coords]);
 
   useFocusEffect(
     useCallback(() => {

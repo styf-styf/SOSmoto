@@ -33,6 +33,8 @@ interface BusinessSnapshotRow {
   business_type: BusinessType;
   is_verified: boolean;
   city: string;
+  country: string;
+  province: string | null;
   followers_count: number;
   subscription_plans: { name: PlanName; price_monthly: number } | null;
 }
@@ -118,9 +120,10 @@ export default async function MetricasPage({
     paymentsResult,
     newClientsResult,
     newBusinessesResult,
+    clientLocationsResult,
   ] = await Promise.all([
     supabase.from('users').select('role'),
-    supabase.from('businesses').select('business_type, is_verified, city, followers_count, subscription_plans(name, price_monthly)'),
+    supabase.from('businesses').select('business_type, is_verified, city, country, province, followers_count, subscription_plans(name, price_monthly)'),
     supabase.from('business_subscriptions').select('status'),
     supabase.from('ads').select('status'),
     supabase.from('businesses').select('id, name, city, followers_count').order('followers_count', { ascending: false }).limit(5),
@@ -135,6 +138,9 @@ export default async function MetricasPage({
     paymentsQuery,
     newClientsQuery,
     newBusinessesQuery,
+    // Solo service_role puede leer estas columnas (ver migración 0203 --
+    // quedan fuera del grant select de authenticated/anon a propósito).
+    supabase.from('users').select('last_location_country, last_location_region, last_location_city').eq('role', 'client').not('last_location_country', 'is', null),
   ]);
 
   // ---- Período anterior (solo si hay un rango con el que comparar) ----
@@ -299,6 +305,43 @@ export default async function MetricasPage({
   const cityRows = Array.from(cityMap.entries())
     .map(([city, stats]) => ({ city, ...stats }))
     .sort((a, b) => b.helpRequests - a.helpRequests);
+
+  // Solo negocios -- los clientes no guardan país/provincia/ciudad, buscan
+  // todo por GPS al vuelo sin persistirlo (ver constants/locations.ts del
+  // lado de la app y la nota en el plan de expansión LatAm).
+  const geoMap = new Map<string, { country: string; province: string; city: string; businesses: number }>();
+  for (const b of businesses) {
+    const province = b.province || '—';
+    const key = `${b.country}|${province}|${b.city}`;
+    const entry = geoMap.get(key) ?? { country: b.country, province, city: b.city, businesses: 0 };
+    entry.businesses++;
+    geoMap.set(key, entry);
+  }
+  const geoRows = Array.from(geoMap.values()).sort(
+    (a, b) => a.country.localeCompare(b.country) || a.province.localeCompare(b.province) || a.city.localeCompare(b.city)
+  );
+
+  // Última ubicación conocida de clientes (país/región/ciudad) -- métrica
+  // interna, nunca visible en la app (ver migración 0203). Cobertura
+  // parcial: solo clientes que abrieron Inicio con GPS activo al menos una
+  // vez en las últimas 24h desde que existe esta captura.
+  const clientLocations = (clientLocationsResult.data ?? []) as {
+    last_location_country: string;
+    last_location_region: string | null;
+    last_location_city: string | null;
+  }[];
+  const clientGeoMap = new Map<string, { country: string; region: string; city: string; clients: number }>();
+  for (const loc of clientLocations) {
+    const region = loc.last_location_region || '—';
+    const city = loc.last_location_city || '—';
+    const key = `${loc.last_location_country}|${region}|${city}`;
+    const entry = clientGeoMap.get(key) ?? { country: loc.last_location_country, region, city, clients: 0 };
+    entry.clients++;
+    clientGeoMap.set(key, entry);
+  }
+  const clientGeoRows = Array.from(clientGeoMap.values()).sort(
+    (a, b) => a.country.localeCompare(b.country) || a.region.localeCompare(b.region) || a.city.localeCompare(b.city)
+  );
 
   // ---- Reseñas ----
   const reviews = (reviewsResult.data ?? []) as { rating: number; created_at: string }[];
@@ -581,6 +624,78 @@ export default async function MetricasPage({
               {cityRows.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-3 py-6 text-center text-gray-500">
+                    Todavía no hay datos suficientes.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      {/* País / provincia / ciudad */}
+      <Section title="Negocios por país / provincia / ciudad">
+        <p className="mb-3 text-xs text-gray-500">
+          Solo negocios (dueños y empleados) -- los clientes no guardan ubicación fija, solo GPS al momento de buscar.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-gray-500">
+                <th className="px-3 py-2">País</th>
+                <th className="px-3 py-2">Provincia/Estado</th>
+                <th className="px-3 py-2">Ciudad</th>
+                <th className="px-3 py-2">Negocios</th>
+              </tr>
+            </thead>
+            <tbody>
+              {geoRows.map((row) => (
+                <tr key={`${row.country}|${row.province}|${row.city}`} className="border-b border-gray-100">
+                  <td className="px-3 py-2 font-medium">{row.country}</td>
+                  <td className="px-3 py-2">{row.province}</td>
+                  <td className="px-3 py-2">{row.city}</td>
+                  <td className="px-3 py-2">{row.businesses}</td>
+                </tr>
+              ))}
+              {geoRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
+                    Todavía no hay datos suficientes.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      {/* Clientes por país / región / ciudad */}
+      <Section title="Clientes por país / región / ciudad">
+        <p className="mb-3 text-xs text-gray-500">
+          Última ubicación conocida, estimada por GPS al abrir la app -- métrica interna, nunca visible para el cliente. Cobertura parcial: solo clientes que abrieron Inicio con GPS activo.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-gray-500">
+                <th className="px-3 py-2">País</th>
+                <th className="px-3 py-2">Región</th>
+                <th className="px-3 py-2">Ciudad</th>
+                <th className="px-3 py-2">Clientes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clientGeoRows.map((row) => (
+                <tr key={`${row.country}|${row.region}|${row.city}`} className="border-b border-gray-100">
+                  <td className="px-3 py-2 font-medium">{row.country}</td>
+                  <td className="px-3 py-2">{row.region}</td>
+                  <td className="px-3 py-2">{row.city}</td>
+                  <td className="px-3 py-2">{row.clients}</td>
+                </tr>
+              ))}
+              {clientGeoRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
                     Todavía no hay datos suficientes.
                   </td>
                 </tr>

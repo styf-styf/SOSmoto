@@ -27,7 +27,7 @@ import { GradientShade } from '../../../components/GradientShade';
 import { TextField } from '../../../components/TextField';
 import { useColors } from '../../../hooks/ThemeContext';
 import type { ColorTheme } from '../../../constants/colors';
-import { ECUADOR_PROVINCES, LATAM_COUNTRIES } from '../../../constants/locations';
+import { ECUADOR_PROVINCES, LATAM_COUNTRIES, capitalCoordsForCountry } from '../../../constants/locations';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLocation } from '../../../hooks/useLocation';
 import {
@@ -908,8 +908,6 @@ function PendingInvitationsScreen({
   );
 }
 
-const QUITO_DEFAULT = { latitude: -0.1807, longitude: -78.4678 };
-
 function BusinessOnboarding({
   onCreated,
 }: {
@@ -960,7 +958,7 @@ function BusinessOnboarding({
   }, [showMapPicker]);
 
   function openMapPicker() {
-    const center = selectedCoords ?? coords ?? QUITO_DEFAULT;
+    const center = selectedCoords ?? coords ?? capitalCoordsForCountry(country);
     const region: Region = {
       ...center,
       latitudeDelta: 0.004,

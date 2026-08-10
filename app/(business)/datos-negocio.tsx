@@ -26,7 +26,7 @@ import { useCachedLoad } from '../../hooks/useCachedLoad';
 import { getMyWorkBusiness, updateBusiness } from '../../services/businesses';
 import { logMapLoad } from '../../services/mapLoads';
 import type { Business } from '../../types/database';
-import { ECUADOR_PROVINCES, LATAM_COUNTRIES } from '../../constants/locations';
+import { ECUADOR_PROVINCES, LATAM_COUNTRIES, capitalCoordsForCountry } from '../../constants/locations';
 
 interface DatosNegocioData {
   business: Business | null;
@@ -174,7 +174,7 @@ export default function DatosNegocioScreen() {
   }
 
   function openMapPicker() {
-    const center = selectedCoords ?? { latitude: -0.1807, longitude: -78.4678 };
+    const center = selectedCoords ?? capitalCoordsForCountry(country);
     const region: Region = {
       ...center,
       latitudeDelta: 0.004,

@@ -19,6 +19,10 @@ export interface Database {
           limited_by: string | null;
           limited_at: string | null;
           created_at: string;
+          last_location_country: string | null;
+          last_location_region: string | null;
+          last_location_city: string | null;
+          last_location_updated_at: string | null;
         };
         Insert: {
           id: string;
@@ -35,6 +39,10 @@ export interface Database {
           limited_by?: string | null;
           limited_at?: string | null;
           created_at?: string;
+          last_location_country?: string | null;
+          last_location_region?: string | null;
+          last_location_city?: string | null;
+          last_location_updated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -51,6 +59,10 @@ export interface Database {
           limited_by?: string | null;
           limited_at?: string | null;
           created_at?: string;
+          last_location_country?: string | null;
+          last_location_region?: string | null;
+          last_location_city?: string | null;
+          last_location_updated_at?: string | null;
         };
         Relationships: [];
       };

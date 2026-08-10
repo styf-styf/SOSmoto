@@ -27,6 +27,12 @@ export interface User {
   limited_by: string | null;
   limited_at: string | null;
   created_at: string;
+  // Solo lectura por service_role (admin) -- ver migración 0203. Nunca
+  // aparece en SAFE_USER_COLUMNS ni en ninguna pantalla de la app.
+  last_location_country?: string | null;
+  last_location_region?: string | null;
+  last_location_city?: string | null;
+  last_location_updated_at?: string | null;
 }
 
 export interface VehicleInfo {

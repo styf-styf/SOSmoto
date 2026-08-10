@@ -63,6 +63,28 @@ export async function searchClients(
   return (data ?? []) as Array<{ id: string; full_name: string; avatar_url: string | null }>;
 }
 
+// Última ubicación conocida (país/región/ciudad) -- exclusivamente para la
+// métrica interna del admin, nunca se lee de vuelta desde la app (las
+// columnas quedan fuera del grant select de authenticated/anon a propósito,
+// ver migración 0203). Por eso este update no encadena .select(): un
+// select('*') implícito fallaría con "permission denied for column" contra
+// esas mismas columnas que se acaban de escribir.
+export async function updateLastKnownLocation(
+  userId: string,
+  location: { country: string; region: string | null; city: string | null }
+): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      last_location_country: location.country,
+      last_location_region: location.region,
+      last_location_city: location.city,
+      last_location_updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+  if (error) throw error;
+}
+
 export async function changePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
