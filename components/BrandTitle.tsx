@@ -11,7 +11,11 @@ export function BrandTitle({ style }: { style?: ViewStyle }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.row, style]}>
-      <Image source={require('../assets/icon_header.png')} style={styles.icon} resizeMode="contain" />
+      <Image
+        source={require('../assets/icon_header.png')}
+        style={[styles.icon, { tintColor: colors.text }]}
+        resizeMode="contain"
+      />
       <Text style={styles.moto}>moto</Text>
     </View>
   );
