@@ -15,6 +15,11 @@ const lightBase = {
   success: '#2E7D32',
   warning: '#ED6C02',
   danger: '#D32F2F',
+  // Azul informativo -- banners/chips de "info" (ej. aviso de cita
+  // reprogramada, nota de cliente externo) que no son ni éxito ni alerta.
+  // No existía como token antes de esto: cada pantalla repetía el mismo
+  // par de hex a mano (#EEF4FF/#F0F7FF de fondo, #BBDEFB de borde).
+  info: '#1E88E5',
   // Verde brillante para indicadores de "confirmado/listo" tipo caja con
   // borde (ej. ubicación GPS confirmada) -- distinto del success muted de
   // arriba a propósito, es un tono más moderno para ese caso puntual. Se
@@ -33,6 +38,7 @@ const darkBase = {
   success: '#4ADE80',
   warning: '#FBBF24',
   danger: '#F87171',
+  info: '#5B9BFF',
   confirmedGreen: '#22C55E',
 };
 
@@ -46,6 +52,7 @@ function buildTheme(base: typeof lightBase, isDark: boolean) {
     successLight: tint(base.success, 0.1, base.background),
     warningLight: tint(base.warning, 0.1, base.background),
     dangerLight: tint(base.danger, 0.1, base.background),
+    infoLight: tint(base.info, 0.1, base.background),
     confirmedGreenBg: tint(base.confirmedGreen, 0.08, base.background),
     // Texto legible sobre confirmedGreenBg: se oscurece en tema claro (texto
     // oscuro sobre fondo pastel claro) y se aclara en tema oscuro (texto

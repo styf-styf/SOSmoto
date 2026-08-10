@@ -134,10 +134,10 @@ function createStyles(colors: ColorTheme) {
       marginBottom: 20,
     },
     badgeActive: {
-      backgroundColor: '#E6F4EA',
+      backgroundColor: colors.successLight,
     },
     badgeLimited: {
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
     },
     badgeText: {
       fontSize: 15,

@@ -538,7 +538,7 @@ function createStyles(colors: ColorTheme) {
     },
     typeOptionSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     typeOptionText: {
       fontSize: 12,

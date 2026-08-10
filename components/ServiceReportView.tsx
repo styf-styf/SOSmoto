@@ -268,7 +268,7 @@ function createStyles(colors: ColorTheme) {
     },
     headerIcon: {
       width: 52, height: 52, borderRadius: 26,
-      backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.infoLight, alignItems: 'center', justifyContent: 'center',
     },
     headerInfo: { flex: 1 },
     headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
@@ -277,7 +277,7 @@ function createStyles(colors: ColorTheme) {
     clientRowText: { flex: 1, fontSize: 12, color: colors.textMuted },
     categoryBadge: {
       alignSelf: 'flex-start', marginTop: 8,
-      backgroundColor: '#EEF4FF', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
+      backgroundColor: colors.infoLight, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
     },
     categoryBadgeText: { fontSize: 12, color: colors.primary, fontWeight: '700' },
     infoRow: {

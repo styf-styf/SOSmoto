@@ -243,13 +243,13 @@ function createStyles(colors: ColorTheme) {
       flex: 1,
     },
     badgeDue: {
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 8,
       paddingHorizontal: 8,
       paddingVertical: 3,
     },
     badgeSoon: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 8,
       paddingHorizontal: 8,
       paddingVertical: 3,

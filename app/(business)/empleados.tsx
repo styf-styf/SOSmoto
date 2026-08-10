@@ -627,7 +627,7 @@ function createStyles(colors: ColorTheme) {
     limitedNotice: {
       fontSize: 13,
       color: colors.danger,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 8,
       padding: 10,
       marginBottom: 16,
@@ -656,12 +656,12 @@ function createStyles(colors: ColorTheme) {
       width: 30,
       height: 30,
       borderRadius: 8,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       alignItems: 'center',
       justifyContent: 'center',
     },
     iconButtonBoxDanger: {
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
     },
     invitationInfo: {
       flexDirection: 'row',

@@ -263,7 +263,7 @@ function createStyles(colors: ColorTheme) {
     },
     cardPending: {
       opacity: 0.75,
-      backgroundColor: '#FAFAFA',
+      backgroundColor: colors.surface,
     },
 
     avatar: {
@@ -276,7 +276,7 @@ function createStyles(colors: ColorTheme) {
       overflow: 'hidden',
       marginBottom: 2,
     },
-    avatarPending: { backgroundColor: '#F5F5F5' },
+    avatarPending: { backgroundColor: colors.surface },
     avatarImage: { width: 64, height: 64 },
 
     name: {
@@ -299,7 +299,7 @@ function createStyles(colors: ColorTheme) {
     badgePlaceholder: { height: 20 },
 
     pendingBadge: {
-      backgroundColor: '#FFF8E1',
+      backgroundColor: colors.warningLight,
       borderWidth: 1,
       borderColor: '#FFD54F',
       borderRadius: 6,
@@ -316,7 +316,7 @@ function createStyles(colors: ColorTheme) {
     },
 
     visitBadge: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 8,
       paddingHorizontal: 10,
       paddingVertical: 4,

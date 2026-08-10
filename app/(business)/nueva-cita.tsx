@@ -769,7 +769,7 @@ function createStyles(colors: ColorTheme) {
     },
     selectedClient: {
       flexDirection: 'row', alignItems: 'center', gap: 10,
-      backgroundColor: '#EEF4FF', borderRadius: 10, padding: 12, marginBottom: 20,
+      backgroundColor: colors.infoLight, borderRadius: 10, padding: 12, marginBottom: 20,
     },
     selectedClientName: {
       fontSize: 14, fontWeight: '700', color: colors.primary,
@@ -797,7 +797,7 @@ function createStyles(colors: ColorTheme) {
       paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
       borderWidth: 1, borderColor: colors.border,
     },
-    chipSelected: { borderColor: colors.primary, backgroundColor: '#FFF1E6' },
+    chipSelected: { borderColor: colors.primary, backgroundColor: colors.warningLight },
     chipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
     chipTextSelected: { color: colors.primary },
     pickerBtn: {

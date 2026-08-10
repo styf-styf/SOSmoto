@@ -902,7 +902,7 @@ function createStyles(colors: ColorTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: '#EEF4FF',
+      backgroundColor: colors.infoLight,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
       paddingHorizontal: 12,
@@ -917,7 +917,7 @@ function createStyles(colors: ColorTheme) {
     // sola línea que usa requestBanner, por eso usan un layout de tarjeta
     // (info arriba, acciones debajo) en vez del banner angosto.
     apptCard: {
-      backgroundColor: '#EEF4FF',
+      backgroundColor: colors.infoLight,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
       paddingHorizontal: 12,
@@ -1181,7 +1181,7 @@ function createStyles(colors: ColorTheme) {
     },
     quoteCardMine: {
       alignSelf: 'flex-end',
-      backgroundColor: '#FFF8F0',
+      backgroundColor: colors.warningLight,
       borderColor: colors.primary,
     },
     quoteCardTheirs: {

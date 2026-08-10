@@ -314,7 +314,7 @@ function createStyles(colors: ColorTheme) {
     },
     chipSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     chipText: {
       color: colors.textMuted,

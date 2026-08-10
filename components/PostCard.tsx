@@ -429,7 +429,7 @@ function createStyles(colors: ColorTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 14,
       paddingHorizontal: 10,
       paddingVertical: 5,

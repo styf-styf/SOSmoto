@@ -986,7 +986,7 @@ function createStyles(colors: ColorTheme) {
       width: '100%',
     },
     activeCard: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 12,
       padding: 16,
       marginBottom: 20,

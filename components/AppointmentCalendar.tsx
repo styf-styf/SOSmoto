@@ -239,7 +239,7 @@ function createStyles(colors: ColorTheme) {
       backgroundColor: colors.primary,
     },
     cellToday: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     dayNumber: {
       fontSize: 13,
@@ -312,7 +312,7 @@ function createStyles(colors: ColorTheme) {
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 8,
-      backgroundColor: '#EEF4FF',
+      backgroundColor: colors.infoLight,
     },
     clearBtnText: {
       fontSize: 12,

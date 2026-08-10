@@ -246,7 +246,7 @@ function createStyles(colors: ColorTheme) {
       alignItems: 'center',
       gap: 6,
       alignSelf: 'flex-start',
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 14,
       paddingHorizontal: 10,
       paddingVertical: 6,

@@ -55,9 +55,9 @@ export function LegalUpdateBanner() {
 function createStyles(colors: ColorTheme) {
   return StyleSheet.create({
     banner: {
-      backgroundColor: '#FFF7E6',
+      backgroundColor: colors.warningLight,
       borderWidth: 1,
-      borderColor: '#F5C563',
+      borderColor: colors.warning,
       borderRadius: 12,
       padding: 12,
       marginHorizontal: 16,

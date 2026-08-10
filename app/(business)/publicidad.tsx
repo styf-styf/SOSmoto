@@ -860,7 +860,7 @@ function createStyles(colors: ColorTheme) {
     limitedNotice: {
       fontSize: 13,
       color: colors.danger,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 8,
       padding: 10,
       marginBottom: 16,
@@ -903,7 +903,7 @@ function createStyles(colors: ColorTheme) {
     },
     chipSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     chipText: {
       fontSize: 13,
@@ -919,7 +919,7 @@ function createStyles(colors: ColorTheme) {
     resubmitNotice: {
       fontSize: 12,
       color: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 10,
       padding: 10,
       marginBottom: 14,

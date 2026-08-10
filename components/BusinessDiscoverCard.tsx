@@ -110,7 +110,7 @@ function createStyles(colors: ColorTheme) {
       bottom: 0,
     },
     imagePlaceholder: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       alignItems: 'center',
       justifyContent: 'center',
     },

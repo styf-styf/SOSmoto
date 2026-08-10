@@ -2164,7 +2164,7 @@ function createStyles(colors: ColorTheme) {
     },
     quoteKindToggleSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     quoteKindToggleText: {
       fontSize: 13,
@@ -2237,7 +2237,7 @@ function createStyles(colors: ColorTheme) {
     },
     variantChipSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     variantChipText: {
       fontSize: 13,
@@ -2310,7 +2310,7 @@ function createStyles(colors: ColorTheme) {
       padding: 14,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      backgroundColor: '#F0F7FF',
+      backgroundColor: colors.infoLight,
       gap: 4,
     },
     approveFormTitle: {
@@ -2462,7 +2462,7 @@ function createStyles(colors: ColorTheme) {
     },
     quoteCardMine: {
       alignSelf: 'flex-end',
-      backgroundColor: '#FFF8F0',
+      backgroundColor: colors.warningLight,
       borderColor: colors.primary,
     },
     quoteCardTheirs: {
@@ -2525,7 +2525,7 @@ function createStyles(colors: ColorTheme) {
     // apartado, cotización...) crece natural y puede tapar el resto del chat,
     // el usuario los cierra con la X.
     intentsBanner: {
-      backgroundColor: '#EEF4FF',
+      backgroundColor: colors.infoLight,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
@@ -2608,7 +2608,7 @@ function createStyles(colors: ColorTheme) {
       padding: 14,
       borderTopWidth: 1,
       borderTopColor: colors.border,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
     },
     limitedNoticeText: {
       fontSize: 13,

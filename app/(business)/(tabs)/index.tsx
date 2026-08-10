@@ -1380,7 +1380,7 @@ function createStyles(colors: ColorTheme) {
       bottom: 0,
     },
     descubreImagePlaceholder: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1441,7 +1441,7 @@ function createStyles(colors: ColorTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 12,
       padding: 14,
     },
@@ -1468,7 +1468,7 @@ function createStyles(colors: ColorTheme) {
     limitedNotice: {
       fontSize: 13,
       color: colors.danger,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 8,
       padding: 10,
     },
@@ -1589,7 +1589,7 @@ function createStyles(colors: ColorTheme) {
     },
     typeOptionSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     typeOptionText: {
       color: colors.textMuted,
@@ -1656,7 +1656,7 @@ function createStyles(colors: ColorTheme) {
       borderBottomColor: colors.border,
     },
     provinceItemSelected: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     provinceText: {
       fontSize: 15,
@@ -1702,7 +1702,7 @@ function createStyles(colors: ColorTheme) {
       borderRadius: 12,
       height: 50,
       marginBottom: 16,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     mapPickerButtonText: {
       fontSize: 15,

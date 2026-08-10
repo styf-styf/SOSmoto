@@ -898,7 +898,7 @@ function createStyles(colors: ColorTheme) {
     },
     vehicleOptionSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     vehicleOptionText: {
       color: colors.textMuted,
@@ -941,7 +941,7 @@ function createStyles(colors: ColorTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 10,
       padding: 12,
       marginBottom: 16,
@@ -995,7 +995,7 @@ function createStyles(colors: ColorTheme) {
       marginTop: 4,
     },
     activeCard: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 12,
       padding: 16,
     },

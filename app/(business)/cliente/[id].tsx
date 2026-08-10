@@ -883,7 +883,7 @@ function createStyles(colors: ColorTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      backgroundColor: '#FFF8E1',
+      backgroundColor: colors.warningLight,
       borderWidth: 1,
       borderColor: '#FFD54F',
       borderRadius: 12,
@@ -990,10 +990,10 @@ function createStyles(colors: ColorTheme) {
       paddingVertical: 3,
     },
     badgeAid: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     badgeAppt: {
-      backgroundColor: '#E8F0FF',
+      backgroundColor: colors.infoLight,
     },
     badgeText: {
       fontSize: 12,
@@ -1018,7 +1018,7 @@ function createStyles(colors: ColorTheme) {
       color: colors.textMuted,
     },
     activeAptCard: {
-      backgroundColor: '#F0F7FF',
+      backgroundColor: colors.infoLight,
       borderRadius: 12,
       padding: 14,
       marginBottom: 10,

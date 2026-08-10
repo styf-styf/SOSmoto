@@ -1474,7 +1474,7 @@ function createStyles(colors: ColorTheme) {
     limitedNotice: {
       fontSize: 13,
       color: colors.danger,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 8,
       padding: 10,
       marginBottom: 16,

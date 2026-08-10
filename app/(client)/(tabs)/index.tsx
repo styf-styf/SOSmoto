@@ -725,7 +725,7 @@ function createStyles(colors: ColorTheme) {
       bottom: 0,
     },
     descubreImagePlaceholder: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -785,7 +785,7 @@ function createStyles(colors: ColorTheme) {
     limitedNotice: {
       fontSize: 13,
       color: colors.danger,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 8,
       padding: 10,
     },

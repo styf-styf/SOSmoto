@@ -28,7 +28,7 @@ Notifications.setNotificationHandler({
 // Aparte de RootLayout para poder leer useTheme() -- ese hook solo funciona
 // DENTRO de <ThemeProvider>, así que este componente vive anidado ahí.
 function RootLayoutInner() {
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
   return (
     <KeyboardProvider>
       {/* Antes fijo a "dark": "auto" no muestreaba el color real debajo de la
@@ -40,7 +40,7 @@ function RootLayoutInner() {
       {/* animation: 'none' -- este Stack solo enruta por rol (auth/cliente/negocio)
           tras el splash; sin esto, la transición nativa por defecto se ve como un
           slide justo cuando aparece Home, dando la sensación de un salto raro. */}
-      <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'none', contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(business)" />

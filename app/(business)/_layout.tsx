@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
+import { useColors } from '../../hooks/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useKycStatusAlert } from '../../hooks/useKycStatusAlert';
@@ -22,9 +23,13 @@ export default function BusinessLayout() {
   }, [profile?.id]);
 
   useKycStatusAlert(businessId);
+  const colors = useColors();
 
   return (
-    <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>
+    // contentStyle: sin esto, el fondo detrás/alrededor de la pantalla que
+    // entra/sale durante la animación de "atrás"/"adelante" del stack nativo
+    // queda blanco fijo -- se nota como una franja blanca en modo oscuro.
+    <Stack screenOptions={{ header: (props) => <AppHeader {...props} />, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* chat/[id], historia/[businessId] y historia-cliente/[clientId] ya traen su
           propio botón de regreso (ChatHeader / StoryViewer) -- header nativo apagado

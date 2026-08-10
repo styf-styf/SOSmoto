@@ -447,7 +447,7 @@ function createStyles(colors: ColorTheme) {
     cardCurrent: {
       borderColor: colors.primary,
       borderWidth: 2,
-      backgroundColor: '#FFF8F2',
+      backgroundColor: colors.warningLight,
     },
     cardHeader: {
       flexDirection: 'row',

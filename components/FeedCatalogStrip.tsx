@@ -284,7 +284,7 @@ function createStyles(colors: ColorTheme) {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       alignItems: 'center',
       justifyContent: 'center',
     },

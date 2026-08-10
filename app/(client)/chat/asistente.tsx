@@ -187,7 +187,7 @@ function createStyles(colors: ColorTheme) {
       borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.primary,
-      backgroundColor: '#FFF8F0',
+      backgroundColor: colors.warningLight,
     },
     actionChipText: { fontSize: 12, fontWeight: '700', color: colors.primary },
     messageTimeRow: { marginTop: 2, marginBottom: 4, minHeight: 16, justifyContent: 'center' },

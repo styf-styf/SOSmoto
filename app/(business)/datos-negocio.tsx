@@ -709,7 +709,7 @@ function createStyles(colors: ColorTheme) {
       borderBottomColor: colors.border,
     },
     provinceItemSelected: {
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     provinceText: {
       fontSize: 15,
@@ -752,7 +752,7 @@ function createStyles(colors: ColorTheme) {
       borderRadius: 12,
       height: 50,
       marginBottom: 12,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     mapPickerButtonText: {
       fontSize: 15,

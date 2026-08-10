@@ -687,7 +687,7 @@ function createStyles(colors: ColorTheme) {
     upsell: {
       fontSize: 13,
       color: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       borderRadius: 10,
       padding: 12,
       marginTop: 8,

@@ -292,7 +292,7 @@ function createStyles(colors: ColorTheme) {
       marginTop: 8,
     },
     rejectedBox: {
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 12,
       padding: 14,
       marginBottom: 20,

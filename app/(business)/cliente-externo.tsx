@@ -559,7 +559,7 @@ function createStyles(colors: ColorTheme) {
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 10, marginTop: 4 },
 
     activeAptCard: {
-      backgroundColor: '#F0F7FF', borderRadius: 12, padding: 14, marginBottom: 10,
+      backgroundColor: colors.infoLight, borderRadius: 12, padding: 14, marginBottom: 10,
       borderLeftWidth: 3, borderLeftColor: colors.primary,
     },
     activeAptHeader: {

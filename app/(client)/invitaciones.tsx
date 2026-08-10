@@ -188,7 +188,7 @@ function createStyles(colors: ColorTheme) {
       width: 52,
       height: 52,
       borderRadius: 26,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',

@@ -605,7 +605,7 @@ function createStyles(colors: ColorTheme) {
     },
     variantChipSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     variantChipDisabled: {
       opacity: 0.5,

@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { ActiveHelpRequestProvider } from '../../hooks/ActiveHelpRequestContext';
+import { useColors } from '../../hooks/ThemeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { AppHeader } from '../../components/AppHeader';
@@ -17,10 +18,14 @@ import { AppHeader } from '../../components/AppHeader';
 export default function ClientLayout() {
   const { profile } = useAuth();
   usePushNotifications(profile?.id, 'client');
+  const colors = useColors();
 
   return (
     <ActiveHelpRequestProvider clientId={profile?.id}>
-      <Stack screenOptions={{ header: (props) => <AppHeader {...props} /> }}>
+      {/* contentStyle: sin esto, el fondo detrás/alrededor de la pantalla que
+          entra/sale durante la animación de "atrás"/"adelante" del stack nativo
+          queda blanco fijo -- se nota como una franja blanca en modo oscuro. */}
+      <Stack screenOptions={{ header: (props) => <AppHeader {...props} />, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* business/[id] y negocio-catalogo/[id] ponen su propio título dinámico
             (nombre real) con <Stack.Screen options={{title}}/> desde dentro de

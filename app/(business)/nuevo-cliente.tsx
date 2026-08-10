@@ -462,7 +462,7 @@ function createStyles(colors: ColorTheme) {
     vehicleChipText: { fontSize: 13, color: colors.text },
     alreadyRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
-      marginTop: 16, backgroundColor: '#F0FAF4',
+      marginTop: 16, backgroundColor: colors.successLight,
       borderRadius: 10, padding: 12,
     },
     alreadyText: { flex: 1, fontSize: 13, color: colors.success, fontWeight: '600' },

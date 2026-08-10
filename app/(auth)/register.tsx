@@ -299,7 +299,7 @@ function createStyles(colors: ColorTheme) {
     },
     roleOptionSelected: {
       borderColor: colors.primary,
-      backgroundColor: '#FFF1E6',
+      backgroundColor: colors.warningLight,
     },
     roleOptionText: {
       color: colors.textMuted,

@@ -120,7 +120,7 @@ function createStyles(colors: ColorTheme) {
       width: 72,
       height: 72,
       borderRadius: 36,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,

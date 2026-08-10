@@ -121,7 +121,7 @@ function createStyles(colors: ColorTheme) {
     warningCard: {
       flexDirection: 'row',
       gap: 12,
-      backgroundColor: '#FBE8E8',
+      backgroundColor: colors.dangerLight,
       borderRadius: 14,
       padding: 16,
       marginBottom: 20,
